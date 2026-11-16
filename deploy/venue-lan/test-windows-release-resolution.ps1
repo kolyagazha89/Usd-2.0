@@ -70,22 +70,32 @@ $preflight=Get-CachedVenueReleaseSha
 Write-Host ('USD TEST: cached preflight result='+[string]$preflight+' verified='+($script:verified -join ';'))
 if($preflight -cne $sha){throw 'Verified native Docker cache was not discovered'}
 $result=Get-VenueReleaseSha $null
-if($result -cne $sha -or $script:urls.Count -ne 0 -or $script:pulled.Count -ne 0){
- throw 'Complete cached images did not bypass timed-out API and unnecessary pulls'
+if($result -cne $sha -or $script:urls.Count -ne 1 -or $script:pulled.Count -ne 0){
+ throw 'Timeout of the public API did not fall back to verified local cached images without pulls'
 }
-Write-Host 'USD RELEASE CACHE PASS: complete cached pair never contacts online endpoint'
+Write-Host 'USD RELEASE CACHE PASS: timed-out API safely returns verified cached pair without pulls'
+# With both endpoints available, prefer their matching, newer SHA over cache.
+$script:urls=@();$script:verified=@();$script:pulled=@()
+$script:allowApi=$true;$script:allowFrontend=$true
+$result=Get-VenueReleaseSha $null
+if($result -cne $second -or $script:urls.Count -ne 2 -or
+   $script:pulled.Count -ne 2 -or $script:verified -notcontains $second){
+ throw 'Fresh public release was ignored in favor of an installed stale image'
+}
+Write-Host 'USD RELEASE FRESH PASS: matching online SHA wins over cached images'
 $script:cached=@()
 $script:urls=@();$script:verified=@();$script:pulled=@()
 $script:allowApi=$false;$script:allowFrontend=$true
 $result=Get-VenueReleaseSha $null
-if($result -cne $second -or $script:urls.Count -ne 2 -or $script:pulled.Count -ne 2){
- throw 'API timeout did not retry verified frontend release and pull both images'
+if($result -cne $script:pinnedSha -or $script:urls.Count -ne 1 -or
+  $script:pulled.Count -ne 2 -or $script:verified -notcontains $script:pinnedSha){
+ throw 'Frontend-only release must not replace the verified API when central API times out'
 }
-Write-Host 'USD RELEASE FALLBACK PASS: API timeout uses signed site release metadata'
+Write-Host 'USD RELEASE SAFE FALLBACK PASS: one reachable endpoint cannot select mismatched runtime images'
 $script:urls=@();$script:verified=@();$script:pulled=@()
 $script:allowFrontend=$false
 $result=Get-VenueReleaseSha $null
-if($result -cne $script:pinnedSha -or $script:urls.Count -ne 2 -or
+if($result -cne $script:pinnedSha -or $script:urls.Count -ne 1 -or
    $script:pulled.Count -ne 2 -or $script:verified -notcontains $script:pinnedSha){
  throw 'Both USD endpoints timed out but immutable published image fallback was not used'
 }
