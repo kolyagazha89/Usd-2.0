@@ -17,7 +17,7 @@ suite('profile contact visibility on isolated PostgreSQL18',()=>{
   if(Number(v[0].version)<180000||Number(v[0].version)>=190000)throw Error('PostgreSQL18 required');
   if(await db.user.count()||await db.participant.count())throw Error('Refusing nonempty privacy fixture');
   const choices={identity:true,city:true,team:true,results:true,car:true,profilePhoto:false,carPhoto:false,eventPhoto:false,promotionPhoto:false};
-  await db.siteSettings.upsert({where:{id:'default'},create:{id:'default',legal:{
+  await db.siteSettings.upsert({where:{id:'default'},create:{id:'default',branding:{},homepage:{},stream:{},liveResults:{},navigation:{},social:{},seo:{},footer:{},contacts:{},registration:{},catalogs:{},legal:{
     legalApproved:true,legalVersion:'1',documents:{photoProfileConsent:{
       targetId:'legal-document-photoProfileConsent-contact',url:'https://example.org/contact-profile.docx',
     }},

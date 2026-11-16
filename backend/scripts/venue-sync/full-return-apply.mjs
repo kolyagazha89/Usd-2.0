@@ -20,7 +20,7 @@ export function venueAmplifierLinkId(amplifierId,componentId){
  return [fixed.slice(0,8),fixed.slice(8,12),fixed.slice(12,16),fixed.slice(16,20),fixed.slice(20)].join('-');
 }
 const columns={
- Participant:'id usdIdToken team phone photoUrl isPublic legacyId historicalAlias createdAt updatedAt birthDate city firstName lastName middleName',
+ Participant:'id usdIdToken team phone photoUrl isPublic publicationConsent publicationConsentAt publicationConsentVersion publicationRestrictions legacyId historicalAlias createdAt updatedAt birthDate city firstName lastName middleName',
  Car:'id participantId brand model photoUrl isActive legacyId createdAt updatedAt registrationNumber registrationCountry color isPublic',
  CarConfiguration:'id carId name isActive currentVersion createdAt updatedAt',
  CarConfigurationVersion:'id version vibrationIsolation additionalDescription createdAt configurationId',
@@ -155,6 +155,12 @@ function validateSnapshot(snapshot,options){
    if(row===null)continue;
    if(!plain(row)||row.id!==p.recordId)reject('record identity mismatch');
    normalize(p.table,row);
+  }
+  if(p.table==='Participant'){
+   const consentKeys=['publicationConsent','publicationConsentAt','publicationConsentVersion','publicationRestrictions'];
+   if(p.operation==='INSERT'&&consentKeys.some(key=>p.after[key]!==null&&p.after[key]!==undefined) ||
+      p.operation==='UPDATE'&&consentKeys.some(key=>!same(p.after[key],p.before[key])))
+     reject('consent must be recorded centrally, never changed through offline stage journal');
   }
   if(p.table==='Participant'||p.table==='Car'){
    if(p.operation==='INSERT'&&p.after.photoUrl
