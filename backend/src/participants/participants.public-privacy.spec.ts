@@ -87,7 +87,7 @@ describe('ParticipantsService public profile privacy', () => {
   });
 
   it('only queries participation at published, nondeleted stages', async () => {
-    prisma.participant.findUnique.mockResolvedValue({ ...currentConsent, id: 'person', isPublic: true, registrations: [] });
+    prisma.participant.findUnique.mockResolvedValue({ ...currentConsent, id: 'person', isPublic: true, cars: [], registrations: [] });
     await service.findOne('person');
     const query = prisma.participant.findUnique.mock.calls[0][0];
     expect(query.select.registrations.where).toEqual({

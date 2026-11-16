@@ -35,6 +35,7 @@ try{
  assert.deepEqual((await db.query('SELECT row_to_json(p) AS data FROM "Participant" p')).rows,before,'Existing participant fields must be byte-for-byte unchanged');
  // This suite starts from a pre-feature baseline; the generated Prisma
  // client requires every later additive column before running team E2E.
+ await db.query(await readFile(path.join(migrations,'20261116180000_participant_publication_consent','migration.sql'),'utf8'));
  await db.query(await readFile(path.join(migrations,'20261116184500_official_protocol_consent','migration.sql'),'utf8'));
  assert.equal((await db.query('SELECT count(*) FROM "Registration"')).rows[0].count,'0',
    'protocol consent migration must never create or expose historic registrations');
