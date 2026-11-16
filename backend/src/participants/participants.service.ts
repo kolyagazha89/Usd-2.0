@@ -895,8 +895,21 @@ export class ParticipantsService {
     if (!version) throw new BadRequestException('Документ о публикации не утверждён организатором USD');
     const recordedAt = new Date();
     await this.prisma.$transaction(async tx => {
-      const person = await tx.participant.findUnique({ where: { id: participantId }, select: { id: true } });
+      const person = await tx.participant.findUnique({ where: { id: participantId }, select: { id: true, birthDate: true } });
       if (!person) throw new NotFoundException('Профиль участника не найден');
+      // Explicit publication consent must be the participant's own adult act.
+      // Under-age or unverified age requires a representative, not a self-check.
+      // Revoking every optional permission must remain possible at any age.
+      if (Object.values(choices).some(Boolean)) {
+        if (!person.birthDate)
+          throw new BadRequestException('Для отдельного согласия укажите дату рождения в личных данных профиля');
+        const born=new Date(person.birthDate),now=new Date();
+        const age=now.getUTCFullYear()-born.getUTCFullYear()-
+          (now.getUTCMonth()<born.getUTCMonth()||
+           (now.getUTCMonth()===born.getUTCMonth()&&now.getUTCDate()<born.getUTCDate())?1:0);
+        if (!Number.isFinite(born.getTime())||age<18)
+          throw new BadRequestException('Разрешение несовершеннолетнего оформляет законный представитель через организатора');
+      }
       await tx.participant.update({
         where: { id: participantId },
         data: { publicationConsent: choices, publicationConsentAt: recordedAt,

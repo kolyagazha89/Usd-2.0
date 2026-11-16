@@ -66,4 +66,25 @@ describe('Public profile publication permissions', () => {
       configurations: [] });
     await expect(service.findCar('car')).rejects.toBeInstanceOf(NotFoundException);
   });
+  it('does not accept optional publication permission from a minor or an unverified age, but still permits full withdrawal',async()=>{
+    const local:any={
+      user:{findUnique:jest.fn().mockResolvedValue({id:'user-1',isActive:true,role:'PARTICIPANT',participantId:'participant-1'})},
+      siteSettings:{findUnique:jest.fn().mockResolvedValue({legal:{legalApproved:true,legalVersion:'1.5',
+        documents:{photoProfileConsent:{targetId:'legal-document-photoProfileConsent-current',url:'https://example.org/profile.docx'}}}})},
+      participant:{findUnique:jest.fn().mockResolvedValue({id:'participant-1',birthDate:null}),update:jest.fn().mockResolvedValue({})},
+      auditLog:{create:jest.fn().mockResolvedValue({})},
+    };
+    local.$transaction=jest.fn(async (fn:any)=>fn(local));
+    const actor:any={user:{sub:'user-1',role:'PARTICIPANT'}};
+    const service=new ParticipantsService(local);
+    await expect(service.updatePublicationConsent(actor,{choices:{...emptyPublicationConsent(),identity:true}}))
+      .rejects.toThrow('укажите дату рождения');
+    local.participant.findUnique.mockResolvedValue({id:'participant-1',birthDate:new Date('2015-03-01')});
+    await expect(service.updatePublicationConsent(actor,{choices:{...emptyPublicationConsent(),identity:true}}))
+      .rejects.toThrow('законный представитель');
+    expect(local.participant.update).not.toHaveBeenCalled();
+    const revoked=await service.updatePublicationConsent(actor,{choices:emptyPublicationConsent()});
+    expect(revoked.confirmed).toBe(true);
+    expect(local.participant.update).toHaveBeenCalledTimes(1);
+  });
 });
