@@ -340,24 +340,39 @@ export class MediaService {
   }
 
   async getPublicMediaFile(targetType: MediaTargetType, targetId: string) {
+    // Profile and vehicle photos are never public merely because a file exists.
+    const row = targetType === MediaTargetType.SITE_ASSET ? null :
+      await this.prisma.siteSettings.findUnique({where:{id:'default'},select:{legal:true}});
+    const legal=(row?.legal ?? {}) as Record<string,any>;
+    const version=legal.legalApproved===true?String(legal.legalVersion??'').trim():'';
+    if (targetType !== MediaTargetType.SITE_ASSET && !version)
+      throw new ForbiddenException('Отдельное согласие на фотографии не утверждено');
     if (targetType === MediaTargetType.SITE_ASSET) {
       if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
     } else if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
       const participant = await this.prisma.participant.findFirst({
-        where: { id: targetId, isPublic: true },
+        where: { id: targetId, isPublic: true,
+          publicationConsent:{is:{textVersion:version,fullName:true,results:true,profilePhoto:true}} },
         select: { id: true },
       });
       if (!participant) {
         // The original photo upload remains attached to the historical ID.
         // Only publish it while the canonical profile is public.
         const alias=await this.prisma.participantMergeRedirect.findUnique({
-          where:{sourceId:targetId},select:{target:{select:{isPublic:true}}},
+          where:{sourceId:targetId},select:{target:{select:{
+            isPublic:true,
+            publicationConsent:{select:{textVersion:true,fullName:true,results:true,profilePhoto:true}},
+          }}},
         });
-        if(!alias?.target.isPublic)throw new ForbiddenException('Публичное фото участника недоступно');
+        const c=alias?.target.publicationConsent;
+        if(!alias?.target.isPublic || c?.textVersion!==version || !c.fullName || !c.results || !c.profilePhoto)
+          throw new ForbiddenException('Публичное фото участника недоступно');
       }
     } else if (targetType === MediaTargetType.CAR_PHOTO) {
       const car = await this.prisma.car.findFirst({
-        where: { id: targetId, isPublic: true, participant: { isPublic: true } },
+        where: { id: targetId, isPublic: true, participant: { isPublic: true,
+          publicationConsent:{is:{textVersion:version,fullName:true,results:true,car:true,carPhoto:true}},
+        } },
         select: { id: true },
       });
       if (!car) throw new ForbiddenException('Публичное фото автомобиля недоступно');
