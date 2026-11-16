@@ -23,9 +23,11 @@ function publicSocialUrl(value: unknown): string {
 /** Admin saves these channels under contacts; social is a legacy fallback. */
 export function publicContactLinks(contacts: ContactValues, social: ContactValues) {
   const known = CONTACT_CHANNELS.flatMap(([key, label]) => {
-    const primary = contacts?.[key];
-    const legacy = social?.[key];
-    const supplied = typeof primary === 'string' && primary.trim() ? primary : legacy;
+    // Missing keys may use legacy settings; an explicitly cleared contact
+    // field must not resurrect a previously published legacy link.
+    const supplied = Object.prototype.hasOwnProperty.call(contacts ?? {}, key)
+      ? contacts?.[key]
+      : social?.[key];
     const url = publicSocialUrl(supplied);
     return url ? [{ key, label, url }] : [];
   });
