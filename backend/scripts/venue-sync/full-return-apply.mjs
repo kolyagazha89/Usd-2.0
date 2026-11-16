@@ -30,7 +30,7 @@ const columns={
  CarGenerator:'id versionId brand model quantity',
  CarHeadUnit:'id versionId brand catalogEntryId model direction',
  CarAmplifierComponent:'id amplifierId componentId quantity',
- Registration:'id stageId participantId carId configurationVersionId configurationSnapshot participantNumber teamIdAtInspection teamNameAtInspection teamAffiliationCapturedAt rulesAcceptedAt rulesVersion privacyConsentAt privacyConsentVersion termsAcceptedAt termsVersion consentCapturedByUserId source status registeredAt legacyId participantStageInspectionId',
+ Registration:'id stageId participantId carId configurationVersionId configurationSnapshot participantNumber teamIdAtInspection teamNameAtInspection teamAffiliationCapturedAt rulesAcceptedAt rulesVersion privacyConsentAt privacyConsentVersion termsAcceptedAt termsVersion protocolConsentAt protocolConsentVersion consentCapturedByUserId source status registeredAt legacyId participantStageInspectionId',
  RegistrationNumber:'id stageId registrationId number isPrimary createdAt',
  RegistrationClass:'id registrationId classId numberId createdAt',
  Inspection:'id registrationId status checkedByUserId createdByUserId checkedByName checkedAt notes createdAt updatedAt legacyId',
