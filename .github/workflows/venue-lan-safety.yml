@@ -199,7 +199,8 @@ jobs:
             'deploy/venue-lan/venue-dialogs.ps1',
             'deploy/venue-lan/venue-firewall.ps1',
             'deploy/venue-lan/test-windows-certificate.ps1',
-            'deploy/venue-lan/test-windows-gateway.ps1'
+            'deploy/venue-lan/test-windows-gateway.ps1',
+            'deploy/venue-lan/test-windows-trust.ps1'
           )
           foreach ($file in $files) {
             $tokens = $null
@@ -226,6 +227,9 @@ jobs:
       - name: Reject dead Caddy and repair certificate action on Windows
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-gateway.ps1
+      - name: Import Caddy root only with one scoped Windows user consent
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-trust.ps1
       - name: Already-admin Windows installation must avoid redundant UAC timeout
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-admin-firewall.ps1
