@@ -4,7 +4,7 @@ import { ParticipantsService } from './participants.service';
 
 const currentConsent = {
   publicationConsentAt: new Date('2026-11-16'),
-  publicationConsentVersion: 'publication-v1.5',
+  publicationConsentVersion: 'publication-v1.5@legal-document-photoProfileConsent-current',
   publicationConsent: {
     identity: true, city: true, team: true, results: true, car: true,
     profilePhoto: true, carPhoto: true, eventPhoto: false, promotionPhoto: false,
