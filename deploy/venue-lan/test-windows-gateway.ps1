@@ -36,6 +36,38 @@ if(@($script:probePaths|Where-Object {$_ -like 'http://172.20.10.3/venue-api/res
    @($script:probePaths|Where-Object {$_ -like 'http://172.20.10.3/venue/live'}).Count -eq 0){
  throw 'Gateway readiness must check the actual LAN HTTP TV page and its live stage'
 }
+# An existing real stage with a stopped Caddy must be repaired in place.
+# Only the gateway service may be recreated; never run down/volumes or reset db.
+$script:repairAttempts=0
+$script:gatewayAfterRepair=$false
+function Test-VenueGatewayReady {
+ param([string]$Ip,[string]$ExpectedStage)
+ return $script:gatewayAfterRepair
+}
+function Invoke-Compose {
+ param([string[]]$Arguments,[string]$Purpose)
+ if(($Arguments -join ' ') -notmatch 'up -d .*force-recreate gateway' -or
+    $Arguments -contains 'down' -or $Arguments -contains '--volumes'){
+  throw 'Gateway recovery tried to touch participant data or unrelated services'
+ }
+ $script:repairAttempts++
+ $script:gatewayAfterRepair=$true
+}
+function Start-Sleep {param([int]$Seconds)}
+Assert-VenueGatewayReady -Ip '172.20.10.3' -ExpectedStage $stage
+if($script:repairAttempts -ne 1){throw 'Stopped Caddy was not restarted exactly once'}
+$script:gatewayAfterRepair=$false
+function Invoke-Compose {
+ param([string[]]$Arguments,[string]$Purpose)
+ throw 'port 80 already reserved'
+}
+function Get-VenueGatewayFailureDetails {return 'Caddy: bind :80 failed'}
+$diagnostic=''
+try{Assert-VenueGatewayReady -Ip '172.20.10.3' -ExpectedStage $stage}
+catch{$diagnostic=$_.Exception.Message}
+if($diagnostic -notmatch 'Caddy|80|443' -or $diagnostic -notmatch 'Данные|тома'){
+ throw 'Gateway failure must include useful Caddy diagnostics and confirm data preservation'
+}
 $script:startCalls=0
 $script:exportCalls=0
 $script:showCalls=0
