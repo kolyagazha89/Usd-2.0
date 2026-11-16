@@ -147,6 +147,7 @@ try{
    const context=await browser.newContext({viewport:{width,height:960},reducedMotion,serviceWorkers:'block'});
    const failuresSeen=new Set();
    let registrationCalendarFailures=0;
+   const registrationWrites=[];
    await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
     // Tall synthetic artwork intentionally exposes portrait cropping on mobile.
@@ -154,6 +155,14 @@ try{
     if(url.origin===base)return route.continue();
     if(request.resourceType()==='image')return route.fulfill({contentType:'image/svg+xml',body:url.pathname.includes('SITE_ASSET')?'<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80"><text x="0" y="64" fill="#fff" font-family="Arial,sans-serif" font-weight="800" font-size="76">USD</text></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#171d28"/><text x="60" y="130" fill="#fff" font-size="70">USD</text></svg>'});
     if(isCandidateApiRequest(url)){
+     // Registration writes in this QA are synthetic, not forwarded to production.
+     const isStageRegistration=role==='PARTICIPANT'&&request.frame().url().includes('/participant/register?stageId=stage1');
+     if(isStageRegistration&&((request.method()==='PATCH'&&url.pathname==='/auth/protocol-consent')||(request.method()==='POST'&&url.pathname==='/registrations/me'))){
+      const body=JSON.parse(request.postData()||'{}');
+      registrationWrites.push({method:request.method(),path:url.pathname,body});
+      const response=url.pathname==='/auth/protocol-consent'?{accepted:true,legalReady:true,version:'fixture'}:{id:'reg1'};
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(response)});
+     }
      if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'&&!(role==='ONBOARDING'&&request.method()==='POST'&&url.pathname==='/auth/profile/historical-candidates')){
       let source='unavailable';try{const frameUrl=new URL(request.frame().url());source=frameUrl.pathname+frameUrl.search}catch{/* keep diagnostics bounded */}blocked.push({method:request.method(),path:url.pathname,source,role,width});return route.abort('blockedbyclient');
      }
@@ -1255,8 +1264,21 @@ try{
       assert.equal(await page.getByLabel('Сохранённое оборудование',{exact:true}).inputValue(),'v1');
       await page.getByRole('button',{name:'Перейти к классам',exact:true}).click();
       await page.getByRole('button',{name:'Проверить заявку',exact:true}).click();
-      row.registrationFlow='three steps; back preserves choices; separate protocol consent and rules gates; no submission';
+      row.registrationFlow='three steps; back preserves choices; separate protocol consent and rules gates';
       const end=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(end.scroll<=end.width+1,'confirmation fits viewport');
+      if(width===390){
+       assert.equal(await page.locator('.registration-submit').isEnabled(),true,'consents and choices persist across steps');
+       await page.locator('.registration-submit').click();
+       await page.waitForURL(url=>url.pathname==='/participant/registration-success');
+       await page.getByRole('heading',{name:'Регистрация успешно сохранена'}).waitFor();
+       assert.deepEqual(registrationWrites.map(entry=>entry.method+' '+entry.path),[
+        'PATCH /auth/protocol-consent','POST /registrations/me'
+       ],'versioned consent must be saved before registration POST');
+       assert.deepEqual(registrationWrites[0].body,{consent:true,version:'fixture'});
+       assert.deepEqual(registrationWrites[1].body.classIds,['class1']);
+       assert.equal(registrationWrites[1].body.carId,'car1');
+       row.registrationFlow+='; consent→registration→QR success using mocked writes';
+      }
       assert.equal(errors.length,0,'flow has no runtime errors');
      }
      if(role==='PARTICIPANT'&&route.includes('&edit=')){
