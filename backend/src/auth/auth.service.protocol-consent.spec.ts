@@ -26,7 +26,7 @@ describe('separate official result consent in participant account',()=>{
   expect(state).toMatchObject({version:'1',accepted:false});
  });
  it('records independent affirmative protocol consent, version, time and audit evidence',async()=>{
-  const result:any=await service.updateProtocolConsent('u1',true);
+  const result:any=await service.updateProtocolConsent('u1',true,'1');
   expect(result).toMatchObject({accepted:true,version:'1'});
   expect(db.user.update).toHaveBeenCalledWith(expect.objectContaining({
    data:expect.objectContaining({
@@ -62,7 +62,7 @@ describe('separate official result consent in participant account',()=>{
 
  it('refuses a consent before approved legal texts are present',async()=>{
   db.siteSettings.findUnique.mockResolvedValue({legal:{legalApproved:false}});
-  await expect(service.updateProtocolConsent('u1',true)).rejects.toThrow();
+  await expect(service.updateProtocolConsent('u1',true,'1')).rejects.toThrow();
   expect(db.user.update).not.toHaveBeenCalled();
  });
 });
