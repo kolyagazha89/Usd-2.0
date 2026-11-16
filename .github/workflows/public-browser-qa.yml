@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   candidate-ui:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The pinned image bundles Chromium and its OS libraries; apt mirrors are not required.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
@@ -97,7 +97,7 @@ jobs:
   # A slow or unavailable prerelease host must leave the independently tested
   # candidate result and artifacts available for review.
   live-public-layout:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The pinned image bundles Chromium and its OS libraries; apt mirrors are not required.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
@@ -122,7 +122,7 @@ jobs:
           retention-days: 7
 
   candidate-accessibility:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The pinned image bundles Chromium and its OS libraries; apt mirrors are not required.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
