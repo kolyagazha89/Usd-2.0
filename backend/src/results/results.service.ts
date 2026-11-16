@@ -35,9 +35,11 @@ export class ResultsService {
     if (!result) return result;
     const car = result.registration?.car;
     const participant = result.registration?.participant;
-    const hideCar = Boolean(car && (car.isPublic === false || car.isActive === false));
-    const hideParticipant = Boolean(participant && participant.isPublic === false);
-    if (!hideCar && !hideParticipant) return result;
+    const permissions=participant?.publicationConsent;
+    const showIdentity=Boolean(participant?.isPublic && permissions?.fullName && permissions?.results);
+    const hideCar=Boolean(car && (car.isPublic!==true || car.isActive===false || !showIdentity || !permissions?.car));
+    const hideParticipant=Boolean(participant && !showIdentity);
+    if (!hideCar && !hideParticipant && !permissions) return result;
     return {
       ...result,
       registration: {
@@ -45,17 +47,16 @@ export class ResultsService {
         ...(hideCar ? {
           car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
         } : {}),
-        ...(hideParticipant ? {
-          participant: {
+        participant: {
             ...participant,
-            lastName: 'Участник скрыт',
-            firstName: '',
-            middleName: null,
-            team: null,
-            city: null,
-            photoUrl: null,
+            publicationConsent: undefined,
+            lastName:hideParticipant?'Участник скрыт':participant?.lastName,
+            firstName:hideParticipant?'':participant?.firstName,
+            middleName:hideParticipant?null:participant?.middleName,
+            team:showIdentity && permissions?.team?participant?.team:null,
+            city:showIdentity && permissions?.city?participant?.city:null,
+            photoUrl:showIdentity && permissions?.profilePhoto?participant?.photoUrl:null,
           },
-        } : {}),
       },
     } as T;
   }
@@ -75,6 +76,10 @@ export class ResultsService {
             city: true,
             photoUrl: true,
             isPublic: true,
+            publicationConsent:{select:{
+              fullName:true,city:true,team:true,results:true,car:true,
+              profilePhoto:true,carPhoto:true,textVersion:true,
+            }},
           },
         },
         car: {
@@ -150,6 +155,10 @@ export class ResultsService {
             city: true,
             photoUrl: true,
             isPublic: true,
+            publicationConsent:{select:{
+              fullName:true,city:true,team:true,results:true,car:true,
+              profilePhoto:true,carPhoto:true,textVersion:true,
+            }},
           },
         },
         car: {
@@ -520,7 +529,8 @@ export class ResultsService {
         registration: {
           select: {
             participantNumber: true,
-            participant: { select: { firstName: true, lastName: true, middleName: true, isPublic: true } },
+            participant: { select: { firstName: true, lastName: true, middleName: true, isPublic: true,
+              publicationConsent:{select:{fullName:true,results:true,car:true}} } },
             car: { select: { brand: true, model: true, isPublic: true, isActive: true } },
           },
         },
@@ -550,9 +560,9 @@ export class ResultsService {
         return {
           id: score.id, value: score.value.toString(), unit: score.unit, place: score.place,
           number: score.registrationClass.number?.number ?? score.registration.participantNumber,
-          participant: participant?.isPublic === false ? 'Участник скрыт'
+          participant: !participant?.isPublic || !participant?.publicationConsent?.fullName || !participant?.publicationConsent?.results ? 'Участник скрыт'
             : [participant?.lastName, participant?.firstName, participant?.middleName].filter(Boolean).join(' ') || 'Участник USD',
-          car: !car || car.isPublic === false || car.isActive === false ? 'Автомобиль скрыт'
+          car: !car || !participant?.publicationConsent?.car || car.isPublic === false || car.isActive === false ? 'Автомобиль скрыт'
             : [car.brand, car.model].filter(Boolean).join(' ') || 'Автомобиль USD',
           class: score.registrationClass.class,
         };
