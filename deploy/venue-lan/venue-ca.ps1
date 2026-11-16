@@ -26,7 +26,7 @@ function Export-VenueCA {
  $container=@(& docker @(Get-VenueComposeArguments) ps -q gateway 2>$null|Select-Object -First 1)
  if($LASTEXITCODE -ne 0 -or $container.Count -ne 1 -or
   [string]$container[0] -cnotmatch '^[a-f0-9]{12,64}$'){
-  throw 'Caddy пока не запущен. Нажмите «USD — Офлайн», затем «USD — Сертификат».'
+  throw 'Caddy не запущен. Проверьте журнал службы gateway. Данные сохранены.'
  }
  $temp=Join-Path $PrivateDir ('.venue-ca-'+[guid]::NewGuid().ToString('N')+'.crt')
  try{
@@ -46,7 +46,7 @@ function Export-VenueCA {
    }
    if($attempt -lt 29){Start-Sleep -Seconds 1}
   }
-  throw 'Caddy не создал корневой сертификат за 30 секунд. Нажмите «USD — Сертификат» снова. Данные сохранены.'
+  throw 'Caddy не создал корневой сертификат после запуска. Проверьте журнал службы gateway; данные сохранены.'
  }finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
 }
 function Download-VenueCertificate {
@@ -56,8 +56,11 @@ function Download-VenueCertificate {
  if(-not(Test-IsActiveVenueStage $state.stageId)){
   throw 'Это исторический этап. Запустите «USD — Сертификат» из папки текущего этапа, иначе телефоны получат неверный CA.'
  }
+ # A direct click on the Certificate shortcut must start a stopped Caddy
+ # automatically. Start-Local verifies the LAN gateway and exports its CA.
+ # Do not open a second browser or force the operator to click Offline first.
+ Start-Local -NoUi
  Set-VenueStep 'export-caddy-public-ca'
- Export-VenueCA
  if(!$Silent){
   Show-VenueMessage ('Сертификат готов в папке USD-Offline-Windows и local-private.'+[Environment]::NewLine+
    'Загрузите USD-Venue-CA.crt в онлайн-админку USD → Офлайн-сервер.'+[Environment]::NewLine+
