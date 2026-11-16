@@ -23,10 +23,60 @@ function Export-VenueCA {
  $destination=Join-Path $PrivateDir 'USD-Venue-CA.crt'
  $share=Join-Path $Root 'USD-Venue-CA.crt'
  if(!(Test-Path -LiteralPath $PrivateDir)){New-Item -Path $PrivateDir -ItemType Directory -Force|Out-Null}
- $container=@(& docker @(Get-VenueComposeArguments) ps -q gateway 2>$null|Select-Object -First 1)
- if($LASTEXITCODE -ne 0 -or $container.Count -ne 1 -or
-  [string]$container[0] -cnotmatch '^[a-f0-9]{12,64}$'){
-  throw 'Caddy пока не запущен. Нажмите «USD — Офлайн», затем «USD — Сертификат».'
+ # A READY installation may have an absent/restarting gateway after Windows
+ # login or Docker Desktop restart. The certificate shortcut must repair this
+ # itself; never require reinstalling the venue or touching its Docker volumes.
+ $container=@(& docker @(Get-VenueComposeArguments) ps --status running -q gateway 2>$null |
+  Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+ if($LASTEXITCODE -ne 0){throw 'Не удалось проверить Caddy через Docker. Проверьте Docker Desktop и повторите.'}
+ if($container.Count -eq 0){
+  Assert-NoOtherVenueGatewayRunning
+  Invoke-Compose @('up','-d','--no-build','--pull','never','gateway') 'recover HTTPS gateway without deleting venue data'
+  for($wait=0;$wait -lt 15;$wait++){
+   $container=@(& docker @(Get-VenueComposeArguments) ps --status running -q gateway 2>$null |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+   if($LASTEXITCODE -eq 0 -and $container.Count -eq 1){break}
+   if($wait -lt 14){Start-Sleep -Seconds 1}
+  }
+ }
+ if($container.Count -ne 1 -or [string]$container[0] -cnotmatch '^[a-f0-9]{12,64} $temp=Join-Path $PrivateDir ('.venue-ca-'+[guid]::NewGuid().ToString('N')+'.crt')
+ try{
+  for($attempt=0;$attempt -lt 30;$attempt++){
+   $copied=$false
+   try{
+    & docker cp ($container[0]+':/data/caddy/pki/authorities/local/root.crt') $temp 2>$null|Out-Null
+    $copied=$LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $temp -PathType Leaf)
+   }catch{$copied=$false}
+   if($copied){
+    $fingerprint=Verify-VenueCACertificate $temp
+    Copy-Item -LiteralPath $temp -Destination $destination -Force
+    Copy-Item -LiteralPath $temp -Destination $share -Force
+    Write-Host ('USD VENUE CA: '+$share)
+    Write-Host ('USD VENUE CA SHA-256: '+$fingerprint)
+    return
+   }
+   if($attempt -lt 29){Start-Sleep -Seconds 1}
+  }
+  throw 'Caddy не создал корневой сертификат за 30 секунд. Нажмите «USD — Сертификат» снова. Данные сохранены.'
+ }finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
+}
+function Download-VenueCertificate {
+ $state=Read-State
+ if(!$state -or $state.phase -ne 'READY'){throw 'Сначала запустите настоящий офлайн-сервер USD.'}
+ Ensure-DockerReady
+ if(-not(Test-IsActiveVenueStage $state.stageId)){
+  throw 'Это исторический этап. Запустите «USD — Сертификат» из папки текущего этапа, иначе телефоны получат неверный CA.'
+ }
+ Set-VenueStep 'export-caddy-public-ca'
+ Export-VenueCA
+ if(!$Silent){
+  Show-VenueMessage ('Сертификат готов в папке USD-Offline-Windows и local-private.'+[Environment]::NewLine+
+   'Загрузите USD-Venue-CA.crt в онлайн-админку USD → Офлайн-сервер.'+[Environment]::NewLine+
+   'Сверьте SHA-256 в консоли с онлайн-страницей.')
+ }
+}
+){
+  throw 'Не удалось запустить Caddy. Посмотрите ошибку контейнера gateway в Docker Desktop. Локальная база и результаты сохранены.'
  }
  $temp=Join-Path $PrivateDir ('.venue-ca-'+[guid]::NewGuid().ToString('N')+'.crt')
  try{
