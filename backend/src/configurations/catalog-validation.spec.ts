@@ -25,7 +25,6 @@ describe('server-side equipment catalog authorization', () => {
   });
 
   it.each([
-    [{ ...sub, catalogEntryId: undefined }, 'missing UUID'],
     [{ ...sub, catalogEntryId: '00000000-0000-4000-8000-000000000099' }, 'invented UUID'],
     [{ ...sub, catalogEntryId: ampId, model: 'AAB-2900' }, 'wrong category'],
     [{ ...sub, model: 'Invented' }, 'renamed model'],
@@ -33,6 +32,30 @@ describe('server-side equipment catalog authorization', () => {
   ])('rejects %s (%s)', row => {
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [row] }))
       .toThrow(BadRequestException);
+  });
+
+  it('accepts manually entered brand and model without a catalog ID or admin request', () => {
+    expect(() => assertCatalogEquipment(catalogs, {
+      audioComponents: [{ brand: 'Custom Audio', model: 'Prototype 18', type: 'SUBWOOFER', direction: 'SUB', quantity: 2 }],
+      amplifiers: [{ brand: 'Unknown Amps', model: 'One-off 5000', direction: 'SUB', quantity: 1 }],
+      headUnits: [{ brand: 'Handmade', model: 'Source X', direction: 'FRONT' }],
+    })).not.toThrow();
+    expect(() => assertCatalogEquipment({}, {
+      audioComponents: [{ brand: 'No catalog', model: 'Independent', type: 'MIDBASS', direction: 'FRONT', quantity: 1 }],
+    })).not.toThrow();
+    expect(() => assertCatalogEquipment(catalogs, {
+      audioComponents: [{ ...sub, catalogEntryId: undefined }],
+    })).not.toThrow();
+  });
+
+  it.each([
+    [{ brand: '', model: 'Prototype', type: 'SUBWOOFER' }, 'empty brand'],
+    [{ brand: '  ', model: 'Prototype', type: 'SUBWOOFER' }, 'whitespace brand'],
+    [{ brand: 'Custom', model: '   ', type: 'SUBWOOFER' }, 'whitespace model'],
+    [{ brand: 'X'.repeat(101), model: 'Prototype', type: 'SUBWOOFER' }, 'overlong brand'],
+    [{ brand: 'Custom', model: 'X'.repeat(161), type: 'SUBWOOFER' }, 'overlong model'],
+  ])('rejects invalid manually entered names (%s, %s)', row => {
+    expect(() => assertCatalogEquipment(catalogs, { audioComponents: [row] })).toThrow(BadRequestException);
   });
 
   it('accepts curated slug IDs used by existing SPL catalog migrations', () => {
@@ -47,19 +70,16 @@ describe('server-side equipment catalog authorization', () => {
     ] })).not.toThrow();
   });
 
-  it('preserves only unchanged historical rows, not duplicates or altered quantities', () => {
-    const legacy = { brand: 'Legacy SPL', model: 'Old sub', type: 'SUBWOOFER',
-      direction: 'SUB', quantity: 2 };
-    expect(() => assertCatalogEquipment(catalogs, { audioComponents: [legacy] },
-      { audioComponents: [legacy] })).not.toThrow();
+  it('lets a former imported model be edited as manual text without a catalog ID', () => {
+    const legacy = { brand: 'Legacy SPL', model: 'Old sub', type: 'SUBWOOFER', direction: 'SUB', quantity: 2 };
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [legacy, legacy] },
-      { audioComponents: [legacy] })).toThrow(BadRequestException);
+      { audioComponents: [legacy] })).not.toThrow();
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...legacy, quantity: 3 }] },
-      { audioComponents: [legacy] })).toThrow(BadRequestException);
+      { audioComponents: [legacy] })).not.toThrow();
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...legacy, type: 'MIDRANGE' }] },
-      { audioComponents: [legacy] })).toThrow(BadRequestException);
+      { audioComponents: [legacy] })).not.toThrow();
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...legacy, catalogEntryId: ampId }] },
-      { audioComponents: [legacy] })).toThrow(BadRequestException);
+      { audioComponents: [legacy] })).toThrow(BadRequestException, 'unrelated IDs remain forbidden');
   });
 
   it('retains an exact retired catalog reference without allowing ID stripping or retagging', () => {
@@ -69,7 +89,7 @@ describe('server-side equipment catalog authorization', () => {
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired }] }, previous))
       .not.toThrow();
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired, catalogEntryId: undefined }] }, previous))
-      .toThrow(BadRequestException);
+      .not.toThrow('removing a retired ID converts the model into manual text');
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired, quantity: 3 }] }, previous))
       .toThrow(BadRequestException);
     expect(() => assertCatalogEquipment(catalogs, { audioComponents: [{ ...retired, direction: 'FRONT' }] }, previous))
@@ -110,8 +130,9 @@ describe('server-side equipment catalog authorization', () => {
     ] })).toThrow(BadRequestException);
   });
 
-  it('does not allow new arbitrary text when the catalog is empty', () => {
-    expect(() => assertCatalogEquipment({}, { audioComponents: [sub] })).toThrow(BadRequestException);
+  it('does not require a published catalog to save manual text', () => {
+    expect(() => assertCatalogEquipment({}, { audioComponents: [{ ...sub, catalogEntryId: undefined }] })).not.toThrow();
+    expect(() => assertCatalogEquipment({}, { audioComponents: [sub] })).toThrow(BadRequestException, 'stale IDs must not be trusted');
     expect(() => assertCatalogEquipment({}, { audioComponents: [] })).not.toThrow();
   });
 });

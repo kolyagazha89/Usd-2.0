@@ -73,7 +73,7 @@ test('release member dashboard and catalog-locked add equipment screen remain wi
  assert.match(editor,/activeModels\(picker\.kind,picker\.type\)/);
  assert.match(editor,/const validateCatalog=/);
  assert.match(editor,/if\(!validateCatalog\(\)\)return/);
- assert.match(editor,/setRequestOpen\(true\)/);
+ assert.match(editor,/Можно сохранить введённое название/);
  assert.match(css,/member-config-picker-overlay/);
  assert.match(css,/member-release-dashboard/);
 });

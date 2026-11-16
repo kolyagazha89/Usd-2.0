@@ -52,28 +52,31 @@ export function isUnchangedLegacyCatalogRow(initialRows:unknown,kind:EquipmentKi
 }
 
 
-/** Return the first invalid equipment row before save. A published catalog
- * selection is matched by category, brand and model and must have a stable ID;
- * the serializer then resolves that ID. Historical rows are consumed once
- * each, so copying a retired model cannot bypass the catalog.
- */
-export function findUnapprovedEquipmentRow(
- models:unknown,kind:EquipmentKind,rows:unknown,previousRows:unknown,
-):EquipmentRow|null{
+/** A new equipment model is valid even without a catalog match. Names stay
+ * independent of catalog publication and are stored in the version snapshot. */
+export function findInvalidEquipmentNameRow(rows:unknown):EquipmentRow|null{
  if(!Array.isArray(rows))return {brand:'',model:''};
- const previous=Array.isArray(previousRows)?previousRows:[];
- const consumed=new Set<number>();
  for(const candidate of rows){
-  if(!candidate||typeof candidate!=='object')return {brand:'',model:''};
+  if(!candidate||typeof candidate!=='object'||Array.isArray(candidate))return {brand:'',model:''};
   const row=candidate as EquipmentRow;
-  const approved=availableCatalogModels(models,kind,row.type).some(entry=>
-   Boolean(String(entry.id??'').trim())&&normalized(entry.brand)===normalized(row.brand)
-   &&normalized(entry.model)===normalized(row.model));
-  if(approved)continue;
-  const index=previous.findIndex((old,i)=>!consumed.has(i)&&isUnchangedLegacyCatalogRow([old],kind,row));
-  if(index>=0){consumed.add(index);continue;}
-  return row;
+  const brand=String(row.brand??'').trim(),model=String(row.model??'').trim();
+  if(!brand||!model||brand.length>100||model.length>160)return row;
  }
+ return null;
+}
+
+/** Resolve a trusted ID only for an active catalog match, or for an unchanged
+ * historical row referencing a retired entry. Edits to a manual/retired model
+ * must never carry its previous catalog ID into a new version. */
+export function resolveEquipmentCatalogId(
+ models:unknown,kind:EquipmentKind,row:EquipmentRow,previousRows:unknown,
+):string|null{
+ const brand=normalized(row.brand),model=normalized(row.model);
+ const active=availableCatalogModels(models,kind,row.type).find(entry=>
+  Boolean(String(entry.id??'').trim())&&normalized(entry.brand)===brand
+  &&normalized(entry.model)===model);
+ if(active)return String(active.id);
+ if(row.catalogEntryId&&isUnchangedLegacyCatalogRow(previousRows,kind,row))return String(row.catalogEntryId);
  return null;
 }
 

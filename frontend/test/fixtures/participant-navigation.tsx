@@ -88,7 +88,7 @@ export async function runParticipantNavigation(){
 export async function runRegistrationJourney(mode='saved'){
  const stage={id:'flow-stage',name:'Финал USD',date:'2026-11-21T12:00:00Z',registrationOpen:true,status:'PUBLISHED'};
  const car={id:'flow-car',brand:'Lada',model:'Vesta',isActive:true};
- const cls={id:'flow-class',name:'Limited 2.0',direction:{name:'SPL'}};
+ const cls={id:'flow-class',name:'Limited 2.0',code:'LIMITED_2_0',direction:{name:'SPL'}};
  const version={id:'flow-version',version:1,audioComponents:[{direction:'SUB',type:'SUBWOOFER',brand:'Test',model:'12',quantity:1}]};
  let submissions=0;let submitted:any=null;let releaseOld:((value:any)=>void)|null=null;let firstConfigurationRequest=true;
  state.__getPublic=async(path:string)=>{
@@ -132,6 +132,11 @@ export async function runRegistrationJourney(mode='saved'){
   assert.equal(button('Перейти к классам').disabled,false);await click(button('Перейти к классам'));
   assert.match(document.querySelector('.entry-task-title h2')?.textContent??'',/В каких классах/);
   assert.equal(button('Проверить заявку').disabled,true);
+  assert.equal(document.querySelector('.registration-class-text strong')?.textContent,'Limited 2.0');
+  assert.equal(document.querySelector('.registration-class-text small'),null,
+   'technical class codes must not appear below names in participant registration');
+  assert.equal(document.querySelector('.registration-class-option')?.textContent?.includes('LIMITED_2_0'),false,
+   'class code stays in the data model, not on registration cards');
   await click(document.querySelector<HTMLInputElement>('.registration-class-option input')!);
   await click(button('Проверить заявку'));
   assert.equal(button('Подтвердить регистрацию').disabled,true,'rules are required even when account legal consent is current');

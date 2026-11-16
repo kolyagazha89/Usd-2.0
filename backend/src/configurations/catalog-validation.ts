@@ -1,9 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 
-/** The public catalog lives in siteSettings.catalogs until the normalized tables ship.
- * This guard is intentionally independent of React: API callers cannot submit arbitrary
- * brand/model text, switch a subwoofer into a different category, or reuse a stale ID.
- */
+/** Catalog suggestions are optional. Enforce valid names, physical group and
+ * trustworthy catalog IDs independently of the React form. */
 export type CatalogEquipmentRow = {
   catalogEntryId?: string | null;
   brand: string;
@@ -34,10 +32,8 @@ function legacyKey(group: keyof CatalogEquipment, row: CatalogEquipmentRow): str
     String(row.catalogEntryId ?? '').trim()].join('|');
 }
 
-/** Legacy imported equipment can be copied unchanged, but not duplicated, retagged
- * or modified without first choosing an approved catalog entry. This is a multiset
- * check so one existing row cannot authorize multiple new rows.
- */
+/** Only an unchanged historical row can keep a retired catalog ID; free-text
+ * names are always allowed without an ID. The legacy exception is a multiset. */
 export function assertCatalogEquipment(
   catalogs: unknown,
   submitted: CatalogEquipment,
@@ -56,24 +52,31 @@ export function assertCatalogEquipment(
       legacy.set(key, (legacy.get(key) ?? 0) + 1);
     }
     for (const row of submitted[group] ?? []) {
-      // A valid catalog ID must not authorize moving a component into a
-      // different physical group by changing only its submitted type.
+      // The catalog is an optional autocomplete source: brand and model are
+      // persisted on the configuration itself and need not be published.
+      const brand = typeof row.brand === 'string' ? row.brand.trim() : '';
+      const model = typeof row.model === 'string' ? row.model.trim() : '';
+      if (!brand || !model || brand.length > 100 || model.length > 160) {
+        throw new BadRequestException('Укажите марку (до 100 символов) и модель (до 160 символов) оборудования.');
+      }
+      // The physical equipment kind remains authoritative even for free text.
       if ((group === 'headUnits' && row.type && row.type !== 'HEAD_UNIT') ||
           (group === 'amplifiers' && row.type && row.type !== 'AMPLIFIER') ||
           (group === 'audioComponents' && (row.type === 'HEAD_UNIT' || row.type === 'AMPLIFIER'))) {
         throw new BadRequestException('Тип оборудования не соответствует разделу конфигурации.');
       }
-      const category = categoryFor(group, row);
       const id = String(row.catalogEntryId ?? '').trim();
-      const approved = id && models.some(entry =>
+      // No ID means manual text. This neither creates a catalog record nor
+      // links the saved configuration to any other model.
+      if (!id) continue;
+      const category = categoryFor(group, row);
+      const approved = models.some(entry =>
         entry.id === id && entry.category === category && entry.isActive !== false
-        && normalize(entry.brand) === normalize(row.brand)
-        && normalize(entry.model) === normalize(row.model),
+        && normalize(entry.brand) === normalize(brand)
+        && normalize(entry.model) === normalize(model),
       );
       if (approved) continue;
-      // A retired or removed catalog entry may survive unchanged in an existing
-      // version. Its exact ID, category, direction and quantity must match a
-      // trusted previous row. A missing/replaced ID is never a legacy bypass.
+      // Historical inactive catalog IDs may survive on an unchanged row.
       const key = legacyKey(group, row);
       const remaining = legacy.get(key) ?? 0;
       if (remaining > 0) {
@@ -81,9 +84,8 @@ export function assertCatalogEquipment(
         continue;
       }
       throw new BadRequestException(
-        'Модель «' + String(row.model ?? '').slice(0, 100)
-        + '» отсутствует в опубликованном каталоге USD для категории ' + category
-        + '. Выберите модель из справочника или отправьте заявку администратору.',
+        'Указанный ID справочника не соответствует модели «'
+        + model.slice(0, 100) + '». Уберите ID при свободном вводе.',
       );
     }
   }
