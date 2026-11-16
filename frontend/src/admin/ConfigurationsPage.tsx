@@ -51,16 +51,24 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const [actionsOpen,setActionsOpen]=useState(false);
  const [picker,setPicker]=useState<null|{kind:'audioComponents'|'amplifiers'|'headUnits';direction:'SUB'|'FRONT'|'REAR';type:string;brand:string;model:string;quantity:number}>(null);
  const [pickerSearchStage,setPickerSearchStage]=useState<'brand'|'model'>('brand');
+ const [mobilePicker,setMobilePicker]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:600px)').matches);
  const pickerOverlayRef=useRef<HTMLDivElement|null>(null);
  const pickerModelInputRef=useRef<HTMLInputElement|null>(null);
 
  const pickerDialogRef=useRef<HTMLElement|null>(null);
  const pickerReturnFocusRef=useRef<HTMLElement|null>(null);
  const pickerActive=Boolean(picker&&!admin);
+ useEffect(()=>{
+  const media=window.matchMedia('(max-width:600px)');
+  const sync=()=>setMobilePicker(media.matches);
+  sync();
+  media.addEventListener('change',sync);
+  return()=>media.removeEventListener('change',sync);
+ },[]);
  // Keep keyboard and screen-reader focus within this dialog; restore the
  // trigger after closing without trapping focus in an inert background.
  useEffect(()=>{
-  if(!pickerActive)return;
+  if(!pickerActive||mobilePicker)return;
   const dialog=pickerDialogRef.current;
   if(!dialog)return;
   const returnTo=pickerReturnFocusRef.current;
@@ -97,28 +105,21 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
    if(returnTo?.isConnected)returnTo.focus();
    pickerReturnFocusRef.current=null;
   };
- },[pickerActive]);
- // On iPhone the keyboard shrinks visualViewport, not always CSS 100dvh.
+ },[pickerActive,mobilePicker]);
+ // On a phone this is a regular section of the page, not a modal.
+ // Scroll to it on open and back to the equipment action on close.
  useEffect(()=>{
-  if(!pickerActive)return;
-  const overlay=pickerOverlayRef.current;
-  const visualViewport=window.visualViewport;
-  if(!overlay||!visualViewport)return;
-  const update=()=>{
-   overlay.style.setProperty('--usd-picker-visible-height',Math.max(160,visualViewport.height)+'px');
-   overlay.style.setProperty('--usd-picker-visible-top',Math.max(0,visualViewport.offsetTop)+'px');
-   overlay.classList.toggle('keyboard-open',visualViewport.height<window.innerHeight-110);
-  };
-  update();
-  visualViewport.addEventListener('resize',update);
-  visualViewport.addEventListener('scroll',update);
+  if(!pickerActive||!mobilePicker)return;
+  const returnTo=pickerReturnFocusRef.current;
+  pickerOverlayRef.current?.scrollIntoView({block:'start',behavior:'auto'});
   return()=>{
-   visualViewport.removeEventListener('resize',update);
-   visualViewport.removeEventListener('scroll',update);
+   if(returnTo?.isConnected){
+    returnTo.focus({preventScroll:true});
+    returnTo.scrollIntoView({block:'center',behavior:'auto'});
+   }
+   pickerReturnFocusRef.current=null;
   };
- },[pickerActive]);
-
-
+ },[pickerActive,mobilePicker]);
 
  const configuredIn=(direction:'SUB'|'FRONT'|'REAR')=>v.audioComponents.filter((x:any)=>x.direction===direction&&String(x.brand??'').trim()&&String(x.model??'').trim()&&Number.isSafeInteger(Number(x.quantity))&&Number(x.quantity)>0&&(direction!=='SUB'||x.type==='SUBWOOFER')).length;
  const editorViews=[{key:'SUB',label:'Басовая система',short:'Бас',icon:Volume2,desc:'Сабвуферы и усилители для SPL, BassRace и Storm Wall.'},
@@ -218,8 +219,8 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
 
     <nav className="member-config-directions" aria-label="Разделы конфигуратора">{editorViews.map(({key,short,icon:Icon})=><button key={key} data-section={key} type="button" aria-pressed={activeView===key} className={activeView===key?'is-active':''} onClick={()=>setActiveView(key)}><Icon size={17}/><span>{short}</span>{viewIsReady(key)&&<i aria-label="Заполнено"/>}</button>)}</nav>
     <div className="member-config-readiness"><span><span className={viewIsReady(activeView)?'ready-dot':'pending-dot'}/>{activeView==='SUB'?'SPL / BassRace / Storm Wall':activeView==='FRONT'?'BFSPL':activeView==='REAR'?'BDW SPL':selectedView.label}</span><strong>{viewIsReady(activeView)?'Заполнено':activeView==='SETUP'?'Укажите название':['SUB','FRONT','REAR'].includes(activeView)?'Не заполнено':'Необязательно'}</strong></div>
-    {picker&&!admin&&<div ref={pickerOverlayRef} className="member-config-picker-overlay" role="presentation" onClick={()=>setPicker(null)}>
-      <section ref={pickerDialogRef} tabIndex={-1} className="member-config-picker-screen" role="dialog" aria-modal="true" aria-label="Добавить оборудование" onClick={e=>e.stopPropagation()}>
+    {picker&&!admin&&<div ref={pickerOverlayRef} className="member-config-picker-overlay" role="presentation" onClick={()=>{if(!mobilePicker)setPicker(null)}}>
+      <section ref={pickerDialogRef} tabIndex={-1} className="member-config-picker-screen" role={mobilePicker?'region':'dialog'} aria-modal={mobilePicker?undefined:true} aria-label="Добавить оборудование" onClick={e=>e.stopPropagation()}>
        <div className="member-config-picker-title"><div><span className="eyebrow">ОБОРУДОВАНИЕ / {picker.direction}</span><h2>Добавить оборудование</h2><p>Введите бренд и модель. Справочник подсказывает варианты, но своё название тоже можно сохранить.</p></div><button aria-label="Закрыть выбор оборудования" type="button" onClick={()=>setPicker(null)}><X size={20}/></button></div>
        <div className="member-config-picker-body"><div className="member-config-picker-fields">
         <label>Тип оборудования<select value={picker.kind} onChange={e=>{const kind=e.target.value as 'audioComponents'|'amplifiers'|'headUnits';setPickerSearchStage('brand');setPicker({...picker,kind,brand:'',model:''})}}><option value="audioComponents">{picker.direction==='SUB'?'Сабвуфер':'Акустика'}</option><option value="amplifiers">Усилитель</option><option value="headUnits">Головное устройство</option></select></label>
