@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react';
 import {AlertTriangle,CheckCircle2,FileText,Loader2,UploadCloud} from 'lucide-react';
 import {apiPost,getSiteSettings,updateSiteSettings,uploadRulesDocx} from '../api';
 import {DocumentBlocks,type Block} from '../public/PublicDocumentReader';
+import {missingLegalDocuments} from './legal-release-readiness';
 
 const DOCX='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const documents=[
@@ -32,6 +33,8 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
   finally{setPreviewBusy(null)}
  };
  const legal=settings?.legal??{},stored=(legal.documents??{}) as Partial<Record<DocKey,StoredDoc>>;
+ const missingDocuments=missingLegalDocuments(documents,stored);
+ const releaseReady=legal.legalApproved===true&&missingDocuments.length===0;
  const upload=async(key:DocKey,file?:File)=>{if(!file)return;setError('');setNotice('');if(!file.name.toLowerCase().endsWith('.docx')||(file.type&&file.type!==DOCX)){setError('Выбери документ Microsoft Word в формате .docx');return}if(file.size<=0||file.size>10*1024*1024){setError('Размер файла должен быть от 1 байта до 10 МБ');return}
  setBusy(key);try{const targetId='legal-document-'+key+'-'+newId();const result=await uploadRulesDocx(targetId,file);const nextLegal={...legal,documents:{...stored,[key]:{targetId,fileName:file.name,url:result.url,uploadedAt:new Date().toISOString()}}};const saved=await updateSiteSettings({legal:nextLegal});setSettings((s:any)=>({...s,...saved.settings}));setPreview(null);setNotice('Файл загружен. Изменение сбросило юридическое утверждение — после проверки всех документов утверди их в «Настройки сайта → Юридическая информация».')}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить документ')}finally{setBusy(null)}};
  const remove=async(key:DocKey)=>{setPendingRemoval(null);setBusy(key);setError('');setNotice('');try{const next={...stored};delete next[key];const saved=await updateSiteSettings({legal:{...legal,documents:next}});setSettings((s:any)=>({...s,...saved.settings}));setPreview(null);setNotice('Ссылка на документ убрана. Юридические документы нужно проверить и утвердить заново.')}catch(e){setError(e instanceof Error?e.message:'Не удалось убрать документ')}finally{setBusy(null)}};
@@ -41,7 +44,7 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
  return <PageFrame title="Юридические документы" subtitle="Загружай DOCX, проверяй тексты и публикуй только утверждённые версии">
   <div className="settings-section">
    <PanelTitle title="Статус публикации" icon={FileText}/>
-   <div className={legal.legalApproved===true?'rules-admin-notice':'form-error'}>{legal.legalApproved===true?<><CheckCircle2 size={17}/>Юридические документы утверждены, версия {legal.legalVersion??'—'}. Любое изменение текста или списка файлов должно сбросить утверждение.</>:<><AlertTriangle size={17}/>Документы пока не утверждены. На публичных страницах останется предупреждение, регистрация не должна включаться.</>}</div>
+   <div className={releaseReady?'rules-admin-notice':'form-error'}>{releaseReady?<><CheckCircle2 size={17}/>Юридические документы утверждены, версия {legal.legalVersion??'—'}. Все 7 обязательных Word-документов указаны. Любое изменение текста или списка файлов сбрасывает утверждение.</>:<><AlertTriangle size={17}/>{missingDocuments.length?'Перед запуском регистрации загрузите документы: '+missingDocuments.join(', ')+'. ':''}{legal.legalApproved===true?'Прежнее утверждение не означает готовность полного комплекта.':'Комплект ещё не утверждён оператором.'} После загрузки проверьте тексты и утвердите редакцию в «Настройки сайта → Юридическая информация».</>}</div>
    <p className="settings-help">DOCX-файлы хранятся в медиахранилище. После загрузки нажми «Просмотреть текст»: предпросмотр доступен и до утверждения. Текстовые версии, которые показываются на страницах /privacy, /consent и /terms, редактируются ниже. Загрузка Word сама по себе не означает юридического утверждения.</p>
   </div>
   <div className="settings-section">
