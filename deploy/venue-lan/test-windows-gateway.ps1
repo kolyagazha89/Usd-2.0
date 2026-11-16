@@ -46,7 +46,7 @@ function Test-VenueGatewayReady {
 }
 function Invoke-Compose {
  param([string[]]$Arguments,[string]$Purpose)
- if(($Arguments -join ' ') -notmatch 'up -d .*force-recreate gateway' -or
+ if(($Arguments -join ' ') -notmatch 'up -d .*--no-deps --force-recreate gateway' -or
     $Arguments -contains 'down' -or $Arguments -contains '--volumes'){
   throw 'Gateway recovery tried to touch participant data or unrelated services'
  }
