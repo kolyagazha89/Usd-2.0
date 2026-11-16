@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import {AlertTriangle,CheckCircle2,FileText,Loader2,UploadCloud} from 'lucide-react';
 import {apiPost,getSiteSettings,updateSiteSettings,uploadRulesDocx} from '../api';
 import {DocumentBlocks,type Block} from '../public/PublicDocumentReader';
-import {missingLegalDocuments,planLegalReleaseUpload} from './legal-release-readiness';
+import {missingLegalDocuments,planLegalReleaseTexts,planLegalReleaseUpload} from './legal-release-readiness';
 
 const DOCX='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const documents=[
@@ -58,6 +58,31 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
   }catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить комплект: утверждение не выполнялось. Повторите загрузку.')}
   finally{setBusy(null)}
  };
+ const importReleaseTexts=async(files:File[])=>{
+  if(!files.length)return;
+  setError('');setNotice('');
+  let planned:Array<{key:'privacyText'|'consentText'|'termsText';file:File}>;
+  try{planned=planLegalReleaseTexts(files)}
+  catch(e){setError(e instanceof Error?e.message:'Выберите 3 TXT-файла из папки CMS комплекта 1.8');return}
+  setBusy('release-texts');
+  try{
+   const values:Record<'privacyText'|'consentText'|'termsText',string>={
+    privacyText:'',consentText:'',termsText:'',
+   };
+   for(const {key,file} of planned){
+    const value=(await file.text()).replace(/^\uFEFF/,'').trim();
+    if(value.length<500||!value.includes('редакция 1.8'))
+     throw new Error('Неожиданный текст или редакция файла '+file.name+'. Используйте оригиналы комплекта 1.8.');
+    values[key]=value;
+   }
+   // The CMS approval must stay false until the operator reviews both
+   // the 7 uploaded Word documents and these three exact public texts.
+   const saved=await updateSiteSettings({legal:{...legal,...values,legalApproved:false,legalApprovedAt:null,legalApprovedBy:null}});
+   setSettings((s:any)=>({...s,...saved.settings}));
+   setNotice('Политика, согласие и пользовательское соглашение обновлены до редакции 1.8. Проверьте тексты ниже, затем утвердите все юридические документы.');
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось импортировать юридические тексты')}
+  finally{setBusy(null)}
+ };
  const remove=async(key:DocKey)=>{setPendingRemoval(null);setBusy(key);setError('');setNotice('');try{const next={...stored};delete next[key];const saved=await updateSiteSettings({legal:{...legal,documents:next}});setSettings((s:any)=>({...s,...saved.settings}));setPreview(null);setNotice('Ссылка на документ убрана. Юридические документы нужно проверить и утвердить заново.')}catch(e){setError(e instanceof Error?e.message:'Не удалось убрать документ')}finally{setBusy(null)}};
  const saveTexts=async()=>{setSaving(true);setError('');setNotice('');try{const saved=await updateSiteSettings({legal});setSettings((s:any)=>({...s,...saved.settings}));setNotice('Юридические тексты сохранены. Если содержимое менялось, утверждение сброшено.')}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить тексты')}finally{setSaving(false)}};
  if(loading)return <PageFrame title="Юридические документы" subtitle="Публикация документов Word и текстов для посетителей"><LoadingPage/></PageFrame>;
@@ -102,6 +127,16 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
   </div>
   <div className="settings-section">
    <PanelTitle title="Тексты публичных страниц" icon={FileText}/>
+   <div className="settings-field-card" style={{padding:16,marginBottom:16}}>
+    <strong>Тексты публичных страниц · редакция 1.8</strong>
+    <p className="settings-help">Из папки «03_ТЕКСТЫ_ДЛЯ_CMS» опубликованного комплекта выберите одновременно privacyText.txt, consentText.txt и termsText.txt. Это обновит тексты на сайте в одной операции, без автоматического юридического утверждения.</p>
+    <label className="primary-button compact" style={{cursor:busy?'wait':'pointer',opacity:busy?0.65:1}}>
+      {busy==='release-texts'?<><Loader2 size={14} className="spin"/>Импортируем 3 TXT…</>:<><UploadCloud size={14}/>Загрузить 3 текста для сайта</>}
+      <input hidden type="file" accept=".txt,text/plain" multiple disabled={Boolean(busy)}
+       onChange={e=>{const files=Array.from(e.currentTarget.files??[]);e.currentTarget.value='';void importReleaseTexts(files)}}/>
+    </label>
+   </div>
+
    <p className="settings-help">Эти тексты отображаются прямо на сайте. Перед утверждением замени все поля в квадратных скобках на реальные сведения оператора, проверь основания, сроки хранения, получателей и используемые сервисы. Не утверждай шаблон с незаполненными полями.</p>
    <div className="settings-form-grid">{([
     ['ipName','Оператор: полное ФИО или наименование','text'],
