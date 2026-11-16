@@ -78,21 +78,7 @@ services:
     expose: ["3000"]
     networks: [venue_private]
   frontend:
-    image: ghcr.io/kolyagazha89/usd-2.0-frontend:${VENUE_IMAGE_TAG:?set VENUE_IMAGE_TAG}
-    restart: unless-stopped
-    volumes:
-      - type: bind
-        source: ./config/venue-config.js
-        target: /usr/share/nginx/html/usd-venue-config.js
-        read_only: true
-        bind:
-          create_host_path: false
-    expose: ["80"]
-    networks: [venue_private]
-  # Independent read-only LIVE image. Updating it never replaces the judging
-  # frontend, API or PostgreSQL and preserves all stage data.
-  tv:
-    image: ghcr.io/kolyagazha89/usd-2.0-frontend:${VENUE_TV_IMAGE_TAG:-${VENUE_IMAGE_TAG:?set VENUE_IMAGE_TAG}}
+    image: ghcr.io/kolyagazha89/usd-2.0-frontend:${VENUE_WEB_IMAGE_TAG:-${VENUE_IMAGE_TAG:?set VENUE_IMAGE_TAG}}
     restart: unless-stopped
     volumes:
       - type: bind
@@ -117,7 +103,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - venue_ca:/data
       - venue_caddy_config:/config
-    depends_on: [frontend,api,tv]
+    depends_on: [frontend,api]
     networks: [venue_private]
 volumes:
   venue_db:
