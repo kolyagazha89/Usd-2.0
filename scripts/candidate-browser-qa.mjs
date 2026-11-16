@@ -1289,7 +1289,7 @@ try{
        await page.setViewportSize({width,height:960});
        row.shortMobileCatalog='568px height; add action stays inside dialog';
       }
-      row.configuratorInteraction='all seven sections; catalog search; absent-model rejection; add to SUB without saving';
+      row.configuratorInteraction='all seven sections; optional catalog suggestions; manual and catalog models added to SUB without saving';
       await page.evaluate(()=>scrollTo(0,0));
      }
      if(AxeBuilder){
