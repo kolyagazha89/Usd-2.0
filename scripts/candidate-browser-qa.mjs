@@ -1258,7 +1258,9 @@ try{
       const workspace=page.locator('.config-direction-workspace[data-direction="SUB"]');
       const before=await workspace.locator('.config-row').count();
       await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
-      const picker=page.getByRole('dialog',{name:'Добавить оборудование',exact:true});
+      const picker=page.locator('.member-config-picker-screen');
+      assert.equal(await picker.getAttribute('role'),width<=600?'region':'dialog',
+       'mobile equipment editing must be part of the page, not a modal');
       // Partial brand input suggests brands only, never their entire model list.
       const brandInput=picker.getByRole('searchbox',{name:'Бренд'});
       const modelInput=picker.getByRole('searchbox',{name:'Модель'});
@@ -1290,33 +1292,39 @@ try{
       if(width<=390){
        await page.setViewportSize({width,height:568});
        await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
-       const shortDialog=page.getByRole('dialog',{name:'Добавить оборудование',exact:true});
-       const frame=await shortDialog.boundingBox(),footer=await shortDialog.locator('.member-config-picker-foot').boundingBox();
-       assert.ok(footer.y+footer.height<=frame.y+frame.height+1,'catalog actions fit a 568px mobile viewport');
-       // Approximate the visible area left by the iPhone software keyboard.
+       const shortDialog=page.locator('.member-config-picker-screen');
+       assert.equal(await shortDialog.getAttribute('role'),'region',
+        'the mobile form is inline and accessible as a region');
+       assert.equal(await shortDialog.getAttribute('aria-modal'),null,
+        'inline mobile editing does not block the rest of the page');
+       // Keyboard-sized screen: the document scrolls, not a nested modal body.
        await page.setViewportSize({width,height:355});
-       await shortDialog.locator('input').first().focus();
-       const pickerGeometry=await shortDialog.evaluate(element=>{
-        const fields=element.querySelector('.member-config-picker-body');
-        const foot=element.querySelector('.member-config-picker-foot');
-        const overlay=element.closest('.member-config-picker-overlay');
-        const footerRect=foot.getBoundingClientRect();
-        return {clientHeight:fields.clientHeight,scrollHeight:fields.scrollHeight,
-         footerBottom:footerRect.bottom,viewportHeight:innerHeight,
-         overlayHeight:overlay.getBoundingClientRect().height};
+       const footer=shortDialog.locator('.member-config-picker-foot');
+       await footer.scrollIntoViewIfNeeded();
+       const layout=await shortDialog.evaluate(node=>{
+        const overlay=node.closest('.member-config-picker-overlay');
+        const body=node.querySelector('.member-config-picker-body');
+        const list=node.querySelector('.member-config-picker-list');
+        const foot=node.querySelector('.member-config-picker-foot').getBoundingClientRect();
+        return {position:getComputedStyle(overlay).position,
+         bodyOverflow:getComputedStyle(body).overflowY,
+         listOverflow:getComputedStyle(list).overflowY,
+         panelOverflow:getComputedStyle(node).overflowY,
+         pageScrollHeight:document.scrollingElement.scrollHeight,
+         viewportHeight:innerHeight,scrollTop:scrollY,footerBottom:foot.bottom};
        });
-       assert.ok(pickerGeometry.footerBottom<=pickerGeometry.viewportHeight+2,
-        'the add button must remain above the simulated iPhone keyboard: '+JSON.stringify(pickerGeometry));
-       assert.ok(pickerGeometry.scrollHeight>pickerGeometry.clientHeight,
-        'short visual viewport makes catalog fields scroll independently: '+JSON.stringify(pickerGeometry));
-       const scrollPosition=await shortDialog.locator('.member-config-picker-body').evaluate(node=>{
-        node.scrollTop=node.scrollHeight;return node.scrollTop;
-       });
-       assert.ok(scrollPosition>0,'picker fields are scrollable to the last item on a short iPhone viewport');
+       assert.equal(layout.position,'static','mobile editor must not float over the page');
+       assert.equal(layout.bodyOverflow,'visible','no nested scrollable form on iPhone');
+       assert.equal(layout.listOverflow,'visible','no nested scrollable suggestion list on iPhone');
+       assert.equal(layout.panelOverflow,'visible','the mobile form expands in document flow');
+       assert.ok(layout.pageScrollHeight>layout.viewportHeight,'the document provides the native scrolling surface');
+       assert.ok(layout.scrollTop>0,'scrolling to save action moves the page, not a modal');
+       assert.ok(layout.footerBottom<=layout.viewportHeight+2,
+        'add action remains reachable by native scrolling: '+JSON.stringify(layout));
        await page.setViewportSize({width,height:568});
        await shortDialog.getByRole('button',{name:'Закрыть выбор оборудования',exact:true}).click();
        await page.setViewportSize({width,height:960});
-       row.shortMobileCatalog='568px and keyboard-sized 355px viewport; modal body scrolls and save button stays visible';
+       row.shortMobileCatalog='inline native-page editor at 568px/355px; keyboard scroll uses document, not a modal';
       }
       row.configuratorInteraction='brand first, model second; manual names and catalog models added to SUB without saving';
       await page.evaluate(()=>scrollTo(0,0));
