@@ -560,6 +560,14 @@ export class SiteSettingsService{
       } else if (contactChanged && currentLegal.legalApproved === true) {
         legal = { ...currentLegal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };
       }
+      // Invalidate public visibility as soon as an approved legal text is changed.
+      // Old optional permission rows remain as audit evidence, not active grants.
+      if(currentLegal.legalApproved===true && legal.legalApproved!==true){
+        await tx.participant.updateMany({where:{isPublic:true},data:{isPublic:false}});
+        await tx.car.updateMany({where:{isPublic:true},data:{isPublic:false}});
+        await tx.auditLog.create({data:{userId,action:'PUBLICATION_PRIVACY_RESET_ON_LEGAL_REVISION',
+          entity:'SiteSettings',entityId:'default',metadata:{oldVersion:String(currentLegal.legalVersion??'')}}});
+      }
       const next={
         branding:this.merge(current.branding,input.branding),homepage:this.merge(current.homepage,input.homepage),
         stream:this.merge(current.stream,input.stream),liveResults:this.merge(current.liveResults,input.liveResults),

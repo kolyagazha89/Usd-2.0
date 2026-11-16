@@ -36,31 +36,42 @@ export class HistoricalResultsService {
     }
   }
 
-  /** Keep verified history visible without exposing details of private cars. */
+  /**
+   * Historical records retain their values and places, but not personal details
+   * without the same separate publication permissions as ordinary results.
+   * Archival aliases are identifying details too, not an exemption.
+   */
   private sanitizePublicResult<T extends { registration?: { car?: any; participant?: any } | null }>(result: T): T {
-    const car = result.registration?.car;
-    const participant = result.registration?.participant;
-    const hideCar = Boolean(car && car.isPublic === false);
-    const hideParticipant = Boolean(participant && participant.isPublic === false);
-    if (!hideCar && !hideParticipant) return result;
+    const car=result.registration?.car;
+    const participant=result.registration?.participant;
+    const consent=participant?.publicationConsent;
+    // A name in an officially published result is not an optional public profile.
+    const showName=Boolean(participant);
+    const showCar=Boolean(participant?.isPublic && consent?.car && car?.isPublic);
+    if (!participant && !car) return result;
     return {
       ...result,
-      registration: {
+      registration:{
         ...result.registration,
-        ...(hideCar ? {
-          car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
-        } : {}),
-        ...(hideParticipant ? {
-          participant: {
-            ...participant,
-            lastName: 'Участник скрыт',
-            firstName: '',
-            middleName: null,
-            team: null,
-            city: null,
-            photoUrl: null,
-          },
-        } : {}),
+        ...(car?{car:{
+          ...car,
+          brand:showCar?car.brand:'Автомобиль скрыт',
+          model:showCar?car.model:'',
+          color:showCar?car.color:null,
+          photoUrl:showCar && consent?.carPhoto?car.photoUrl:null,
+        }}:{}),
+        ...(participant?{participant:{
+          ...participant,
+          id:showName?participant.id:null,
+          lastName:showName?participant.lastName:'Участник скрыт',
+          firstName:showName?participant.firstName:'',
+          middleName:showName?participant.middleName:null,
+          historicalAlias:showName?participant.historicalAlias:null,
+          team:participant.isPublic && consent?.team?participant.team:null,
+          city:participant.isPublic && consent?.city?participant.city:null,
+          photoUrl:participant.isPublic && consent?.profilePhoto?participant.photoUrl:null,
+          publicationConsent:undefined,
+        }}:{}),
       },
     } as T;
   }
@@ -103,6 +114,10 @@ export class HistoricalResultsService {
               city: true,
               photoUrl: true,
               isPublic: true,
+              publicationConsent:{select:{
+                fullName:true,city:true,team:true,results:true,car:true,
+                profilePhoto:true,carPhoto:true,textVersion:true,
+              }},
             },
           },
           car: {

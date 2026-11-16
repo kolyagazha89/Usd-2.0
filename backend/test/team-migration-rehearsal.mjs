@@ -34,6 +34,13 @@ try{
  assert.equal(galleryColumn.rows[0].attnotnull,false,'Gallery migration must remain nullable for old posts');
  assert.deepEqual((await db.query('SELECT row_to_json(p) AS data FROM "Participant" p')).rows,before,'Existing participant fields must be byte-for-byte unchanged');
  for(const table of ['Team','TeamMembership','TeamPost'])assert.equal((await db.query(`SELECT count(*) FROM "${table}"`)).rows[0].count,'0','No linking or backfill during migration');
+ // The application under test now queries publication permissions. The
+ // isolated team rehearsal starts at an older schema, so include the forward
+ // publication migration without altering its team migration assertions.
+ await db.query(await readFile(path.join(migrations,'20261116173000_publication_consents','migration.sql'),'utf8'));
+ assert.equal((await db.query(`SELECT "isPublic" FROM "Participant" WHERE id='teams-rehearsal-sentinel'`)).rows[0].isPublic,false,
+   'Unverified legacy profiles must not be exposed on the new API');
+ assert.equal((await db.query('SELECT count(*) FROM "ParticipantPublicationConsent"')).rows[0].count,'0');
  await assert.rejects(db.query(`INSERT INTO "Team" (id,name,"nameKey","updatedAt") VALUES ('invalid','','',now())`));
  console.log('PostgreSQL 18 baseline → team migration passed; sentinel unchanged, three empty tables, nullable image column and storage constraints enforced.');
 }finally{await db.end()}

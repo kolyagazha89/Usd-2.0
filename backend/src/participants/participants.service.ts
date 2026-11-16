@@ -16,11 +16,98 @@ import { RegistrationCountry } from '../generated/prisma/enums';
 import { isValidInternationalPhone, isValidRegistrationPlate } from './profile-validation';
 import { assertVehicleCatalogSelection } from './vehicle-catalog-validation';
 
+const PUBLICATION_FIELDS = [
+  'fullName','city','team','results','car','profilePhoto','carPhoto','eventImage','promotionalImage',
+] as const;
+type PublicationField = (typeof PUBLICATION_FIELDS)[number];
+type PublicationChoices = Record<PublicationField, boolean>;
+const DENIED_PUBLICATION: PublicationChoices = {
+  fullName:false,city:false,team:false,results:false,car:false,
+  profilePhoto:false,carPhoto:false,eventImage:false,promotionalImage:false,
+};
+function validatePublicationChoices(value:unknown): PublicationChoices {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new BadRequestException('Нужно явно выбрать категории разрешённых данных');
+  }
+  const record = value as Record<string,unknown>;
+  if (Object.keys(record).length !== PUBLICATION_FIELDS.length ||
+      PUBLICATION_FIELDS.some((field) => typeof record[field] !== 'boolean')) {
+    throw new BadRequestException('Все девять разрешений должны быть указаны отдельно');
+  }
+  return Object.fromEntries(PUBLICATION_FIELDS.map(field=>[field,record[field]])) as PublicationChoices;
+}
+
 @Injectable()
 export class ParticipantsService {
   constructor(
     private readonly prisma: PrismaService,
   ) {}
+
+  /** Publication consent is not the privacy/registration checkbox.
+   * A missing row is a denial. A new legal revision invalidates older grants.
+   */
+  private async approvedPublicationVersion(): Promise<string | null> {
+    const row = await this.prisma.siteSettings.findUnique({
+      where:{id:'default'}, select:{legal:true},
+    });
+    const legal = (row?.legal ?? {}) as Record<string,unknown>;
+    const documents = (legal.documents ?? {}) as Record<string,{targetId?:string}>;
+    return legal.legalApproved === true &&
+      String(legal.legalVersion??'').trim() &&
+      documents.photoProfileConsent?.targetId?.startsWith('legal-document-photoProfileConsent-')
+        ? String(legal.legalVersion) : null;
+  }
+
+  async getMyPublicationConsent(request: AuthenticatedRequest) {
+    const user = await this.getAuthenticatedUser(request);
+    const participantId = this.requireParticipantId(user.participantId);
+    const [row,currentVersion] = await Promise.all([
+      this.prisma.participantPublicationConsent.findUnique({where:{participantId}}),
+      this.approvedPublicationVersion(),
+    ]);
+    const current = Boolean(row && currentVersion && row.textVersion===currentVersion);
+    const permissions = Object.fromEntries(PUBLICATION_FIELDS.map(field=>
+      [field,current && row?.[field]===true])) as PublicationChoices;
+    return {permissions, version:currentVersion, acceptedVersion:row?.textVersion??null,
+      updatedAt:row?.updatedAt??null, needsReview:Boolean(row && !current)};
+  }
+
+  async updateMyPublicationConsent(request: AuthenticatedRequest, selection: unknown) {
+    const permissions=validatePublicationChoices(selection);
+    const user=await this.getAuthenticatedUser(request);
+    const participantId=this.requireParticipantId(user.participantId);
+    const version=await this.approvedPublicationVersion();
+    if(!version)throw new BadRequestException('Сначала организатор должен утвердить текст отдельного согласия на публикацию');
+    const person=await this.prisma.participant.findUnique({where:{id:participantId},select:{birthDate:true}});
+    if(!person)throw new NotFoundException('Профиль участника не найден');
+    if(!person.birthDate && Object.values(permissions).some(Boolean))
+      throw new BadRequestException('Для разрешения публикации сначала укажите дату рождения в профиле');
+    if(person.birthDate){
+      const dob=new Date(person.birthDate), now=new Date();
+      const age=now.getUTCFullYear()-dob.getUTCFullYear()-
+        (now.getUTCMonth()<dob.getUTCMonth() ||
+         (now.getUTCMonth()===dob.getUTCMonth() && now.getUTCDate()<dob.getUTCDate())?1:0);
+      if(age<18)throw new ForbiddenException('Для несовершеннолетних требуется отдельное подтверждение законного представителя');
+    }
+    const previous=await this.prisma.participantPublicationConsent.findUnique({where:{participantId}});
+    await this.prisma.$transaction(async tx=>{
+      await tx.participantPublicationConsent.upsert({
+        where:{participantId},
+        create:{participantId,...permissions,textVersion:version,affirmedAt:new Date()},
+        update:{...permissions,textVersion:version,affirmedAt:new Date()},
+      });
+      // An optional choice cannot be activated by the old "public profile" switch.
+      await tx.participant.update({where:{id:participantId},data:{
+        isPublic:permissions.fullName && permissions.results,
+      }});
+      if(!permissions.car)await tx.car.updateMany({where:{participantId},data:{isPublic:false}});
+      await tx.auditLog.create({data:{
+        userId:user.id,action:'PUBLICATION_CONSENT_UPDATED',entity:'Participant',entityId:participantId,
+        metadata:{version,previous:previous?Object.fromEntries(PUBLICATION_FIELDS.map(field=>[field,previous[field]])):DENIED_PUBLICATION,permissions,source:'participant-settings'},
+      }});
+    });
+    return {success:true,version,permissions};
+  }
 
   // =========================================================
   // REGISTRATION NUMBER
@@ -207,10 +294,11 @@ export class ParticipantsService {
   // =========================================================
 
   async findAll() {
-    return this.prisma.participant.findMany({
+    const rows=await this.prisma.participant.findMany({
       where: {
         isPublic: true,
         mergeAsSource: { is: null },
+        publicationConsent: { is: { fullName:true, results:true } },
       },
       orderBy: [
         {
@@ -228,7 +316,9 @@ export class ParticipantsService {
         team: true,
         city: true,
         photoUrl: true,
-
+        publicationConsent:{select:{
+          fullName:true,city:true,team:true,results:true,car:true,profilePhoto:true,carPhoto:true,textVersion:true,
+        }},
         cars: {
           where: {
             isActive: true,
@@ -254,6 +344,15 @@ export class ParticipantsService {
         },
       },
     });
+    const version=await this.approvedPublicationVersion();
+    return rows.filter(p=>p.publicationConsent?.textVersion===version)
+      .map(({publicationConsent:c,...p})=>({
+        ...p,
+        city:c?.city?p.city:null,
+        team:c?.team?p.team:null,
+        photoUrl:c?.profilePhoto?p.photoUrl:null,
+        cars:c?.car?p.cars.map(car=>({...car,photoUrl:c?.carPhoto?car.photoUrl:null})):[],
+      }));
   }
 
   // =========================================================
@@ -280,6 +379,9 @@ export class ParticipantsService {
           city: true,
           photoUrl: true,
           isPublic: true,
+          publicationConsent:{select:{
+            fullName:true,city:true,team:true,results:true,car:true,profilePhoto:true,carPhoto:true,textVersion:true,
+          }},
           mergeAsSource: { select: { targetId: true } },
 
           cars: {
@@ -498,18 +600,26 @@ export class ParticipantsService {
         },
       });
 
-    if (!participant || !participant.isPublic) {
+    const currentVersion=await this.approvedPublicationVersion();
+    if (!participant || !participant.isPublic || !currentVersion ||
+      participant.publicationConsent?.textVersion!==currentVersion ||
+      !participant.publicationConsent.fullName || !participant.publicationConsent.results) {
       throw new NotFoundException(
         'Участник не найден',
       );
     }
 
-    const { mergeAsSource: _mergedAlias, ...publicParticipant } = participant;
+    const { mergeAsSource: _mergedAlias,publicationConsent:c,...publicParticipant } = participant;
     return {
       ...publicParticipant,
+      city:c?.city?participant.city:null,
+      team:c?.team?participant.team:null,
+      photoUrl:c?.profilePhoto?participant.photoUrl:null,
+      cars:c?.car?participant.cars.map(car=>({...car,photoUrl:c?.carPhoto?car.photoUrl:null})):[],
       registrations: participant.registrations?.map((registration) => ({
         ...registration,
-        car: registration.car?.isPublic && registration.car?.isActive ? registration.car : null,
+        car: c?.car && registration.car?.isPublic && registration.car?.isActive
+          ? {...registration.car,photoUrl:c?.carPhoto?registration.car.photoUrl:null}:null,
       })) ?? [],
     };
   }
@@ -741,7 +851,7 @@ export class ParticipantsService {
               phone,
               photoUrl,
               isPublic:
-                body.isPublic ?? true,
+                false,
             },
           });
 
@@ -888,7 +998,7 @@ export class ParticipantsService {
         photoUrl:
           this.optionalText(body.photoUrl),
         isPublic:
-          body.isPublic ?? true,
+          false,
       },
     });
     if (actor.role === 'ADMIN') return created;
@@ -1019,6 +1129,13 @@ export class ParticipantsService {
     }
 
     if (body.isPublic !== undefined) {
+      if (body.isPublic) {
+        const consent=await this.prisma.participantPublicationConsent.findUnique({where:{participantId:id}});
+        const version=await this.approvedPublicationVersion();
+        if (!version || consent?.textVersion!==version || !consent.fullName || !consent.results) {
+          throw new BadRequestException('Сначала разрешите отдельную публикацию ФИО и результатов в личном кабинете');
+        }
+      }
       data.isPublic = body.isPublic;
     }
 
@@ -1426,7 +1543,7 @@ export class ParticipantsService {
         photoUrl:
           this.optionalText(body.photoUrl),
         isPublic:
-          body.isPublic ?? true,
+          false,
       },
 
       select: {
@@ -1477,6 +1594,9 @@ export class ParticipantsService {
               city: true,
               photoUrl: true,
               isPublic: true,
+              publicationConsent:{select:{
+                fullName:true,city:true,team:true,results:true,car:true,profilePhoto:true,carPhoto:true,textVersion:true,
+              }},
             },
           },
 
@@ -1578,14 +1698,28 @@ export class ParticipantsService {
       !car ||
       !car.isActive ||
       !car.isPublic ||
-      !car.participant.isPublic
+      !car.participant.isPublic ||
+      !car.participant.publicationConsent?.car ||
+      !car.participant.publicationConsent.fullName ||
+      !car.participant.publicationConsent.results ||
+      car.participant.publicationConsent.textVersion!==await this.approvedPublicationVersion()
     ) {
       throw new NotFoundException(
         'Автомобиль не найден',
       );
     }
 
-    return car;
+    const {publicationConsent:c,...participant}=car.participant;
+    return {
+      ...car,
+      photoUrl:c?.carPhoto?car.photoUrl:null,
+      participant:{
+        ...participant,
+        city:c?.city?participant.city:null,
+        team:c?.team?participant.team:null,
+        photoUrl:c?.profilePhoto?participant.photoUrl:null,
+      },
+    };
   }
 
   // =========================================================
@@ -1714,6 +1848,13 @@ export class ParticipantsService {
     }
 
     if (body.isPublic !== undefined) {
+      if (body.isPublic) {
+        const consent=await this.prisma.participantPublicationConsent.findUnique({where:{participantId:car.participantId}});
+        const version=await this.approvedPublicationVersion();
+        if (!version || consent?.textVersion!==version || !consent.car || !consent.fullName || !consent.results) {
+          throw new BadRequestException('Сначала разрешите публикацию автомобиля в настройках согласий');
+        }
+      }
       data.isPublic = body.isPublic;
     }
 

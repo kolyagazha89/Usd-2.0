@@ -95,7 +95,8 @@ const personSelect = {
   lastName: true,
   city: true,
 } as const;
-const publicPersonSelect = { ...personSelect, photoUrl: true } as const;
+// Team pages never implicitly expose cities or photos without separate grants.
+const publicPersonSelect = { id:true,firstName:true,lastName:true } as const;
 export const teamNameKey = (name: string) =>
   name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru');
 
@@ -591,7 +592,7 @@ export class TeamsService {
       select: {
         id: true, name: true,
         memberships: {
-          where: { status: 'APPROVED', participant: { isPublic: true } },
+          where: { status: 'APPROVED' },
           select: { participantId: true },
         },
       },
@@ -610,7 +611,7 @@ export class TeamsService {
           participantId: { in: memberIds },
           status: 'ACTIVE',
           stage: { isDeleted: false, status: { in: ['PUBLISHED', 'COMPLETED'] }, resultsPublishedAt: { not: null } },
-          participant: { isPublic: true },
+          
         },
       },
       select: {
@@ -648,7 +649,7 @@ export class TeamsService {
           teamIdAtInspection: team.id,
           teamAffiliationCapturedAt: { not: null },
           status: 'ACTIVE',
-          participant: { isPublic: true },
+          
           stage: {
             isDeleted: false,
             status: { in: ['PUBLISHED', 'COMPLETED'] },
@@ -705,7 +706,7 @@ export class TeamsService {
         teamIdAtInspection:{not:null},
         teamAffiliationCapturedAt:{not:null},
         status:'ACTIVE',
-        participant:{isPublic:true},
+        
         stage:{
           isDeleted:false,
           status:{in:['PUBLISHED','COMPLETED']},
@@ -750,7 +751,7 @@ export class TeamsService {
           description: true,
           isActive: true,
           memberships: {
-            where: { status: 'APPROVED', participant: { isPublic: true } },
+            where: { status: 'APPROVED', participant: { isPublic: true, publicationConsent:{is:{fullName:true,results:true,team:true}} } },
             select: { participant: { select: publicPersonSelect } },
           },
           posts: {
@@ -768,7 +769,7 @@ export class TeamsService {
         },
       }),
       this.prisma.participant.findMany({
-        where: { isPublic: true, team: { not: null } },
+        where: { isPublic: true, publicationConsent:{is:{fullName:true,results:true,team:true}}, team: { not: null } },
         select: { ...publicPersonSelect, team: true },
       }),
     ]);

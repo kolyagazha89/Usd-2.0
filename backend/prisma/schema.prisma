@@ -100,6 +100,7 @@ model Participant {
   stageInspections  ParticipantStageInspection[]
   user              User?
   teamMembership    TeamMembership?
+  publicationConsent ParticipantPublicationConsent?
   profileLinkRequests ProfileLinkRequest[]
   mergeAsSource       ParticipantMergeRedirect? @relation("MergeSource")
   mergeAsTarget       ParticipantMergeRedirect[] @relation("MergeTarget")
@@ -108,6 +109,25 @@ model Participant {
   @@index([firstName])
   @@index([team])
   @@index([city])
+}
+
+// A decision by the participant, separate from general registration consent.
+// No row means that every optional publication permission is denied.
+model ParticipantPublicationConsent {
+  participantId     String      @id
+  participant       Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  fullName          Boolean     @default(false)
+  city              Boolean     @default(false)
+  team              Boolean     @default(false)
+  results           Boolean     @default(false)
+  car               Boolean     @default(false)
+  profilePhoto      Boolean     @default(false)
+  carPhoto          Boolean     @default(false)
+  eventImage        Boolean     @default(false)
+  promotionalImage  Boolean     @default(false)
+  textVersion       String      @db.VarChar(40)
+  affirmedAt        DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime    @updatedAt @db.Timestamptz(3)
 }
 
 // Normalized teams are independent of Participant.team, which retains archive text.

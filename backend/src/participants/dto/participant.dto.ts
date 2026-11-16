@@ -89,3 +89,16 @@ export class UpdateParticipantDto {
   @IsBoolean()
   isPublic?: boolean;
 }
+
+/** All choices are explicit; omitted fields may never imply permission. */
+export class PublicationConsentDto {
+  @IsBoolean() fullName!: boolean;
+  @IsBoolean() city!: boolean;
+  @IsBoolean() team!: boolean;
+  @IsBoolean() results!: boolean;
+  @IsBoolean() car!: boolean;
+  @IsBoolean() profilePhoto!: boolean;
+  @IsBoolean() carPhoto!: boolean;
+  @IsBoolean() eventImage!: boolean;
+  @IsBoolean() promotionalImage!: boolean;
+}

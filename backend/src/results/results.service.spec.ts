@@ -75,7 +75,7 @@ describe('ResultsService', () => {
     expect(prisma.result.findMany).not.toHaveBeenCalled();
   });
 
-  it('redacts private participant and car details from public result rows', async () => {
+  it('shows official athlete identity and score while hiding optional private profile and car details', async () => {
     prisma.stage.findUnique.mockResolvedValue({
       id: 'stage-1',
       status: 'PUBLISHED',
@@ -112,9 +112,9 @@ describe('ResultsService', () => {
     const results = await service.findByStage('stage-1');
 
     expect(results[0].registration?.participant).toMatchObject({
-      lastName: 'Участник скрыт',
-      firstName: '',
-      middleName: null,
+      lastName: 'Private',
+      firstName: 'Person',
+      middleName: 'Secret',
       team: null,
       city: null,
       photoUrl: null,
