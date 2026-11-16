@@ -19,7 +19,8 @@ test('admin provides editing controls for homepage copy and persists through set
  for(const field of ['heroKicker','communityTitle','communitySubtitle','communityButtonLabel','documentsDescription','documentsButtonLabel']){
   assert.match(admin,new RegExp('homepage\\.'+field));
  }
- assert.match(admin,/updateSiteSettings\(settings\)/);
+ assert.match(admin,/siteSettingsChangedSections\(JSON\.parse\(savedSnapshot\),settings\)/);
+ assert.match(admin,/updateSiteSettings\(changedSections\)/);
 });
 
 test('server defaults provide CMS copy for fresh sites and keep old data compatible',async()=>{
