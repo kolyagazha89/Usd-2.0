@@ -126,7 +126,7 @@ def validate_compose_network_exposure(compose: str) -> None:
     # The read-only TV has no host ports and uses only the same pinned LAN
     # bootstrap mount as the judging UI. Never grant production volumes.
     tv = services["tv"]
-    if not re.search(r"(?m)^    image: ghcr[.]io/kolyagazha89/usd-2[.]0-frontend:\\$\\{VENUE_TV_IMAGE_TAG", tv):
+    if not re.search(r"(?m)^    image: ghcr[.]io/kolyagazha89/usd-2[.]0-frontend:\$\{VENUE_TV_IMAGE_TAG", tv):
         raise ValueError("LIVE обязан использовать проверенный отдельный образ frontend")
     if "venue-config.js" not in tv or "create_host_path: false" not in tv:
         raise ValueError("LIVE должен использовать локальную конфигурацию LAN")
