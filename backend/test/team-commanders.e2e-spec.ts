@@ -92,6 +92,7 @@ integration('team/commander HTTP acceptance on isolated PostgreSQL 18', () => {
       'outsider',
       'judge',
       'unlinked',
+      'simpleMember',
     ]) {
       const p = await db.participant.create({
         data: {
@@ -129,16 +130,16 @@ integration('team/commander HTTP acceptance on isolated PostgreSQL 18', () => {
   it('defaults to simple selection, preserves history, and restores full management explicitly', async () => {
     await request(app.getHttpServer()).get('/teams/mode').expect(200).expect({fullManagement:false});
     const simple=(await api('admin').post('/teams',{name:'Simple '+tag}).expect(201)).body;
-    await api('member').post('/teams/'+simple.id+'/join').expect(403);
-    await api('member').patch('/teams/me/selection',{name:simple.name}).expect(200);
-    expect((await db.participant.findUniqueOrThrow({where:{id:people.member}})).team).toBe(simple.name);
-    expect((await db.teamMembership.findUniqueOrThrow({where:{participantId:people.member}})).status).toBe('APPROVED');
-    await api('member').patch('/teams/mode',{fullManagement:true}).expect(403);
+    await api('simpleMember').post('/teams/'+simple.id+'/join').expect(403);
+    await api('simpleMember').patch('/teams/me/selection',{name:simple.name}).expect(200);
+    expect((await db.participant.findUniqueOrThrow({where:{id:people.simpleMember}})).team).toBe(simple.name);
+    expect((await db.teamMembership.findUniqueOrThrow({where:{participantId:people.simpleMember}})).status).toBe('APPROVED');
+    await api('simpleMember').patch('/teams/mode',{fullManagement:true}).expect(403);
     await api('admin').patch('/teams/mode',{fullManagement:'true'}).expect(400);
-    await api('member').patch('/teams/me/selection',{name:'not-listed-'+tag}).expect(404);
-    await api('member').patch('/teams/me/selection',{name:''}).expect(200);
+    await api('simpleMember').patch('/teams/me/selection',{name:'not-listed-'+tag}).expect(404);
+    await api('simpleMember').patch('/teams/me/selection',{name:''}).expect(200);
     await api('admin').patch('/teams/mode',{fullManagement:true}).expect(200);
-    await api('member').patch('/teams/me/selection',{name:simple.name}).expect(403);
+    await api('simpleMember').patch('/teams/me/selection',{name:simple.name}).expect(403);
   });
 
   it('requires verified authentication and reserves team creation/assignment to ADMIN even with custom teams:* grants', async () => {
