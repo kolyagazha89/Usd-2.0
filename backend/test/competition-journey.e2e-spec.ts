@@ -217,6 +217,11 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
       })
       .expect(201);
     member.participantId = profile.body.id;
+    const protocolConsent=await api('patch','/auth/protocol-consent',member)
+      .send({consent:true}).expect(200);
+    expect(protocolConsent.body).toMatchObject({accepted:true,version:legalVersion});
+    const status=await api('get','/auth/protocol-consent',member).expect(200);
+    expect(status.body.accepted).toBe(true);
     const car = await api('post', '/participants/me/cars', member)
       .send({
         brand: 'Toyota',
