@@ -72,7 +72,7 @@ describe('MediaService media library', () => {
   it('keeps original public participant photo working when a merged profile was hidden',async()=>{
     prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1.5', documents: { photoProfileConsent: { targetId: 'legal-document-photoProfileConsent-current' } } } });
     prisma.participantMergeRedirect={findUnique:jest.fn(async()=>({target:{
-      isPublic:true, publicationConsentAt:new Date(),publicationConsentVersion:'publication-v1.5',
+      isPublic:true, publicationConsentAt:new Date(),publicationConsentVersion:'publication-v1.5@legal-document-photoProfileConsent-current',
       publicationConsent:{identity:true,profilePhoto:true},
     }}))};
     prisma.participant.findFirst=jest.fn(async()=>null);
