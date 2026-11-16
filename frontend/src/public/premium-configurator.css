@@ -503,6 +503,42 @@ body .usd-member .member-config-picker-title,body .usd-member .member-config-pic
 }
 
 
+/* iPhone Safari changes the visual viewport when the keyboard opens.
+   Keep the whole picker within that visible area; only the fields/list scroll. */
+body .usd-member .member-config-picker-overlay{
+ inset:auto 0 auto 0;
+ top:var(--usd-picker-visible-top,0px);
+ height:var(--usd-picker-visible-height,100dvh);
+ bottom:auto;
+ box-sizing:border-box;
+}
+body .usd-member .member-config-picker-screen{max-height:calc(100% - 16px)}
+body .usd-member .member-config-picker-body{
+ -webkit-overflow-scrolling:touch;
+ touch-action:pan-y;
+ scrollbar-gutter:stable;
+}
+body .usd-member .member-config-picker-foot{flex-shrink:0}
+@media(max-width:600px){
+ body .usd-member .member-config-picker-overlay{height:var(--usd-picker-visible-height,100dvh)}
+ body .usd-member .member-config-picker-screen{
+  height:min(760px,100%);
+  max-height:100%;
+  min-height:0;
+ }
+ body .usd-member .member-config-picker-overlay.keyboard-open .member-config-picker-title p{display:none}
+ body .usd-member .member-config-picker-overlay.keyboard-open .member-config-picker-screen{
+  gap:8px;
+  padding-top:12px;
+  padding-bottom:calc(10px + env(safe-area-inset-bottom));
+ }
+ body .usd-member .member-config-picker-overlay.keyboard-open .member-config-picker-body{gap:9px}
+ body .usd-member .member-config-picker-overlay.keyboard-open .member-config-picker-foot{
+  gap:8px;
+  padding-top:8px;
+ }
+}
+
 /* Impeccable · task-first finishing for the member configurator.
    Preserve the approved Dark Velocity palette and the white admin workspace. */
 body .usd-member .configuration-editor-page[data-member-view] :is(
