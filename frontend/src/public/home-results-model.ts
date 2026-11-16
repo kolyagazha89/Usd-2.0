@@ -30,13 +30,13 @@ export function groupLiveByClass(rows:any[]){
   rows:group.rows.slice().sort((a,b)=>place(a)-place(b)||resultNumericValue(b)-resultNumericValue(a)),
  })).sort((a,b)=>a.sortDirection-b.sortDirection||a.sortClass-b.sortClass||a.name.localeCompare(b.name,'ru',{numeric:true}));
 }
-/** Public record holder only. The API redacts non-public participants;
- * do not use unsanitized top-level profile fields for homepage names.
+/** Official record holder comes exclusively from the published result.
+ * Optional profile visibility must not erase an athlete from the results history.
+ * Do not use unsanitized top-level profile fields.
  */
 export function recordHolderName(record:any):string{
  const participant=record?.result?.registration?.participant;
  if(!participant)return 'Участник USD';
- if(participant.isPublic===false)return 'Участник скрыт';
  const name=[participant.lastName,participant.firstName,participant.middleName]
   .filter(value=>typeof value==='string'&&value.trim())
   .map(value=>value.trim()).join(' ');

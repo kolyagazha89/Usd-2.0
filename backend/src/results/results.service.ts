@@ -35,7 +35,7 @@ export class ResultsService {
     if (!result) return result;
     const car = result.registration?.car;
     const participant = result.registration?.participant;
-    const hideCar = Boolean(car && (car.isPublic === false || car.isActive === false));
+    const hideCar = Boolean(car && (car.isPublic === false || car.isActive === false || participant?.isPublic === false));
     const hideParticipant = Boolean(participant && participant.isPublic === false);
     if (!hideCar && !hideParticipant) return result;
     return {
@@ -48,9 +48,8 @@ export class ResultsService {
         ...(hideParticipant ? {
           participant: {
             ...participant,
-            lastName: 'Участник скрыт',
-            firstName: '',
-            middleName: null,
+            // The official protocol still displays the athlete's full name.
+            // Privacy controls hide other profile details, not the event result.
             team: null,
             city: null,
             photoUrl: null,
@@ -550,8 +549,7 @@ export class ResultsService {
         return {
           id: score.id, value: score.value.toString(), unit: score.unit, place: score.place,
           number: score.registrationClass.number?.number ?? score.registration.participantNumber,
-          participant: participant?.isPublic === false ? 'Участник скрыт'
-            : [participant?.lastName, participant?.firstName, participant?.middleName].filter(Boolean).join(' ') || 'Участник USD',
+          participant: [participant?.lastName,participant?.firstName,participant?.middleName].filter(Boolean).join(' ') || 'Участник USD',
           car: !car || car.isPublic === false || car.isActive === false ? 'Автомобиль скрыт'
             : [car.brand, car.model].filter(Boolean).join(' ') || 'Автомобиль USD',
           class: score.registrationClass.class,

@@ -26,20 +26,19 @@ describe('published team-stage performances',()=>{
   db.result.findMany.mockResolvedValue([published('r1','stage-1',1),published('r2','stage-1',2),published('r3','stage-2',null)]);
  });
 
- it('exposes only results belonging to approved public members on published stages',async()=>{
+ it('includes approved members in official stage results regardless of public profile visibility',async()=>{
   const result=await service.publicStageAchievements('team-1');
   expect(db.team.findUnique).toHaveBeenCalledWith(expect.objectContaining({
    where:{id:'team-1'},
    select:expect.objectContaining({
     memberships:expect.objectContaining({
-     where:{status:'APPROVED',participant:{isPublic:true}},
+     where:{status:'APPROVED'},
     }),
    }),
   }));
   expect(db.result.findMany).toHaveBeenCalledWith(expect.objectContaining({
    where:{registration:expect.objectContaining({
     participantId:{in:['participant-1']},status:'ACTIVE',
-    participant:{isPublic:true},
     stage:{isDeleted:false,status:{in:['PUBLISHED','COMPLETED']},resultsPublishedAt:{not:null}},
    })},
    take:501,
@@ -107,7 +106,7 @@ describe('inspection-frozen historical team affiliation',()=>{
   db.team.findUnique.mockResolvedValue({id:'original-team',name:'Original Team'});
   db.result.findMany.mockResolvedValue([published('r1','stage-1',1)]);
  });
- it('requires archived affiliation, current public profile and officially published results',async()=>{
+ it('requires archived team affiliation and officially published results',async()=>{
   const data=await service.publicInspectedStageAchievements('original-team');
   expect(db.team.findUnique).toHaveBeenCalledWith({
    where:{id:'original-team'},select:{id:true,name:true},
@@ -116,7 +115,6 @@ describe('inspection-frozen historical team affiliation',()=>{
    where:{registration:expect.objectContaining({
     teamIdAtInspection:'original-team',
     teamAffiliationCapturedAt:{not:null},
-    participant:{isPublic:true},
     status:'ACTIVE',
     stage:{isDeleted:false,status:{in:['PUBLISHED','COMPLETED']},resultsPublishedAt:{not:null}},
    })},

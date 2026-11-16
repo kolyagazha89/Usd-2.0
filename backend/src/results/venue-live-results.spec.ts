@@ -80,8 +80,8 @@ describe('venue-only live results', () => {
     const payload=await service.findVenueLive();
     expect(payload.stage.name).toBe('Этап USD');
     expect(payload.rows).toHaveLength(2);
-    expect(payload.rows[0]).toMatchObject({number:19,participant:'Участник скрыт',car:'Автомобиль скрыт',value:'158.250',place:1});
+    expect(payload.rows[0]).toMatchObject({number:19,participant:'Секретов Иван Иванович',car:'Автомобиль скрыт',value:'158.250',place:1});
     expect(payload.rows[1]).toMatchObject({number:7,participant:'Петров Петр',car:'Лада Веста'});
-    expect(JSON.stringify(payload)).not.toMatch(/Секретов|Тайная|телефон|@example|registrationNumber/);
+    expect(JSON.stringify(payload)).not.toMatch(/Тайная|телефон|@example|registrationNumber/);
   });
 });

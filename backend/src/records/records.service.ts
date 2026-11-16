@@ -26,7 +26,7 @@ export class RecordsService {
   private sanitizePublicRecord<T extends { result?: { registration?: { car?: any; participant?: any } | null } | null }>(record: T): T {
     const car = record.result?.registration?.car;
     const participant = record.result?.registration?.participant;
-    const hideCar = Boolean(car && (car.isPublic === false || car.isActive === false));
+    const hideCar = Boolean(car && (car.isPublic === false || car.isActive === false || participant?.isPublic === false));
     const hideParticipant = Boolean(participant && participant.isPublic === false);
     if (!hideCar && !hideParticipant) return record;
     return {
@@ -41,9 +41,8 @@ export class RecordsService {
           ...(hideParticipant ? {
             participant: {
               ...participant,
-              lastName: 'Участник скрыт',
-              firstName: '',
-              middleName: null,
+              // The official protocol still displays the athlete's full name.
+              // Privacy controls hide other profile details, not the event result.
               team: null,
               city: null,
               photoUrl: null,

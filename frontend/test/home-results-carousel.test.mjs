@@ -85,10 +85,10 @@ test('homepage latest winners respects 3 SPL, 2 BFSPL and 1 BDW SPL and ignores 
  assert.deepEqual(homepageLatestWinners([make('first','BDW SPL'),make('first','BDW SPL')]).map(r=>r.id),['first']);
 });
 
-test('homepage records display a public participant name and respect privacy',()=>{
+test('homepage records display the official name, not optional profile visibility',()=>{
  const participant=(props)=>({result:{registration:{participant:props}}});
  assert.equal(recordHolderName(participant({lastName:'Иванов',firstName:'Иван',middleName:'Иванович',isPublic:true})),'Иванов Иван Иванович');
- assert.equal(recordHolderName(participant({lastName:'Частный',firstName:'Профиль',isPublic:false})),'Участник скрыт');
+ assert.equal(recordHolderName(participant({lastName:'Частный',firstName:'Профиль',isPublic:false})),'Частный Профиль');
  assert.equal(recordHolderName(participant({lastName:'',firstName:''})),'Участник USD');
  assert.equal(recordHolderName({participant:{lastName:'НЕ ПУБЛИКОВАТЬ',firstName:'Тайна'}}),'Участник USD');
  assert.equal(recordHolderName({}),'Участник USD');

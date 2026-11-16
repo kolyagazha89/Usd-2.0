@@ -54,13 +54,12 @@ describe('TeamsService.publicStandings scope and data protection',()=>{
   await expect(service.publicStandings({stageId:'not-a-uuid'})).rejects.toBeInstanceOf(BadRequestException);
   expect(db.result.findMany).not.toHaveBeenCalled();
  });
- it('filters to published stages, active registrations, public participants and inspection-frozen team',async()=>{
+ it('filters to published stages and frozen teams, independent of optional profile visibility',async()=>{
   const data=await service.publicStandings({seasonId:SEASON});
   expect(db.result.findMany).toHaveBeenCalledWith(expect.objectContaining({
    where:{registration:expect.objectContaining({
     teamIdAtInspection:{not:null},
     teamAffiliationCapturedAt:{not:null},
-    participant:{isPublic:true},
     status:'ACTIVE',
     stage:expect.objectContaining({seasonId:SEASON,isDeleted:false,resultsPublishedAt:{not:null},status:{in:['PUBLISHED','COMPLETED']}}),
    })},
@@ -74,7 +73,7 @@ describe('TeamsService.publicStandings scope and data protection',()=>{
   expect(db.result.findMany).toHaveBeenCalledWith(expect.objectContaining({
    where:expect.objectContaining({
     registrationClass:{class:{direction:{name:'BFSPL'}}},
-    registration:expect.objectContaining({participant:{isPublic:true},teamIdAtInspection:{not:null}}),
+    registration:expect.objectContaining({teamIdAtInspection:{not:null}}),
    }),
    take:1501,
   }));
