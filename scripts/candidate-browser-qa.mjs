@@ -1099,16 +1099,14 @@ try{
      if(role==='ADMIN'&&route==='/admin/cars/configurations?carId=car1'){
       const editorButton=page.getByRole('button',{name:'Редактировать',exact:true});
       await editorButton.click();
-      await page.locator('.configuration-editor-page .catalog-request-inline').waitFor({state:'visible'});
-      await page.getByRole('button',{name:/Не нашли комплектующее\? Запросить добавление/}).click();
-      await page.locator('.configuration-editor-page .catalog-request-form').waitFor({state:'visible'});
+      await page.locator('.configuration-editor-page .config-editor-intro').waitFor({state:'visible'});
+      assert.equal(await page.locator('.catalog-request-inline,.catalog-request-form').count(),0,
+       'manual equipment must not require a catalog approval request');
       const samples=await page.evaluate(()=>{
        const selectors=[
-        '.configuration-editor-page .catalog-request-inline',
         '.configuration-editor-page .config-editor-intro',
         '.configuration-editor-page .configuration-admission-guide',
         '.configuration-editor-page .config-section',
-        '.configuration-editor-page .catalog-request-form',
         '.configuration-editor-page .config-basic-grid > label',
        ];
        const luminance=color=>{
@@ -1250,8 +1248,8 @@ try{
       assert.equal(errors.length,0,'flow has no runtime errors');
      }
      if(role==='PARTICIPANT'&&route.includes('&edit=')){
-      const requestCopy=await page.locator('.catalog-request-inline>.secondary-button').evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth}));
-      assert.ok(requestCopy.scroll<=requestCopy.width+1,'the model-request button text must fit on mobile');
+      assert.equal(await page.locator('.catalog-request-inline,.catalog-request-form').count(),0,
+       'adding a model never requires catalog approval');
       const nav=page.getByRole('navigation',{name:'Разделы конфигуратора'});
       for(const key of ['FRONT','REAR','POWER','BOX','NOTES','SETUP','SUB']){
        const tab=nav.locator('[data-section="'+key+'"]');await tab.click();
@@ -1261,17 +1259,23 @@ try{
       const before=await workspace.locator('.config-row').count();
       await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
       const picker=page.getByRole('dialog',{name:'Добавить оборудование',exact:true});
-      // A missing catalog must fail visibly, not masquerade as a broken select.
-      await picker.getByRole('combobox',{name:/^Бренд/}).locator('option[value="Alphard"]').waitFor({state:'attached',timeout:10000});
-      await picker.getByRole('combobox',{name:/^Бренд/}).selectOption('Alphard');
-      await picker.getByLabel('Поиск модели').fill('missing-fixture');
-      assert.equal(await picker.getByRole('button',{name:'Добавить в бас',exact:true}).isEnabled(),false,'unlisted models cannot be added');
-      await picker.getByLabel('Поиск модели').fill('Machete');
+      // The catalog only assists input: unknown models can be added immediately.
+      await picker.locator('datalist option[value="Alphard"]').waitFor({state:'attached',timeout:10000});
+      await picker.getByRole('textbox',{name:'Бренд'}).fill('Alphard');
+      await picker.getByRole('searchbox',{name:'Модель'}).fill('missing-fixture');
+      assert.equal(await picker.getByRole('button',{name:'Добавить в бас',exact:true}).isEnabled(),true,
+       'manually entered models must be accepted');
+      await picker.getByRole('button',{name:'Добавить в бас',exact:true}).click();
+      assert.equal(await workspace.locator('.config-row').count(),before+1,'manual equipment appears in the chosen direction');
+      assert.match(await workspace.locator('.member-equipment-item').last().innerText(),/Alphard missing-fixture/);
+      await workspace.getByRole('button',{name:'Добавить',exact:true}).first().click();
+      await picker.getByRole('textbox',{name:'Бренд'}).fill('Alphard');
+      await picker.getByRole('searchbox',{name:'Модель'}).fill('Machete');
       await picker.getByRole('button',{name:/Alphard Machete/}).click();
       const pickerBox=await picker.boundingBox(),footBox=await picker.locator('.member-config-picker-foot').boundingBox();
       assert.ok(footBox.y+footBox.height<=pickerBox.y+pickerBox.height+1,'catalog actions stay inside the dialog');
       await picker.getByRole('button',{name:'Добавить в бас',exact:true}).click();
-      assert.equal(await workspace.locator('.config-row').count(),before+1,'catalog equipment appears in the chosen direction');
+      assert.equal(await workspace.locator('.config-row').count(),before+2,'catalog and manual equipment appear in the chosen direction');
       const equipment=workspace.locator('.member-equipment-item').last();await equipment.locator('summary').click();
       await equipment.getByLabel('Общее количество сабвуферов в системе',{exact:true}).fill('3');assert.equal(await equipment.locator('.member-equipment-quantity').innerText(),'3 шт.');await equipment.locator('summary').click();
       assert.equal(await equipment.locator('input').first().isVisible(),false,'equipment parameters collapse into a readable card');
