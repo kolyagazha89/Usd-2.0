@@ -329,6 +329,7 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
         privacyText: 'Synthetic privacy document',
         consentText: 'Synthetic consent document',
         termsText: 'Synthetic terms document',
+        documents: { officialProtocolConsent: { targetId: 'legal-document-officialProtocolConsent-'+tag, url: 'https://example.invalid/protocol-consent.docx' } },
       },
       registration: {
         rulesDocument: {

@@ -164,7 +164,7 @@ describe('RegistrationsService', () => {
   });
 
   it('rejects participant registration when no general regulation is currently published', async () => {
-    prisma.siteSettings.findUnique.mockResolvedValueOnce({ legal: { legalApproved: true, legalVersion: '1', ipName: 'USD', privacyText: 'policy', consentText: 'consent', termsText: 'terms' }, contacts: { email: 'legal@example.com' }, footer: {}, registration: { rulesDocument: { published: null } } });
+    prisma.siteSettings.findUnique.mockResolvedValueOnce({ legal: { legalApproved: true, legalVersion: '1', ipName: 'USD', privacyText: 'policy', consentText: 'consent', termsText: 'terms', documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-test1',url:'https://example.org/consent.docx'}} }, contacts: { email: 'legal@example.com' }, footer: {}, registration: { rulesDocument: { published: null } } });
 
     await expect(service.create(participantRequest, requestBody)).rejects.toThrow('действующий общий регламент соревнований');
     expect(prisma.$transaction).not.toHaveBeenCalled();
