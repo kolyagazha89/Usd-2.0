@@ -16,6 +16,7 @@ import {useVehicleDirectory} from './use-vehicle-directory';
 import {VehicleCatalogPicker} from './participant/VehicleCatalogPicker';
 import {recordConsentedTrafficVisit} from './public/traffic-tracking';
 import PublicCommunity,{communityRoutes,communityTitle} from './public/PublicCommunity';
+import {publicDocumentPageTitle} from './public/public-document-links';
 import UsdIdLanding from './public/UsdIdLanding';
 import VenueLiveResults from './public/VenueLiveResults';
 import {PremiumProvider,PremiumHeader,PremiumFooter,PublicMetadata} from './public/PremiumShell';
@@ -267,7 +268,7 @@ function PublicSite({path,go,user}:{path:string;go:(p:string)=>void;user?:User|n
  const navItems=visiblePublicNavigationItems(settings.navigation);const blockEnabled=(id:string,fallback=true)=>{const item=(settings.homepage?.blocks??[]).find((b:any)=>b.id===id);return item?item.enabled!==false:fallback};const blockTitle=(id:string,fallback:string)=>((settings.homepage?.blocks??[]).find((b:any)=>b.id===id)?.title||fallback);const blockOrder=(id:string,fallback:number)=>{const i=(settings.homepage?.blocks??[]).findIndex((b:any)=>b.id===id);return i<0?fallback:i};
  const siteValue=(...keys:string[])=>{for(const key of keys){const v=settings?.[key]?.value??settings?.[key];if(typeof v==='string'&&v.trim())return v}return ''};
  const formatStageDate=(value:any)=>{const d=new Date(value);return Number.isNaN(d.getTime())?'Дата уточняется':new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(d)};
- const pageTitle=page==='usd-id'?'Постоянный USD ID':page==='community'?communityTitle(route.split('/')[1]):page==='not-found'?'Страница не найдена':page==='stages'?'Этапы чемпионата':page==='stage-detail'?'Карточка этапа':page==='results'?'Результаты соревнований':page==='records'?'Рекорды USD':page==='rules'?'Правила и документы':page==='privacy'?'Политика обработки персональных данных':page==='terms'?'Пользовательское соглашение':page==='consent'?'Согласие на обработку персональных данных':'Звук. Мощность. Характер.';
+ const pageTitle=page==='usd-id'?'Постоянный USD ID':page==='community'?(publicDocumentPageTitle(route)??communityTitle(route.split('/')[1])):page==='not-found'?'Страница не найдена':page==='stages'?'Этапы чемпионата':page==='stage-detail'?'Карточка этапа':page==='results'?'Результаты соревнований':page==='records'?'Рекорды USD':page==='rules'?'Правила и документы':page==='privacy'?'Политика обработки персональных данных':page==='terms'?'Пользовательское соглашение':page==='consent'?'Согласие на обработку персональных данных':'Звук. Мощность. Характер.';
  const publicLogo=logoOverride||settings.branding?.logoUrl||publicLogoUrl;
  const streamUrl=String(settings.stream?.embedUrl||'').trim();let safeStreamUrl='';try{const parsed=new URL(streamUrl);if(parsed.protocol==='https:'&&parsed.hostname&&!parsed.hostname.endsWith('.workers.dev')&&!parsed.hostname.endsWith('.up.railway.app'))safeStreamUrl=parsed.href}catch{}
  const showHomeSplash=page==='home'&&(!homeMinDelayPassed||!brandReady||!homeVisualReady||loading||winnersReady?.stages!==stages||winnersReady?.settings!==settings||liveReady?.stages!==stages||liveReady?.settings!==settings||peopleReady!==settings);

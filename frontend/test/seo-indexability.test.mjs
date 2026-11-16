@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {publicSeoMetadata, structuredDataForPage, isIndexablePublicRoute} from '../src/public/seo-model.ts';
+import {publicDocumentPageTitle} from '../src/public/public-document-links.ts';
 
 test('public pages get a descriptive, distinct search title and summary',()=>{
  const stages=publicSeoMetadata('/stages',null);
@@ -61,4 +62,15 @@ test('nginx serves robots as text, dynamic sitemap as XML and rejects unknown SP
  assert.match(robots,/Sitemap: https:\/\/app\.usd-russia\.ru\/sitemap\.xml/);
  assert.match(robots,/Disallow: \/admin/);
  assert.match(robots,/Disallow: \/participant/);
+});
+
+test('known legal document detail route has its own title, not 404',()=>{
+ const path='/documents/photoProfileConsent';
+ const meta=publicSeoMetadata(path);
+ assert.match(meta.title,/Согласие на публикацию профиля/);
+ assert.doesNotMatch(meta.title,/не найдена/i);
+ assert.equal(meta.indexable,false);
+ assert.equal(publicDocumentPageTitle(path),'Согласие на публикацию профиля');
+ assert.equal(publicDocumentPageTitle('/documents/unknown'),null);
+ assert.equal(publicSeoMetadata('/documents/unknown').title,'Страница не найдена — USD');
 });
