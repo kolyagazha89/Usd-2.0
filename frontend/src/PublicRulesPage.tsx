@@ -67,13 +67,25 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
   const source = String(documentBlocks.length ? documentBlocks.map((block: any) => block.text || (block.rows || []).flat().join(' ')).join('\n') : rulesText || settings?.registration?.rulesText || '').trim();
   const publishedUrl = safeDocumentUrl(published?.url);
   const legal = settings?.legal || {};
+  const legalDocumentPages: Record<string, [string, string]> = {
+    termsUrl: ['termsOfUse', '/terms'],
+    privacyUrl: ['privacyPolicy', '/privacy'],
+    consentUrl: ['personalDataConsent', '/consent'],
+  };
   const links = ([
-    ['rulesUrl', 'Полный регламент'],
+    ['rulesUrl', 'Скачать регламент Word'],
     ['termsUrl', 'Условия участия'],
     ['privacyUrl', 'Политика конфиденциальности'],
     ['consentUrl', 'Согласие на обработку данных'],
   ] as [string, string][])
-    .map(([key, label]) => [key, label, safeDocumentUrl(legal[key])] as const)
+    .map(([key, label]) => {
+      if (key === 'rulesUrl') return [key, label, safeDocumentUrl(legal[key])] as const;
+      const [documentKey, fallback] = legalDocumentPages[key];
+      const url = legal.legalApproved === true
+        ? (legal.documents?.[documentKey]?.targetId ? '/documents/' + documentKey : fallback)
+        : '';
+      return [key, label, url] as const;
+    })
     .filter(([, , url]) => Boolean(url));
 
   const isHeading = (line: string) =>
@@ -163,7 +175,7 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
                 <div><h3>{highlight(section.title,needle)}</h3>{section.body.map((line, lineIndex) => <p key={lineIndex}>{highlight(line,needle)}</p>)}</div>
               </section>
             )) : <div className="public-rules-empty">По этому запросу ничего не найдено.</div>}
-            {links.length > 0 && <div className="public-rules-doc-links">{links.map(([key, label, url]) => <a key={key} href={url} target="_blank" rel="noopener noreferrer">{label}<span aria-hidden="true">↗</span></a>)}</div>}
+            {links.length > 0 && <div className="public-rules-doc-links">{links.map(([key, label, url]) => <a key={key} href={url} target={url.startsWith('/')?undefined:'_blank'} rel={url.startsWith('/')?undefined:'noopener noreferrer'}>{label}<span aria-hidden="true">↗</span></a>)}</div>}
           </div>
         </section>
       ) : (
@@ -173,7 +185,7 @@ export default function PublicRulesPage({ settings, go, rulesText }: Props) {
             <div className="public-rules-sidebar-label">ДОКУМЕНТ ЕЩЁ НЕ ДОБАВЛЕН</div>
             <h3>Полный регламент пока не опубликован</h3>
             <p>Чтобы не вводить участников в заблуждение, мы не подменяем официальный документ кратким описанием. Когда организаторы опубликуют регламент, здесь появятся оглавление, разделы и поиск по пунктам.</p>
-            {links.length > 0 && <div className="public-rules-doc-links">{links.map(([key, label, url]) => <a key={key} href={url} target="_blank" rel="noopener noreferrer">{label}<span aria-hidden="true">↗</span></a>)}</div>}
+            {links.length > 0 && <div className="public-rules-doc-links">{links.map(([key, label, url]) => <a key={key} href={url} target={url.startsWith('/')?undefined:'_blank'} rel={url.startsWith('/')?undefined:'noopener noreferrer'}>{label}<span aria-hidden="true">↗</span></a>)}</div>}
           </div>
         </section>
       )}
