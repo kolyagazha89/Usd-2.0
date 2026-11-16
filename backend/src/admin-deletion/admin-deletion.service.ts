@@ -682,17 +682,19 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
               ],
             },
           });
-          // A subsequent archive run must inspect existing results again, rather than
-          // reuse a completed batch containing deleted participant/stage IDs.
-          await tx.historicalImportBatch.updateMany({
-            where: { status: { in: ['COMPLETED', 'NEEDS_REVIEW'] } },
-            data: {
-              status: 'INVALIDATED',
-              activeKey: null,
-              leaseOwner: null,
-              leaseUntil: null,
-            },
-          });
+          // Invalidate archive batches only when competition history changed.
+          // Deleting an unlinked login must not rewrite unrelated batches or
+          // contend with archive workers.
+          if (plan.participant || plan.stage)
+            await tx.historicalImportBatch.updateMany({
+              where: { status: { in: ['COMPLETED', 'NEEDS_REVIEW'] } },
+              data: {
+                status: 'INVALIDATED',
+                activeKey: null,
+                leaseOwner: null,
+                leaseUntil: null,
+              },
+            });
           for (const classId of affectedClasses)
             await this.records.recalculateCurrentRecordForClass(tx, classId);
           if (!plan.stage)
