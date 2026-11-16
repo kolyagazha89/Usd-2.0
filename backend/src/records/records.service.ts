@@ -26,9 +26,11 @@ export class RecordsService {
   private sanitizePublicRecord<T extends { result?: { registration?: { car?: any; participant?: any } | null } | null }>(record: T): T {
     const car = record.result?.registration?.car;
     const participant = record.result?.registration?.participant;
-    const hideCar = Boolean(car && (car.isPublic === false || car.isActive === false));
-    const hideParticipant = Boolean(participant && participant.isPublic === false);
-    if (!hideCar && !hideParticipant) return record;
+    const permissions=participant?.publicationConsent;
+    const showIdentity=Boolean(participant?.isPublic && permissions?.fullName && permissions?.results);
+    const hideCar=Boolean(car && (car.isPublic!==true || car.isActive===false || !showIdentity || !permissions?.car));
+    const hideParticipant=Boolean(participant && !showIdentity);
+    if (!hideCar && !hideParticipant && !permissions) return record;
     return {
       ...record,
       result: {
@@ -38,17 +40,16 @@ export class RecordsService {
           ...(hideCar ? {
             car: { ...car, brand: 'Автомобиль скрыт', model: '', color: null, photoUrl: null },
           } : {}),
-          ...(hideParticipant ? {
-            participant: {
-              ...participant,
-              lastName: 'Участник скрыт',
-              firstName: '',
-              middleName: null,
-              team: null,
-              city: null,
-              photoUrl: null,
-            },
-          } : {}),
+          participant: {
+            ...participant,
+            publicationConsent: undefined,
+            lastName:hideParticipant?'Участник скрыт':participant?.lastName,
+            firstName:hideParticipant?'':participant?.firstName,
+            middleName:hideParticipant?null:participant?.middleName,
+            team:showIdentity && permissions?.team?participant?.team:null,
+            city:showIdentity && permissions?.city?participant?.city:null,
+            photoUrl:showIdentity && permissions?.profilePhoto?participant?.photoUrl:null,
+          },
         },
       },
     } as T;
@@ -105,6 +106,10 @@ export class RecordsService {
                 city: true,
                 photoUrl: true,
                 isPublic: true,
+            publicationConsent:{select:{
+              fullName:true,city:true,team:true,results:true,car:true,
+              profilePhoto:true,carPhoto:true,textVersion:true,
+            }},
               },
             },
             car: {
@@ -159,6 +164,10 @@ export class RecordsService {
                 city: true,
                 photoUrl: true,
                 isPublic: true,
+            publicationConsent:{select:{
+              fullName:true,city:true,team:true,results:true,car:true,
+              profilePhoto:true,carPhoto:true,textVersion:true,
+            }},
               },
             },
             car: true,
