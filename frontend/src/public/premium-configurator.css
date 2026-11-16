@@ -503,6 +503,86 @@ body .usd-member .member-config-picker-title,body .usd-member .member-config-pic
 }
 
 
+/* Member equipment entry is a normal inline form on phones. No backdrop,
+   fixed sheet, nested scroll or visual-viewport/keyboard height calculation. */
+@media(max-width:600px){
+ body .usd-member .member-config-picker-overlay{
+  position:static!important;
+  inset:auto!important;
+  top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;
+  display:block!important;
+  width:100%!important;height:auto!important;max-height:none!important;
+  margin:10px 0 14px!important;padding:0!important;
+  background:transparent!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  overflow:visible!important;z-index:auto!important;
+  scroll-margin-top:110px;
+ }
+ body .usd-member .member-config-picker-screen{
+  position:static!important;
+  width:100%!important;height:auto!important;max-height:none!important;
+  min-height:0!important;overflow:visible!important;
+  padding:16px 13px!important;gap:12px!important;
+  border-radius:15px!important;
+  box-shadow:none!important;
+ }
+ body .usd-member .member-config-picker-title p{display:none!important}
+ body .usd-member .member-config-picker-body{
+  flex:0 0 auto!important;
+  min-height:0!important;max-height:none!important;
+  overflow:visible!important;
+  -webkit-overflow-scrolling:auto!important;
+  touch-action:auto!important;
+  scrollbar-gutter:auto!important;
+  padding:0!important;
+ }
+ body .usd-member .member-config-picker-list,
+ body .usd-member .member-config-picker-body>.member-config-picker-list{
+  flex:0 0 auto!important;
+  min-height:0!important;max-height:none!important;
+  overflow:visible!important;
+  touch-action:auto!important;
+ }
+ body .usd-member .member-config-picker-list>button{
+  min-height:54px!important;
+  padding:10px 12px!important;
+ }
+ body .usd-member .member-config-picker-foot{
+  position:static!important;
+  display:grid!important;
+  grid-template-columns:90px minmax(0,1fr)!important;
+  align-items:end!important;
+  flex-shrink:0!important;
+  gap:10px!important;
+  padding-top:12px!important;
+  scroll-margin-bottom:calc(var(--usd-dock-height,80px) + 16px);
+ }
+ body .usd-member .member-config-picker-foot label{min-width:0!important;flex:none!important}
+ body .usd-member .member-config-picker-foot .primary-button{min-width:0!important}
+ /* The configuration action menu follows the same inline mobile pattern. */
+ body .usd-member .member-config-actions-overlay{
+  position:static!important;
+  inset:auto!important;
+  width:100%!important;height:auto!important;
+  max-height:none!important;
+  z-index:auto!important;
+  display:block!important;
+  margin:10px 0 14px!important;padding:0!important;
+  background:transparent!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  overflow:visible!important;
+  scroll-margin-top:110px;
+ }
+ body .usd-member .member-config-actions-sheet{
+  position:static!important;
+  width:100%!important;height:auto!important;max-height:none!important;
+  overflow:visible!important;
+  border-radius:15px!important;
+  padding:16px 13px!important;
+  box-shadow:none!important;
+ }
+}
+
 /* Impeccable · task-first finishing for the member configurator.
    Preserve the approved Dark Velocity palette and the white admin workspace. */
 body .usd-member .configuration-editor-page[data-member-view] :is(

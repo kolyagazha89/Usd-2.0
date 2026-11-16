@@ -57,7 +57,7 @@ test('participant configurations implement separate released layout without chan
  assert.doesNotMatch(css,/\bUSD 2\.0\b/);
 });
 
-test('release member dashboard and catalog-locked add equipment screen remain wired',async()=>{
+test('release member dashboard and freeform equipment picker remain wired',async()=>{
  const [app,dashboard,editor,css]=await Promise.all([
   source('../src/App.tsx'),source('../src/participant/MemberDashboard.tsx'),
   source('../src/admin/ConfigurationsPage.tsx'),source('../src/public/premium-configurator.css')
@@ -73,7 +73,7 @@ test('release member dashboard and catalog-locked add equipment screen remain wi
  assert.match(editor,/activeModels\(picker\.kind,picker\.type\)/);
  assert.match(editor,/const validateCatalog=/);
  assert.match(editor,/if\(!validateCatalog\(\)\)return/);
- assert.match(editor,/Можно сохранить введённое название/);
+ assert.match(editor,/Можно сохранить своё название без добавления в справочник/);
  assert.match(css,/member-config-picker-overlay/);
  assert.match(css,/member-release-dashboard/);
 });

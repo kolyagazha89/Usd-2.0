@@ -24,6 +24,40 @@ export function availableCatalogModels(models:unknown,kind:EquipmentKind,type?:u
  });
 }
 
+/** Suggest brands first instead of showing every model of a partly typed brand.
+ * Suggestions are never required for saving a manual brand. */
+export function suggestCatalogBrands(
+ models:unknown,kind:EquipmentKind,type:unknown,query:string,limit=12,
+):string[]{
+ const search=normalized(query);
+ if(!search)return [];
+ const seen=new Set<string>();
+ return availableCatalogModels(models,kind,type)
+  .map(entry=>String(entry.brand??'').trim())
+  .filter(brand=>{
+   const key=normalized(brand);
+   if(!key.includes(search)||seen.has(key))return false;
+   seen.add(key);return true;
+  })
+  .sort((a,b)=>{
+   const aStarts=normalized(a).startsWith(search),bStarts=normalized(b).startsWith(search);
+   return aStarts===bStarts?a.localeCompare(b,'ru'):aStarts?-1:1;
+  }).slice(0,Math.max(0,limit));
+}
+
+/** Model suggestions only follow a complete catalog brand. No cards should
+ * appear while the participant is still typing the brand name. */
+export function suggestCatalogModels(
+ models:unknown,kind:EquipmentKind,type:unknown,brand:unknown,query:string,limit=20,
+):CatalogModel[]{
+ const wanted=normalized(brand),needle=normalized(query);
+ if(!wanted)return [];
+ const eligible=availableCatalogModels(models,kind,type);
+ if(!eligible.some(entry=>normalized(entry.brand)===wanted))return [];
+ return eligible.filter(entry=>normalized(entry.brand)===wanted&&normalized(entry.model).includes(needle))
+  .slice(0,Math.max(0,limit));
+}
+
 export function isApprovedCatalogModel(models:unknown,kind:EquipmentKind,row:EquipmentRow):boolean{
  const brand=normalized(row.brand),model=normalized(row.model);
  if(!brand||!model)return false;
