@@ -16,6 +16,11 @@ test('legacy social links still display, but saved contact values take priority'
  assert.deepEqual(links.map(link=>[link.key,link.url]),[['telegram','https://t.me/legacy'],['vk','https://vk.com/new']]);
 });
 
+test('legacy social links outside current admin channel list stay visible', () => {
+ const links=publicContactLinks({}, {website:'https://usd.example.com',discord:'https://discord.gg/example'});
+ assert.deepEqual(links.filter(link=>['website','discord'].includes(link.key)).map(link=>link.key),['website','discord']);
+});
+
 test('blank and unsafe contact URLs do not appear as clickable channels', () => {
  const links=publicContactLinks(
   {vk:'javascript:alert(1)',telegram:' //evil.example',youtube:'mailto:someone@example.org',rutube:'',whatsapp:'https://wa.me/79990000000'},
