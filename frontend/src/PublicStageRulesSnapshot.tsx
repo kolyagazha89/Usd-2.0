@@ -56,8 +56,8 @@ function safeDocumentUrl(value: unknown): string {
   }
 }
 
-export default function PublicStageRulesSnapshot({ snapshot, currentPublished, stageName }: { snapshot?: Snapshot | null; currentPublished?: Snapshot | null; stageName: string }) {
-  const { document, source } = selectPublicStageRules(currentPublished, snapshot);
+export default function PublicStageRulesSnapshot({ snapshot, currentPublished, preferHistorical = false, stageName }: { snapshot?: Snapshot | null; currentPublished?: Snapshot | null; preferHistorical?: boolean; stageName: string }) {
+  const { document, source } = selectPublicStageRules(currentPublished, snapshot, preferHistorical);
   const blocks = Array.isArray(document?.blocks) ? document.blocks : [];
   if (!document || !blocks.length) {
     return (
