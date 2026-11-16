@@ -58,11 +58,11 @@ function safeDocumentUrl(value: unknown): string {
 export default function PublicStageRulesSnapshot({ snapshot, stageName, currentSnapshot, status, archive = false }: { snapshot?: Snapshot | null; stageName: string; currentSnapshot?: Snapshot | null; status?: string; archive?: boolean }) {
   // Published stage snapshots are immutable records. Upcoming stages must show
   // the currently published document, without rewriting their original copy.
-  const useCurrent = !archive && status !== 'COMPLETED' && currentSnapshot?.blocks?.length;
+  const useCurrent = Boolean(!archive && status !== 'COMPLETED' && currentSnapshot?.blocks?.length);
   const selected = useCurrent ? currentSnapshot : snapshot;
   const blocks = Array.isArray(selected?.blocks) ? selected.blocks : [];
-  const hasOlderSnapshot = Boolean(useCurrent && snapshot?.blocks?.length && currentSnapshot.id !== snapshot?.revisionId);
-  if (!snapshot || !blocks.length) {
+  const hasOlderSnapshot = Boolean(useCurrent && snapshot?.blocks?.length && currentSnapshot?.id !== snapshot?.revisionId);
+  if (!selected || !blocks.length) {
     return (
       <aside className="public-stage-rules public-stage-rules-unavailable" aria-label="Общий регламент соревнований">
         <strong>Общий регламент соревнований</strong>
