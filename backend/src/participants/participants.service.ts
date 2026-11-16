@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 
 import { randomBytes } from 'node:crypto';
+import { mayPublish, publicationVersion, readPublicationConsent, validatePublicationConsent } from './publication-consent';
 import { Prisma } from '../generated/prisma/client';
 import { normalizePlateNumber,canonicalPlateIdentity,plateAdvisoryKey } from './plate-identity';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
@@ -806,6 +807,55 @@ export class ParticipantsService {
   // =========================================================
   // UPDATE CURRENT PARTICIPANT
   // =========================================================
+
+  /** The account owner makes nine independent, versioned opt-in decisions. */
+  async getPublicationConsent(request: AuthenticatedRequest) {
+    const user = await this.getAuthenticatedUser(request);
+    const participantId = this.requireParticipantId(user.participantId);
+    const [participant, settings] = await Promise.all([
+      this.prisma.participant.findUnique({
+        where: { id: participantId },
+        select: { isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true },
+      }),
+      this.prisma.siteSettings.findUnique({ where: { id: 'default' }, select: { legal: true } }),
+    ]);
+    if (!participant) throw new NotFoundException('Профиль участника не найден');
+    const version = publicationVersion(settings?.legal);
+    const confirmed = Boolean(version && participant.publicationConsentAt && participant.publicationConsentVersion === version);
+    return {
+      choices: confirmed ? readPublicationConsent(participant.publicationConsent) : readPublicationConsent(null),
+      currentVersion: version,
+      confirmed,
+      recordedAt: confirmed ? participant.publicationConsentAt : null,
+      publicProfileEnabled: participant.isPublic,
+    };
+  }
+
+  async updatePublicationConsent(request: AuthenticatedRequest, body: unknown) {
+    const user = await this.getAuthenticatedUser(request);
+    const participantId = this.requireParticipantId(user.participantId);
+    const choices = validatePublicationConsent((body as { choices?: unknown } | null)?.choices);
+    const settings = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' }, select: { legal: true },
+    });
+    const version = publicationVersion(settings?.legal);
+    if (!version) throw new BadRequestException('Документ о публикации не утверждён организатором USD');
+    const recordedAt = new Date();
+    await this.prisma.$transaction(async tx => {
+      const person = await tx.participant.findUnique({ where: { id: participantId }, select: { id: true } });
+      if (!person) throw new NotFoundException('Профиль участника не найден');
+      await tx.participant.update({
+        where: { id: participantId },
+        data: { publicationConsent: choices, publicationConsentAt: recordedAt, publicationConsentVersion: version },
+      });
+      await tx.auditLog.create({
+        data: { userId: user.id, action: 'PARTICIPANT_PUBLICATION_CONSENT',
+          entity: 'Participant', entityId: participantId,
+          metadata: { version, choices, recordedAt: recordedAt.toISOString(), source: 'participant-profile' } },
+      });
+    });
+    return { choices, currentVersion: version, confirmed: true, recordedAt };
+  }
 
   async updateMe(
     request: AuthenticatedRequest,
