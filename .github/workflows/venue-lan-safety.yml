@@ -191,7 +191,8 @@ jobs:
             'deploy/venue-lan/venue-ca.ps1',
             'deploy/venue-lan/venue-dialogs.ps1',
             'deploy/venue-lan/venue-firewall.ps1',
-            'deploy/venue-lan/test-windows-certificate.ps1'
+            'deploy/venue-lan/test-windows-certificate.ps1',
+            'deploy/venue-lan/test-windows-gateway.ps1'
           )
           foreach ($file in $files) {
             $tokens = $null
@@ -215,6 +216,9 @@ jobs:
       - name: Retry Caddy root CA extraction and preserve last valid certificate
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-certificate.ps1
+      - name: Reject dead Caddy and repair certificate action on Windows
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-gateway.ps1
       - name: Already-admin Windows installation must avoid redundant UAC timeout
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-admin-firewall.ps1
