@@ -22,6 +22,12 @@ test('published general regulation wins over stale historical stage snapshot', (
   assert.equal(oldStageRevision.blocks[0].text, 'Старая редакция');
 });
 
+test('completed stages retain historical event-time regulations for archive accuracy', () => {
+  const result = selectPublicStageRules(newPublishedRevision, oldStageRevision, true);
+  assert.equal(result.source, 'historical');
+  assert.equal(result.document?.revisionId, 'old-stage-revision');
+});
+
 test('historical snapshot is clearly marked when published regulation is unavailable', () => {
   const result = selectPublicStageRules(null, oldStageRevision);
   assert.equal(result.source, 'historical');
@@ -44,7 +50,8 @@ test('stage detail passes the same current published document as the public rule
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
   const component = readFileSync(new URL('../src/PublicStageRulesSnapshot.tsx', import.meta.url), 'utf8');
   assert.match(app, /<PublicStageRulesSnapshot[^>]*currentPublished=\{settings\.registration\?\.rulesDocument\?\.published\}/);
-  assert.match(component, /selectPublicStageRules\(currentPublished, snapshot\)/);
+  assert.match(component, /selectPublicStageRules\(currentPublished, snapshot, preferHistorical\)/);
+  assert.match(app, /preferHistorical=\{stage\.status==='COMPLETED'\}/);
   assert.match(component, /source==='historical'/);
   assert.match(component, /href="\/rules"/);
 });
