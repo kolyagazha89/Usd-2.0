@@ -239,7 +239,7 @@ async function probe(){
  const onsite=await request('/registrations',{method:'POST',headers:authAdmin,
   body:JSON.stringify({
    stageId:ID.stage,participantId:newProfile.body.participantId,carId:newProfile.body.carId,
-   classIds:[ID.klass],source:'ON_SITE',rulesAccepted:true,privacyConsent:true,termsAccepted:true,
+   classIds:[ID.klass],source:'ON_SITE',rulesAccepted:true,privacyConsent:true,termsAccepted:true,protocolConsent:true,
   })});
  assert.equal(onsite.status,201,'Real on-site registration must work: '+JSON.stringify(onsite.body));
  assert.ok(onsite.body.id);
