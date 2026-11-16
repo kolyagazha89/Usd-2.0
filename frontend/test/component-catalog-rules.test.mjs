@@ -106,7 +106,7 @@ test('configuration editor does not silently add an unknown AGM fallback and ser
  assert.match(editor,/const defaultBatteryCode=batteryTypes\[0\]\?\.code\?\?''/);
  assert.match(editor,/catalogStatus!=='ready'/);
  assert.match(editor,/setCatalogReload\(n=>n\+1\)/);
- assert.match(editor,/Справочники USD не загрузились/);
+ assert.match(editor,/Подсказки справочника временно недоступны/);
 
  assert.match(editor,/batteries:\(v\.batteries\?\?\[\]\)\.map\(\(battery:any\)=>\(\{\.\.\.battery,quantity:Number\(battery\.quantity\)\}\)\)/);
  assert.match(editor,/generators:\(v\.generators\?\?\[\]\)\.map\(\(generator:any\)=>\(\{\.\.\.generator,quantity:Number\(generator\.quantity\)\}\)\)/);
