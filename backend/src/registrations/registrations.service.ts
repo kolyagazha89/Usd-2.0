@@ -11,7 +11,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
-import { hasApprovedProtocolConsentDocument } from '../auth/protocol-consent-document';
+import { currentProtocolConsentVersion } from '../auth/protocol-consent-document';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
 import { isValidRegistrationPlate } from '../participants/profile-validation';
 import { normalizePlateNumber,canonicalPlateIdentity,plateAdvisoryKey } from '../participants/plate-identity';
@@ -538,6 +538,7 @@ export class RegistrationsService {
     } = body;
     const source = body.source ?? 'PRE_REGISTRATION';
     let consentLegalVersion: string | null = null;
+    let consentProtocolVersion: string | null = null;
     let registrationPrivacyConsentAt: Date | null = null;
     let registrationTermsAcceptedAt: Date | null = null;
     let protocolConsentAt: Date | null = null;
@@ -588,10 +589,12 @@ export class RegistrationsService {
       if (!legalReady) {
         throw new BadRequestException('Регистрация временно недоступна: юридические документы не утверждены организатором');
       }
-      if (!hasApprovedProtocolConsentDocument(legal)) {
+      const publishedProtocolVersion=currentProtocolConsentVersion(legal);
+      if (!publishedProtocolVersion) {
         throw new BadRequestException('Регистрация временно недоступна: отдельное согласие на публикацию протоколов не утверждено');
       }
       consentLegalVersion = version;
+      consentProtocolVersion = publishedProtocolVersion;
       if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId)) {
         const consentUser = await this.prisma.user.findUnique({
           where: { id: request.user.sub },
@@ -605,7 +608,7 @@ export class RegistrationsService {
           throw new BadRequestException('Перед регистрацией примите актуальные юридические документы в форме регистрации');
         }
         if (!consentUser.protocolConsentAt ||
-          consentUser.protocolConsentVersion !== 'protocol-v' + version ||
+          consentUser.protocolConsentVersion !== 'protocol-v' + consentProtocolVersion ||
           consentUser.protocolConsentRevokedAt) {
           throw new BadRequestException('Перед регистрацией подтвердите публикацию ФИО и официального результата в личном кабинете');
         }
@@ -1142,7 +1145,7 @@ export class RegistrationsService {
             termsAcceptedAt: registrationTermsAcceptedAt,
             termsVersion: 'terms-v' + consentLegalVersion,
             protocolConsentAt,
-            protocolConsentVersion: 'protocol-v' + consentLegalVersion,
+            protocolConsentVersion: 'protocol-v' + consentProtocolVersion,
             consentCapturedByUserId,
           } : {}),
           ...(body.rulesAccepted === true ? {

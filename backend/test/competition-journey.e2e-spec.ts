@@ -218,8 +218,8 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
       .expect(201);
     member.participantId = profile.body.id;
     const protocolConsent=await api('patch','/auth/protocol-consent',member)
-      .send({consent:true,version:legalVersion}).expect(200);
-    expect(protocolConsent.body).toMatchObject({accepted:true,version:legalVersion});
+      .send({consent:true,version:legalVersion+'@legal-document-officialProtocolConsent-'+tag}).expect(200);
+    expect(protocolConsent.body).toMatchObject({accepted:true,version:legalVersion+'@legal-document-officialProtocolConsent-'+tag});
     const status=await api('get','/auth/protocol-consent',member).expect(200);
     expect(status.body.accepted).toBe(true);
     // Voluntary profile/photo publication is independent of required sport results.

@@ -17,7 +17,7 @@ import { Prisma } from '../generated/prisma/client';
 import { MailService } from '../mail/mail.service';
 import type { AuthenticatedRequest } from './authenticated-request';
 import { normalizeHistoricalLinkEmail } from './profile-link-diagnostics';
-import { hasApprovedProtocolConsentDocument } from './protocol-consent-document';
+import { currentProtocolConsentVersion } from './protocol-consent-document';
 
 @Injectable()
 export class AuthService {
@@ -161,10 +161,11 @@ export class AuthService {
       this.prisma.siteSettings.findUnique({where:{id:'default'},select:{legal:true}}),
     ]);
     if(!user)throw new NotFoundException('Пользователь не найден');
-    const documentReady=legal.legalReady && hasApprovedProtocolConsentDocument(settings?.legal);
-    const accepted=Boolean(documentReady && legal.version && user.protocolConsentAt &&
-      user.protocolConsentVersion==='protocol-v'+legal.version && !user.protocolConsentRevokedAt);
-    return {legalReady:documentReady,version:legal.version,accepted,
+    const version=legal.legalReady?currentProtocolConsentVersion(settings?.legal):null;
+    const documentReady=Boolean(version);
+    const accepted=Boolean(documentReady && user.protocolConsentAt &&
+      user.protocolConsentVersion==='protocol-v'+version && !user.protocolConsentRevokedAt);
+    return {legalReady:documentReady,version,accepted,
       acceptedAt:accepted?user.protocolConsentAt:null,revokedAt:user.protocolConsentRevokedAt??null,
       hasParticipant:!!user.participantId};
   }
@@ -177,11 +178,12 @@ export class AuthService {
     }});
     if(!user?.participantId)throw new BadRequestException('Сначала привяжите профиль участника к учётной записи');
     // Withdrawal does not depend on whether the administrator has withdrawn a legal publication.
-    const version=consent?await this.getApprovedLegalVersion()
-      :(user.protocolConsentVersion?.replace(/^protocol-v/,'')??null);
+    let version=user.protocolConsentVersion?.replace(/^protocol-v/,'')??null;
     if(consent){
+      const legalVersion=await this.getApprovedLegalVersion();
       const settings=await this.prisma.siteSettings.findUnique({where:{id:'default'},select:{legal:true}});
-      if(!hasApprovedProtocolConsentDocument(settings?.legal))
+      version=currentProtocolConsentVersion(settings?.legal);
+      if(!version || !version.startsWith(legalVersion+'@'))
         throw new BadRequestException('Отдельный текст согласия на публикацию официальных протоколов не утверждён организатором');
     }
     if(consent && (!visibleVersion || visibleVersion!==version)) {

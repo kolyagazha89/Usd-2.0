@@ -11,3 +11,14 @@ export function hasApprovedProtocolConsentDocument(value: unknown): boolean {
     targetId.length > 'legal-document-officialProtocolConsent-'.length &&
     typeof url === 'string' && url.trim().length > 0;
 }
+
+/** Bind the consent to the exact approved DOCX, not only the legal version.
+ * Replacing a document without changing the release label invalidates consent.
+ */
+export function currentProtocolConsentVersion(value:unknown):string|null {
+  if(!hasApprovedProtocolConsentDocument(value))return null;
+  const legal=value as {legalVersion?:unknown;documents:Record<string,any>};
+  const version=String(legal.legalVersion??'').trim();
+  const targetId=String(legal.documents.officialProtocolConsent.targetId);
+  return version?version+'@'+targetId:null;
+}

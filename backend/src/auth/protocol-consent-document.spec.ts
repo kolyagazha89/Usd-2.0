@@ -1,4 +1,4 @@
-import {hasApprovedProtocolConsentDocument} from './protocol-consent-document';
+import {hasApprovedProtocolConsentDocument,currentProtocolConsentVersion} from './protocol-consent-document';
 
 describe('approved separate protocol publication consent',()=>{
  const doc={targetId:'legal-document-officialProtocolConsent-20261116',url:'https://api.example.org/document.docx'};
@@ -11,5 +11,12 @@ describe('approved separate protocol publication consent',()=>{
   expect(hasApprovedProtocolConsentDocument({legalApproved:true,documents:{photoProfileConsent:doc}})).toBe(false);
   expect(hasApprovedProtocolConsentDocument({legalApproved:true,documents:{officialProtocolConsent:{...doc,targetId:'legal-document-photoProfileConsent-20261116'}}})).toBe(false);
   expect(hasApprovedProtocolConsentDocument({legalApproved:true,documents:{officialProtocolConsent:{...doc,url:''}}})).toBe(false);
+ });
+ it('binds consent to immutable approved document identity even when version label stays unchanged',()=>{
+  const first={legalApproved:true,legalVersion:'1.8',documents:{officialProtocolConsent:doc}};
+  const second={...first,documents:{officialProtocolConsent:{...doc,targetId:'legal-document-officialProtocolConsent-replaced'}}};
+  expect(currentProtocolConsentVersion(first)).toBe('1.8@'+doc.targetId);
+  expect(currentProtocolConsentVersion(second)).not.toBe(currentProtocolConsentVersion(first));
+  expect(currentProtocolConsentVersion({...first,legalApproved:false})).toBeNull();
  });
 });
