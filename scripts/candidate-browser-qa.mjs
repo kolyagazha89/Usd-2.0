@@ -56,6 +56,7 @@ function dataFor(url,role){
  if(p==='/participants/me/usd-id')return {token:'b'.repeat(48),path:'/usd-id/'+'b'.repeat(48)};
  if(p==='/participants/me/historical-final-configuration')return {required:false};
  if(p==='/auth/legal-consent')return {legalReady:false};
+ if(p==='/auth/protocol-consent')return {legalReady:true,version:'fixture',accepted:false};
  if(p==='/auth/newsletter-consent')return {consent:false};
  if(p==='/auth/sessions')return {sessions:[]};
  if(p==='/cars'&&role==='ADMIN')return Array.from({length:63},(_,index)=>({...car,id:'car'+(index+1),model:'Vesta '+String(index+1).padStart(2,'0')}));
@@ -132,7 +133,7 @@ function dataFor(url,role){
  return [];
 }
 const publicRoutes=['/','/offline-event','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/news/news-image-fixture','/partners','/contacts','/documents','/about'];
-const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/registration-success?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
+const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=consents','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/registration-success?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
 const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/inspections?stageId=stage1&registrationId=reg1','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/profile-links','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/season-report','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
@@ -300,7 +301,7 @@ try{
      if(role==='PARTICIPANT'&&route.startsWith('/participant?tab=profile')){
       const selector=page.locator('.participant-profile-nav');
       await selector.waitFor({state:'visible'});
-      assert.equal(await selector.locator('a').count(),4,'four separate account settings destinations');
+      assert.equal(await selector.locator('a').count(),5,'five separate account settings destinations including consents');
       const currentSection=new URL('https://usd.test'+route).searchParams.get('section')||'personal';
       assert.equal(await selector.locator('[aria-current="page"]').count(),1);
       assert.ok((await selector.locator('[aria-current="page"]').getAttribute('href')).endsWith('section='+currentSection));
@@ -313,8 +314,14 @@ try{
        await page.locator('#account-security-heading').getByText('Сеансы входа',{exact:true}).waitFor();
        assert.equal(await page.locator('#account-current-password').count(),0);
       }
-      if(currentSection==='notifications')assert.equal(await page.locator('.newsletter-settings').count(),1);
-      row.profileSections='separate personal, credentials, devices and notification screens';
+      if(currentSection==='consents'){
+       assert.equal(await page.locator('section[aria-label="Отдельное согласие на публикацию официального протокола"]').count(),1);
+       assert.equal(await page.locator('.newsletter-settings input[type="checkbox"]').count(),1,'newsletter consent is managed separately on this page');
+       assert.equal(await page.locator('a[href="/documents/photoProfileConsent"]').count(),1);
+      }
+      if(currentSection==='personal')assert.equal(await page.locator('section[aria-label="Отдельное согласие на публикацию официального протокола"]').count(),0);
+      if(currentSection==='notifications')assert.equal(await page.locator('.newsletter-settings').count(),0,'PUSH settings must not duplicate marketing consent');
+      row.profileSections='separate personal, consents, credentials, devices and notification screens';
      }
      if(role==='PARTICIPANT'&&route==='/participant?tab=profile'){
       const surface=await page.locator('.participant-portal.usd-member').evaluate(el=>getComputedStyle(el).backgroundColor);
