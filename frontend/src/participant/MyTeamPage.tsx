@@ -1,9 +1,18 @@
 import {useEffect,useState} from 'react';
 import {apiGet,apiPost,listData} from '../api';
+import SimpleTeamPage from './SimpleTeamPage';
 import TeamWorkspace from '../teams/TeamWorkspace';
 import TeamStageAchievements from '../teams/TeamStageAchievements';
 import type {PublicTeam,Team} from '../teams/types';
 export default function MyTeamPage({canJoin=true}:{canJoin?:boolean}){
+ const [full,setFull]=useState<boolean|null>(null),[error,setError]=useState('');
+ const load=()=>{setError('');apiGet<{fullManagement:boolean}>('/teams/mode').then(r=>setFull(r.fullManagement===true)).catch(e=>setError(e instanceof Error?e.message:'Не удалось загрузить команды'))};
+ useEffect(load,[]);
+ if(error)return <div role="alert">{error}<button className="secondary-button" onClick={load}>Повторить загрузку</button></div>;
+ if(full===null)return <p role="status">Загружаем команды…</p>;
+ return full?<FullTeamPage canJoin={canJoin}/>:<SimpleTeamPage canJoin={canJoin}/>;
+}
+function FullTeamPage({canJoin}:{canJoin:boolean}){
  const [teams,setTeams]=useState<PublicTeam[]>([]),[mine,setMine]=useState<{membership:any;commandedTeam:Team|null}|null>(null),[selected,setSelected]=useState(()=>new URLSearchParams(window.location.search).get('teamId')??''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[confirm,setConfirm]=useState(false),[notice,setNotice]=useState('');
  const load=async()=>{setError('');try{const [current,directory]=await Promise.all([apiGet<any>('/teams/me'),apiGet<PublicTeam[]>('/teams/public')]);setMine(current);setTeams(listData<PublicTeam>(directory).filter(t=>t.id&&t.isActive))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить команды. Попробуйте ещё раз.')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[]);

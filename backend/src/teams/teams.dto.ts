@@ -38,3 +38,10 @@ export class MembershipDecisionDto {
 export class TeamPostReviewDto {
   @IsISO8601({strict:true}) reviewedAt!: string;
 }
+
+export class TeamManagementModeDto {
+ @IsBoolean() fullManagement!: boolean;
+}
+export class SelectTeamDto {
+ @IsString() @MaxLength(120) name!: string;
+}

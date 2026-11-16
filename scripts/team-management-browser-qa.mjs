@@ -22,7 +22,8 @@ try{for(const width of [320,390,1440]){
   if(u.pathname==='/auth/refresh')data={accessToken:'synthetic',user:{id:'u1',role:actor==='admin'?'ADMIN':'PARTICIPANT',email:'fixture@example.test',participantId:'p1'}};
   else if(u.pathname==='/site-settings/public')data={settings:{branding:{siteName:'USD'},homepage:{blocks:[]},catalogs:{},legal:{}}};
   else if(u.pathname==='/participants/me')data={participant};
-  else if(u.pathname==='/teams/admin')data={teams:[team],users:[{id:'u1',name:'Fixture Commander',email:'commander@example.test'}]};
+  else if(u.pathname==='/teams/mode')data={fullManagement:true};
+  else if(u.pathname==='/teams/admin')data={fullManagement:true,teams:[team],users:[{id:'u1',name:'Fixture Commander',email:'commander@example.test'}]};
   else if(u.pathname==='/teams/public')data=[team,archived];
   else if(u.pathname==='/teams/me')data={membership,commandedTeam:actor==='commander'?team:null};
   else if(u.pathname==='/teams/t1/join'){joinCalls++;membership={id:'mine',status:'PENDING',team:{id:'t1',name:team.name,isActive:true}};data=membership}

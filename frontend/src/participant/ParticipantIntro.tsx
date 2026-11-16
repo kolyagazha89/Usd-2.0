@@ -4,7 +4,7 @@ const copy={
  overview:{title:'Мой USD',description:'Ваша система. Ваши старты. Ваша история.'},
  profile:{title:'Мой профиль',description:'Личные данные, безопасность, устройства и уведомления — в отдельных разделах.'},
  cars:{title:'Мои автомобили',description:'Добавьте автомобиль и сохраните оборудование, с которым выступаете.'},
- team:{title:'Моя команда',description:'Текущий состав, заявки и материалы вашей команды.'},
+ team:{title:'Моя команда',description:'Выбор команды и результаты выступлений.'},
  registrations:{title:'Мои регистрации',description:'Заявки на этапы, номера участников, QR-коды и результаты.'},
 } as const;
 export default function ParticipantIntro({tab,name,children}:{tab:ParticipantTab;name?:string;children?:ReactNode}){

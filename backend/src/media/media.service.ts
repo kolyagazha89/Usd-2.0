@@ -1,3 +1,4 @@
+import {fullTeamManagement} from '../teams/team-management.service';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -130,6 +131,7 @@ export class MediaService {
     // Team photos share the SITE_ASSET storage infrastructure, but never its
     // broad CMS permission model. Each photo slot belongs to one real team post.
     if (targetType === MediaTargetType.SITE_ASSET && targetId.startsWith('team-post-')) {
+      if (!(await fullTeamManagement(this.prisma))) throw new ForbiddenException('Полное управление командами выключено');
       const postId = teamPostIdFromAssetKey(targetId);
       if (!postId) throw new BadRequestException('Некорректный идентификатор фотографии команды');
       const post = await this.prisma.teamPost.findUnique({
@@ -214,6 +216,7 @@ export class MediaService {
 
   private async isPublishedRulesDocument(targetId: string) {
     if (targetId.startsWith('team-post-')) {
+      if (!(await fullTeamManagement(this.prisma))) return false;
       const postId = teamPostIdFromAssetKey(targetId);
       if (!postId) return false;
       const post = await this.prisma.teamPost.findFirst({
