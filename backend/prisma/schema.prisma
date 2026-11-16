@@ -36,6 +36,9 @@ model User {
   privacyConsentVersion    String?
   termsAcceptedAt          DateTime?                @db.Timestamptz(3)
   termsVersion             String?
+  protocolConsentAt        DateTime?                @db.Timestamptz(3)
+  protocolConsentVersion   String?
+  protocolConsentRevokedAt DateTime?                @db.Timestamptz(3)
   newsletterConsentAt      DateTime?                @db.Timestamptz(3)
   newsletterConsentVersion String?
   newsletterConsentRevokedAt DateTime?              @db.Timestamptz(3)
@@ -508,6 +511,8 @@ model Registration {
   privacyConsentVersion String?
   termsAcceptedAt DateTime? @db.Timestamptz(3)
   termsVersion String?
+  protocolConsentAt DateTime? @db.Timestamptz(3)
+  protocolConsentVersion String?
   consentCapturedByUserId String?
 
   source       RegistrationSource
