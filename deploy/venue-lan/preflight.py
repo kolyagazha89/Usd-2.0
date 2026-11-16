@@ -45,9 +45,9 @@ def validate(env: dict[str, str]) -> None:
         raise ValueError("Публикация разрешена только на частном IPv4 интерфейсе роутера")
     if not re.fullmatch(r"[0-9a-f]{40}", env["VENUE_IMAGE_TAG"]):
         raise ValueError("Разрешены только образы, закреплённые полным SHA коммита")
-    tv_tag = env.get("VENUE_TV_IMAGE_TAG")
-    if tv_tag is not None and not re.fullmatch(r"[0-9a-f]{40}", tv_tag):
-        raise ValueError("LIVE: разрешён только фронтенд по полному SHA коммита")
+    web_tag = env.get("VENUE_WEB_IMAGE_TAG")
+    if web_tag is not None and not re.fullmatch(r"[0-9a-f]{40}", web_tag):
+        raise ValueError("LIVE: разрешён только frontend с полным SHA коммита")
     if not re.fullmatch(
         r"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
         env["VENUE_STAGE_ID"], re.IGNORECASE,
@@ -105,7 +105,7 @@ def validate_compose_network_exposure(compose: str) -> None:
     section = re.split(r"(?m)^(?:volumes|networks):\s*$", compose[match.end():], maxsplit=1)[0]
     parts = re.split(r"(?m)^  ([a-z][a-z0-9_-]*):\s*\n", section)
     services = {parts[i]: parts[i + 1] for i in range(1, len(parts), 2)}
-    if set(services) != {"db", "rustfs", "api", "frontend", "tv", "gateway"}:
+    if set(services) != {"db", "rustfs", "api", "frontend", "gateway"}:
         raise ValueError("Непроверенный сервис в локальном Compose")
     if re.search(r"(?m)^\s*network_mode\s*:", compose):
         raise ValueError("Режим network_mode недопустим")
@@ -123,17 +123,10 @@ def validate_compose_network_exposure(compose: str) -> None:
         raise ValueError("RustFS обязан использовать отдельный локальный volume")
     if media_storage.count("volumes:") != 1:
         raise ValueError("Неожиданное дополнительное хранилище RustFS")
-    # The read-only TV has no host ports and uses only the same pinned LAN
-    # bootstrap mount as the judging UI. Never grant production volumes.
-    tv = services["tv"]
-    if not re.search(r"(?m)^    image: ghcr[.]io/kolyagazha89/usd-2[.]0-frontend:\$\{VENUE_TV_IMAGE_TAG", tv):
-        raise ValueError("LIVE обязан использовать проверенный отдельный образ frontend")
-    if "venue-config.js" not in tv or "create_host_path: false" not in tv:
-        raise ValueError("LIVE должен использовать локальную конфигурацию LAN")
-    if "venue_db:" in tv or "venue_media:" in tv:
-        raise ValueError("LIVE не должен монтировать базу или медиа")
+    if not re.search(r"(?m)^    image: ghcr[.]io/kolyagazha89/usd-2[.]0-frontend:\$\{VENUE_WEB_IMAGE_TAG", services["frontend"]):
+        raise ValueError("LIVE и судьи должны использовать один frontend с проверенным SHA")
     allowed = {
-        "db": set(), "api": set(), "frontend": set(), "tv": set(),
+        "db": set(), "api": set(), "frontend": set(),
         "rustfs": {"127.0.0.1:19000:9000/tcp", "127.0.0.1:19001:9001/tcp"},
         "gateway": {"${VENUE_BIND_IP}:443:443/tcp", "${VENUE_BIND_IP}:80:80/tcp"},
     }
