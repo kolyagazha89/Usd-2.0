@@ -40,6 +40,45 @@ try{
     [IO.File]::ReadAllText($share) -cne [IO.File]::ReadAllText($fixture)){
   throw 'Exported public root differs from the Caddy root'
  }
+ # Regression from a real Windows 10 venue install: the database and API were
+ # READY, but pressing "Certificate" claimed Caddy was not running. Recover
+ # the gateway without deleting volumes or asking the operator to reinstall.
+ $script:gatewayRunning=$false
+ $script:gatewayRecoveries=0
+ $script:copyCalls=2
+ $script:failAll=$false
+ function Invoke-Compose {
+  param([string[]]$Arguments,[string]$Purpose)
+  if(($Arguments -join ' ') -cne 'up -d --no-build --pull never gateway'){
+   throw ('Certificate attempted unsafe Compose operation: '+($Arguments -join ' '))
+  }
+  $script:gatewayRecoveries++
+  $script:gatewayRunning=$true
+ }
+ function docker {
+  $argv=@($args)
+  if($argv -contains 'ps'){
+   $global:LASTEXITCODE=0
+   if($script:gatewayRunning){return 'abcdef012345'}
+   return
+  }
+  if($argv[0] -eq 'cp'){
+   $script:copyCalls++
+   if($script:failAll){$global:LASTEXITCODE=1;return}
+   [IO.File]::Copy($fixture,[string]$argv[-1],$true)
+   $global:LASTEXITCODE=0
+   return
+  }
+  throw ('Unexpected command while recovering gateway: '+($argv -join ' '))
+ }
+ Export-VenueCA
+ if($script:gatewayRecoveries -ne 1 -or $script:copyCalls -ne 3){
+  throw 'Certificate button did not automatically recover the stopped gateway'
+ }
+ Export-VenueCA
+ if($script:gatewayRecoveries -ne 1){
+  throw 'Certificate export unnecessarily recreated an already running gateway'
+ }
  $previous=[IO.File]::ReadAllText($dest)
  $script:failAll=$true
  $failed=$false

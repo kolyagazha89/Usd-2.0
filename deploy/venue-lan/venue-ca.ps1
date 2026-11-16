@@ -23,10 +23,24 @@ function Export-VenueCA {
  $destination=Join-Path $PrivateDir 'USD-Venue-CA.crt'
  $share=Join-Path $Root 'USD-Venue-CA.crt'
  if(!(Test-Path -LiteralPath $PrivateDir)){New-Item -Path $PrivateDir -ItemType Directory -Force|Out-Null}
- $container=@(& docker @(Get-VenueComposeArguments) ps -q gateway 2>$null|Select-Object -First 1)
- if($LASTEXITCODE -ne 0 -or $container.Count -ne 1 -or
-  [string]$container[0] -cnotmatch '^[a-f0-9]{12,64}$'){
-  throw 'Caddy пока не запущен. Нажмите «USD — Офлайн», затем «USD — Сертификат».'
+ # A READY installation may have an absent/restarting gateway after Windows
+ # login or Docker Desktop restart. The certificate shortcut must repair this
+ # itself; never require reinstalling the venue or touching its Docker volumes.
+ $container=@(& docker @(Get-VenueComposeArguments) ps --status running -q gateway 2>$null |
+  Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+ if($LASTEXITCODE -ne 0){throw 'Не удалось проверить Caddy через Docker. Проверьте Docker Desktop и повторите.'}
+ if($container.Count -eq 0){
+  Assert-NoOtherVenueGatewayRunning
+  Invoke-Compose @('up','-d','--no-build','--pull','never','gateway') 'recover HTTPS gateway without deleting venue data'
+  for($wait=0;$wait -lt 15;$wait++){
+   $container=@(& docker @(Get-VenueComposeArguments) ps --status running -q gateway 2>$null |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+   if($LASTEXITCODE -eq 0 -and $container.Count -eq 1){break}
+   if($wait -lt 14){Start-Sleep -Seconds 1}
+  }
+ }
+ if($container.Count -ne 1 -or [string]$container[0] -cnotmatch '^[a-f0-9]{12,64}$'){
+  throw 'Не удалось запустить Caddy. Посмотрите ошибку контейнера gateway в Docker Desktop. Локальная база и результаты сохранены.'
  }
  $temp=Join-Path $PrivateDir ('.venue-ca-'+[guid]::NewGuid().ToString('N')+'.crt')
  try{
