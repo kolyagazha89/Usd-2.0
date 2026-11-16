@@ -53,20 +53,30 @@ export default function PublicDocumentReader({documentKey,document}:{documentKey
   const [data,setData]=useState<DocumentResponse|null>(null);
   const [busy,setBusy]=useState(true);
   const [error,setError]=useState('');
+  const [documentStatus,setDocumentStatus]=useState<number|null>(null);
   const [retry,setRetry]=useState(0);
-  const isPublished=Object.prototype.hasOwnProperty.call(LEGAL_DOCUMENT_LABELS,documentKey)&&
-    document?.targetId?.startsWith('legal-document-'+documentKey+'-')===true;
+  // CMS settings may arrive later than the route. The public API is the
+  // authority for approval; absent settings must never mean "unpublished".
+  const knownDocumentKey=Object.prototype.hasOwnProperty.call(LEGAL_DOCUMENT_LABELS,documentKey);
   useEffect(()=>{
-    if(!isPublished){setBusy(false);setData(null);return;}
+    if(!knownDocumentKey){setBusy(false);setData(null);return;}
     let active=true;
-    setBusy(true);setError('');setData(null);
+    setBusy(true);setError('');setData(null);setDocumentStatus(null);
     apiGet<DocumentResponse>('/site-settings/documents/'+encodeURIComponent(documentKey))
-      .then(result=>{if(active)setData(result)})
-      .catch(()=>{if(active)setError('Не удалось загрузить текст документа. Проверьте соединение и повторите попытку.')})
+      .then(result=>{
+        if(!active)return;
+        if(result?.success===true&&Array.isArray(result.blocks))setData(result);
+        else setError('Сервер вернул некорректное содержимое документа. Повторите попытку.');
+      })
+      .catch((cause:unknown)=>{
+        if(!active)return;
+        if((cause as {status?:number})?.status===404)setDocumentStatus(404);
+        else setError('Не удалось загрузить текст документа. Проверьте соединение и повторите попытку.');
+      })
       .finally(()=>{if(active)setBusy(false)});
     return ()=>{active=false};
-  },[documentKey,isPublished,retry]);
-  if(!isPublished)return <><EmptyState title="Документ не опубликован">Файл ещё не утверждён организатором.</EmptyState><Link to="/documents">← К документам</Link></>;
+  },[documentKey,knownDocumentKey,retry]);
+  if(!knownDocumentKey||documentStatus===404)return <><EmptyState title="Документ не опубликован">Файл ещё не утверждён организатором.</EmptyState><Link to="/documents">← К документам</Link></>;
   const download=safeHref(document?.url);
   return <article className="public-legal-document" style={{maxWidth:1000,margin:'0 auto'}}>
     <Link className="u-back" to="/documents">← Все документы</Link>
