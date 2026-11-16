@@ -11,6 +11,7 @@ import { MediaTargetType } from '../generated/prisma/enums';
 const PUBLIC_LEGAL_DOCUMENT_KEYS = new Set([
   'privacyPolicy', 'personalDataConsent', 'termsOfUse', 'cookiePolicy',
   'newsletterConsent', 'photoProfileConsent',
+  'officialProtocolConsent',
 ]);
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
