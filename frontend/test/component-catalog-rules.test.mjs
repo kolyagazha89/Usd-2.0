@@ -127,5 +127,5 @@ test('equipment picker clearly handles unavailable, loading and empty catalogs',
  assert.match(editor,/value=\{picker.model\} type="search"/);
  assert.match(editor,/disabled=\{!picker.brand.trim\(\)\|\|!picker.model.trim\(\)\}/);
  assert.match(qa,/batteryTypes:\[\{code:'AGM'/,'the browser fixture must satisfy the required public catalog contract');
- assert.match(qa,/option\[value="Alphard"\]/,'browser QA waits for catalog hydration');
+ assert.match(qa,/datalist option\\[value="Alphard"\\]/,'browser QA waits for optional catalog suggestions');
 });
