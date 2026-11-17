@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiGet, apiPatch, apiPost, listData, type User } from "../api";
 import "./notifications.css";
+import { parsePushTemplateResponse, type PushTemplate, type PushTemplateResponse } from "./push-template-response";
 type Message = {
   id: string;
   title: string;
@@ -11,8 +12,6 @@ type Message = {
   _count: { deliveries: number };
 };
 type Summary = { enabled: boolean; subscribers: number; messages: Message[] };
-type PushTemplate={key:string;label:string;description:string;enabled:boolean;title:string;body:string};
-type PushTemplateResponse={templates:PushTemplate[];revision:string};
 const previewContent=(source:string)=>source.replaceAll('{{stageName}}','Пример этапа USD');
 const statusNames: Record<string, string> = {
   PENDING: "В очереди",
@@ -60,8 +59,12 @@ export default function NotificationsPage({
   const loadTemplates=async()=>{
     setTemplateError('');
     const data=await apiGet<PushTemplateResponse>('/push/admin/templates');
-    setTemplateOriginal(data);
-    setTemplateDraft(data.templates.map(template=>({...template})));
+    // Parse first: old APIs and test fixtures may not implement this endpoint.
+    // Never expose a partial response to render state.
+    const parsed=parsePushTemplateResponse(data);
+    setTemplateOriginal(parsed);
+    setTemplateDraft(parsed.templates.map(template=>({...template})));
+
   };
   const editTemplate=(key:string,changes:Partial<Pick<PushTemplate,'enabled'|'title'|'body'>>)=>{
     setTemplateDraft(previous=>previous.map(template=>template.key===key?{...template,...changes}:template));
@@ -74,8 +77,10 @@ export default function NotificationsPage({
     try{
       const payload={revision:templateOriginal.revision,templates:templateDraft.map(({key,enabled,title,body})=>({key,enabled,title,body}))};
       const updated=await apiPatch<PushTemplateResponse>('/push/admin/templates',payload);
-      setTemplateOriginal(updated);
-      setTemplateDraft(updated.templates.map(template=>({...template})));
+      const parsed=parsePushTemplateResponse(updated);
+      setTemplateOriginal(parsed);
+      setTemplateDraft(parsed.templates.map(template=>({...template})));
+
       setTemplateNotice('Шаблоны сохранены. Изменения применяются только к новым автоматическим уведомлениям, без рассылки при сохранении.');
     }catch(e){setTemplateError(e instanceof Error?e.message:'Не удалось сохранить шаблоны PUSH.')}
     finally{setTemplateBusy(false)}
