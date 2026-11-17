@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, Optional, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException, Optional, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import {duplicatePreview,type DuplicateSnapshot} from './duplicate-profile-preview';
@@ -11,7 +11,7 @@ const PUBLIC_STATUS=new Set(['PENDING','APPROVED','REJECTED','CONFLICT']);
 @Injectable()
 export class ProfileLinksService {
  private readonly logger=new Logger(ProfileLinksService.name);
- constructor(private readonly prisma:PrismaService,@Optional() private readonly mail?:MailService){}
+ constructor(private readonly prisma:PrismaService,@Optional() @Inject(MailService) private readonly mail?:MailService){}
 
  /** ADMIN-only aggregate. Historical email presence is not proof of a matching new account. */
  async adminEmailCoverage(){
