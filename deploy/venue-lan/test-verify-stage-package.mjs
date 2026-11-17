@@ -76,7 +76,8 @@ test('a signed, minimal approved venue policy is accepted; injected private fiel
  const approved=structuredClone(base);
  approved.venuePolicy={legal:{legalApproved:true,legalVersion:'1',ipName:'USD',
   privacyText:'public privacy',consentText:'public consent',termsText:'public terms',
-  operatorAddress:'public address',personalDataEmail:'privacy@example.org'},
+  operatorAddress:'public address',personalDataEmail:'privacy@example.org',
+  documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-ci',url:'https://example.org/official.docx',fileName:'Official.docx',blocks:[{type:'paragraph',text:'Условия согласия USD'}]}}},
   contactEmail:'contact@example.org',
   rulesPublished:{id:'rules-1',blocks:[{type:'paragraph',text:'public text'}]}};
  assert.doesNotThrow(()=>verifyVenueStageHandoff(pack(approved),pem,now));

@@ -10,8 +10,7 @@ import { MediaTargetType } from '../generated/prisma/enums';
 
 const PUBLIC_LEGAL_DOCUMENT_KEYS = new Set([
   'privacyPolicy', 'personalDataConsent', 'termsOfUse', 'cookiePolicy',
-  'newsletterConsent', 'photoProfileConsent',
-  'officialProtocolConsent',
+  'newsletterConsent', 'photoProfileConsent', 'officialProtocolConsent',
 ]);
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
@@ -32,11 +31,17 @@ export class SiteSettingsController{
     // Read only from the filtered public settings, never from unapproved drafts.
     const { settings } = await this.service.getPublic();
     const document = settings.legal.documents?.[documentKey] as
-      | { targetId?: string; fileName?: string }
+      | { targetId?: string; fileName?: string; blocks?: unknown }
       | undefined;
     if (settings.legal.legalApproved !== true || !document?.targetId ||
         !document.targetId.startsWith('legal-document-' + documentKey + '-')) {
       throw new NotFoundException('Документ не опубликован');
+    }
+    if(process.env.USD_VENUE_LAN_MODE==='true'&&documentKey==='officialProtocolConsent'){
+      // Only stage-signed, locally imported legal blocks are served in LAN.
+      if(!Array.isArray(document.blocks)||!document.blocks.length)
+        throw new NotFoundException('Текст согласия не включён в офлайн-пакет');
+      return {success:true,fileName:document.fileName||'Согласие USD.docx',blocks:document.blocks};
     }
     // The same checked media path enforces live approval/revocation again.
     const media = await this.mediaService.getPublicMediaFile(MediaTargetType.SITE_ASSET, document.targetId);

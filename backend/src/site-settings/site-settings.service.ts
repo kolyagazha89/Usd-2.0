@@ -5,6 +5,7 @@ import { BadRequestException, ConflictException, HttpException, Injectable, Logg
 import { PrismaService } from '../prisma/prisma.service';
 import { rewriteLegacyPublicMediaUrls } from './legacy-media-url';
 import { readPartnerImageLayout } from './partner-image-layout';
+import { missingLegalDocumentKeys, LEGAL_DOCUMENT_LABELS } from './legal-publication-readiness';
 import { assertBundledVehicleDirectoryLinks } from './vehicle-overrides-validation';
 
 export type SiteSettingsShape = {
@@ -553,6 +554,11 @@ export class SiteSettingsService{
             !String(contactEmail ?? '').trim() && 'контактный email оператора',
           ].filter(Boolean);
           if (missing.length) throw new BadRequestException('Нельзя утвердить юридические документы: заполните ' + missing.join(', ') + '.');
+          const missingDocs = missingLegalDocumentKeys(legal.documents);
+          if (missingDocs.length) {
+            throw new BadRequestException('Нельзя утвердить юридические документы: загрузите ' +
+              missingDocs.map(key => LEGAL_DOCUMENT_LABELS[key]).join(', ') + '.');
+          }
           legal = { ...legal, legalApproved: true, legalApprovedAt: new Date().toISOString(), legalApprovedBy: userId, legalVersion: String(Number(currentLegal.legalVersion ?? 0) + 1) };
         } else if (incomingLegal.legalApproved === false) {
           legal = { ...legal, legalApproved: false, legalApprovedAt: null, legalApprovedBy: null };

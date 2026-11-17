@@ -8,6 +8,7 @@ describe('permanent USD ID security and stage resolution', () => {
   user: { findUnique: jest.fn() },
   participant: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn(), updateMany: jest.fn(), update: jest.fn() },
   auditLog: { create: jest.fn() },
+  siteSettings: { findUnique: jest.fn() },
   $transaction: jest.fn(),
  };
  const actor: any = { user: { sub: 'user-1', role: 'PARTICIPANT' } };
@@ -16,6 +17,9 @@ describe('permanent USD ID security and stage resolution', () => {
   prisma.$transaction.mockImplementation(async (callback: any) => callback(prisma));
   prisma.auditLog.create.mockResolvedValue({ id: 'audit' });
   prisma.user.findUnique.mockResolvedValue({ id: 'user-1', participantId: 'p1', role: 'PARTICIPANT', customRoleId: null, isActive: true });
+  prisma.siteSettings.findUnique.mockResolvedValue({legal:{legalApproved:true,legalVersion:'1',
+   documents:{photoProfileConsent:{targetId:'legal-document-photoProfileConsent-qr',
+    url:'https://example.org/qr-profile.docx'}}}});
  });
 
  it('issues a random opaque token once for an existing historical profile', async () => {
@@ -79,7 +83,11 @@ describe('permanent USD ID security and stage resolution', () => {
  });
 
  it('uses existing public profile redaction for an open USD ID', async () => {
-  prisma.participant.findUnique.mockResolvedValueOnce({ id: 'p1', isPublic: true }).mockResolvedValueOnce({ id: 'p1', isPublic: true, registrations: [], cars: [] });
+  prisma.participant.findUnique.mockResolvedValueOnce({ id: 'p1', isPublic: true }).mockResolvedValueOnce({
+   id:'p1',isPublic:true,registrations:[],cars:[],
+   publicationConsentAt:new Date(),publicationConsentVersion:'publication-v1@legal-document-photoProfileConsent-qr',
+   publicationConsent:{identity:true,city:true,team:true,results:true,car:true,profilePhoto:true,carPhoto:true,eventPhoto:false,promotionPhoto:false},
+  });
   const profile = await new ParticipantsService(prisma).findPublicByUsdId('f'.repeat(48));
   expect(profile.id).toBe('p1');
   const publicQuery = prisma.participant.findUnique.mock.calls[1][0] as any;

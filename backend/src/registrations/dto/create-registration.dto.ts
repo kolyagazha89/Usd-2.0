@@ -37,6 +37,10 @@ export class CreateRegistrationDto {
   termsAccepted?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  protocolConsent?: boolean;
+
+  @IsOptional()
   @IsIn(['PRE_REGISTRATION', 'ON_SITE', 'IMPORT'])
   source?: 'PRE_REGISTRATION' | 'ON_SITE' | 'IMPORT';
 }

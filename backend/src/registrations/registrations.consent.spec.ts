@@ -15,7 +15,7 @@ describe('RegistrationsService rules consent', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1', ipName: 'USD', privacyText: 'policy', consentText: 'consent', termsText: 'terms' }, contacts: { email: 'legal@example.com' }, footer: {} });
+    prisma.siteSettings.findUnique.mockResolvedValue({ legal: { legalApproved: true, legalVersion: '1', ipName: 'USD', privacyText: 'policy', consentText: 'consent', termsText: 'terms', documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-fixture',url:'https://example.org/official-protocol.docx'}} }, contacts: { email: 'legal@example.com' }, footer: {} });
     prisma.user.findUnique.mockResolvedValue({ privacyConsentAt: null, privacyConsentVersion: null, termsAcceptedAt: null, termsVersion: null });
   });
 

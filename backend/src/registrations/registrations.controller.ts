@@ -142,6 +142,9 @@ export class RegistrationsController {
     @Req() request: AuthenticatedRequest,
     @Body() body: CreateRegistrationDto,
   ) {
+    if(body.source==='IMPORT') {
+      throw new ForbiddenException('Исторический импорт выполняется только через защищённый инструмент импорта — создать новую заявку без согласия нельзя');
+    }
     return this.registrationsService.create(
       request,
       body,

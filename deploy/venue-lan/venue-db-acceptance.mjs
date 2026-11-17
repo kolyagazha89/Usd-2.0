@@ -68,7 +68,8 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
   venuePolicy:{
    legal:{legalApproved:true,legalVersion:'1',ipName:'USD CI',
     privacyText:'Тестовая политика USD',consentText:'Тестовое согласие USD',
-    termsText:'Тестовые условия USD',operatorAddress:'CI address',personalDataEmail:'data@example.org'},
+    termsText:'Тестовые условия USD',operatorAddress:'CI address',personalDataEmail:'data@example.org',
+     documents:{officialProtocolConsent:{targetId:'legal-document-officialProtocolConsent-ci',url:'https://example.org/official-protocol.docx',fileName:'Consent.docx',blocks:[{type:'paragraph',text:'Тестовое согласие'}]}}},
    contactEmail:'venue@example.org',
    rulesPublished:{id:'ci-rules-1',blocks:[{type:'paragraph',text:'Тестовый регламент'}]},
   },
@@ -239,7 +240,7 @@ async function probe(){
  const onsite=await request('/registrations',{method:'POST',headers:authAdmin,
   body:JSON.stringify({
    stageId:ID.stage,participantId:newProfile.body.participantId,carId:newProfile.body.carId,
-   classIds:[ID.klass],source:'ON_SITE',rulesAccepted:true,privacyConsent:true,termsAccepted:true,
+   classIds:[ID.klass],source:'ON_SITE',rulesAccepted:true,privacyConsent:true,termsAccepted:true,protocolConsent:true,
   })});
  assert.equal(onsite.status,201,'Real on-site registration must work: '+JSON.stringify(onsite.body));
  assert.ok(onsite.body.id);

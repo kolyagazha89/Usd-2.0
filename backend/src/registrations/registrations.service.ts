@@ -11,6 +11,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import { currentProtocolConsentVersion } from '../auth/protocol-consent-document';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
 import { isValidRegistrationPlate } from '../participants/profile-validation';
 import { normalizePlateNumber,canonicalPlateIdentity,plateAdvisoryKey } from '../participants/plate-identity';
@@ -526,6 +527,7 @@ export class RegistrationsService {
       rulesAccepted?: boolean;
       privacyConsent?: boolean;
       termsAccepted?: boolean;
+      protocolConsent?: boolean;
     },
   ) {
     const {
@@ -536,8 +538,10 @@ export class RegistrationsService {
     } = body;
     const source = body.source ?? 'PRE_REGISTRATION';
     let consentLegalVersion: string | null = null;
+    let consentProtocolVersion: string | null = null;
     let registrationPrivacyConsentAt: Date | null = null;
     let registrationTermsAcceptedAt: Date | null = null;
+    let protocolConsentAt: Date | null = null;
     let consentCapturedByUserId: string | null = null;
     let publishedRulesReady = false;
     let publishedRulesVersion = '';
@@ -585,11 +589,17 @@ export class RegistrationsService {
       if (!legalReady) {
         throw new BadRequestException('Регистрация временно недоступна: юридические документы не утверждены организатором');
       }
+      const publishedProtocolVersion=currentProtocolConsentVersion(legal);
+      if (!publishedProtocolVersion) {
+        throw new BadRequestException('Регистрация временно недоступна: отдельное согласие на публикацию протоколов не утверждено');
+      }
       consentLegalVersion = version;
+      consentProtocolVersion = publishedProtocolVersion;
       if ((request.user.role === 'PARTICIPANT' && !request.user.customRoleId)) {
         const consentUser = await this.prisma.user.findUnique({
           where: { id: request.user.sub },
-          select: { privacyConsentAt: true, privacyConsentVersion: true, termsAcceptedAt: true, termsVersion: true },
+          select: { privacyConsentAt: true, privacyConsentVersion: true, termsAcceptedAt: true, termsVersion: true,
+            protocolConsentAt: true, protocolConsentVersion: true, protocolConsentRevokedAt: true },
         });
         const currentConsents = consentUser
           && consentUser.privacyConsentAt && consentUser.privacyConsentVersion === 'privacy-v' + version
@@ -597,6 +607,12 @@ export class RegistrationsService {
         if (!currentConsents) {
           throw new BadRequestException('Перед регистрацией примите актуальные юридические документы в форме регистрации');
         }
+        if (!consentUser.protocolConsentAt ||
+          consentUser.protocolConsentVersion !== 'protocol-v' + consentProtocolVersion ||
+          consentUser.protocolConsentRevokedAt) {
+          throw new BadRequestException('Перед регистрацией подтвердите публикацию ФИО и официального результата в личном кабинете');
+        }
+        protocolConsentAt = consentUser.protocolConsentAt;
         registrationPrivacyConsentAt = consentUser.privacyConsentAt;
         registrationTermsAcceptedAt = consentUser.termsAcceptedAt;
         consentCapturedByUserId = request.user.sub;
@@ -604,6 +620,10 @@ export class RegistrationsService {
         if (body.rulesAccepted !== true || body.privacyConsent !== true || body.termsAccepted !== true) {
           throw new BadRequestException('Для регистрации участника подтвердите согласие на обработку данных, пользовательское соглашение и ознакомление с регламентом');
         }
+        if (body.protocolConsent !== true) {
+          throw new BadRequestException('Для регистрации на месте подтвердите публикацию ФИО и официального результата участником');
+        }
+        protocolConsentAt = new Date();
         registrationPrivacyConsentAt = new Date();
         registrationTermsAcceptedAt = new Date();
         consentCapturedByUserId = request.user.sub;
@@ -1124,6 +1144,8 @@ export class RegistrationsService {
             privacyConsentVersion: 'privacy-v' + consentLegalVersion,
             termsAcceptedAt: registrationTermsAcceptedAt,
             termsVersion: 'terms-v' + consentLegalVersion,
+            protocolConsentAt,
+            protocolConsentVersion: 'protocol-v' + consentProtocolVersion,
             consentCapturedByUserId,
           } : {}),
           ...(body.rulesAccepted === true ? {

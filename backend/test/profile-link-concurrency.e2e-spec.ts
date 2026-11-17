@@ -26,6 +26,13 @@ suite('historical profile ownership races on disposable PostgreSQL18',()=>{
   const rows=await db.$queryRawUnsafe<Array<{version:string}>>("SELECT current_setting('server_version_num') AS version");
   if(Number(rows[0].version)<180000||Number(rows[0].version)>=190000)throw Error('PostgreSQL18 required');
   if(await db.user.count()||await db.participant.count())throw Error('Refusing nonempty ownership fixture');
+  await db.siteSettings.upsert({where:{id:'default'},create:{
+    id:'default',branding:{},homepage:{},stream:{},liveResults:{},navigation:{},social:{},
+    seo:{},footer:{},contacts:{},registration:{},catalogs:{},
+    legal:{legalApproved:true,legalVersion:'1',documents:{photoProfileConsent:{
+      targetId:'legal-document-photoProfileConsent-merge',url:'https://example.org/merge-consent.docx'}}}},
+   update:{legal:{legalApproved:true,legalVersion:'1',documents:{photoProfileConsent:{
+      targetId:'legal-document-photoProfileConsent-merge',url:'https://example.org/merge-consent.docx'}}}}});
   // These methods never invoke JWT signing or mail; use only the real DB boundary.
   auth=new AuthService(db,{} as never,{} as never);links=new ProfileLinksService(db);
  });
@@ -151,6 +158,14 @@ suite('historical profile ownership races on disposable PostgreSQL18',()=>{
    expect(oldParticipant.id).toBe(sourceId);
    expect(oldParticipant.usdIdToken).toBe(originalToken);
    expect(alias.targetId).toBe(targetId);
+   // A merged profile is public only with its own affirmative permission;
+   // the old isPublic flag must never silently become publication consent.
+   await db.participant.update({where:{id:targetId},data:{
+    isPublic:true,publicationConsentAt:new Date(),
+    publicationConsentVersion:'publication-v1@legal-document-photoProfileConsent-merge',
+    publicationConsent:{identity:true,city:false,team:false,results:false,car:false,profilePhoto:false,
+      carPhoto:false,eventPhoto:false,promotionPhoto:false},
+   }});
    const publicService=new ParticipantsService(db);
    expect((await publicService.findOne(sourceId)).id).toBe(targetId);
    expect((await publicService.findPublicByUsdId(originalToken)).id).toBe(targetId);
