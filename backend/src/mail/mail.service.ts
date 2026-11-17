@@ -111,14 +111,26 @@ export class MailService {
     return {entries:rows.slice(0,50),nextCursor:rows.length>50?rows[49].id:null};
   }
 
-  private async recordAccountMail(type:string,recipient:string,accepted:boolean):Promise<void>{
+  /** Only fixed-format provider metadata: never persist raw SMTP text, URLs or tokens. */
+  private safeMailFailure(error:unknown):string {
+    const value=error as {code?:unknown;responseCode?:unknown;status?:unknown};
+    const code=typeof value?.code==='string' && /^[A-Z][A-Z0-9_]{0,31}$/.test(value.code)
+      ? value.code : 'UNKNOWN';
+    const smtp=typeof value?.responseCode==='number' && Number.isInteger(value.responseCode)
+      && value.responseCode>=400 && value.responseCode<=599 ? String(value.responseCode) : 'NONE';
+    const http=typeof value?.status==='number' && Number.isInteger(value.status)
+      && value.status>=400 && value.status<=599 ? String(value.status) : 'NONE';
+    return `MAIL_TRANSPORT_ERROR code=${code} smtp=${smtp} http=${http}`;
+  }
+
+  private async recordAccountMail(type:string,recipient:string,accepted:boolean,error?:unknown):Promise<void>{
     if(!this.prisma?.emailNotificationLog?.create)return;
     try{
       await this.prisma.emailNotificationLog.create({data:{
         eventKey:'account-mail:'+randomUUID(),type,recipient,
         status:accepted?'PROVIDER_ACCEPTED':'FAILED',
         attempts:1,providerAcceptedAt:accepted?new Date():null,
-        lastError:accepted?null:'MAIL_TRANSPORT_ERROR',
+        lastError:accepted?null:this.safeMailFailure(error),
       }});
     }catch{
       // Logging is best effort: it must never suppress a successful security
@@ -131,7 +143,7 @@ export class MailService {
     try{
       await this.sendMessage({to:recipient,...message});
     }catch(error){
-      await this.recordAccountMail(type,recipient,false);
+      await this.recordAccountMail(type,recipient,false,error);
       throw error;
     }
     await this.recordAccountMail(type,recipient,true);
@@ -571,7 +583,7 @@ export class MailService {
     try {
       await this.sendAccountMail('AUTH_EMAIL_VERIFICATION',email,message);
     } catch (error) {
-      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name : 'UnknownError'}). Check the configured mail provider and its credentials.`);
+      this.logger.error(`Verification email send failed (${this.safeMailFailure(error)}). Check the configured mail provider and its credentials.`);
       throw new InternalServerErrorException('Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.');
     }
   }
