@@ -15,6 +15,10 @@ test('old PWA push workers and exact release identity remain reachable for insta
  for(const safe of ['/usd-release.json','/usd-push-sw.js','/usd-offline-sw.js','/usd-venue-config.js','/manifest.webmanifest','/usd/pwa-192.png','/usd/pwa-512.png'])
   assert.ok(nginx.includes(`    ${safe} 1;`),`legacy worker/release exemption: ${safe}`);
 });
+test('old indexed Tilda calendar URL permanently maps to the new stages page without dropping query',()=>{
+ assert.match(nginx,/location = \/stage\s*\{\s*return 301 https:\/\/usd-russia\.ru\/stages\$is_args\$args;/);
+ assert.match(nginx,/location = \/stage\/\s*\{\s*return 301 https:\/\/usd-russia\.ru\/stages\$is_args\$args;/);
+});
 test('new signed GHCR builds pre-render canonical, OG and robots on primary without a repo variable',()=>{
  assert.match(publisher,/origin="\$\{REQUESTED:-https:\/\/usd-russia\.ru\}"/);
  assert.match(publisher,/VITE_PUBLIC_SITE_ORIGIN=\$\{\{ steps\.public_origin\.outputs\.origin \}\}/);
