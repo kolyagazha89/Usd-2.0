@@ -23,11 +23,11 @@ class FrontendAcceptanceTests(unittest.TestCase):
         with patch.object(module, "fetch", side_effect=self.responses, create=True) as fetch:
             module.verify_frontend()
         paths = [call.args[0] for call in fetch.call_args_list]
-        self.assertIn('https://app.usd-russia.ru/login', paths)
-        self.assertIn('https://app.usd-russia.ru/participant', paths)
-        self.assertIn('https://app.usd-russia.ru/admin/inspections', paths)
-        self.assertIn('https://app.usd-russia.ru/assets/index-123.js', paths)
-        self.assertIn('https://app.usd-russia.ru/assets/index-123.css', paths)
+        self.assertIn('https://usd-russia.ru/login', paths)
+        self.assertIn('https://usd-russia.ru/participant', paths)
+        self.assertIn('https://usd-russia.ru/admin/inspections', paths)
+        self.assertIn('https://usd-russia.ru/assets/index-123.js', paths)
+        self.assertIn('https://usd-russia.ru/assets/index-123.css', paths)
 
     def test_spa_fallback_for_a_missing_javascript_asset_cannot_pass(self):
         with patch.object(module, "fetch", return_value=(200, 'text/html', self.HTML), create=True):
@@ -40,7 +40,7 @@ class FrontendAcceptanceTests(unittest.TestCase):
                 module.verify_frontend()
 
     def test_an_external_script_must_not_be_fetched(self):
-        html = self.HTML.replace(b'/assets/index-123.js', b'https://usd-russia.ru/assets/other.js')
+        html = self.HTML.replace(b'/assets/index-123.js', b'https://app.usd-russia.ru/assets/other.js')
         with patch.object(module, "fetch", return_value=(200, 'text/html', html), create=True) as fetch:
             with self.assertRaises(ValueError):
                 module.verify_frontend()
@@ -56,7 +56,7 @@ class FrontendAcceptanceTests(unittest.TestCase):
     def test_primary_origin_is_allowlisted_only_as_https_without_credentials(self):
         self.assertEqual(module.allowed_origin('https://usd-russia.ru/'), module.PRIMARY)
 
-    def test_public_prerelease_redirect_to_approved_primary_domain_is_allowed(self):
+    def test_public_legacy_redirect_to_approved_primary_domain_is_allowed(self):
         handler = module.PrereleaseRedirectHandler()
         req = module.urllib.request.Request('https://app.usd-russia.ru/')
         redirected = handler.redirect_request(req, None, 301, 'Moved Permanently', {}, 'https://usd-russia.ru/')
@@ -111,7 +111,17 @@ class VerifyReleaseTests(unittest.TestCase):
             module.verify(SHA)
         self.assertEqual(get.call_count, 4)
         self.assertTrue(all("usd-russia.ru" in c.args[0] for c in get.call_args_list))
-        self.assertTrue(all("https://usd-russia.ru/" not in c.args[0] for c in get.call_args_list))
+        self.assertTrue(get.call_args_list[0].args[0].startswith(module.PRIMARY+'/usd-release.json'))
+        self.assertTrue(all(not c.args[0].startswith(module.APP+'/') for c in get.call_args_list))
+
+    def test_release_acceptance_never_depends_on_legacy_app_host(self):
+        with patch.object(module, "get_json", side_effect=[
+            {"revision": SHA}, {"revision": SHA}, {"settings": {}}, []
+        ]) as get:
+            module.verify(SHA)
+        requested=[call.args[0] for call in get.call_args_list]
+        self.assertTrue(requested[0].startswith(module.PRIMARY+'/usd-release.json'))
+        self.assertTrue(all(not url.startswith(module.APP+'/') for url in requested))
 
     def test_stale_frontend_never_counts_as_a_deployment(self):
         with patch.object(module, "get_json", return_value={"revision": "b" * 40}):
