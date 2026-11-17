@@ -24,6 +24,15 @@ describe('SiteSettingsService legal approval gate', () => {
     termsText: 'Утверждённое соглашение.',
     legalApproved: false,
     legalVersion: '0',
+    documents: Object.fromEntries([
+      'privacyPolicy','personalDataConsent','termsOfUse','cookiePolicy',
+      'newsletterConsent','photoProfileConsent','officialProtocolConsent',
+    ].map(key => [key, {
+      targetId:'legal-document-'+key+'-unit',
+      fileName:key+'.docx',
+      url:'https://api.example.test/media/public-file/SITE_ASSET/legal-document-'+key+'-unit',
+    }])),
+
   };
   let service: SiteSettingsService;
 

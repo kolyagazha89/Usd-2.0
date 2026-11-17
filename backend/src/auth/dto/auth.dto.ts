@@ -54,6 +54,16 @@ export class LegalConsentDto {
   termsAccepted!: boolean;
 }
 
+export class ProtocolConsentDto {
+  @IsBoolean()
+  consent!: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  version?: string;
+}
+
 export class NewsletterConsentDto {
   @IsBoolean()
   consent!: boolean;

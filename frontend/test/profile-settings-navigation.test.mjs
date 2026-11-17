@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const read=p=>readFile(new URL(p,import.meta.url),'utf8');
 
-test('account profile has four independent deep-linkable settings pages',async()=>{
+test('account profile has five independent deep-linkable settings pages',async()=>{
  const [app,nav,styles,intro]=await Promise.all([
   read('../src/App.tsx'),read('../src/participant/ParticipantProfileNavigation.tsx'),
   read('../src/participant/profile-navigation.css'),read('../src/participant/ParticipantIntro.tsx')]);
- for(const key of ['personal','security','sessions','notifications']){
+ for(const key of ['personal','consents','security','sessions','notifications']){
   assert.match(nav,new RegExp("id:'"+key+"' as const"));
  }
  assert.match(nav,/aria-label="Настройки профиля USD"/);
@@ -16,14 +16,16 @@ test('account profile has four independent deep-linkable settings pages',async()
  assert.match(app,/const profileSection=participantProfileSection\(path\)/);
  assert.match(app,/ParticipantProfileNavigation section=\{profileSection\} go=\{go\}/);
  assert.match(app,/tab==='profile'&&profileSection==='personal'&&<section className="participant-section"/);
+ assert.match(app,/tab==='profile'&&profileSection==='consents'&&<section className="participant-section"/);
  assert.match(app,/profileSection==='security'\|\|profileSection==='sessions'/);
  assert.match(app,/section=\{profileSection\}/);
  assert.match(app,/tab==='profile'&&profileSection==='notifications'/);
  assert.match(app,/<PushPreferences adminProfileLinks=\{user\.role==='ADMIN'\}\/>/);
  assert.match(app,/newsletter-settings/);
- assert.match(intro,/безопасность, устройства и уведомления/);
- assert.match(styles,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
- assert.match(styles,/@media\(max-width:1000px\)/);
+ assert.match(intro,/согласия, безопасность, устройства и уведомления/);
+ assert.match(styles,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+ assert.match(styles,/@media\(max-width:1100px\)/);
+ assert.match(styles,/@media\(max-width:700px\)/);
  assert.match(styles,/@media\(max-width:480px\)/);
  assert.match(styles,/focus-visible/);
  assert.match(styles,/prefers-reduced-motion:reduce/);

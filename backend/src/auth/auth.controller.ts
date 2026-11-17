@@ -18,7 +18,7 @@ import { readReleaseInfo } from '../release-info';
 import type { AuthenticatedRequest } from './authenticated-request';
 import { Roles } from './roles.decorator';
 import { Public } from './public.decorator';
-import { AdminCreateUserDto, AdminCreateRoleDto, AdminUpdateRoleDto, AdminUserActiveDto, AdminUserCustomRoleDto, AdminUserRoleDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LegalConsentDto, LoginDto, NewsletterConsentDto, RegisterDto, ResetPasswordDto, TokenDto, HistoricalProfileSearchDto, LinkHistoricalProfileDto } from './dto/auth.dto';
+import { AdminCreateUserDto, AdminCreateRoleDto, AdminUpdateRoleDto, AdminUserActiveDto, AdminUserCustomRoleDto, AdminUserRoleDto, ChangeEmailDto, ChangePasswordDto, EmailDto, LegalConsentDto, ProtocolConsentDto, LoginDto, NewsletterConsentDto, RegisterDto, ResetPasswordDto, TokenDto, HistoricalProfileSearchDto, LinkHistoricalProfileDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -106,6 +106,18 @@ export class AuthController {
   async updateLegalConsent(@Req() request: Request, @Body() body: LegalConsentDto) {
     const userId = (request as Request & { user: { sub: string } }).user.sub;
     return this.authService.updateLegalConsent(userId, body.privacyConsent, body.termsAccepted);
+  }
+
+  @Get('protocol-consent')
+  async getProtocolConsent(@Req() request: Request) {
+    const userId = (request as AuthenticatedRequest).user.sub;
+    return this.authService.getProtocolConsent(userId);
+  }
+
+  @Patch('protocol-consent')
+  async setProtocolConsent(@Req() request: Request, @Body() body: ProtocolConsentDto) {
+    const userId = (request as AuthenticatedRequest).user.sub;
+    return this.authService.updateProtocolConsent(userId,body.consent,body.version);
   }
 
   @Get('newsletter-consent')

@@ -16,7 +16,16 @@ suite('profile contact visibility on isolated PostgreSQL18',()=>{
   const v=await db.$queryRawUnsafe<Array<{version:string}>>("SELECT current_setting('server_version_num') AS version");
   if(Number(v[0].version)<180000||Number(v[0].version)>=190000)throw Error('PostgreSQL18 required');
   if(await db.user.count()||await db.participant.count())throw Error('Refusing nonempty privacy fixture');
-  await db.participant.create({data:{id:ids.participant,firstName:'Synthetic',lastName:'Privacy',phone:contact.phone,isPublic:true}});
+  const choices={identity:true,city:true,team:true,results:true,car:true,profilePhoto:false,carPhoto:false,eventPhoto:false,promotionPhoto:false};
+  await db.siteSettings.upsert({where:{id:'default'},create:{id:'default',branding:{},homepage:{},stream:{},liveResults:{},navigation:{},social:{},seo:{},footer:{},contacts:{},registration:{},catalogs:{},legal:{
+    legalApproved:true,legalVersion:'1',documents:{photoProfileConsent:{
+      targetId:'legal-document-photoProfileConsent-contact',url:'https://example.org/contact-profile.docx',
+    }},
+  }},update:{legal:{legalApproved:true,legalVersion:'1',documents:{photoProfileConsent:{
+    targetId:'legal-document-photoProfileConsent-contact',url:'https://example.org/contact-profile.docx',
+  }}}}});
+  await db.participant.create({data:{id:ids.participant,firstName:'Synthetic',lastName:'Privacy',phone:contact.phone,isPublic:true,
+    publicationConsent:choices,publicationConsentAt:new Date(),publicationConsentVersion:'publication-v1@legal-document-photoProfileConsent-contact'}});
   await db.role.create({data:{id:ids.role,key:'PRIVACY-'+ids.role,name:'Synthetic judge',permissions:{participants:['view','create']}}});
   for(const [id,role,extra]of [[ids.owner,'PARTICIPANT',{participantId:ids.participant,email:contact.email}],[ids.admin,'ADMIN',{}],[ids.judge,'PARTICIPANT',{customRoleId:ids.role}]] as const)await db.user.create({data:{id,role,email:'profile-'+id+'@privacy.invalid',passwordHash:'synthetic-unused',emailVerifiedAt:new Date(),...extra}});
   service=new ParticipantsService(db);

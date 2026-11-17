@@ -1,17 +1,18 @@
-import {Bell,KeyRound,Smartphone,UserRound} from 'lucide-react';
+import {Bell,FileCheck2,KeyRound,Smartphone,UserRound} from 'lucide-react';
 import InternalLink from '../navigation/InternalLink';
 import './profile-navigation.css';
 
-export type ParticipantProfileSection='personal'|'security'|'sessions'|'notifications';
+export type ParticipantProfileSection='personal'|'consents'|'security'|'sessions'|'notifications';
 
 export function participantProfileSection(path:string):ParticipantProfileSection {
  const selected=new URLSearchParams(path.split('?')[1]??'').get('section');
- if(selected==='security'||selected==='sessions'||selected==='notifications')return selected;
+ if(selected==='consents'||selected==='security'||selected==='sessions'||selected==='notifications')return selected;
  return 'personal';
 }
 
 const sections=[
  {id:'personal' as const,title:'Личные данные',description:'ФИО, фото, телефон',icon:UserRound},
+ {id:'consents' as const,title:'Согласия',description:'Протоколы, рассылки, документы',icon:FileCheck2},
  {id:'security' as const,title:'Безопасность',description:'Пароль и почта',icon:KeyRound},
  {id:'sessions' as const,title:'Сеансы',description:'Мои устройства',icon:Smartphone},
  {id:'notifications' as const,title:'Уведомления',description:'Новости и PUSH',icon:Bell},

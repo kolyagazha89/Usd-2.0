@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaTargetType } from '../generated/prisma/enums';
 import { teamPostIdFromAssetKey, teamPhotoKeys } from '../teams/team-photo-keys';
+import { mayPublish, publicationVersion } from '../participants/publication-consent';
 import { validateImageBytes, validateDocxBytes } from './media-format-validation';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -346,24 +347,42 @@ export class MediaService {
     if (targetType === MediaTargetType.SITE_ASSET) {
       if (!(await this.isPublishedRulesDocument(targetId))) throw new ForbiddenException('Регламент ещё не опубликован');
     } else if (targetType === MediaTargetType.PARTICIPANT_PHOTO) {
+      const settings = await this.prisma.siteSettings.findUnique({
+        where: { id: 'default' }, select: { legal: true },
+      });
+      const version = publicationVersion(settings?.legal);
       const participant = await this.prisma.participant.findFirst({
         where: { id: targetId, isPublic: true },
-        select: { id: true },
+        select: { isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true, publicationRestrictions: true },
       });
-      if (!participant) {
-        // The original photo upload remains attached to the historical ID.
-        // Only publish it while the canonical profile is public.
-        const alias=await this.prisma.participantMergeRedirect.findUnique({
-          where:{sourceId:targetId},select:{target:{select:{isPublic:true}}},
+      if (!mayPublish(participant, 'profilePhoto', version) || !mayPublish(participant, 'identity', version)) {
+        // Old merged IDs retain their image only while the canonical participant
+        // explicitly authorizes this category on the current legal version.
+        const alias = await this.prisma.participantMergeRedirect.findUnique({
+          where: { sourceId: targetId },
+          select: { target: { select: {
+            isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true, publicationRestrictions: true,
+          } } },
         });
-        if(!alias?.target.isPublic)throw new ForbiddenException('Публичное фото участника недоступно');
+        if (!mayPublish(alias?.target, 'identity', version) || !mayPublish(alias?.target, 'profilePhoto', version)) {
+          throw new ForbiddenException('Публичное фото участника недоступно');
+        }
       }
     } else if (targetType === MediaTargetType.CAR_PHOTO) {
+      const settings = await this.prisma.siteSettings.findUnique({
+        where: { id: 'default' }, select: { legal: true },
+      });
+      const version = publicationVersion(settings?.legal);
       const car = await this.prisma.car.findFirst({
         where: { id: targetId, isPublic: true, participant: { isPublic: true } },
-        select: { id: true },
+        select: { participant: { select: {
+          isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true, publicationRestrictions: true,
+        } } },
       });
-      if (!car) throw new ForbiddenException('Публичное фото автомобиля недоступно');
+      if (!car || !mayPublish(car.participant, 'identity', version) ||
+          !mayPublish(car.participant, 'car', version) || !mayPublish(car.participant, 'carPhoto', version)) {
+        throw new ForbiddenException('Публичное фото автомобиля недоступно');
+      }
     } else {
       throw new ForbiddenException('Публичная выдача этого типа файлов запрещена');
     }

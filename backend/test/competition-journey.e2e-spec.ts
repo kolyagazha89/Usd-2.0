@@ -217,6 +217,16 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
       })
       .expect(201);
     member.participantId = profile.body.id;
+    const protocolConsent=await api('patch','/auth/protocol-consent',member)
+      .send({consent:true,version:legalVersion+'@legal-document-officialProtocolConsent-'+tag}).expect(200);
+    expect(protocolConsent.body).toMatchObject({accepted:true,version:legalVersion+'@legal-document-officialProtocolConsent-'+tag});
+    const status=await api('get','/auth/protocol-consent',member).expect(200);
+    expect(status.body.accepted).toBe(true);
+    // Voluntary profile/photo publication is independent of required sport results.
+    const publication=await api('patch','/participants/me/publication-consent',member)
+      .send({choices:{identity:true,city:true,team:true,results:true,car:true,profilePhoto:false,
+       carPhoto:false,eventPhoto:false,promotionPhoto:false},restrictions:''}).expect(200);
+    expect(publication.body.confirmed).toBe(true);
     const car = await api('post', '/participants/me/cars', member)
       .send({
         brand: 'Toyota',
@@ -324,6 +334,10 @@ integration('live competition journey on isolated PostgreSQL 18', () => {
         privacyText: 'Synthetic privacy document',
         consentText: 'Synthetic consent document',
         termsText: 'Synthetic terms document',
+        documents: {
+            officialProtocolConsent: { targetId: 'legal-document-officialProtocolConsent-'+tag, url: 'https://example.invalid/protocol-consent.docx' },
+            photoProfileConsent: { targetId: 'legal-document-photoProfileConsent-'+tag, url: 'https://example.invalid/profile-consent.docx' },
+          },
       },
       registration: {
         rulesDocument: {

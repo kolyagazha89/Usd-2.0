@@ -17,6 +17,7 @@ import { Prisma } from '../generated/prisma/client';
 import { MailService } from '../mail/mail.service';
 import type { AuthenticatedRequest } from './authenticated-request';
 import { normalizeHistoricalLinkEmail } from './profile-link-diagnostics';
+import { currentProtocolConsentVersion, requiresProtocolRepresentative } from './protocol-consent-document';
 
 @Injectable()
 export class AuthService {
@@ -145,6 +146,65 @@ export class AuthService {
       },
     });
     return { success: true, legalReady: true, version, privacyAccepted: true, termsAccepted: true };
+  }
+
+  /**
+   * Dedicated, versioned decision about publishing FIO and the official sporting
+   * result. Generic privacy/terms acceptance never implies this consent.
+   */
+  async getProtocolConsent(userId: string) {
+    const [legal, user, settings] = await Promise.all([
+      this.getLegalConsent(userId),
+      this.prisma.user.findUnique({where:{id:userId},select:{
+        participantId:true,participant:{select:{birthDate:true}},protocolConsentAt:true,protocolConsentVersion:true,protocolConsentRevokedAt:true,
+      }}),
+      this.prisma.siteSettings.findUnique({where:{id:'default'},select:{legal:true}}),
+    ]);
+    if(!user)throw new NotFoundException('Пользователь не найден');
+    const version=legal.legalReady?currentProtocolConsentVersion(settings?.legal):null;
+    const documentReady=Boolean(version);
+    const accepted=Boolean(documentReady && user.protocolConsentAt &&
+      user.protocolConsentVersion==='protocol-v'+version && !user.protocolConsentRevokedAt);
+    return {legalReady:documentReady,version,accepted,
+      acceptedAt:accepted?user.protocolConsentAt:null,revokedAt:user.protocolConsentRevokedAt??null,
+      hasParticipant:!!user.participantId,requiresRepresentative:requiresProtocolRepresentative(user.participant?.birthDate)};
+  }
+
+  async updateProtocolConsent(userId: string, consent: boolean, visibleVersion?: string) {
+    if(typeof consent!=='boolean')throw new BadRequestException('Укажите отдельное решение о публикации протокола');
+    const user=await this.prisma.user.findUnique({where:{id:userId},select:{
+      participantId:true,participant:{select:{birthDate:true}},
+      protocolConsentAt:true,protocolConsentVersion:true,protocolConsentRevokedAt:true,
+    }});
+    if(!user?.participantId)throw new BadRequestException('Сначала привяжите профиль участника к учётной записи');
+    // Withdrawal does not depend on whether the administrator has withdrawn a legal publication.
+    let version=user.protocolConsentVersion?.replace(/^protocol-v/,'')??null;
+    if(consent){
+      const legalVersion=await this.getApprovedLegalVersion();
+      const settings=await this.prisma.siteSettings.findUnique({where:{id:'default'},select:{legal:true}});
+      version=currentProtocolConsentVersion(settings?.legal);
+      if(!version || !version.startsWith(legalVersion+'@'))
+        throw new BadRequestException('Отдельный текст согласия на публикацию официальных протоколов не утверждён организатором');
+    }
+    if(consent && (!visibleVersion || visibleVersion!==version)) {
+      throw new BadRequestException('Редакция текста изменилась. Откройте согласие ещё раз и подтвердите актуальную версию');
+    }
+    if(consent && requiresProtocolRepresentative(user.participant?.birthDate))
+      throw new ForbiddenException('Согласие несовершеннолетнего оформляет законный представитель через организатора');
+    const now=new Date();
+    await this.prisma.$transaction(async tx=>{
+      await tx.user.update({where:{id:userId},data:consent
+        ?{protocolConsentAt:now,protocolConsentVersion:'protocol-v'+version,protocolConsentRevokedAt:null}
+        :{protocolConsentRevokedAt:now}});
+      await tx.auditLog.create({data:{
+        userId,entity:'User',entityId:userId,
+        action:consent?'PROTOCOL_PUBLICATION_CONSENT_ACCEPTED':'PROTOCOL_PUBLICATION_CONSENT_REVOKED',
+        metadata:{version:version?'protocol-v'+version:null,source:'member-account',
+          categories:['ФИО','этап','класс','место','результат','рекорд'],
+          details:'Separate consent to publish official USD competition protocol; no photos, city or marketing'},
+      }});
+    });
+    return {accepted:consent,version,acceptedAt:consent?now:null,revokedAt:consent?null:now};
   }
 
   async register(
