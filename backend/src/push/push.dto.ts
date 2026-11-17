@@ -5,6 +5,7 @@ import {
   IsIn,
   IsObject,
   IsOptional,
+  IsArray,
   IsString,
   IsUUID,
   MaxLength,
@@ -38,4 +39,10 @@ export class PushAnnouncementDto {
 /** Only the authenticated ADMIN's previously consented browser can be tested. */
 export class PushDeviceTestDto {
   @IsString() @MaxLength(2048) endpoint: string;
+}
+
+/** Complete editor payload is checked against immutable template keys in PushService. */
+export class PushTemplatesSaveDto {
+  @IsString() @MinLength(64) @MaxLength(64) revision!:string;
+  @IsArray() templates!:unknown[];
 }

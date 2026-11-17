@@ -18,20 +18,40 @@ describe('administrator profile link notifications', () => {
     return { db, transport, service: new PushService(db, transport, {} as any) };
   };
 
-  it('recovers pending requests and committed links from durable records without duplicate messages', async () => {
+  it('enqueues only new profile-link requests, never a successful link, without duplicate messages', async () => {
     const { db, service } = fixture();
     await service.scheduleProfileLinks();
     await service.scheduleProfileLinks();
-    expect(db.pushMessage.create).toHaveBeenCalledTimes(2);
+    expect(db.pushMessage.create).toHaveBeenCalledTimes(1);
     expect(db.pushMessage.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
       eventKey: 'profile-link-request:claim', category: 'profileLinks', path: '/admin/profile-links',
     }) }));
     expect(db.pushSubscription.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({
       announcements: true, user: { role: 'ADMIN', isActive: true, emailVerifiedAt: { not: null } },
     }) }));
-    expect(db.auditLog.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({
-      action: { in: ['PARTICIPANT_PROFILE_LINKED', 'PROFILE_LINK_APPROVED'] },
-    }) }));
+    expect(db.auditLog.findMany).not.toHaveBeenCalled();
+    expect(db.pushMessage.create.mock.calls.some(([call]: any[]) => String(call.data.eventKey).startsWith('profile-linked:'))).toBe(false);
+  });
+
+  it('skips delivery of profile-linked messages already queued before the change', async () => {
+    const { db, transport, service } = fixture();
+    db.pushDelivery = {
+      findMany: jest.fn(async () => [{
+        id: 'old-delivery', status: 'PENDING', attempts: 0, subscriptionId: 'device',
+        message: {id:'old',category:'profileLinks',eventKey:'profile-linked:historic-audit',
+          title:'Old automatic notification',body:'Old message',path:'/admin/participants',createdAt:new Date()},
+      }]),
+      updateMany: jest.fn(async()=>({count:1})),
+      update: jest.fn(async()=>({})),
+    };
+    db.pushSubscription.findUnique = jest.fn(async()=>({
+      id:'device',userId:'admin',announcements:true,user:{role:'ADMIN',isActive:true,emailVerifiedAt:new Date()},
+    }));
+    await service.processQueue();
+    expect(transport.send).not.toHaveBeenCalled();
+    expect(db.pushDelivery.update).toHaveBeenCalledWith(expect.objectContaining({
+      data:expect.objectContaining({status:'SKIPPED'}),
+    }));
   });
 
   it('does nothing when push transport is disabled', async () => {

@@ -1,5 +1,6 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException, Optional, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import {duplicatePreview,type DuplicateSnapshot} from './duplicate-profile-preview';
 import {classifyHistoricalLink,normalizeHistoricalLinkEmail} from './profile-link-diagnostics';
 
@@ -9,7 +10,8 @@ const PUBLIC_STATUS=new Set(['PENDING','APPROVED','REJECTED','CONFLICT']);
 
 @Injectable()
 export class ProfileLinksService {
- constructor(private readonly prisma:PrismaService){}
+ private readonly logger=new Logger(ProfileLinksService.name);
+ constructor(private readonly prisma:PrismaService,@Optional() @Inject(MailService) private readonly mail?:MailService){}
 
  /** ADMIN-only aggregate. Historical email presence is not proof of a matching new account. */
  async adminEmailCoverage(){
@@ -198,7 +200,7 @@ export class ProfileLinksService {
   // The admin's explicit approval is the attestation. Store a structured audit
   // reason server-side: no free-text prompt or unchecked browser boolean.
   const cleanReason=decision==='APPROVE'?'ADMIN_VERIFIED':'ADMIN_REJECTED';
-  return this.prisma.$transaction(async tx=>{
+  const outcome=await this.prisma.$transaction(async tx=>{
    // Advisory lock serializes concurrent reviews for the same request.
    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'profile-link:'+requestId}))`;
    const pending=await tx.profileLinkRequest.findUnique({
@@ -214,7 +216,7 @@ export class ProfileLinksService {
    // claimant. The claimant lock prevents last-write-wins profile hijacks.
    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'claimant-user:'+pending.claimantUserId}))`;
    const [claimant,participant]=await Promise.all([
-    tx.user.findUnique({where:{id:pending.claimantUserId},select:{id:true,participantId:true,emailVerifiedAt:true,isActive:true}}),
+    tx.user.findUnique({where:{id:pending.claimantUserId},select:{id:true,email:true,participantId:true,emailVerifiedAt:true,isActive:true}}),
     tx.participant.findUnique({where:{id:pending.participantId},select:{id:true,user:{select:{id:true}}}}),
    ]);
    if(decision==='APPROVE'&&(!claimant?.isActive||!claimant.emailVerifiedAt||claimant.participantId||!participant||participant.user))
@@ -235,7 +237,19 @@ export class ProfileLinksService {
    await tx.auditLog.create({data:{userId:reviewerId,action:decision==='APPROVE'?'PROFILE_LINK_APPROVED':'PROFILE_LINK_REJECTED',entity:'ProfileLinkRequest',entityId:pending.id,
     metadata:{claimantUserId:pending.claimantUserId,participantId:pending.participantId,reason:cleanReason,ownershipVerified:decision==='APPROVE'},
    }});
-   return {success:true,...updated};
+   // Do not expose the claimant's email in the ADMIN review response.
+   return {response:{success:true,...updated},recipient:claimant?.emailVerifiedAt?claimant.email:null};
   });
+  // The transaction commits first: SMTP failure must not undo an approved link
+  // or make the administrator retry an already completed decision.
+  if(outcome.recipient&&this.mail){
+   try{
+    await this.mail.sendProfileLinkDecisionEmail(outcome.recipient,decision==='APPROVE'?'APPROVED':'REJECTED');
+   }catch(error){
+    // No email or provider response in logs; MailService journals failures.
+    this.logger.warn('Profile-link decision email failed: '+(error instanceof Error?error.name:'UnknownError'));
+   }
+  }
+  return outcome.response;
  }
 }

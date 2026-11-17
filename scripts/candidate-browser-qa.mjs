@@ -130,6 +130,7 @@ function dataFor(url,role){
  if(p==='/results/public/latest')return [result];
  if(p==='/auth/admin/users')return [user('PARTICIPANT')];
  if(p==='/push/admin/messages')return {enabled:true,subscribers:1,messages:[]};
+ if(p==='/push/admin/templates')return {revision:'a'.repeat(64),templates:[{key:'profileLinkRequest',label:'Заявка на привязку',description:'Администраторам',enabled:true,title:'Новая заявка',body:'Проверьте заявку'}]};
  return [];
 }
 const publicRoutes=['/','/offline-event','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/news/news-image-fixture','/partners','/contacts','/documents','/about'];

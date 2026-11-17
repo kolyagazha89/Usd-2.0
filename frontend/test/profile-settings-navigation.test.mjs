@@ -15,7 +15,8 @@ test('account profile has five independent deep-linkable settings pages',async()
  assert.match(nav,/href=\{'\/participant\?tab=profile&section='\+id\}/);
  assert.match(app,/const profileSection=participantProfileSection\(path\)/);
  assert.match(app,/ParticipantProfileNavigation section=\{profileSection\} go=\{go\}/);
- assert.match(app,/tab==='profile'&&profileSection==='personal'&&<section className="participant-section"/);
+ assert.match(app,/tab==='profile'&&profileSection==='personal'&&!pendingProfilePhoto&&<section className="participant-section"/);
+ assert.match(app,/tab==='profile'&&profileSection==='personal'&&pendingProfilePhoto&&<ParticipantPhotoCropper/);
  assert.match(app,/tab==='profile'&&profileSection==='consents'&&<section className="participant-section"/);
  assert.match(app,/profileSection==='security'\|\|profileSection==='sessions'/);
  assert.match(app,/section=\{profileSection\}/);

@@ -1,0 +1,21 @@
+/* Photo editor is an in-page profile screen, not a keyboard-sensitive mobile dialog. */
+.participant-portal .member-photo-crop{max-width:730px;margin:0 auto 110px!important;padding:clamp(16px,3vw,28px)!important}
+.participant-portal .member-photo-crop-back{border:0;background:transparent;color:#d0dce8;padding:8px 0 20px;text-align:left}
+.participant-portal .member-photo-crop .participant-section-head{margin-bottom:16px}
+.participant-portal .member-photo-crop .participant-section-head p{color:#adbccc;line-height:1.5;font-size:13px}
+.participant-portal .member-photo-crop-frame{position:relative;width:min(100%,410px);aspect-ratio:1;overflow:hidden;margin:0 auto;background:#060b10;border:1px solid #526174;border-radius:7px;touch-action:none;user-select:none;cursor:grab}
+.participant-portal .member-photo-crop-frame:active{cursor:grabbing}
+.participant-portal .member-photo-crop-source{position:absolute;max-width:none;user-select:none;pointer-events:none}
+.participant-portal .member-photo-crop-ring{position:absolute;inset:0;border:3px solid #fff9;border-radius:50%;box-shadow:0 0 0 200px #0007;pointer-events:none}
+.participant-portal .member-photo-crop-loading{position:absolute;inset:0;display:grid;place-items:center;color:#bbc8d6;font-size:14px;pointer-events:none}
+.participant-portal .member-photo-crop-caption{text-align:center;color:#aab9c9;font-size:13px;margin:12px 0}
+.participant-portal .member-photo-crop-preview{display:block;width:80px;height:80px;border:2px solid #81919f;border-radius:50%;margin:0 auto 22px;background:#192431}
+.participant-portal .member-photo-crop-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.participant-portal .member-photo-crop-actions button{min-width:150px;min-height:46px}
+.participant-portal .member-photo-crop>small{display:block;margin:16px 0;color:#a0b2c2;text-align:center;line-height:1.5}
+.participant-portal .member-photo-crop-error{border:1px solid #a93d54;background:#341720;color:#ffd4dd;padding:12px;border-radius:10px}
+@media(max-width:640px){
+ .participant-portal .member-photo-crop{padding:16px!important;padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))!important}
+ .participant-portal .member-photo-crop-actions{flex-wrap:nowrap}
+ .participant-portal .member-photo-crop-actions button{min-width:0;flex:1}
+}

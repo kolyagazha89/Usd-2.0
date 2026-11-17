@@ -382,6 +382,7 @@ export class SiteSettingsService{
       && Boolean(String(legal.termsText ?? '').trim());
     const publicRegistration = { ...s.registration } as Record<string, any>;
     delete publicRegistration.emailTemplates;
+    delete publicRegistration.pushTemplates;
     return {
       success: true,
       settings: rewriteLegacyPublicMediaUrls({
@@ -438,6 +439,9 @@ export class SiteSettingsService{
       ? currentValue as Record<string, any> : DEFAULTS.registration;
     const incoming = incomingValue && typeof incomingValue === 'object' && !Array.isArray(incomingValue)
       ? incomingValue as Record<string, any> : {};
+    // Automatic PUSH templates are edited through /push/admin/templates with a
+    // revision guard; generic CMS forms may contain stale registration snapshots.
+    const {pushTemplates: _ignoredPushTemplates,...editableIncoming}=incoming;
     const currentDocument = current.rulesDocument && typeof current.rulesDocument === 'object'
       ? current.rulesDocument as Record<string, any> : {};
     const incomingDocument = incoming.rulesDocument && typeof incoming.rulesDocument === 'object'
@@ -475,7 +479,7 @@ export class SiteSettingsService{
       : Array.isArray(currentDocument.drafts) ? currentDocument.drafts : [];
     return {
       ...current,
-      ...incoming,
+      ...editableIncoming,
       rulesDocument: { ...currentDocument, ...incomingDocument, published, publishedVersions: versions, drafts },
     };
   }

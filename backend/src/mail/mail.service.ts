@@ -585,6 +585,26 @@ export class MailService {
     });
   }
 
+  /** Service mail for a decided ownership claim, independent of newsletter consent. */
+  async sendProfileLinkDecisionEmail(email: string, status: 'APPROVED' | 'REJECTED'): Promise<void> {
+    const approved = status === 'APPROVED';
+    const type = approved ? 'AUTH_PROFILE_LINK_APPROVED' : 'AUTH_PROFILE_LINK_REJECTED';
+    const message = renderBrandedEmail({
+      subject: approved ? 'Профиль успешно привязан — USD' : 'Заявка на привязку профиля отклонена — USD',
+      heading: approved ? 'Профиль успешно привязан' : 'Заявка на привязку профиля отклонена',
+      intro: approved
+        ? 'Администратор USD подтвердил вашу заявку. Исторический профиль теперь привязан к вашему аккаунту.'
+        : 'Администратор USD рассмотрел вашу заявку на привязку исторического профиля и отклонил её.',
+      actionLabel: approved ? 'Открыть личный кабинет' : 'Открыть USD',
+      actionUrl: this.frontendUrl + '/participant',
+      note: approved
+        ? 'Теперь вам доступны ваши автомобили, история выступлений и регистрация на этапы.'
+        : 'Если считаете, что произошла ошибка, обратитесь к организаторам USD. Повторно создавать профиль не требуется.',
+      frontendUrl: this.frontendUrl,
+    });
+    await this.sendAccountMail(type,email,message);
+  }
+
   async sendVerificationEmail(email: string, token: string): Promise<void> {
     const apiUrl = (process.env.API_PUBLIC_URL ?? process.env.PUBLIC_API_URL ?? 'https://api.usd-russia.ru').replace(/\/+$/, '');
     const verificationUrl = `${apiUrl}/auth/verify-email?token=${encodeURIComponent(token)}`;

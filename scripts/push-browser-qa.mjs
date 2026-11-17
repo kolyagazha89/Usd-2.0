@@ -56,7 +56,9 @@ async function scenario(width, mode = "participant", ios = false) {
   });
   let subscriptions = [],
     calls = [],
-    announcements = [];
+    announcements = [],
+    templates = [{key:'profileLinkRequest',label:'Заявка на привязку',description:'Уведомление администраторам',enabled:true,title:'Новая заявка',body:'Проверьте заявку'}],
+    revision = 'a'.repeat(64);
   await context.addInitScript(
     ({ ios }) => {
       window.__push = {
@@ -205,6 +207,15 @@ async function scenario(width, mode = "participant", ios = false) {
       data = { success: true };
     } else if (p === "/push/admin/messages" && method === "GET")
       data = { enabled: true, subscribers: 2, messages: announcements };
+    else if (p === "/push/admin/templates" && method === "GET")
+      data = {templates,revision};
+    else if (p === "/push/admin/templates" && method === "PATCH") {
+      calls.push({method,p,payload});
+      assert.equal(payload.revision,revision);
+      templates = templates.map(t=>({...t,...payload.templates.find(x=>x.key===t.key)}));
+      revision = 'b'.repeat(64);
+      data = {templates,revision};
+    }
     else if (p === "/push/admin/messages" && method === "POST") {
       calls.push({ method, p, payload });
       announcements = [
@@ -291,9 +302,17 @@ async function scenario(width, mode = "participant", ios = false) {
     } else if (mode === "viewer") {
       assert.equal(await page.locator(".notification-composer").count(), 0);
     } else {
+      const editor=page.getByRole("region",{name:"Редактор автоматических PUSH"});
+      await editor.getByRole("heading",{name:"Шаблоны автоматических PUSH"}).waitFor();
+      await editor.locator(".push-template-card input:not([type=checkbox])").fill("Заявка из USD");
+      await editor.getByText("Заявка из USD",{exact:true}).waitFor();
+      await editor.getByRole("button",{name:"Сохранить шаблоны"}).click();
+      await page.getByText(/Шаблоны сохранены/).waitFor();
+      assert.equal(calls.length,1);
+      assert.equal(calls[0].p,"/push/admin/templates");
       await page.getByLabel("Заголовок", { exact: true }).fill("Тест USD");
       await page
-        .locator(".notification-composer textarea")
+        .locator("form.notification-composer textarea")
         .fill("Тестовое объявление");
       const submit = page.getByRole("button", {
         name: "Поставить в очередь",
@@ -303,9 +322,10 @@ async function scenario(width, mode = "participant", ios = false) {
       await page.locator(".notification-confirm input").check();
       await submit.click();
       await page.getByText(/Объявление поставлено в очередь/).waitFor();
-      assert.equal(calls.length, 1);
-      assert.equal(calls[0].payload.confirmed, true);
-      assert.match(calls[0].payload.requestKey, /^[a-f0-9-]{36}$/);
+      const broadcasts=calls.filter(x=>x.p==="/push/admin/messages");
+      assert.equal(broadcasts.length, 1);
+      assert.equal(broadcasts[0].payload.confirmed, true);
+      assert.match(broadcasts[0].payload.requestKey, /^[a-f0-9-]{36}$/);
     }
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > innerWidth + 1,
