@@ -321,7 +321,6 @@ function Get-VenueReleaseSha([object]$sharedConfig){
   }catch{Write-Host 'USD VENUE: образ предыдущего этапа требует загрузки'}
  }
  $cached=Get-CachedVenueReleaseSha
- if($cached){return $cached}
  $sha=$null
  foreach($endpoint in @(
   [pscustomobject]@{Uri='https://api.usd-russia.ru/release';Step='resolve-release-online-api'},
@@ -336,6 +335,8 @@ function Get-VenueReleaseSha([object]$sharedConfig){
    break
   }catch{Write-Host ('USD VENUE: источник версии '+$endpoint.Uri+' недоступен: '+$_.Exception.Message)}
  }
+ if(!$sha -and $cached){return $cached}
+ if($sha -and $sha -ceq $cached){return $cached}
  if(!$sha){
   # CI-published verified USD release candidate; not a mutable :latest tag.
   # If the operator cannot reach either USD domain, GHCR alone can supply it.

@@ -6,6 +6,8 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import {getBrowserLaunchOptions} from './browser-qa-config.mjs';
 import {isCandidateApiRequest} from './candidate-browser-qa-config.mjs';
+import {venueCertificatePage} from '../backend/src/stages/venue-certificate-page.ts';
+import {X509Certificate} from 'node:crypto';
 
 const {chromium}=createRequire(path.join(process.env.USD_BROWSER_TOOLING,'package.json'))('playwright');
 const dist=fileURLToPath(new URL('../frontend/dist',import.meta.url));
@@ -31,6 +33,9 @@ const browser=await chromium.launch(getBrowserLaunchOptions());
 const publicKeyPem='-----BEGIN PUBLIC KEY-----\nfixture\n-----END PUBLIC KEY-----\n';
 const setup={signing:{ready:true,publicKeyPem,fingerprint:'a'.repeat(64)},centralSyncReady:false,fieldAcceptanceComplete:false};
 const stages=[{id:'one',name:'USD — длинное название этапа для проверки переноса текста',city:'Екатеринбург',date:'2026-11-13',status:'PUBLISHED'},{id:'draft',name:'Черновик',status:'DRAFT'}];
+const rootPem=await readFile(new URL('../deploy/venue-lan/test-fixtures/public-root-ca.crt',import.meta.url),'utf8');
+const rootCert=new X509Certificate(rootPem);
+const certificate={available:true,sha256:rootCert.fingerprint256.replace(/:/g,'').toLowerCase(),notAfter:rootCert.validTo,updatedAt:new Date().toISOString()};
 let checks=0;
 try{
  for(const width of [320,390,768,1440]){
@@ -49,6 +54,12 @@ try{
     setupCalls++;
     if(mode==='error')return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Сервер временно недоступен'})});
     data=mode==='missing'?{...setup,signing:{ready:false,publicKeyPem:null,fingerprint:null}}:setup;
+   }else if(url.pathname==='/stages/venue/certificate')data=certificate;
+   else if(url.pathname==='/stages/venue/certificate/install')return route.fulfill({status:200,contentType:'text/html',body:venueCertificatePage(certificate.sha256,new Date(certificate.notAfter))});
+   else if(url.pathname.startsWith('/stages/venue/certificate/download/')){
+    const format=url.pathname.endsWith('/cer')?'cer':'crt';
+    assert.equal(url.searchParams.get('sha256'),certificate.sha256);
+    return route.fulfill({status:200,headers:{'Content-Type':format==='cer'?'application/pkix-cert':'application/x-x509-ca-cert','Content-Disposition':'attachment; filename="USD-Venue-CA.'+format+'"'},body:format==='cer'?rootCert.raw:Buffer.from(rootPem)});
    }else if(url.pathname==='/stages')data=mode==='empty'?[]:stages;
    else if(url.pathname==='/stages/venue/one/staff-export'&&route.request().method()==='POST'){
     const now=Date.now();
@@ -60,6 +71,21 @@ try{
   await page.goto(base+'/admin/venue-server?stageId=one');
   await page.getByRole('heading',{name:'Офлайн-сервер',exact:true}).waitFor();
   const main=page.locator('.venue-server-page');
+  await main.getByRole('button',{name:'Скопировать ссылку для MAX',exact:true}).waitFor();
+  const installLink=main.getByRole('link',{name:'Открыть страницу установки',exact:true});
+  assert.equal(new URL(await installLink.getAttribute('href')).searchParams.get('sha256'),certificate.sha256);
+  const popup=page.waitForEvent('popup');await installLink.click();const installPage=await popup;
+  await installPage.getByRole('heading',{name:'USD — сертификат для судей',exact:true}).waitFor();
+  for(const format of ['cer','crt']){
+   const download=installPage.waitForEvent('download');
+   await installPage.getByRole('link',{name:format==='cer'?'Скачать для iPhone (.cer)':'Скачать для Android (.crt)',exact:true}).click();
+   const file=await download;assert.equal(file.suggestedFilename(),'USD-Venue-CA.'+format);
+   const actual=new X509Certificate(await readFile(await file.path()));
+   assert.equal(actual.fingerprint256,rootCert.fingerprint256);checks++;
+  }
+  assert.equal(await installPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+  await installPage.screenshot({path:path.join(output,'certificate-'+width+'.png'),fullPage:true});
+  await installPage.close();checks++;
   await main.getByRole('heading',{name:'Сохраните результаты в защищённый файл'}).waitFor();
   await main.getByText('USD-Export.cmd',{exact:true}).waitFor();
   await main.getByText('Подготовка файла настоящего этапа',{exact:true}).click();

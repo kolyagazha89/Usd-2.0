@@ -116,12 +116,12 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
        <input aria-label="Ссылка установки сертификата" readOnly value={venueCertificateInstallUrl(certificate.sha256!)} onFocus={event=>event.target.select()} style={{width:'100%'}}/>
        <div className="venue-server-cert-codes"><div><QRCodeSVG value={venueCertificateInstallUrl(certificate.sha256!)} size={160} title="Скачать сертификат на телефон"/><span>Страница установки на телефоне</span></div></div>
        <div className="venue-server-actions">
-        <a className="primary-button" href={venueCertificateDownloadUrl('cer')} target="_blank" rel="noopener noreferrer"><Download size={19}/>Скачать для iPhone (.cer)</a>
-        <a className="primary-button" href={venueCertificateDownloadUrl('crt')} target="_blank" rel="noopener noreferrer"><Download size={19}/>Скачать для Android (.crt)</a>
+        <a className="primary-button" href={venueCertificateDownloadUrl('cer',certificate.sha256)} target="_blank" rel="noopener noreferrer"><Download size={19}/>Скачать для iPhone (.cer)</a>
+        <a className="primary-button" href={venueCertificateDownloadUrl('crt',certificate.sha256)} target="_blank" rel="noopener noreferrer"><Download size={19}/>Скачать для Android (.crt)</a>
        </div>
        <div className="venue-server-cert-codes">
-        <div><QRCodeSVG value={venueCertificateDownloadUrl('cer')} size={132} title="QR для iPhone"/><span>iPhone</span></div>
-        <div><QRCodeSVG value={venueCertificateDownloadUrl('crt')} size={132} title="QR для Android"/><span>Android</span></div>
+        <div><QRCodeSVG value={venueCertificateDownloadUrl('cer',certificate.sha256)} size={132} title="QR для iPhone"/><span>iPhone</span></div>
+        <div><QRCodeSVG value={venueCertificateDownloadUrl('crt',certificate.sha256)} size={132} title="QR для Android"/><span>Android</span></div>
        </div>
       </>}
      </>}

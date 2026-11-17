@@ -32,8 +32,8 @@ export type Dashboard = {
 };
 
 /** Public CA download: one mobile-friendly link from the online USD API. */
-export function venueCertificateDownloadUrl(format:'cer'|'crt'):string{
-  return API_BASE.replace(/\/$/,'')+'/stages/venue/certificate/download/'+format;
+export function venueCertificateDownloadUrl(format:'cer'|'crt',sha256?:string):string{
+  return API_BASE.replace(/\/$/,'')+'/stages/venue/certificate/download/'+format+(sha256?'?sha256='+encodeURIComponent(sha256):'');
 }
 export function venueCertificateInstallUrl(sha256:string):string{
   return API_BASE.replace(/\/$/,'')+'/stages/venue/certificate/install?sha256='+encodeURIComponent(sha256);
