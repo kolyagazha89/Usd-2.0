@@ -126,9 +126,9 @@
 .push-template-card>label small{font-weight:400;opacity:.8}
 .push-template-card input:not([type=checkbox]),.push-template-card textarea{
  width:100%;min-width:0;font:inherit;font-size:16px;padding:12px;border-radius:9px;
- border:1px solid var(--border,#657080);background:var(--surface,#fff);color:inherit;
+ border:1px solid #cbd1da;background:#fff;color:#1e2430;
 }
-.push-template-card .notification-preview{border-radius:9px}
+.push-template-card .notification-preview{border-radius:9px;color:#1e2430;background:#f6f7f9}
 .push-template-actions{display:flex;flex-wrap:wrap;align-items:center;gap:13px}
 .push-template-actions small{flex:1 1 250px}
 @media(max-width:540px){.push-template-card{padding:14px}.push-template-actions button{width:100%}}
