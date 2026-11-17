@@ -47,11 +47,14 @@ class FrontendAcceptanceTests(unittest.TestCase):
         self.assertEqual(fetch.call_count, 1)
 
     def test_network_targets_are_allowlisted_before_connecting(self):
-        for url in ('https://usd-russia.ru/', 'http://app.usd-russia.ru/', 'https://api.usd-russia.ru.evil.test/', 'https://user:pass@api.usd-russia.ru/'):
+        for url in ('http://usd-russia.ru/', 'http://app.usd-russia.ru/', 'https://api.usd-russia.ru.evil.test/', 'https://user:pass@api.usd-russia.ru/'):
             with self.subTest(url=url), patch.object(module.urllib.request, 'build_opener') as opener:
                 with self.assertRaises(ValueError):
                     module.fetch(url, 'application/json')
                 opener.assert_not_called()
+
+    def test_primary_origin_is_allowlisted_only_as_https_without_credentials(self):
+        self.assertEqual(module.allowed_origin('https://usd-russia.ru/'), module.PRIMARY)
 
     def test_public_prerelease_redirect_to_approved_primary_domain_is_allowed(self):
         handler = module.PrereleaseRedirectHandler()
