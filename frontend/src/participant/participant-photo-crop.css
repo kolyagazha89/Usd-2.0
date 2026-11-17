@@ -8,9 +8,6 @@
 .participant-portal .member-photo-crop-source{position:absolute;max-width:none;user-select:none;pointer-events:none}
 .participant-portal .member-photo-crop-ring{position:absolute;inset:0;border:3px solid #fff9;border-radius:50%;box-shadow:0 0 0 200px #0007;pointer-events:none}
 .participant-portal .member-photo-crop-loading{position:absolute;inset:0;display:grid;place-items:center;color:#bbc8d6;font-size:14px;pointer-events:none}
-.participant-portal .member-photo-crop-zoom{display:flex;gap:12px;justify-content:center;margin:22px auto}
-.participant-portal .member-photo-crop-zoom button{min-width:46px;min-height:46px;border:1px solid #4d5e6e;border-radius:11px;background:#23313e;color:#f6f8fb;font-size:18px;padding:0 14px}
-.participant-portal .member-photo-crop-zoom button:first-child,.participant-portal .member-photo-crop-zoom button:last-child{font-size:23px}
 .participant-portal .member-photo-crop-caption{text-align:center;color:#aab9c9;font-size:13px;margin:12px 0}
 .participant-portal .member-photo-crop-preview{display:block;width:80px;height:80px;border:2px solid #81919f;border-radius:50%;margin:0 auto 22px;background:#192431}
 .participant-portal .member-photo-crop-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
