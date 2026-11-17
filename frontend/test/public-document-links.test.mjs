@@ -11,7 +11,7 @@ test('approved legal files open an internal reader instead of a cross-origin DOC
   const links = publicDocumentLinks(legal, { rulesDocument: { published: { url: 'https://api.usd-russia.ru/media/public-file/SITE_ASSET/rules-draft-valid', fileName: 'Rules.docx' } } });
   assert.deepEqual(links.map(x => x.openPath), ['/rules', '/documents/privacyPolicy', '/documents/cookiePolicy']);
   assert.ok(links.every(x => x.downloadUrl.startsWith('https://api.usd-russia.ru/')));
-  assert.equal(links[1].fileName, 'Privacy.docx');
+  assert.equal(links[1].description, 'Порядок обработки и защиты персональных данных');
 });
 
 test('draft and missing legal documents are never presented as publicly readable', () => {
@@ -27,7 +27,7 @@ test('official protocol publication terms are a separate approved reader, never 
   const legal = { legalApproved: true, documents: { officialProtocolConsent: doc } };
   const links = publicDocumentLinks(legal, {});
   assert.deepEqual(links.map(item => item.openPath), ['/documents/officialProtocolConsent']);
-  assert.equal(links[0].fileName, 'Протокол.docx');
+  assert.equal(links[0].description, 'Публикация ФИО и официальных спортивных результатов');
   assert.deepEqual(publicDocumentLinks({ ...legal, legalApproved: false }, {}), []);
   assert.deepEqual(publicDocumentLinks({ ...legal, documents: { officialProtocolConsent: { ...doc, targetId: 'legal-document-photoProfileConsent-wrong' } } }, {}), []);
 });
@@ -41,4 +41,34 @@ test('operator CMS and SEO know the official protocol document category', async 
   assert.match(admin, /key:'officialProtocolConsent'/);
   assert.match(admin, /filename:'usd-official-protocol-consent\.docx'/);
   assert.match(seo, /officialProtocolConsent:\s*'Согласие на публикацию ФИО/);
+});
+
+test('public document cards show editorial descriptions, not uploaded DOCX filenames', () => {
+  const documents = Object.fromEntries([
+    'privacyPolicy', 'personalDataConsent', 'termsOfUse', 'cookiePolicy',
+    'newsletterConsent', 'photoProfileConsent', 'officialProtocolConsent',
+  ].map(key => [key, {
+    targetId: 'legal-document-' + key + '-v18',
+    url: 'https://api.usd-russia.ru/media/public-file/SITE_ASSET/legal-document-' + key + '-v18',
+    fileName: '07_internal_revision_(1).docx',
+  }]));
+  const links = publicDocumentLinks(
+    { legalApproved: true, documents },
+    { rulesDocument: { published: { url: 'https://api.usd-russia.ru/media/rules', fileName: 'Rules USD 2027 (1).docx' } } },
+  );
+  assert.equal(links.length, 8);
+  for (const doc of links) {
+    assert.ok(doc.label.length > 5);
+    assert.ok(doc.description.length > 10, doc.key);
+    assert.doesNotMatch(doc.description, /\.docx?|[\\/]media[\\/]|internal|\(1\)/i, doc.key);
+    assert.equal('fileName' in doc, false, 'public view must not expose storage filename for ' + doc.key);
+    assert.ok(doc.downloadUrl.startsWith('https://api.usd-russia.ru/'), 'original download remains available');
+  }
+});
+
+test('public documents card layout reads friendly descriptions, never raw file metadata', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../src/public/PublicCommunity.tsx', import.meta.url), 'utf8');
+  assert.match(source, /\{document\.description\}/);
+  assert.doesNotMatch(source, /\{document\.fileName\}/);
 });
