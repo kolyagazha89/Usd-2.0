@@ -14,6 +14,7 @@ import { setDefaultResultOrder } from 'node:dns';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { renderUsdMailShell } from './mail-brand-layout';
+import {publicUsdSiteOrigin} from '../common/public-site-origin';
 
 // Prefer IPv4 on домашнем сервере USD, where outbound IPv6 SMTP routes may be unavailable.
 setDefaultResultOrder('ipv4first');
@@ -167,9 +168,7 @@ export class MailService {
     process.env.SMTP_FROM ??
     process.env.SMTP_USER;
 
-  private readonly frontendUrl =
-    process.env.FRONTEND_URL ??
-    'http://localhost:3000';
+  private readonly frontendUrl=publicUsdSiteOrigin(process.env.FRONTEND_URL);
 
   private async sendViaGmailApi(message: { to: string; subject: string; text: string; html: string }): Promise<void> {
     const clientId = (process.env.GMAIL_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID)?.trim();
