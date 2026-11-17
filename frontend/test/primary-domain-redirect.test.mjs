@@ -12,7 +12,7 @@ test('owned app host permanently redirects public paths to primary without rewri
 });
 test('old PWA push workers and exact release identity remain reachable for installed browsers and secure deployment',()=>{
  for(const safe of ['/usd-release.json','/usd-push-sw.js','/usd-offline-sw.js','/manifest.webmanifest'])
-  assert.match(nginx,new RegExp(safe.replaceAll('.',String.raw'\.').replaceAll('/','\\/')+'\\s+1;'));
+  assert.ok(nginx.includes(`    ${safe} 1;`),`legacy worker/release exemption: ${safe}`);
 });
 test('new signed GHCR builds pre-render canonical, OG and robots on primary without a repo variable',()=>{
  assert.match(publisher,/origin="\$\{REQUESTED:-https:\/\/usd-russia\.ru\}"/);
