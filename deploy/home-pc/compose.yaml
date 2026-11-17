@@ -39,10 +39,10 @@ services:
       # Fail closed if an old .env still contains Gmail/Resend settings.
       MAIL_PROVIDER: smtp
       MAIL_ACCOUNT_ONLY: "true"
-      CORS_ORIGINS: https://${APP_DOMAIN:?set APP_DOMAIN}
-      CSRF_TRUSTED_ORIGINS: https://${APP_DOMAIN}
+      CORS_ORIGINS: ${USD_FRONTEND_ALLOWED_ORIGINS:-https://app.usd-russia.ru}
+      CSRF_TRUSTED_ORIGINS: ${USD_FRONTEND_ALLOWED_ORIGINS:-https://app.usd-russia.ru}
       TRUST_PROXY_HOPS: "1"
-      FRONTEND_URL: https://${APP_DOMAIN}
+      FRONTEND_URL: ${USD_PUBLIC_FRONTEND_ORIGIN:-https://app.usd-russia.ru}
       API_PUBLIC_URL: https://${API_DOMAIN:?set API_DOMAIN}
       PUBLIC_API_URL: https://${API_DOMAIN}
     depends_on:

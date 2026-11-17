@@ -2,7 +2,9 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 ARG VITE_API_URL
+ARG VITE_PUBLIC_SITE_ORIGIN=https://app.usd-russia.ru
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_PUBLIC_SITE_ORIGIN=${VITE_PUBLIC_SITE_ORIGIN}
 
 # package.json runs a build in postinstall, so source and tsconfig must exist first.
 COPY . .

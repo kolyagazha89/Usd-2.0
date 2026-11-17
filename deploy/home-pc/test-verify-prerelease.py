@@ -47,17 +47,34 @@ class FrontendAcceptanceTests(unittest.TestCase):
         self.assertEqual(fetch.call_count, 1)
 
     def test_network_targets_are_allowlisted_before_connecting(self):
-        for url in ('https://usd-russia.ru/', 'http://app.usd-russia.ru/', 'https://api.usd-russia.ru.evil.test/', 'https://user:pass@api.usd-russia.ru/'):
+        for url in ('http://usd-russia.ru/', 'http://app.usd-russia.ru/', 'https://api.usd-russia.ru.evil.test/', 'https://user:pass@api.usd-russia.ru/'):
             with self.subTest(url=url), patch.object(module.urllib.request, 'build_opener') as opener:
                 with self.assertRaises(ValueError):
                     module.fetch(url, 'application/json')
                 opener.assert_not_called()
 
-    def test_redirect_to_main_domain_is_rejected_before_following_it(self):
+    def test_primary_origin_is_allowlisted_only_as_https_without_credentials(self):
+        self.assertEqual(module.allowed_origin('https://usd-russia.ru/'), module.PRIMARY)
+
+    def test_public_prerelease_redirect_to_approved_primary_domain_is_allowed(self):
         handler = module.PrereleaseRedirectHandler()
         req = module.urllib.request.Request('https://app.usd-russia.ru/')
-        with self.assertRaises(ValueError):
-            handler.redirect_request(req, None, 302, 'Found', {}, 'https://usd-russia.ru/')
+        redirected = handler.redirect_request(req, None, 301, 'Moved Permanently', {}, 'https://usd-russia.ru/')
+        self.assertEqual(redirected.full_url, 'https://usd-russia.ru/')
+
+    def test_api_and_unrelated_redirects_remain_blocked(self):
+        handler = module.PrereleaseRedirectHandler()
+        for source, destination in (
+            ('https://api.usd-russia.ru/release', 'https://usd-russia.ru/'),
+            ('https://usd-russia.ru/', 'https://app.usd-russia.ru/'),
+            ('https://app.usd-russia.ru/', 'https://evil.example/'),
+            ('https://app.usd-russia.ru/', 'http://usd-russia.ru/'),
+            ('https://app.usd-russia.ru/', 'https://usd-russia.ru/'),
+        ):
+            with self.subTest(source=source, destination=destination):
+                req = module.urllib.request.Request(source)
+                with self.assertRaises(ValueError):
+                    handler.redirect_request(req, None, 302, 'Found', {}, destination)
 
 
 class VerifyReleaseTests(unittest.TestCase):

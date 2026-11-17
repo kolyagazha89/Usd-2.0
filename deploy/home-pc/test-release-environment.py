@@ -12,13 +12,13 @@ PARSER = SCRIPT.split("python3 - .env <<'PY'\n", 1)[1].split('\nPY\n', 1)[0]
 
 
 class ReleaseEnvironmentTests(unittest.TestCase):
-    def validate(self, *, database='usd', username='usd'):
+    def validate(self, *, database='usd', username='usd', extra=''):
         with tempfile.TemporaryDirectory() as directory:
             environment = Path(directory) / '.env'
             environment.write_text(
                 'APP_DOMAIN=app.usd-russia.ru\nAPI_DOMAIN=api.usd-russia.ru\n'
                 f'POSTGRES_DB={database}\nPOSTGRES_USER={username}\n'
-                'POSTGRES_PASSWORD=private-fixture-password\n'
+                'POSTGRES_PASSWORD=private-fixture-password\n' + extra +
                 f'DATABASE_URL=postgresql://{quote(username, safe="")}:private-fixture-password@db:5432/{quote(database, safe="")}?schema=public\n')
             environment.chmod(0o600)
             result = subprocess.run([sys.executable, '-', str(environment)], input=PARSER,
@@ -46,6 +46,28 @@ class ReleaseEnvironmentTests(unittest.TestCase):
             for field in ('database', 'username'):
                 with self.subTest(value=value, field=field):
                     self.assertNotEqual(self.validate(**{field: value}).returncode, 0)
+
+    def test_cutover_is_opt_in_and_preserves_the_prerelease_deployment_identity(self):
+        self.assertEqual(self.validate(extra=(
+            'USD_PUBLIC_FRONTEND_ORIGIN=https://usd-russia.ru\n'
+            'USD_FRONTEND_ALLOWED_ORIGINS=https://app.usd-russia.ru,https://usd-russia.ru\n'
+        )).returncode, 0)
+
+    def test_primary_origin_needs_explicit_cors_and_csrf_allowlist(self):
+        result = self.validate(extra='USD_PUBLIC_FRONTEND_ORIGIN=https://usd-russia.ru\n')
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_rejects_malicious_or_unreviewed_public_origins(self):
+        for extra in (
+            'USD_PUBLIC_FRONTEND_ORIGIN=https://attacker.example\n',
+            'USD_PUBLIC_FRONTEND_ORIGIN=https://usd-russia.ru.evil.example\n',
+            'USD_PUBLIC_FRONTEND_ORIGIN=http://usd-russia.ru\n',
+            'USD_PUBLIC_FRONTEND_ORIGIN=https://user@usd-russia.ru\n',
+            'USD_FRONTEND_ALLOWED_ORIGINS=https://app.usd-russia.ru,https://attacker.example\n',
+            'USD_FRONTEND_ALLOWED_ORIGINS=https://usd-russia.ru\n',
+        ):
+            with self.subTest(extra=extra):
+                self.assertNotEqual(self.validate(extra=extra).returncode, 0)
 
 
 if __name__ == '__main__':

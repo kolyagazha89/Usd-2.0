@@ -29,3 +29,29 @@ test('nginx uses static route HTML and still falls back to React for dynamic sta
  assert.match(nginx,/try_files \$uri \$uri\/ \$uri\.html @spa/);
  assert.match(nginx,/rewrite \^ \/index\.html last/);
 });
+
+test('primary-domain SEO build generates canonical and sitemap on the approved origin',async()=>{
+ const {mkdtemp,rm,readFile,writeFile}=await import('node:fs/promises');
+ const {tmpdir}=await import('node:os');
+ const {join}=await import('node:path');
+ const {generateStaticSeoPages}=await import('../scripts/generate-seo-pages.mjs');
+ const tmp=await mkdtemp(join(tmpdir(),'usd-domain-'));
+ try{
+  await writeFile(join(tmp,'index.html'),html);
+  await writeFile(join(tmp,'robots.txt'),'User-agent: *\nDisallow: /admin\nSitemap: https://app.usd-russia.ru/sitemap.xml\n');
+  await generateStaticSeoPages(tmp,'https://usd-russia.ru');
+  const stages=await readFile(join(tmp,'stages.html'),'utf8');
+  const robots=await readFile(join(tmp,'robots.txt'),'utf8');
+  assert.match(stages,/rel="canonical" href="https:\/\/usd-russia\.ru\/stages"/);
+  assert.match(stages,/property="og:image" content="https:\/\/usd-russia\.ru\//);
+  assert.match(robots,/Sitemap: https:\/\/usd-russia\.ru\/sitemap\.xml/);
+  assert.match(robots,/Disallow: \/admin/);
+ }finally{await rm(tmp,{recursive:true,force:true});}
+});
+
+test('SEO export rejects unexpected canonical origins',async()=>{
+ const {generateStaticSeoPages}=await import('../scripts/generate-seo-pages.mjs');
+ for(const bad of ['https://evil.example','http://usd-russia.ru','https://usd-russia.ru.evil.example','https://user@usd-russia.ru']){
+  await assert.rejects(()=>generateStaticSeoPages('/tmp/never-exists',bad),/origin|domain|canonical/i);
+ }
+});
