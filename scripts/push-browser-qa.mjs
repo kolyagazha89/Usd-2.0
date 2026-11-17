@@ -312,7 +312,7 @@ async function scenario(width, mode = "participant", ios = false) {
       assert.equal(calls[0].p,"/push/admin/templates");
       await page.getByLabel("Заголовок", { exact: true }).fill("Тест USD");
       await page
-        .locator(".notification-composer textarea")
+        .locator("form.notification-composer textarea")
         .fill("Тестовое объявление");
       const submit = page.getByRole("button", {
         name: "Поставить в очередь",
