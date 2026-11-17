@@ -69,6 +69,7 @@ class FrontendAcceptanceTests(unittest.TestCase):
             ('https://usd-russia.ru/', 'https://app.usd-russia.ru/'),
             ('https://app.usd-russia.ru/', 'https://evil.example/'),
             ('https://app.usd-russia.ru/', 'http://usd-russia.ru/'),
+            ('https://app.usd-russia.ru/', 'https://usd-russia.ru/'),
         ):
             with self.subTest(source=source, destination=destination):
                 req = module.urllib.request.Request(source)
