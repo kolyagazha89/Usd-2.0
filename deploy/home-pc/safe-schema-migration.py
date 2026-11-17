@@ -198,6 +198,41 @@ def row_counts(db: str) -> dict[str, int]:
             (line.rsplit("|", 1) for line in query(db, statement).splitlines())}
 
 
+def verify_live_history(expected: dict[str, str], required: set[str],
+                        allowed_pending: set[str], db: str) -> list[str]:
+    applied = set()
+    for row in history(db):
+        if row.get("rolled_back") is True:
+            continue
+        name = row.get("name")
+        if not row.get("finished") or name not in expected or name in applied:
+            raise ValueError("Unknown, duplicate or unfinished live Prisma migration")
+        if row.get("sha") != expected[name]:
+            raise ValueError("Live migration checksum mismatch")
+        applied.add(name)
+    if not required.issubset(applied) or not (set(expected) - applied).issubset(allowed_pending):
+        raise ValueError("Live migration history does not match deployed source")
+    return sorted(set(expected) - applied)
+
+
+def review_unchanged_history(source: str, db: str) -> None:
+    """Read-only recovery review for an application-only release, never SQL apply."""
+    paths = run("git", "-C", str(SOURCE), "ls-tree", "-r", "--name-only",
+                source, "--", "backend/prisma/migrations").splitlines()
+    expected = {}
+    for path in paths:
+        match = MIGRATION.fullmatch(path)
+        if match:
+            body = subprocess.check_output(["git", "-C", str(SOURCE), "show", source + ":" + path],
+                                           stderr=subprocess.DEVNULL)
+            expected[match.group(1)] = hashlib.sha256(body).hexdigest()
+    if not expected:
+        raise ValueError("No trusted migration history in unchanged schema source")
+    if run("docker", "inspect", "-f", "{{.State.Health.Status}}", db) != "healthy":
+        raise ValueError("Production DB is unhealthy during read-only schema review")
+    verify_live_history(expected, set(expected), set(), db)
+
+
 def migration_state(old: str, new: str, db: str) -> tuple[list[str], dict[str, str]]:
     statuses = run("git", "-C", str(SOURCE), "diff", "--name-status", old, new,
                    "--", "backend/prisma").splitlines()
@@ -234,19 +269,7 @@ def migration_state(old: str, new: str, db: str) -> tuple[list[str], dict[str, s
             check_additive_sql(body.decode("utf-8"))
     if not old_names or len(expected) != len(old_names) + len(added):
         raise ValueError("Candidate migration set is not an additive continuation")
-    applied = set()
-    for row in history(db):
-        if row.get("rolled_back") is True:
-            continue
-        name = row.get("name")
-        if not row.get("finished") or name not in expected or name in applied:
-            raise ValueError("Unknown, duplicate or unfinished live Prisma migration")
-        if row.get("sha") != expected[name]:
-            raise ValueError("Live migration checksum mismatch")
-        applied.add(name)
-    if not old_names.issubset(applied) or not (set(expected) - applied).issubset(set(added)):
-        raise ValueError("Live migration history does not match deployed source")
-    return sorted(set(expected) - applied), expected
+    return verify_live_history(expected, old_names, set(added), db), expected
 
 
 def run_migration(image: str, api: str, runtime_url: str) -> None:
@@ -393,11 +416,15 @@ def main(argv: list[str]) -> int:
         raise ValueError("Untrusted release source")
     old_tree = run("git", "-C", str(SOURCE), "rev-parse", old + ":backend/prisma")
     new_tree = run("git", "-C", str(SOURCE), "rev-parse", new + ":backend/prisma")
-    if old_tree != approved or new_tree == approved:
+    if old_tree != approved or (new_tree == approved and mode != "--check"):
         raise ValueError("Unapproved schema source transition")
     api, db = container("api"), container("db")
     if run("docker", "inspect", "-f", "{{.Config.Image}}", api) != "ghcr.io/kolyagazha89/usd-2.0-api:" + old:
         raise ValueError("Live API is not the verified previous release")
+    if new_tree == approved:
+        review_unchanged_history(new, db)
+        print("Unchanged approved schema and complete live migration history verified; no SQL or policy changes")
+        return 0
     pending, expected = migration_state(old, new, db)
     print("Additive-only migration review passed; pending: " + (", ".join(pending) or "none"))
     if mode == "--check":

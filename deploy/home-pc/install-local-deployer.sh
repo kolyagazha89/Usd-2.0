@@ -27,6 +27,7 @@ python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-main-ci.py").read
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("initial-schema.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("safe-schema-migration.py").read_text())'
 python3 test-safe-schema-migration.py -v
+python3 test-unchanged-schema-review.py -v
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-prerelease.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("prepare-host-files.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("s3/verify-local-hdd-snapshot.py").read_text())'
