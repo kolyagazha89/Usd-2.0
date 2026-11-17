@@ -35,3 +35,14 @@ test('invalid photos and crop sizes are rejected before canvas drawing',()=>{
   assert.throws(()=>cropMetrics(...data),RangeError);
  }
 });
+
+test('profile editor uses drag and pinch only, without zoom/reset buttons',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const component=await readFile(new URL('../src/participant/ParticipantPhotoCropper.tsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/participant/participant-photo-crop.css',import.meta.url),'utf8');
+ assert.match(component,/onPointerDown=\{onDown\}/);
+ assert.match(component,/onPointerMove=\{onMove\}/);
+ assert.match(component,/kind:'pinch'/);
+ assert.doesNotMatch(component,/member-photo-crop-zoom|zoomBy\(|onClick=\{reset\}/);
+ assert.doesNotMatch(css,/member-photo-crop-zoom/);
+});
