@@ -20,15 +20,20 @@ concurrency:
 
 jobs:
   candidate-ui:
+    name: candidate-ui (${{ matrix.suite }})
     runs-on: ubuntu-latest
-    # The pinned image bundles Chromium and its OS libraries; apt mirrors are not required.
+    # All original routes, account checks, and viewport widths are preserved.
+    # Four isolated shards avoid serial browser work blocking the release gate.
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [core-desktop, core-mobile, visuals, accounts]
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
-    # The full responsive route matrix and account-security flows can exceed
-    # 15 minutes on shared runners. Keep every QA scenario, not a reduced set.
     timeout-minutes: 30
     env:
       USD_BROWSER_TOOLING: /tmp/usd-browser-tooling
+      USD_BROWSER_SUITE: ${{ matrix.suite }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,51 +41,73 @@ jobs:
           node-version: 22
       - name: Install isolated browser tooling
         run: npm install --prefix "$USD_BROWSER_TOOLING" --no-save --no-package-lock playwright@1.64.1
-      - name: Build and test candidate frontend
+      - name: Build the candidate in every isolated shard, run unit tests once
         working-directory: frontend
         run: |
           npm ci --ignore-scripts
-          npm test
+          if [ "$USD_BROWSER_SUITE" = "core-desktop" ]; then npm test; fi
           npm run build
+      - name: Validate all browser QA shards and coverage are preserved
+        if: matrix.suite == 'core-desktop'
+        run: node --test scripts/public-browser-qa-matrix.test.mjs
       - name: Verify admin drawer touch gestures preserve routes and scrolling
+        if: matrix.suite == 'core-desktop'
         run: node scripts/admin-drawer-swipe-browser-qa.mjs
       - name: Verify connected admin cards, save return and public route scroll
+        if: matrix.suite == 'core-desktop'
         run: node scripts/admin-navigation-browser-qa.mjs
       - name: Verify stage list controls and card actions across screen sizes
+        if: matrix.suite == 'core-desktop'
         run: node scripts/stage-actions-browser-qa.mjs
       - name: Test isolated public-read verification without network
+        if: matrix.suite == 'core-desktop'
         run: node --test scripts/public-browser-read-recheck.test.mjs
       - name: Validate safe online exact-SHA release probe without network
+        if: matrix.suite == 'core-desktop'
         run: node --test scripts/online-release-preflight.test.mjs
       - name: Verify live browser network boundary with local fixtures
+        if: matrix.suite == 'core-desktop'
         run: node scripts/browser-qa-routing-regression.mjs
-      - name: Verify team directories, roster filters and explicit application journey
-        run: node scripts/team-management-browser-qa.mjs
-      - name: Verify simple team selection and reversible full management
-        run: node scripts/simple-team-browser-qa.mjs
       - name: Check candidate public, participant and admin interfaces
+        if: matrix.suite == 'core-desktop' || matrix.suite == 'core-mobile'
         run: node scripts/candidate-browser-qa.mjs
+        env:
+          # Full original 1440,1024,390,320 candidate matrix preserved.
+          USD_CANDIDATE_QA_WIDTHS: ${{ matrix.suite == 'core-mobile' && '390,320' || '1440,1024' }}
       - name: Verify PWA safe areas with nonzero status-bar and home-indicator insets
+        if: matrix.suite == 'visuals'
         run: node scripts/safe-area-browser-qa.mjs
       - name: Verify production CSS themes, keyboard focus and partner tracks
+        if: matrix.suite == 'visuals'
         run: node scripts/css-cascade-browser-qa.mjs
+      - name: Verify logo intro waits for visible home and respects reduced motion
+        if: matrix.suite == 'visuals'
+        run: node scripts/home-logo-browser-qa.mjs
+      - name: Verify partner image framing save, preview and responsive rendering
+        if: matrix.suite == 'visuals'
+        run: node scripts/partner-image-browser-qa.mjs
+      - name: Verify regulation contents and full-context reading on mobile and desktop
+        if: matrix.suite == 'visuals'
+        run: node scripts/rules-browser-qa.mjs
+      - name: Verify team directories, roster filters and explicit application journey
+        if: matrix.suite == 'accounts'
+        run: node scripts/team-management-browser-qa.mjs
+      - name: Verify simple team selection and reversible full management
+        if: matrix.suite == 'accounts'
+        run: node scripts/simple-team-browser-qa.mjs
       - name: Verify account-security actions and focused controls
+        if: matrix.suite == 'accounts'
         run: node scripts/account-security-browser-qa.mjs
         env:
           USD_ACCOUNT_QA_OUTPUT: ${{ github.workspace }}/account-security-browser-qa
-      - name: Verify logo intro waits for visible home and respects reduced motion
-        run: node scripts/home-logo-browser-qa.mjs
-      - name: Verify partner image framing save, preview and responsive rendering
-        run: node scripts/partner-image-browser-qa.mjs
-      - name: Verify regulation contents and full-context reading on mobile and desktop
-        run: node scripts/rules-browser-qa.mjs
       - name: Verify signup email recovery and resend cooldown across screen sizes
+        if: matrix.suite == 'accounts'
         run: node scripts/verification-resend-browser-qa.mjs
       - name: Save candidate screenshots and structured report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: candidate-browser-qa-${{ github.run_attempt }}
+          name: candidate-browser-qa-${{ matrix.suite }}-${{ github.run_attempt }}
           path: |
             candidate-browser-qa/
             safe-area-browser-qa/
