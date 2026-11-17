@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {publicUsdSiteOrigin} from '../common/public-site-origin';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { renderUsdMailShell } from './mail-brand-layout';
@@ -23,7 +24,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
   private readonly logger = new Logger(EmailNotificationsService.name);
   private timer?: ReturnType<typeof setInterval>;
   private running = false;
-  private readonly frontendUrl = (process.env.FRONTEND_URL ?? 'https://usd-russia.ru').replace(/\/+$/, '');
+  private readonly frontendUrl = publicUsdSiteOrigin(process.env.FRONTEND_URL);
   private readonly apiUrl = (process.env.PUBLIC_API_URL ?? process.env.API_BASE_URL ?? process.env.BACKEND_URL ?? 'https://api.usd-russia.ru').replace(/\/+$/, '');
 
   private async getLogoUrl(): Promise<string | null> {

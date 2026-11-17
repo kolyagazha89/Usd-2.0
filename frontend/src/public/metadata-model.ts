@@ -1,6 +1,6 @@
 /** Canonical URLs are route-specific. A site-wide CMS canonical override is only
  * applied to the homepage; otherwise it would mark every public page as a duplicate.
- * Never point prerelease canonical tags to another origin or include query tokens.
+ * The connected primary domain is canonical; never trust cross-origin CMS overrides or query tokens.
  */
 function localUrl(value:unknown,origin:string):URL|null{
  if(typeof value!=='string'||!value.trim())return null;

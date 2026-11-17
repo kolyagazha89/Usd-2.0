@@ -58,16 +58,33 @@ test('never follows 302, never accepts 404, never treats HTML as JSON',async()=>
  }
 });
 
-test('does not issue any request for foreign host, primary domain or mutation',async()=>{
+test('does not issue any request for old host, foreign host, insecure URL or mutation',async()=>{
  const input=[
-   request('https://usd-russia.ru/records/current'),
+   request('https://app.usd-russia.ru/records/current'),
+   request('https://usd-russia.ru.evil.example/robots.txt'),
    {method:'POST',url:records,reason:'read failed'},
    request('http://api.usd-russia.ru/records/current'),
  ];
  let calls=0;
  const result=await recheckFailedPublicReads(input,async()=>{calls++;return image()});
  assert.equal(calls,0);
- assert.equal(result.unresolved.length,3);
+ assert.equal(result.unresolved.length,4);
+});
+
+test('rechecks an approved root-domain public document over HTTPS GET only',async()=>{
+ let calls=0;
+ const result=await recheckFailedPublicReads([
+   request('https://usd-russia.ru/robots.txt'),
+ ],async(url,options)=>{
+   calls++;
+   assert.equal(url,'https://usd-russia.ru/robots.txt');
+   assert.equal(options.method,'GET');
+   assert.equal(options.redirect,'manual');
+   return new Response('User-agent: *\\nDisallow: /admin\\n',{headers:{'content-type':'text/plain'}});
+ });
+ assert.equal(calls,1);
+ assert.deepEqual(result.unresolved,[]);
+ assert.equal(result.recovered.length,1);
 });
 
 test('deduplicates repeated cancelled subrequests, keeps literal redirects fatal',async()=>{

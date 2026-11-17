@@ -10,6 +10,7 @@ import {
 import type { Request, Response } from 'express';
 import { GoogleService } from './google.service';
 import { Public } from '../auth/public.decorator';
+import {publicUsdSiteOrigin} from '../common/public-site-origin';
 
 function requireAdmin(req: Request): { sub: string } {
   const user = (req as any).user;
@@ -38,7 +39,7 @@ export class GoogleController {
   @Public()
   @Get('callback')
   async callback(@Query('code') code: string, @Query('state') state: string, @Res() res: Response) {
-    const frontend = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+    const frontend = publicUsdSiteOrigin(process.env.FRONTEND_URL);
     try {
       await this.google.completeAuthorization(code, state);
       return res.redirect(frontend + '/admin/import?google=connected');

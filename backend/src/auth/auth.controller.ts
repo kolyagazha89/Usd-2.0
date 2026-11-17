@@ -14,6 +14,7 @@ import {
 import type { Request, Response } from 'express';
 
 import { AuthService } from './auth.service';
+import {publicUsdSiteOrigin} from '../common/public-site-origin';
 import { readReleaseInfo } from '../release-info';
 import type { AuthenticatedRequest } from './authenticated-request';
 import { Roles } from './roles.decorator';
@@ -142,7 +143,7 @@ export class AuthController {
     // consent. A GET must never mark the email as verified or spend a token.
     // Preserve old API mail links by redirecting to a manual confirmation
     // page. The fragment is not sent with subsequent HTTP requests.
-    const frontendUrl = (process.env.FRONTEND_URL ?? 'https://app.usd-russia.ru').replace(/\/+$/, '');
+    const frontendUrl = publicUsdSiteOrigin(process.env.FRONTEND_URL);
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('X-Robots-Tag', 'noindex, nofollow');
