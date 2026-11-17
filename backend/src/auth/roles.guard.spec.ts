@@ -112,6 +112,29 @@ describe('RolesGuard', () => {
     }
   });
 
+  it.each([
+    ['GET', '/participants/me/publication-consent'],
+    ['PATCH', '/participants/me/publication-consent'],
+    ['GET', '/PARTICIPANTS/ME/PUBLICATION-CONSENT/'],
+    ['PATCH', '/PARTICIPANTS/ME/PUBLICATION-CONSENT/'],
+  ])('allows custom staff to %s their own publication consent at %s', async (method, path) => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { inspections: ['view'] } });
+    const request = { method, path, user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } };
+    await expect(guard.canActivate(context(request, 'ParticipantsController'))).resolves.toBe(true);
+    expect(prisma.role.findUnique).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['DELETE', '/participants/me/publication-consent'],
+    ['POST', '/participants/me/publication-consent'],
+    ['PATCH', '/participants/other/publication-consent'],
+    ['GET', '/participants/me/publication-consent/history'],
+  ])('does not broaden custom staff rights to %s %s', async (method, path) => {
+    prisma.role.findUnique.mockResolvedValue({ permissions: { inspections: ['view'] } });
+    const request = { method, path, user: { sub: 'judge', role: 'PARTICIPANT', customRoleId: 'role-1' } };
+    await expect(guard.canActivate(context(request, 'ParticipantsController'))).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('does not mistake an equipment completion URL for blanket registration update access', async () => {
     prisma.role.findUnique.mockResolvedValue({permissions:{inspections:['view']}});
     const actor={sub:'judge',role:'PARTICIPANT',customRoleId:'role-1'};
