@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { BadGatewayException } from '@nestjs/common';
+import { BadGatewayException, Logger } from '@nestjs/common';
 import { MailService } from './mail.service';
 
 describe('USD release SMTP diagnostics', () => {
@@ -55,6 +55,50 @@ describe('USD release SMTP diagnostics', () => {
       expect(JSON.stringify(result)).not.toContain('private provider response');
       expect(JSON.stringify(result)).not.toContain('test-app-password');
     }
+  });
+
+
+  it('records a safe DATA-stage spam classification for rejected real Gmail verification', async () => {
+    const create = jest.fn<(...args:any[]) => Promise<any>>().mockResolvedValue({});
+    const service = new MailService({ emailNotificationLog: { create } } as any);
+    const log = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    jest.spyOn((service as any).transporter, 'sendMail').mockRejectedValue(
+      Object.assign(new Error('Private SMTP rejection'), {
+        code: 'EMESSAGE',
+        responseCode: 554,
+        command: 'DATA',
+        response: '554 5.7.1 Message rejected under suspicion of SPAM: https://api.usd-russia.ru/auth/verify-email?token=private-token victim@gmail.com',
+      }) as never,
+    );
+
+    await expect(service.sendVerificationEmail('victim@gmail.com', 'private-token')).rejects.toThrow();
+    const entry = (create.mock.calls[0][0] as any).data;
+    expect(entry.status).toBe('FAILED');
+    expect(entry.lastError).toBe('MAIL_TRANSPORT_ERROR code=EMESSAGE smtp=554 http=NONE stage=DATA reason=SPAM_POLICY');
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('stage=DATA reason=SPAM_POLICY'));
+    expect(JSON.stringify(entry)).not.toContain('private-token');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('private-token');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('victim@gmail.com');
+  });
+
+  it('does not expose arbitrary SMTP response, recipients, commands, or links', () => {
+    const service = new MailService();
+    const safe = (service as any).safeMailFailure({
+      code: 'EMESSAGE', responseCode: 554,
+      command: 'DATA malicious-token https://private.invalid',
+      response: '554 https://private.invalid/?token=private-token recipient@gmail.com',
+    });
+    expect(safe).toBe('MAIL_TRANSPORT_ERROR code=EMESSAGE smtp=554 http=NONE stage=UNKNOWN reason=UNSPECIFIED');
+  });
+
+  it('classifies rate-limited SMTP failures without leaking SMTP response text', () => {
+    const service = new MailService();
+    const safe = (service as any).safeMailFailure({
+      code: 'EMESSAGE', responseCode: 554,
+      command: 'DATA',
+      response: '554 Too many messages sent today. Retry later. recipient@gmail.com',
+    });
+    expect(safe).toBe('MAIL_TRANSPORT_ERROR code=EMESSAGE smtp=554 http=NONE stage=DATA reason=RATE_LIMIT');
   });
 
   it('explains missing SMTP parameters without attempting a connection', async () => {
