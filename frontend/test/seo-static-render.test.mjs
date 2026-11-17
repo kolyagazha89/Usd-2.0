@@ -38,14 +38,14 @@ test('primary-domain SEO build generates canonical and sitemap on the approved o
  const tmp=await mkdtemp(join(tmpdir(),'usd-domain-'));
  try{
   await writeFile(join(tmp,'index.html'),html);
-  await writeFile(join(tmp,'robots.txt'),'User-agent: *\\nDisallow: /admin\\nSitemap: https://app.usd-russia.ru/sitemap.xml\\n');
+  await writeFile(join(tmp,'robots.txt'),'User-agent: *\nDisallow: /admin\nSitemap: https://app.usd-russia.ru/sitemap.xml\n');
   await generateStaticSeoPages(tmp,'https://usd-russia.ru');
   const stages=await readFile(join(tmp,'stages.html'),'utf8');
   const robots=await readFile(join(tmp,'robots.txt'),'utf8');
-  assert.match(stages,/rel="canonical" href="https:\\/\\/usd-russia\\.ru\\/stages"/);
-  assert.match(stages,/property="og:image" content="https:\\/\\/usd-russia\\.ru\\//);
-  assert.match(robots,/Sitemap: https:\\/\\/usd-russia\\.ru\\/sitemap\\.xml/);
-  assert.match(robots,/Disallow: \\/admin/);
+  assert.match(stages,/rel="canonical" href="https:\/\/usd-russia\.ru\/stages"/);
+  assert.match(stages,/property="og:image" content="https:\/\/usd-russia\.ru\//);
+  assert.match(robots,/Sitemap: https:\/\/usd-russia\.ru\/sitemap\.xml/);
+  assert.match(robots,/Disallow: \/admin/);
  }finally{await rm(tmp,{recursive:true,force:true});}
 });
 
