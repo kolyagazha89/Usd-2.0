@@ -2,6 +2,7 @@ import {Controller,Get,Header} from '@nestjs/common';
 import {Public} from '../auth/public.decorator';
 import {PrismaService} from '../prisma/prisma.service';
 import {renderSitemapXml} from './seo-sitemap';
+import {publicUsdSiteOrigin} from '../common/public-site-origin';
 
 @Controller('seo')
 export class SeoController{
@@ -17,6 +18,6 @@ export class SeoController{
    orderBy:{date:'desc'},
    take:5000,
   });
-  return renderSitemapXml(process.env.FRONTEND_URL||'http://localhost:5173',stages);
+  return renderSitemapXml(publicUsdSiteOrigin(process.env.FRONTEND_URL),stages);
  }
 }
