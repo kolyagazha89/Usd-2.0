@@ -110,3 +110,25 @@
     width: 100%;
   }
 }
+
+/* Automatic PUSH editor: responsive inline cards, never a mobile modal. */
+.push-template-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.push-template-heading p{margin:8px 0 0;line-height:1.5}
+.push-template-heading code{font-size:13px}
+.push-template-form{display:grid;gap:18px}
+.push-template-card{border:1px solid var(--border,#37404d);border-radius:14px;padding:18px;display:grid;gap:13px;min-width:0}
+.push-template-card-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.push-template-card-heading h3{font-size:17px;margin:0}
+.push-template-card-heading p{margin:6px 0 0;opacity:.8}
+.push-template-toggle{display:flex;gap:9px;align-items:center;white-space:nowrap;font-size:14px}
+.push-template-toggle input{width:19px;height:19px;accent-color:#ed2638}
+.push-template-card>label{display:grid;gap:7px;font-size:14px;font-weight:600}
+.push-template-card>label small{font-weight:400;opacity:.8}
+.push-template-card input:not([type=checkbox]),.push-template-card textarea{
+ width:100%;min-width:0;font:inherit;font-size:16px;padding:12px;border-radius:9px;
+ border:1px solid var(--border,#657080);background:var(--surface,#fff);color:inherit;
+}
+.push-template-card .notification-preview{border-radius:9px}
+.push-template-actions{display:flex;flex-wrap:wrap;align-items:center;gap:13px}
+.push-template-actions small{flex:1 1 250px}
+@media(max-width:540px){.push-template-card{padding:14px}.push-template-actions button{width:100%}}
