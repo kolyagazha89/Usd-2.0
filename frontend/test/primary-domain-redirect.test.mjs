@@ -6,6 +6,7 @@ const nginx=await readFile(new URL('../nginx.conf',import.meta.url),'utf8');
 const publisher=await readFile(new URL('../../.github/workflows/publish-home-pc-images.yml',import.meta.url),'utf8');
 test('owned app host permanently redirects public paths to primary without rewriting tokens or querystrings',()=>{
  assert.match(nginx,/app\.usd-russia\.ru\s+1;/);
+ assert.match(nginx,/www\.usd-russia\.ru\s+1;/);
  assert.match(nginx,/if \(\$usd_move_to_primary\) \{\s*return 301 https:\/\/usd-russia\.ru\$request_uri;/);
  assert.doesNotMatch(nginx,/return 301 https:\/\/\$host/);
  assert.match(nginx,/server_name _;/);
