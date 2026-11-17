@@ -19,6 +19,7 @@ import {
   PushDeviceTestDto,
   PushPreferencesDto,
   PushSubscribeDto,
+  PushTemplatesSaveDto,
 } from './push.dto';
 
 @Controller('push')
@@ -52,6 +53,15 @@ export class PushController {
 @UseInterceptors(NoStoreInterceptor)
 export class PushAdminController {
   constructor(private readonly service: PushService) {}
+  @Roles('ADMIN') @Get('templates') templates() {
+    return this.service.listTemplates();
+  }
+  @Roles('ADMIN') @Patch('templates') updateTemplates(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: PushTemplatesSaveDto,
+  ) {
+    return this.service.updateTemplates(req.user.sub,body);
+  }
   @Roles('ADMIN') @Get('messages') summary() {
     return this.service.summary();
   }
