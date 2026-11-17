@@ -32,7 +32,7 @@ describe('profile-link decision transactional account emails',()=>{
   jest.spyOn(mail as any,'sendMessage').mockRejectedValue(new Error('synthetic transport failure'));
   await expect((mail as any).sendProfileLinkDecisionEmail('member@example.test','APPROVED')).rejects.toThrow('synthetic transport failure');
   expect(create).toHaveBeenCalledWith({data:expect.objectContaining({
-   type:'AUTH_PROFILE_LINK_APPROVED',status:'FAILED',attempts:1,lastError:'MAIL_TRANSPORT_ERROR',
+   type:'AUTH_PROFILE_LINK_APPROVED',status:'FAILED',attempts:1,lastError:'MAIL_TRANSPORT_ERROR code=UNKNOWN smtp=NONE http=NONE stage=UNKNOWN reason=UNSPECIFIED',
   })});
  });
 });
