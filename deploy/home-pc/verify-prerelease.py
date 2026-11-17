@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only public acceptance; no credentials, mutations or primary-domain access."""
+"""Read-only release acceptance, limited to the two approved USD site origins."""
 from html.parser import HTMLParser
 import json
 import re
@@ -10,6 +10,7 @@ import urllib.parse
 import urllib.request
 
 APP = 'https://app.usd-russia.ru'
+PRIMARY = 'https://usd-russia.ru'
 API = 'https://api.usd-russia.ru'
 MAX_BYTES = 10 * 1024 * 1024  # same hard limit as accepted image uploads
 
@@ -17,15 +18,19 @@ MAX_BYTES = 10 * 1024 * 1024  # same hard limit as accepted image uploads
 def allowed_origin(url: str) -> str:
     parsed = urllib.parse.urlsplit(url)
     origin = f'{parsed.scheme}://{parsed.netloc}'
-    if origin not in (APP, API) or parsed.username or parsed.password:
+    if origin not in (APP, PRIMARY, API) or parsed.username or parsed.password:
         raise ValueError('Prerelease request target is not an approved HTTPS origin')
     return origin
 
 
 class PrereleaseRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        if allowed_origin(newurl) != allowed_origin(req.full_url):
-            raise ValueError('Cross-origin prerelease redirect refused')
+        source = allowed_origin(req.full_url)
+        target = allowed_origin(newurl)
+        # The only cross-origin hop is the owner's eventual app -> apex 301.
+        # Never allow API redirects or arbitrary external redirects.
+        if target != source and not (source == APP and target == PRIMARY):
+            raise ValueError('Cross-origin release redirect refused')
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
