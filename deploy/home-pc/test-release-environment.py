@@ -18,7 +18,7 @@ class ReleaseEnvironmentTests(unittest.TestCase):
             environment.write_text(
                 'APP_DOMAIN=app.usd-russia.ru\nAPI_DOMAIN=api.usd-russia.ru\n'
                 f'POSTGRES_DB={database}\nPOSTGRES_USER={username}\n'
-                'POSTGRES_PASSWORD=private-fixture-password\n' + extra
+                'POSTGRES_PASSWORD=private-fixture-password\n' + extra +
                 f'DATABASE_URL=postgresql://{quote(username, safe="")}:private-fixture-password@db:5432/{quote(database, safe="")}?schema=public\n')
             environment.chmod(0o600)
             result = subprocess.run([sys.executable, '-', str(environment)], input=PARSER,
