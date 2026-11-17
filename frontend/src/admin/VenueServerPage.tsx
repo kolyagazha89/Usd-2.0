@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {AlertTriangle,BookOpen,Download,ExternalLink,RefreshCw,WifiOff} from 'lucide-react';
-import {apiGet,apiPost,listData,venueCertificateDownloadUrl,type User} from '../api';
+import {apiGet,apiPost,listData,venueCertificateDownloadUrl,venueCertificateInstallUrl,type User} from '../api';
 import {QRCodeSVG} from 'qrcode.react';
 import {saveVenueFile,trustedVenueKey,validateVenueStaffExport,type VenueSetup} from './venue-setup-model';
 import './venue-server.css';
@@ -88,7 +88,7 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
    <section className="panel venue-server-step venue-server-certificate" aria-labelledby="venue-cert-title">
     <span className="venue-server-number" aria-hidden="true">3а</span>
     <div className="venue-server-step-body">
-     <h2 id="venue-cert-title">HTTPS только для входа судей</h2>
+     <h2 id="venue-cert-title">Скачать сертификат для телефонов</h2>
      <p>Для <strong>LIVE-табло сертификат не нужен</strong>. Для работы судей с личными данными нужен защищённый HTTPS. На офлайн-ноутбуке один раз нажмите <strong>USD-Certificate.cmd</strong> (кнопка «USD — Сертификат»). Она скачает публичный сертификат Caddy в основную папку <strong>USD-Offline-Windows/USD-Venue-CA.crt</strong> и в <strong>local-private</strong>. Сертификат создаёт именно ваш ноутбук — онлайн-сервер не может создать его заранее.</p>
      {!localMode&&<>
       <p>Загрузите <strong>только публичный USD-Venue-CA.crt</strong> в онлайн-админку один раз. После этого судьи могут открыть ссылку или отсканировать QR и установить сертификат прямо на телефон. Пароль, приватные ключи и папку <strong>local-private</strong> целиком не передавайте.</p>
@@ -108,13 +108,20 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
        <p className="venue-server-cert-valid">Корневой сертификат опубликован. Действует до {certificate.notAfter?new Date(certificate.notAfter).toLocaleDateString('ru-RU'):'указанного срока'}.</p>
        <p>Контрольный отпечаток SHA-256 — сверьте с ноутбуком перед установкой:</p>
        <code className="venue-server-fingerprint">{certificate.sha256}</code>
+       <p>Через MAX отправьте ссылку на страницу установки — пересылать сам файл сертификата не нужно. Судьи смогут скачать его без входа в аккаунт.</p>
        <div className="venue-server-actions">
-        <a className="primary-button" href={venueCertificateDownloadUrl('cer')} target="_blank" rel="noopener noreferrer"><Download size={19}/>Скачать для iPhone (.cer)</a>
-        <a className="primary-button" href={venueCertificateDownloadUrl('crt')} target="_blank" rel="noopener noreferrer"><Download size={19}/>Скачать для Android (.crt)</a>
+        <a className="secondary-button" href={venueCertificateInstallUrl(certificate.sha256!)} target="_blank" rel="noopener noreferrer">Открыть страницу установки</a>
+        <button className="secondary-button" type="button" onClick={()=>void (navigator.clipboard?.writeText(venueCertificateInstallUrl(certificate.sha256!))??Promise.reject(new Error('Clipboard unavailable'))).then(()=>setNotice('Ссылка скопирована. Отправьте её судьям в MAX.')).catch(()=>setCertificateError('Не удалось скопировать. Выделите ссылку ниже и скопируйте вручную.'))}>Скопировать ссылку для MAX</button>
+       </div>
+       <input aria-label="Ссылка установки сертификата" readOnly value={venueCertificateInstallUrl(certificate.sha256!)} onFocus={event=>event.target.select()} style={{width:'100%'}}/>
+       <div className="venue-server-cert-codes"><div><QRCodeSVG value={venueCertificateInstallUrl(certificate.sha256!)} size={160} title="Скачать сертификат на телефон"/><span>Страница установки на телефоне</span></div></div>
+       <div className="venue-server-actions">
+        <a className="primary-button" href={venueCertificateDownloadUrl('cer',certificate.sha256)} target="_blank" rel="noopener noreferrer"><Download size={19}/>Скачать для iPhone (.cer)</a>
+        <a className="primary-button" href={venueCertificateDownloadUrl('crt',certificate.sha256)} target="_blank" rel="noopener noreferrer"><Download size={19}/>Скачать для Android (.crt)</a>
        </div>
        <div className="venue-server-cert-codes">
-        <div><QRCodeSVG value={venueCertificateDownloadUrl('cer')} size={132} title="QR для iPhone"/><span>iPhone</span></div>
-        <div><QRCodeSVG value={venueCertificateDownloadUrl('crt')} size={132} title="QR для Android"/><span>Android</span></div>
+        <div><QRCodeSVG value={venueCertificateDownloadUrl('cer',certificate.sha256)} size={132} title="QR для iPhone"/><span>iPhone</span></div>
+        <div><QRCodeSVG value={venueCertificateDownloadUrl('crt',certificate.sha256)} size={132} title="QR для Android"/><span>Android</span></div>
        </div>
       </>}
      </>}

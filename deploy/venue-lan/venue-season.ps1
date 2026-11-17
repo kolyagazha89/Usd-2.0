@@ -67,7 +67,7 @@ function Test-VerifiedVenueAck([string]$StageId){
 function Get-VenueKitFiles {
  return @(
   'USD-Install.cmd','USD-Next-Stage.cmd','USD-Offline.cmd','USD-Online.cmd',
-  'USD-Export.cmd','USD-Certificate.cmd','venue-control.ps1','venue-season.ps1','venue-ca.ps1',
+  'USD-Export.cmd','USD-Certificate.cmd','venue-control.ps1','venue-season.ps1','venue-ca.ps1','venue-update.ps1',
   'venue-dialogs.ps1','venue-firewall.ps1','ensure-return-keys.mjs',
   'compose.yaml','Caddyfile','config/venue-config.js',
   'initdb/010-venue-api-role.sh','INSTRUCTION.html',
@@ -321,7 +321,6 @@ function Get-VenueReleaseSha([object]$sharedConfig){
   }catch{Write-Host 'USD VENUE: образ предыдущего этапа требует загрузки'}
  }
  $cached=Get-CachedVenueReleaseSha
- if($cached){return $cached}
  $sha=$null
  foreach($endpoint in @(
   [pscustomobject]@{Uri='https://api.usd-russia.ru/release';Step='resolve-release-online-api'},
@@ -336,6 +335,8 @@ function Get-VenueReleaseSha([object]$sharedConfig){
    break
   }catch{Write-Host ('USD VENUE: источник версии '+$endpoint.Uri+' недоступен: '+$_.Exception.Message)}
  }
+ if(!$sha -and $cached){return $cached}
+ if($sha -and $sha -ceq $cached){return $cached}
  if(!$sha){
   # CI-published verified USD release candidate; not a mutable :latest tag.
   # If the operator cannot reach either USD domain, GHCR alone can supply it.

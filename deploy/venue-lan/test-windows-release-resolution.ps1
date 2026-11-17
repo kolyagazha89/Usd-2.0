@@ -70,10 +70,15 @@ $preflight=Get-CachedVenueReleaseSha
 Write-Host ('USD TEST: cached preflight result='+[string]$preflight+' verified='+($script:verified -join ';'))
 if($preflight -cne $sha){throw 'Verified native Docker cache was not discovered'}
 $result=Get-VenueReleaseSha $null
-if($result -cne $sha -or $script:urls.Count -ne 0 -or $script:pulled.Count -ne 0){
+if($result -cne $sha -or $script:urls.Count -ne 2 -or $script:pulled.Count -ne 0){
  throw 'Complete cached images did not bypass timed-out API and unnecessary pulls'
 }
-Write-Host 'USD RELEASE CACHE PASS: complete cached pair never contacts online endpoint'
+Write-Host 'USD RELEASE CACHE PASS: timed-out online sources reuse complete cached images without pulling'
+$script:urls=@();$script:verified=@();$script:pulled=@()
+$script:allowApi=$true
+$result=Get-VenueReleaseSha $null
+if($result -cne $second -or $script:pulled.Count -ne 2){throw 'Fresh installation preferred old cached images over the current deployed release'}
+$script:allowApi=$false
 $script:cached=@()
 $script:urls=@();$script:verified=@();$script:pulled=@()
 $script:allowApi=$false;$script:allowFrontend=$true

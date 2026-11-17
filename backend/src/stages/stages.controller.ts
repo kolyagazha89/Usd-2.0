@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, Param, Patch, Post, Req, StreamableFile } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, Param, Patch, Post, Query, Req, StreamableFile } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import {VenueAutoSyncService} from './venue-auto-sync.service';
@@ -66,12 +66,22 @@ export class StagesController {
 
   /** The public root is not sensitive. Phone downloads must work without logging in. */
   @Public()
+  @Get('venue/certificate/install')
+  @Header('Content-Type','text/html; charset=utf-8')
+  @Header('Cache-Control','no-store, max-age=0')
+  @Header('X-Robots-Tag','noindex, nofollow')
+  @Header('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
+  installVenueCertificate(@Query('sha256') sha256?:string){
+    return this.venueCertificateService.installationPage(sha256);
+  }
+
+  @Public()
   @Get('venue/certificate/download/:format')
   @Header('Cache-Control','no-store, max-age=0')
   @Header('X-Content-Type-Options','nosniff')
-  async downloadVenueCertificate(@Param('format') format:string){
+  async downloadVenueCertificate(@Param('format') format:string,@Query('sha256') sha256?:string){
     if(format!=='cer'&&format!=='crt')throw new BadRequestException('Допустимы только cer и crt');
-    const cert=await this.venueCertificateService.download(format);
+    const cert=await this.venueCertificateService.download(format,sha256);
     return new StreamableFile(cert.data,{type:cert.contentType,
      disposition:'attachment; filename="'+cert.filename+'"'});
   }

@@ -2,6 +2,7 @@ import {BadRequestException,ForbiddenException,Injectable,NotFoundException} fro
 import {X509Certificate} from 'node:crypto';
 import {PrismaService} from '../prisma/prisma.service';
 import type {AuthenticatedRequest} from '../auth/authenticated-request';
+import {venueCertificatePage} from './venue-certificate-page';
 
 const CERT_ID='venue';
 const CERT_PATTERN=/^-----BEGIN CERTIFICATE-----\s+([A-Za-z0-9+/=\r\n]+)-----END CERTIFICATE-----\s*$/;
@@ -51,10 +52,19 @@ export class VenueCertificateService {
   });
   return this.metadataOf(row);
  }
- async download(format:'crt'|'cer'){
+ private async currentCertificate(expectedSha?:string){
   const row=await this.prisma.venueTlsCertificate.findUnique({where:{id:CERT_ID}});
   if(!row)throw new NotFoundException('Сертификат локального сервера ещё не загружен администратором');
   if(new Date(row.notAfter).getTime()<=Date.now())throw new NotFoundException('Сертификат локального сервера истёк');
+  if(expectedSha!==undefined&&expectedSha!==row.sha256)throw new BadRequestException('Сертификат ноутбука изменился. Получите новую ссылку у администратора USD.');
+  return row;
+ }
+ async installationPage(expectedSha?:string){
+  const row=await this.currentCertificate(expectedSha);
+  return venueCertificatePage(row.sha256,new Date(row.notAfter));
+ }
+ async download(format:'crt'|'cer',expectedSha?:string){
+  const row=await this.currentCertificate(expectedSha);
   if(format==='cer'){
    return {filename:'USD-Venue-CA.cer',contentType:'application/pkix-cert',
     data:new X509Certificate(row.pem).raw,sha256:row.sha256};
