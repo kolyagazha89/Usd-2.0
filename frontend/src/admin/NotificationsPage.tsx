@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { apiGet, apiPost, listData, type User } from "../api";
+import { apiGet, apiPatch, apiPost, listData, type User } from "../api";
 import "./notifications.css";
 type Message = {
   id: string;
@@ -11,6 +11,9 @@ type Message = {
   _count: { deliveries: number };
 };
 type Summary = { enabled: boolean; subscribers: number; messages: Message[] };
+type PushTemplate={key:string;label:string;description:string;enabled:boolean;title:string;body:string};
+type PushTemplateResponse={templates:PushTemplate[];revision:string};
+const previewContent=(source:string)=>source.replaceAll('{{stageName}}','Пример этапа USD');
 const statusNames: Record<string, string> = {
   PENDING: "В очереди",
   SENDING: "Отправляется",
@@ -36,6 +39,11 @@ export default function NotificationsPage({
     [testMessage, setTestMessage] = useState(""),
     [serverTestBusy, setServerTestBusy] = useState(false),
     [serverTestMessage, setServerTestMessage] = useState("");
+  const [templateOriginal,setTemplateOriginal]=useState<PushTemplateResponse|null>(null),
+    [templateDraft,setTemplateDraft]=useState<PushTemplate[]>([]),
+    [templateBusy,setTemplateBusy]=useState(false),
+    [templateError,setTemplateError]=useState(''),
+    [templateNotice,setTemplateNotice]=useState('');
   const [title, setTitle] = useState(""),
     [body, setBody] = useState(""),
     [path, setPath] = useState("/"),
@@ -49,8 +57,32 @@ export default function NotificationsPage({
     permissions.includes("*");
   const load = async () =>
     setSummary(await apiGet<Summary>("/push/admin/messages"));
+  const loadTemplates=async()=>{
+    setTemplateError('');
+    const data=await apiGet<PushTemplateResponse>('/push/admin/templates');
+    setTemplateOriginal(data);
+    setTemplateDraft(data.templates.map(template=>({...template})));
+  };
+  const editTemplate=(key:string,changes:Partial<Pick<PushTemplate,'enabled'|'title'|'body'>>)=>{
+    setTemplateDraft(previous=>previous.map(template=>template.key===key?{...template,...changes}:template));
+    setTemplateNotice('');
+  };
+  const saveTemplates=async(event:React.FormEvent)=>{
+    event.preventDefault();
+    if(!templateOriginal||templateBusy)return;
+    setTemplateBusy(true);setTemplateError('');setTemplateNotice('');
+    try{
+      const payload={revision:templateOriginal.revision,templates:templateDraft.map(({key,enabled,title,body})=>({key,enabled,title,body}))};
+      const updated=await apiPatch<PushTemplateResponse>('/push/admin/templates',payload);
+      setTemplateOriginal(updated);
+      setTemplateDraft(updated.templates.map(template=>({...template})));
+      setTemplateNotice('Шаблоны сохранены. Изменения применяются только к новым автоматическим уведомлениям, без рассылки при сохранении.');
+    }catch(e){setTemplateError(e instanceof Error?e.message:'Не удалось сохранить шаблоны PUSH.')}
+    finally{setTemplateBusy(false)}
+  };
   useEffect(() => {
     void load().catch((e) => setError(e.message));
+    if(user.role==='ADMIN')void loadTemplates().catch(e=>setTemplateError(e instanceof Error?e.message:'Не удалось загрузить редактор.'));
     void apiGet("/stages/public")
       .then((value) => setStages(listData(value)))
       .catch(() => {});
@@ -203,6 +235,46 @@ export default function NotificationsPage({
             </button>
             {serverTestMessage && <p role="status" className="notification-notice">{serverTestMessage}</p>}
             <small>На iPhone нужен установленный на экран «Домой» сайт. Для реального теста сначала включите подписку на этом устройстве в <a href="/participant?tab=profile">личном кабинете</a>. Ответ сервера подтверждает только приём запроса провайдером, не показ уведомления.</small>
+          </section>
+        )}
+        {user.role==='ADMIN'&&(
+          <section className="panel notification-composer push-template-editor" aria-label="Редактор автоматических PUSH">
+            <div className="push-template-heading">
+              <div>
+                <h2>Шаблоны автоматических PUSH</h2>
+                <p>Меняйте заголовки, тексты и включённость событий. Получатели и ссылки определяются системой и не редактируются. Сохранение не отправляет уведомления.</p>
+                <p>Для названия этапа используйте <code>{'{{stageName}}'}</code>. Не добавляйте ФИО, email и другие личные данные: PUSH может быть виден на экране блокировки.</p>
+              </div>
+              <button type="button" className="secondary-button compact" disabled={templateBusy} onClick={()=>void loadTemplates().catch(e=>setTemplateError(e instanceof Error?e.message:'Не удалось обновить шаблоны.'))}>Обновить</button>
+            </div>
+            {templateError&&<p className="form-error" role="alert">{templateError}</p>}
+            {templateNotice&&<p role="status" className="notification-notice">{templateNotice}</p>}
+            {!templateOriginal&&!templateError&&<p role="status">Загружаем шаблоны…</p>}
+            {templateOriginal&&<form className="push-template-form" onSubmit={event=>void saveTemplates(event)}>
+              {templateDraft.map(template=><article className="push-template-card" key={template.key}>
+                <div className="push-template-card-heading">
+                  <div><h3>{template.label}</h3><p>{template.description}</p></div>
+                  <label className="push-template-toggle">
+                    <input type="checkbox" checked={template.enabled} disabled={templateBusy} onChange={e=>editTemplate(template.key,{enabled:e.target.checked})}/>
+                    <span>{template.enabled?'Включено':'Выключено'}</span>
+                  </label>
+                </div>
+                <label>Заголовок <small>{template.title.length}/80</small>
+                  <input required maxLength={80} disabled={templateBusy} value={template.title} onChange={e=>editTemplate(template.key,{title:e.target.value})}/>
+                </label>
+                <label>Текст <small>{template.body.length}/240</small>
+                  <textarea required rows={3} maxLength={240} disabled={templateBusy} value={template.body} onChange={e=>editTemplate(template.key,{body:e.target.value})}/>
+                </label>
+                <div className="notification-preview" aria-label={'Предпросмотр: '+template.label}>
+                  <strong>{previewContent(template.title)||'Заголовок уведомления'}</strong>
+                  <p>{previewContent(template.body)||'Текст уведомления'}</p>
+                </div>
+              </article>)}
+              <div className="push-template-actions">
+                <button className="primary-button" type="submit" disabled={templateBusy||JSON.stringify(templateDraft.map(({key,enabled,title,body})=>({key,enabled,title,body})))===JSON.stringify(templateOriginal.templates.map(({key,enabled,title,body})=>({key,enabled,title,body})))}>{templateBusy?'Сохраняем…':'Сохранить шаблоны'}</button>
+                <small>Если другой администратор изменил шаблоны, сервер сообщит о конфликте — изменения не перезапишутся.</small>
+              </div>
+            </form>}
           </section>
         )}
         {canCreate && (
