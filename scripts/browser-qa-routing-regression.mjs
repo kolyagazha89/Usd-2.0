@@ -38,15 +38,15 @@ try{
   return handleLiveQaRoute(localRoute,blocked);
  });
  const page=await context.newPage();
- await page.goto('https://app.usd-russia.ru/ok');
+ await page.goto('https://usd-russia.ru/ok');
  assert.equal(await page.locator('h1').innerText(),'Local routing fixture','approved read is fulfilled');
  for(const route of ['/redirect','/primary-redirect']){
   const redirectedPage=await context.newPage();
-  await assert.rejects(redirectedPage.goto('https://app.usd-russia.ru'+route),/ERR_(?:BLOCKED_BY_CLIENT|FAILED)/);
+  await assert.rejects(redirectedPage.goto('https://usd-russia.ru'+route),/ERR_(?:BLOCKED_BY_CLIENT|FAILED)/);
   await redirectedPage.close();
  }
  assert.equal(deniedHits,0,'redirect destinations are never contacted');
- assert.equal(fetched.some(url=>!url.startsWith('https://app.usd-russia.ru/')),false,'only approved reads reach the network adapter');
+ assert.equal(fetched.some(url=>!url.startsWith('https://usd-russia.ru/')),false,'only approved reads reach the network adapter');
  assert.equal(blocked.filter(request=>request.reason==='redirect').length,2,'both redirects fail closed');
  const transientMedia=await context.newPage();
  await transientMedia.goto('https://api.usd-russia.ru/media/public-file/SITE_ASSET/transient');
@@ -55,7 +55,7 @@ try{
  assert.equal(transientMediaHits,2,'one failed media read may be retried exactly once');
  assert.equal(blocked.filter(request=>request.reason==='read failed').length,0,'recovered public media read must not be treated as a failure');
  const disconnectedPage=await context.newPage();
- await assert.rejects(disconnectedPage.goto('https://app.usd-russia.ru/disconnect'),/ERR_FAILED/);
+ await assert.rejects(disconnectedPage.goto('https://usd-russia.ru/disconnect'),/ERR_FAILED/);
  await disconnectedPage.close();
  assert.equal(blocked.filter(request=>request.reason==='read failed').length,1,'network failure is reported and explicitly aborted');
  const brokenMedia=await context.newPage();
@@ -68,9 +68,9 @@ try{
  assert.equal(refresh,401,'anonymous bootstrap is synthetic');
  await page.evaluate(()=>fetch('https://api.usd-russia.ru/registrations',{method:'POST'}).catch(()=>null));
  assert.equal(fetched.length,before,'mutations never reach the network adapter');
- await assert.rejects(page.goto('https://usd-russia.ru/'),/ERR_(?:BLOCKED_BY_CLIENT|FAILED)/);
- assert.equal(fetched.length,before,'the primary domain is blocked before network access');
- console.log('BROWSER_ROUTING_REGRESSION passed: approved reads, one-time media retry, permanent failure isolation, redirect isolation, synthetic bootstrap, blocked mutations and primary domain');
+ await assert.rejects(page.goto('https://app.usd-russia.ru/'),/ERR_(?:BLOCKED_BY_CLIENT|FAILED)/);
+ assert.equal(fetched.length,before,'the old app domain is blocked before network access');
+ console.log('BROWSER_ROUTING_REGRESSION passed: approved primary reads, one-time media retry, permanent failure isolation, redirect isolation, synthetic bootstrap, blocked mutations and old-host access');
  await context.close();
 }finally{
  await browser.close();
