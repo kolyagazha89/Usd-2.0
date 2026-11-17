@@ -102,8 +102,10 @@ import sys
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlsplit
 
-critical = {"APP_DOMAIN", "API_DOMAIN", "POSTGRES_DB", "POSTGRES_USER",
+required = {"APP_DOMAIN", "API_DOMAIN", "POSTGRES_DB", "POSTGRES_USER",
             "POSTGRES_PASSWORD", "DATABASE_URL"}
+optional = {"USD_PUBLIC_FRONTEND_ORIGIN", "USD_FRONTEND_ALLOWED_ORIGINS"}
+critical = required | optional
 values = {}
 try:
     for raw in Path(sys.argv[1]).read_text().splitlines():
@@ -126,8 +128,16 @@ try:
         if not val or "${" in val:
             raise ValueError("missing or interpolated deployment setting")
         values[key] = val
-    if values.keys() != critical:
+    if not required.issubset(values):
         raise ValueError("missing deployment setting")
+    prerelease = "https://app.usd-russia.ru"
+    primary = "https://usd-russia.ru"
+    public_origin = values.get("USD_PUBLIC_FRONTEND_ORIGIN", prerelease)
+    allowed_origins = values.get("USD_FRONTEND_ALLOWED_ORIGINS", prerelease)
+    if (public_origin not in (prerelease, primary)
+            or allowed_origins not in (prerelease, prerelease + "," + primary)
+            or (public_origin == primary and allowed_origins != prerelease + "," + primary)):
+        raise ValueError("unapproved public-domain cutover origins")
     # pg_dump -d accepts a libpq connection string as well as a database name.
     # An encoded API URL path matching POSTGRES_DB must not authorize a dump
     # redirected by e.g. POSTGRES_DB='host=remote-db dbname=usd'. Match the
@@ -162,7 +172,7 @@ PY
 # the validated backup target, prerelease domain or immutable image tag.
 # Refuse such invocations instead of relying on the caller's shell state.
 for inherited in APP_DOMAIN API_DOMAIN POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD \
-  DATABASE_URL USD_IMAGE_TAG COMPOSE_FILE COMPOSE_PROFILES COMPOSE_PROJECT_NAME \
+  USD_PUBLIC_FRONTEND_ORIGIN USD_FRONTEND_ALLOWED_ORIGINS DATABASE_URL USD_IMAGE_TAG COMPOSE_FILE COMPOSE_PROFILES COMPOSE_PROJECT_NAME \
   COMPOSE_ENV_FILES COMPOSE_DISABLE_ENV_FILE DOCKER_HOST DOCKER_CONTEXT; do
   if [[ -v "$inherited" ]]; then
     echo "Unsafe inherited Compose/Docker override: $inherited" >&2
@@ -322,6 +332,7 @@ from pathlib import Path
 
 def expected_env(path):
     required = {"DATABASE_URL", "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD"}
+    optional = {"USD_PUBLIC_FRONTEND_ORIGIN", "USD_FRONTEND_ALLOWED_ORIGINS"}
     found = {}
     for raw in Path(path).read_text().splitlines():
         line = raw.strip()
@@ -329,7 +340,7 @@ def expected_env(path):
             continue
         key, sep, value = line.partition("=")
         key = key.strip()
-        if key not in required:
+        if key not in required | optional:
             continue
         if not sep or key in found:
             raise ValueError("duplicate or malformed DB setting")
@@ -341,7 +352,7 @@ def expected_env(path):
         else:
             value = re.sub(r"\s+#.*$", "", value).strip()
         found[key] = value
-    if found.keys() != required:
+    if not required.issubset(found):
         raise ValueError("missing DB setting")
     return found
 
@@ -367,13 +378,21 @@ try:
     expected = expected_env(sys.argv[1])
     api = container_env(sys.argv[2])
     db = container_env(sys.argv[3])
+    prerelease = "https://app.usd-russia.ru"
+    primary = "https://usd-russia.ru"
+    public_origin = expected.get("USD_PUBLIC_FRONTEND_ORIGIN", prerelease)
+    allowed_origins = expected.get("USD_FRONTEND_ALLOWED_ORIGINS", prerelease)
+    if (public_origin not in (prerelease, primary)
+            or allowed_origins not in (prerelease, prerelease + "," + primary)
+            or (public_origin == primary and allowed_origins != prerelease + "," + primary)):
+        raise ValueError("unapproved public-domain cutover origins")
     api_checks = {
         "DATABASE_URL": expected["DATABASE_URL"],
         "NODE_ENV": "production",
         "AUTH_COOKIE_SECURE": "true",
-        "FRONTEND_URL": "https://app.usd-russia.ru",
-        "CORS_ORIGINS": "https://app.usd-russia.ru",
-        "CSRF_TRUSTED_ORIGINS": "https://app.usd-russia.ru",
+        "FRONTEND_URL": expected.get("USD_PUBLIC_FRONTEND_ORIGIN", "https://app.usd-russia.ru"),
+        "CORS_ORIGINS": expected.get("USD_FRONTEND_ALLOWED_ORIGINS", "https://app.usd-russia.ru"),
+        "CSRF_TRUSTED_ORIGINS": expected.get("USD_FRONTEND_ALLOWED_ORIGINS", "https://app.usd-russia.ru"),
         "API_PUBLIC_URL": "https://api.usd-russia.ru",
         "PUBLIC_API_URL": "https://api.usd-russia.ru",
     }
