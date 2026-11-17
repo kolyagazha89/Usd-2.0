@@ -109,13 +109,6 @@ export default function ParticipantPhotoCropper({
   activePointers.current.delete(event.pointerId);
   setupGesture();
  };
- const zoomBy=(factor:number)=>{
-  const st=imageState.current,previous=st.zoom;
-  st.zoom=Math.max(1,Math.min(5,st.zoom*factor));
-  st.x*=st.zoom/previous;st.y*=st.zoom/previous;
-  render();
- };
- const reset=()=>{imageState.current.zoom=1;imageState.current.x=0;imageState.current.y=0;render()};
  const save=()=>{
   if(!ready||busy||!imageState.current.image)return;
   setError('');
@@ -141,11 +134,6 @@ export default function ParticipantPhotoCropper({
    <img ref={displayed} alt="" draggable={false} className="member-photo-crop-source"/>
    <div className="member-photo-crop-ring" aria-hidden="true"/>
    {!ready&&!error&&<span className="member-photo-crop-loading" role="status">Подготавливаем фото…</span>}
-  </div>
-  <div className="member-photo-crop-zoom">
-   <button type="button" onClick={()=>zoomBy(1/1.2)} disabled={!ready||busy} aria-label="Уменьшить фотографию">−</button>
-   <button type="button" onClick={reset} disabled={!ready||busy}>По центру</button>
-   <button type="button" onClick={()=>zoomBy(1.2)} disabled={!ready||busy} aria-label="Увеличить фотографию">+</button>
   </div>
   <p className="member-photo-crop-caption">Так будет выглядеть аватар</p>
   <canvas ref={preview} className="member-photo-crop-preview" width={160} height={160} aria-label="Предпросмотр аватара" role="img"/>
