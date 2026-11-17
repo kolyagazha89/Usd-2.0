@@ -29,7 +29,7 @@ class PrereleaseRedirectHandler(urllib.request.HTTPRedirectHandler):
         target = allowed_origin(newurl)
         # The only cross-origin hop is the owner's eventual app -> apex 301.
         # Never allow API redirects or arbitrary external redirects.
-        if target != source and not (source == APP and target == PRIMARY):
+        if target != source and not (source == APP and target == PRIMARY and code in (301, 308)):
             raise ValueError('Cross-origin release redirect refused')
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
