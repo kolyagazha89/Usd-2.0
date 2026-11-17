@@ -88,6 +88,7 @@ async function scenario(width, mode = "participant", ios = false) {
           subscription = {
             toJSON: () => ({
               endpoint: "https://fcm.googleapis.com/browser-fixture",
+              expirationTime: null,
               keys: { p256dh: "fixture", auth: "fixture" },
             }),
             unsubscribe: async () => {
@@ -269,6 +270,7 @@ async function scenario(width, mode = "participant", ios = false) {
         .getByText("Уведомления подключены для этого браузера.")
         .waitFor();
       assert.equal(calls[0].payload.consent, true);
+      assert.equal(Object.hasOwn(calls[0].payload, "expirationTime"), false, "browser-only expirationTime must not reach strict API DTO");
       assert.equal(calls[0].payload.announcements, false);
       assert.ok(
         (await page.evaluate(() => window.__push.gestures)).every(Boolean),

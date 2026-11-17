@@ -90,7 +90,8 @@ export function PushPreferences({adminProfileLinks=false}:{adminProfileLinks?:bo
         }));
       if (!existing) newlyCreated = subscription;
       const saved = await apiPut<Subscription>("/push/subscriptions", {
-        ...subscription.toJSON(),
+        endpoint: subscription.endpoint,
+        keys: subscription.toJSON().keys,
         ...preferences,
         consent: true,
         consentVersion: settings.consentVersion,
