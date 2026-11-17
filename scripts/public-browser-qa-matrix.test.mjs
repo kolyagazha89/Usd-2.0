@@ -44,8 +44,8 @@ test('every original browser QA and offline boundary step remains exactly once a
   assert.match(workflow, /USD_CANDIDATE_QA_WIDTHS:/);
   assert.match(workflow, /390,320/);
   assert.match(workflow, /1440,1024/);
-  assert.match(part, /if: matrix\\.suite == 'core-desktop' \\|\\| matrix\\.suite == 'core-mobile'\\n\\s+run: node scripts\\/candidate-browser-qa\\.mjs/);
-  assert.equal((part.match(/run: node scripts\\/candidate-browser-qa\\.mjs/g) || []).length, 1);
+  assert.match(part, /if: matrix\.suite == 'core-desktop' \|\| matrix\.suite == 'core-mobile'\n\s+run: node scripts\/candidate-browser-qa\.mjs/);
+  assert.equal((part.match(/run: node scripts\/candidate-browser-qa\.mjs/g) || []).length, 1);
   const allSteps = [...part.matchAll(/^\s+- name: ([^\n]+)\n\s+if: matrix\.suite == '([^']+)'\n(?:\s+env:[^\n]*\n(?:\s+[^\n]*\n)*?)?\s+run: node (?:--test )?scripts\/([^\s\n]+)/gm)];
   assert.equal(allSteps.filter(x => x[3] === 'public-browser-qa-matrix.test.mjs' && x[2] === 'core').length, 1);
   const steps = allSteps.filter(x => x[3] !== 'public-browser-qa-matrix.test.mjs');
