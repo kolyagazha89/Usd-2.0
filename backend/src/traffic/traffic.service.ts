@@ -1,5 +1,6 @@
 import {BadRequestException,ForbiddenException,Injectable} from '@nestjs/common';
 import {PrismaService} from '../prisma/prisma.service';
+import {withApprovedUsdApexOrigin} from '../common/security/public-origin-policy';
 
 /** Only page categories are recorded: no profile/registration IDs, query strings,
  * IP addresses, identifiers, raw user agents or identity cookies are stored.
@@ -53,7 +54,10 @@ export class TrafficService{
  private lastPrunedAt=0;
  constructor(private readonly prisma:PrismaService){}
  async record(path:unknown,userAgent:unknown,origin:unknown,ip:unknown){
-  const allowed=String(process.env.CORS_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean);
+  const allowed=withApprovedUsdApexOrigin(
+   String(process.env.CORS_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean),
+   process.env.NODE_ENV==='production',
+  );
   if(typeof origin!=='string'||!allowed.includes(origin))
    throw new ForbiddenException('Недопустимый источник аналитики USD');
   const normalized=normalizeTrafficPath(path);
