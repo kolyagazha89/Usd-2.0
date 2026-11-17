@@ -47,6 +47,27 @@ class SafeSqlTests(unittest.TestCase):
         self.assertIn('ALTER TABLE "VenueSyncAuthorization" ADD CONSTRAINT', sql)
         self.assertNotIn('CONSTRAINT "VenueSyncAuthorization_stageId_fkey" FOREIGN KEY', sql.split(');')[0])
 
+    def test_registration_consent_migrations_pass_the_installed_additive_gate(self):
+        """Production old SHA lacks both consent migrations; no helper upgrade required.
+
+        The host gate only allows a single nullable ADD COLUMN per SQL
+        statement. Every shipped migration must pass THIS original parser.
+        """
+        root = Path(__file__).parents[2] / "backend/prisma/migrations"
+        migrations = {
+            "20261116180000_participant_publication_consent": 4,
+            "20261116184500_official_protocol_consent": 5,
+        }
+        for folder, expected_columns in migrations.items():
+            with self.subTest(migration=folder):
+                sql = (root / folder / "migration.sql").read_text(encoding="utf-8")
+                module.check_additive_sql(sql)
+                statements = [x.strip() for x in sql.split(";") if x.strip() and not x.strip().startswith("--")]
+                self.assertEqual(sql.count("ADD COLUMN"), expected_columns)
+                self.assertNotIn("ADD COLUMN IF NOT EXISTS", sql.upper())
+                self.assertNotIn("NOT NULL", sql.upper())
+                self.assertNotIn("DEFAULT ", sql.upper())
+
     def test_new_table_and_index(self):
         module.check_additive_sql("""
             CREATE TABLE "NewThing" (
