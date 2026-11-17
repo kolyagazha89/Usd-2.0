@@ -49,22 +49,22 @@ class ReleaseEnvironmentTests(unittest.TestCase):
 
     def test_cutover_is_opt_in_and_preserves_the_prerelease_deployment_identity(self):
         self.assertEqual(self.validate(extra=(
-            'USD_PUBLIC_FRONTEND_ORIGIN=https://usd-russia.ru\\n'
-            'USD_FRONTEND_ALLOWED_ORIGINS=https://app.usd-russia.ru,https://usd-russia.ru\\n'
+            'USD_PUBLIC_FRONTEND_ORIGIN=https://usd-russia.ru\n'
+            'USD_FRONTEND_ALLOWED_ORIGINS=https://app.usd-russia.ru,https://usd-russia.ru\n'
         )).returncode, 0)
 
     def test_primary_origin_needs_explicit_cors_and_csrf_allowlist(self):
-        result = self.validate(extra='USD_PUBLIC_FRONTEND_ORIGIN=https://usd-russia.ru\\n')
+        result = self.validate(extra='USD_PUBLIC_FRONTEND_ORIGIN=https://usd-russia.ru\n')
         self.assertNotEqual(result.returncode, 0)
 
     def test_rejects_malicious_or_unreviewed_public_origins(self):
         for extra in (
-            'USD_PUBLIC_FRONTEND_ORIGIN=https://attacker.example\\n',
-            'USD_PUBLIC_FRONTEND_ORIGIN=https://usd-russia.ru.evil.example\\n',
-            'USD_PUBLIC_FRONTEND_ORIGIN=http://usd-russia.ru\\n',
-            'USD_PUBLIC_FRONTEND_ORIGIN=https://user@usd-russia.ru\\n',
-            'USD_FRONTEND_ALLOWED_ORIGINS=https://app.usd-russia.ru,https://attacker.example\\n',
-            'USD_FRONTEND_ALLOWED_ORIGINS=https://usd-russia.ru\\n',
+            'USD_PUBLIC_FRONTEND_ORIGIN=https://attacker.example\n',
+            'USD_PUBLIC_FRONTEND_ORIGIN=https://usd-russia.ru.evil.example\n',
+            'USD_PUBLIC_FRONTEND_ORIGIN=http://usd-russia.ru\n',
+            'USD_PUBLIC_FRONTEND_ORIGIN=https://user@usd-russia.ru\n',
+            'USD_FRONTEND_ALLOWED_ORIGINS=https://app.usd-russia.ru,https://attacker.example\n',
+            'USD_FRONTEND_ALLOWED_ORIGINS=https://usd-russia.ru\n',
         ):
             with self.subTest(extra=extra):
                 self.assertNotEqual(self.validate(extra=extra).returncode, 0)
