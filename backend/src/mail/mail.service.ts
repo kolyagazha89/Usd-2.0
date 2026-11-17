@@ -111,14 +111,46 @@ export class MailService {
     return {entries:rows.slice(0,50),nextCursor:rows.length>50?rows[49].id:null};
   }
 
-  private async recordAccountMail(type:string,recipient:string,accepted:boolean):Promise<void>{
+  /** Only fixed-format provider metadata: never persist raw SMTP text, URLs or tokens.
+   * Nodemailer exposes the command + raw server reply for 554 rejections.
+   * Emit a strict vocabulary so support can distinguish spam/rate/policy
+   * failures from auth errors without logging account verification links. */
+  private safeMailFailure(error:unknown):string {
+    const value=error as {code?:unknown;responseCode?:unknown;status?:unknown;command?:unknown;response?:unknown};
+    const code=typeof value?.code==='string' && /^[A-Z][A-Z0-9_]{0,31}$/.test(value.code)
+      ? value.code : 'UNKNOWN';
+    const smtp=typeof value?.responseCode==='number' && Number.isInteger(value.responseCode)
+      && value.responseCode>=400 && value.responseCode<=599 ? String(value.responseCode) : 'NONE';
+    const http=typeof value?.status==='number' && Number.isInteger(value.status)
+      && value.status>=400 && value.status<=599 ? String(value.status) : 'NONE';
+    // Never log a command supplied by the provider; allowlist known SMTP stages.
+    const command = typeof value?.command === 'string' ? value.command.toUpperCase() : '';
+    const stage = ['DATA', 'RCPT TO', 'MAIL FROM', 'AUTH', 'AUTH PLAIN', 'AUTH LOGIN', 'CONNECT'].includes(command)
+      ? command.replace(/ /g, '_') : 'UNKNOWN';
+    // Use reply text ONLY for fixed-category matching. Remove URLs / addresses
+    // before checking keywords and never print or persist the reply itself.
+    const reply = typeof value?.response === 'string'
+      ? value.response.slice(0, 2000)
+        .replace(/(?:https?:\/\/|www\.)\S+/gi, ' ')
+        .replace(/\S+@\S+/g, ' ')
+      : '';
+    let reason = 'UNSPECIFIED';
+    if (/\bspam\b|unsolicited|spamhaus|спам/i.test(reply)) reason = 'SPAM_POLICY';
+    else if (/too many|rate[\s-]*limit|quota|throttl|sending limit|daily limit|лимит|слишком много/i.test(reply)) reason = 'RATE_LIMIT';
+    else if (/\bspf\b|\bdkim\b|\bdmarc\b|sender|from address|отправител/i.test(reply)) reason = 'SENDER_POLICY';
+    else if (/recipient|mailbox|user unknown|no such user|адресат|получател/i.test(reply)) reason = 'RECIPIENT_REJECTED';
+    else if (/policy|blocked|blacklist|denied|not allowed|prohibited|заблокир|политик/i.test(reply)) reason = 'POLICY_REJECTED';
+    return `MAIL_TRANSPORT_ERROR code=${code} smtp=${smtp} http=${http} stage=${stage} reason=${reason}`;
+  }
+
+  private async recordAccountMail(type:string,recipient:string,accepted:boolean,error?:unknown):Promise<void>{
     if(!this.prisma?.emailNotificationLog?.create)return;
     try{
       await this.prisma.emailNotificationLog.create({data:{
         eventKey:'account-mail:'+randomUUID(),type,recipient,
         status:accepted?'PROVIDER_ACCEPTED':'FAILED',
         attempts:1,providerAcceptedAt:accepted?new Date():null,
-        lastError:accepted?null:'MAIL_TRANSPORT_ERROR',
+        lastError:accepted?null:this.safeMailFailure(error),
       }});
     }catch{
       // Logging is best effort: it must never suppress a successful security
@@ -131,7 +163,7 @@ export class MailService {
     try{
       await this.sendMessage({to:recipient,...message});
     }catch(error){
-      await this.recordAccountMail(type,recipient,false);
+      await this.recordAccountMail(type,recipient,false,error);
       throw error;
     }
     await this.recordAccountMail(type,recipient,true);
@@ -500,8 +532,7 @@ export class MailService {
       }
       // Provider errors may contain auth details, raw URLs and recipient data.
       // Only log the fixed diagnostic category and safe SMTP status code.
-      this.logger.warn('Administrative email test failed: ' + kind +
-        (responseCode >= 400 && responseCode <= 599 ? ', smtpStatus=' + responseCode : ''));
+      this.logger.warn('Administrative email test failed: ' + kind + ' ' + this.safeMailFailure(error));
       throw new BadGatewayException({ code: kind, message });
     }
   }
@@ -591,7 +622,7 @@ export class MailService {
     try {
       await this.sendAccountMail('AUTH_EMAIL_VERIFICATION',email,message);
     } catch (error) {
-      this.logger.error(`Verification email send failed (${error instanceof Error ? error.name : 'UnknownError'}). Check the configured mail provider and its credentials.`);
+      this.logger.error(`Verification email send failed (${this.safeMailFailure(error)}). SMTP rejection details are categorized; no raw provider response is logged.`);
       throw new InternalServerErrorException('Не удалось отправить письмо подтверждения. Проверьте настройки почтового сервиса.');
     }
   }
