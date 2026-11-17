@@ -5,6 +5,7 @@ import { MailService } from './mail.service';
 describe('MailService Resend delivery', () => {
   const originalApiKey = process.env.RESEND_API_KEY;
   const originalFrontendUrl = process.env.FRONTEND_URL;
+  const originalNodeEnv=process.env.NODE_ENV;
   const originalFrom = process.env.RESEND_FROM_EMAIL;
   const originalSmtpHost = process.env.SMTP_HOST;
   const originalSmtpUser = process.env.SMTP_USER;
@@ -24,6 +25,7 @@ describe('MailService Resend delivery', () => {
     for (const [key, value] of Object.entries({
       RESEND_API_KEY: originalApiKey,
       FRONTEND_URL: originalFrontendUrl,
+      NODE_ENV: originalNodeEnv,
       RESEND_FROM_EMAIL: originalFrom,
       SMTP_HOST: originalSmtpHost,
       SMTP_USER: originalSmtpUser,
@@ -77,6 +79,23 @@ describe('MailService Resend delivery', () => {
     expect(body.text).toContain('/verify-email?token=token-123');
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Resend accepted email (id=email-accepted-id)'));
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('inbox delivery is not confirmed'));
+  });
+
+  it('production reset and email-change actions use the apex even when Ubuntu deploy identity is app',async()=>{
+    process.env.RESEND_API_KEY='test-api-key';
+    process.env.RESEND_FROM_EMAIL='USD <no-reply@example.com>';
+    process.env.FRONTEND_URL='https://app.usd-russia.ru';
+    process.env.NODE_ENV='production';
+    const fetchMock=jest.spyOn(global,'fetch').mockResolvedValue({
+      ok:true,status:200,json:async()=>({id:'accepted-mail'})
+    } as Response);
+    const service=new MailService();
+    await service.sendPasswordResetEmail('person@example.com','reset-token');
+    await service.sendEmailChangeEmail('person@example.com','change-token');
+    const messages=fetchMock.mock.calls.map(call=>JSON.parse(String(call[1]?.body)));
+    expect(messages[0].text).toContain('https://usd-russia.ru/reset-password?token=reset-token');
+    expect(messages[1].text).toContain('https://usd-russia.ru/confirm-email-change?token=change-token');
+    for(const msg of messages)expect(msg.text).not.toContain('https://app.usd-russia.ru');
   });
 
   it('uses the branded USD template for verification, password reset and email change messages', async () => {
