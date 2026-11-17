@@ -73,10 +73,9 @@ class SafeSqlTests(unittest.TestCase):
             with self.subTest(migration=folder):
                 sql = (root / folder / "migration.sql").read_text(encoding="utf-8")
                 module.check_additive_sql(sql)
-                import re
                 # Compare exact column names and types: a passing parser alone
                 # must never hide an accidental omission in the release SQL.
-                without_comments = re.sub(r"--[^\\n]*", "", sql)
+                without_comments = " ".join(line.split("--", 1)[0] for line in sql.splitlines())
                 statements = [" ".join(x.split()) for x in without_comments.split(";") if x.strip()]
                 self.assertEqual(statements, expected_statements)
                 self.assertEqual(sql.count("ADD COLUMN"), len(expected_statements))
