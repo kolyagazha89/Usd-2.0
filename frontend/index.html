@@ -2,6 +2,9 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
+    <!-- Exact old hostname redirects before React, auth refresh or media loads.
+         CloudPub may rewrite upstream Host and bypass nginx's 301 map. -->
+    <script src="/usd-legacy-redirect.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <!-- iOS uses apple-touch-icon, not necessarily the PWA manifest icon.
