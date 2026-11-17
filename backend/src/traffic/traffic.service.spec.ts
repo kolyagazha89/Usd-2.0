@@ -4,7 +4,11 @@ import {TrafficService,normalizeTrafficPath,trafficDevice,summarizeTrafficRows} 
 
 describe('privacy-first USD traffic analytics',()=>{
  const previous=process.env.CORS_ORIGINS;
- afterAll(()=>{if(previous===undefined)delete process.env.CORS_ORIGINS;else process.env.CORS_ORIGINS=previous});
+ const previousNodeEnv=process.env.NODE_ENV;
+ afterAll(()=>{
+  if(previous===undefined)delete process.env.CORS_ORIGINS;else process.env.CORS_ORIGINS=previous;
+  if(previousNodeEnv===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=previousNodeEnv;
+ });
  it('never persists per-person names, numbers, profile paths or querystrings',()=>{
   for(const value of ['/','/stages/a-b-c?token=123','/participants/secret-profile','/results?stageId=x','/privacy#heading'])
    expect(normalizeTrafficPath(value)).toBe(value==='/'?'/':value.startsWith('/stages')?'/stages':value.startsWith('/participants')?'/participants':value.startsWith('/results')?'/results':'/privacy');
@@ -25,6 +29,18 @@ describe('privacy-first USD traffic analytics',()=>{
   await expect(service.record('/','Mozilla/5.0 Chrome','https://evil.example','1.2.3.4')).rejects.toBeInstanceOf(ForbiddenException);
   await expect(service.record('/admin','Mozilla/5.0 Chrome','https://app.usd-russia.ru','1.2.3.4')).rejects.toBeInstanceOf(BadRequestException);
   expect(auditLog.create).not.toHaveBeenCalled();
+ });
+ it('accepts public analytics from the exact approved USD apex in production, never a lookalike',async()=>{
+  process.env.NODE_ENV='production';
+  process.env.CORS_ORIGINS='https://app.usd-russia.ru';
+  const auditLog={create:jest.fn().mockResolvedValue({}),deleteMany:jest.fn().mockResolvedValue({count:0})};
+  const service=new TrafficService({auditLog} as any);
+  await service.record('/results','Mozilla/5.0 Chrome','https://usd-russia.ru','1.2.3.4');
+  expect(auditLog.create).toHaveBeenCalledTimes(1);
+  await expect(service.record('/','Mozilla/5.0 Chrome','https://usd-russia.ru.evil.example','1.2.3.4'))
+   .rejects.toBeInstanceOf(ForbiddenException);
+  expect(auditLog.create).toHaveBeenCalledTimes(1);
+  process.env.NODE_ENV='test';
  });
  it('stores only anonymized page category+device, drops bots and rate limits per minute',async()=>{
   process.env.CORS_ORIGINS='https://app.usd-russia.ru';
