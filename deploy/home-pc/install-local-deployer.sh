@@ -22,7 +22,7 @@ for tool in git docker flock systemctl install bash awk df python3 cmp readlink;
   command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }
 done
 docker compose version >/dev/null
-for script in auto-deploy.sh release-approved.sh rehearse-schema-on-backup.sh verify-media-backup.sh verify-db-offsite-backup.sh setup-home-pc.sh prepare-runner-launcher.sh test-release.sh test-auto-deploy.sh; do bash -n "$script"; done
+for script in prune-release-images.sh auto-deploy.sh release-approved.sh rehearse-schema-on-backup.sh verify-media-backup.sh verify-db-offsite-backup.sh setup-home-pc.sh prepare-runner-launcher.sh test-release.sh test-auto-deploy.sh; do bash -n "$script"; done
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("verify-main-ci.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("initial-schema.py").read_text())'
 python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("safe-schema-migration.py").read_text())'
@@ -37,10 +37,12 @@ python3 test-second-disk-db-backup.py -v
 python3 test-second-disk-media-backup.py -v
 python3 test-deploy-status.py -q
 python3 test-request-deploy.py -q
+python3 test-prune-release-images.py -q
 bash install-cosign.sh
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -o root -g root -m 0755 deploy-status.py /usr/local/libexec/usd-deploy-status
 install -o root -g root -m 0755 request-deploy.py /usr/local/libexec/usd-request-deploy
+install -o root -g root -m 0750 prune-release-images.sh /usr/local/libexec/usd-prune-release-images
 if [[ -e /run/usd-deployer || -L /run/usd-deployer ]]; then
   [[ -d /run/usd-deployer && ! -L /run/usd-deployer && "$(stat -c %u /run/usd-deployer)" == 0 ]] &&
     (( (8#$(stat -c %a /run/usd-deployer) & 022) == 0 )) ||
