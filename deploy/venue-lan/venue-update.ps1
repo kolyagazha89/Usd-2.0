@@ -1,5 +1,12 @@
 ﻿#requires -Version 5.1
 # Update only the web image and HTTPS gateway; retain the judging API and data.
+function Copy-VenueWebVersion([System.Collections.IDictionary]$Config,[hashtable]$Source){
+ if($Source.ContainsKey('VENUE_WEB_IMAGE_TAG')){
+  $version=[string]$Source['VENUE_WEB_IMAGE_TAG']
+  if($version -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная версия экрана предыдущего этапа'}
+  $Config['VENUE_WEB_IMAGE_TAG']=$version
+ }
+}
 function Test-VenueGatewayReady([string]$Ip){
  try{
   $reply=Invoke-WebRequest -Uri ('http://'+$Ip+'/venue/live') -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop

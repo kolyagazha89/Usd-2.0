@@ -404,6 +404,7 @@ function New-InitialState {
     $values[$name]=$sharedConfig[$name]
    }
   }
+  Copy-VenueWebVersion $values $sharedConfig
  }
  $text=($values.GetEnumerator()|ForEach-Object {$_.Key+'='+$_.Value}) -join [Environment]::NewLine
  Write-PrivateFile $EnvFile ($text+[Environment]::NewLine)

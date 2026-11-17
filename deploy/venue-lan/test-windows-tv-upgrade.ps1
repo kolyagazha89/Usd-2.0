@@ -76,7 +76,13 @@ try{
  if(!$rejected -or (Read-Env)['VENUE_WEB_IMAGE_TAG'] -ne $tv){
   throw 'Failed TV upgrade did not preserve the previous known working image'
  }
- Write-Host 'USD FRONTEND UPGRADE PASS: READY phase updates only spectator frontend/gateway, rollback preserves stage and secrets'
+ $inherited=[ordered]@{VENUE_IMAGE_TAG=$api;VENUE_STAGE_ID=$stage}
+ Copy-VenueWebVersion $inherited @{'VENUE_WEB_IMAGE_TAG'=$tv}
+ if($inherited['VENUE_WEB_IMAGE_TAG'] -cne $tv -or $inherited['VENUE_IMAGE_TAG'] -cne $api){throw 'Next stage lost the upgraded web version or changed API'}
+ $rejected=$false
+ try{Copy-VenueWebVersion $inherited @{'VENUE_WEB_IMAGE_TAG'='latest'}}catch{$rejected=$true}
+ if(!$rejected -or $inherited['VENUE_WEB_IMAGE_TAG'] -cne $tv){throw 'Unpinned inherited web version was accepted'}
+ Write-Host 'USD FRONTEND UPGRADE PASS: READY phase updates only spectator frontend/gateway, rollback and next stage preserve versions and secrets'
 }finally{
  $Root=$oldRoot;$EnvFile=$oldEnvFile
  if(Test-Path -LiteralPath $folder){[IO.Directory]::Delete($folder,$true)}
