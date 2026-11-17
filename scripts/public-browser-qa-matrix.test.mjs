@@ -42,7 +42,9 @@ test('every original browser QA and offline boundary step remains exactly once a
     ],
   };
   const expected = Object.values(scripts).flat();
-  const steps = [...part.matchAll(/^\s+- name: ([^\n]+)\n\s+if: matrix\.suite == '([^']+)'\n(?:\s+env:[^\n]*\n(?:\s+[^\n]*\n)*?)?\s+run: node (?:--test )?scripts\/([^\s\n]+)/gm)];
+  const allSteps = [...part.matchAll(/^\s+- name: ([^\n]+)\n\s+if: matrix\.suite == '([^']+)'\n(?:\s+env:[^\n]*\n(?:\s+[^\n]*\n)*?)?\s+run: node (?:--test )?scripts\/([^\s\n]+)/gm)];
+  assert.equal(allSteps.filter(x => x[3] === 'public-browser-qa-matrix.test.mjs' && x[2] === 'core').length, 1);
+  const steps = allSteps.filter(x => x[3] !== 'public-browser-qa-matrix.test.mjs');
   assert.equal(steps.length, expected.length, 'every browser invocation must be gated and retained');
   const got = steps.map(x => x[3]);
   assert.equal(new Set(got).size, expected.length, 'no duplicate browser runs');
