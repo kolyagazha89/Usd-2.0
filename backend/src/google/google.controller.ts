@@ -1,4 +1,5 @@
 import {
+import {publicUsdSiteOrigin} from '../common/public-site-origin';
   Controller,
   Get,
   Param,
@@ -38,7 +39,7 @@ export class GoogleController {
   @Public()
   @Get('callback')
   async callback(@Query('code') code: string, @Query('state') state: string, @Res() res: Response) {
-    const frontend = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+    const frontend = publicUsdSiteOrigin(process.env.FRONTEND_URL);
     try {
       await this.google.completeAuthorization(code, state);
       return res.redirect(frontend + '/admin/import?google=connected');
