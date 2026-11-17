@@ -84,6 +84,9 @@ export class PushTransport {
         );
         deadline.unref();
         req.on('close', () => clearTimeout(deadline));
+        // Node may emit a TLS socket error independently of ClientRequest.
+        // Consume it as a rejected delivery, never as an uncaught process error.
+        req.on('socket', (socket) => socket.on('error', reject));
         req.on('error', reject);
         if (details.body) req.write(details.body);
         req.end();
