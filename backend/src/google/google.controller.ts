@@ -1,5 +1,4 @@
 import {
-import {publicUsdSiteOrigin} from '../common/public-site-origin';
   Controller,
   Get,
   Param,
@@ -11,6 +10,7 @@ import {publicUsdSiteOrigin} from '../common/public-site-origin';
 import type { Request, Response } from 'express';
 import { GoogleService } from './google.service';
 import { Public } from '../auth/public.decorator';
+import {publicUsdSiteOrigin} from '../common/public-site-origin';
 
 function requireAdmin(req: Request): { sub: string } {
   const user = (req as any).user;
