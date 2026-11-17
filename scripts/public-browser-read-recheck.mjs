@@ -6,7 +6,7 @@ import {isLiveQaReadRequest} from './public-browser-qa-config.mjs';
  * navigated away; that is not evidence of a broken production endpoint.
  * A persistent error on an isolated request, however, fails release QA.
  *
- * All requests are HTTPS GET to the existing prerelease allowlist, redirects
+ * All requests are HTTPS GET to the approved primary/API allowlist, redirects
  * are never followed, and no bearer headers, cookies or write methods pass.
  */
 export async function recheckFailedPublicReads(blockedRequests, request=fetch) {
