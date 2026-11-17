@@ -12,6 +12,7 @@ import {
   DEFAULT_TRUST_PROXY_HOPS,
 } from './common/security/security.constants';
 import { SecurityMiddleware } from './common/security/security.middleware';
+import { withApprovedUsdApexOrigin } from './common/security/public-origin-policy';
 
 async function bootstrap() {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -37,13 +38,14 @@ async function bootstrap() {
     }
   }
 
-  const corsOrigins = (
+  const configuredCorsOrigins = (
     process.env.CORS_ORIGINS ??
     (isProduction ? '' : 'http://localhost:3000,http://localhost:5173')
   )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+  const corsOrigins = withApprovedUsdApexOrigin(configuredCorsOrigins, isProduction);
 
   if (isProduction && corsOrigins.length === 0) {
     throw new Error('CORS_ORIGINS должен быть задан в production');
@@ -169,12 +171,13 @@ async function bootstrap() {
     maxAge: 86400,
   });
 
-  const trustedOrigins = (
-    process.env.CSRF_TRUSTED_ORIGINS ?? ''
-  )
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const trustedOrigins = withApprovedUsdApexOrigin(
+    (process.env.CSRF_TRUSTED_ORIGINS ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+    isProduction,
+  );
 
   if (trustedOrigins.length > 0) {
     const csrfApp = app as typeof app & {
