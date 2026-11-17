@@ -98,6 +98,7 @@ function isSelfServiceAction(request: AuthenticatedRequest, context: ExecutionCo
  if(name==='ParticipantsController') {
   if(path==='/participants/teams')return method==='GET';
   if(path==='/participants/me')return ['GET','POST','PATCH'].includes(method);
+  if(path==='/participants/me/publication-consent')return ['GET','PATCH'].includes(method);
   if(path==='/participants/me/usd-id')return method==='GET';
   if(path==='/participants/me/usd-id/rotate')return method==='POST';
   if(path==='/participants/me/cars')return ['GET','POST'].includes(method);
