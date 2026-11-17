@@ -459,7 +459,7 @@ function Install-Local {
  Ensure-Firewall $state.ip
  Set-VenueStep 'validate-compose'
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
- if($state.phase -eq 'READY'){Start-Local;return}
+ if($state.phase -eq 'READY'){Update-ReadyVenueFrontend $state;Start-Local;return}
  if($state.phase -ne 'CONFIGURED'){Start-VenueDatabase}
  Set-VenueStep 'verify-stage-and-staff'
  $mounts=Confirm-SignedStage $state
@@ -555,7 +555,7 @@ function Start-Local {
  # Wait for a responding local API before opening the browser or exporting CA.
  $ready=$false
  for($i=0;$i -lt 40;$i++){
-  if(Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId){$ready=$true;break}
+  if((Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId) -and (Test-VenueGatewayReady $state.ip)){$ready=$true;break}
   Start-Sleep -Seconds 2
  }
  if(-not $ready){throw 'Сервер ещё не ответил. Подождите немного и нажмите «USD — Офлайн» снова. Данные сохранены.'}
@@ -765,6 +765,7 @@ function Return-Online {
 }
 . (Join-Path $Root 'venue-season.ps1')
 . (Join-Path $Root 'venue-ca.ps1')
+. (Join-Path $Root 'venue-update.ps1')
 if($MyInvocation.InvocationName -eq '.'){return}
 try{
  if(-not $Silent){. (Join-Path $Root 'venue-dialogs.ps1')}

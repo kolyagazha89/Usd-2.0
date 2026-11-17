@@ -16,7 +16,10 @@ https://{$VENUE_BIND_IP} {
     Content-Security-Policy "connect-src 'self'; form-action 'self'; base-uri 'self'; object-src 'none'"
   }
   handle_path /venue-api/* {
-    reverse_proxy api:3000
+    reverse_proxy api:3000 {
+      # Browser sees /venue-api/auth, while Nest sets Path=/auth.
+      header_down Set-Cookie "(?i)Path=/auth(;|$)" "Path=/venue-api/auth$1"
+    }
   }
   handle {
     reverse_proxy frontend:80

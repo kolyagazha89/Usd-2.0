@@ -51,4 +51,21 @@ describe('USD venue LAN trust certificate published from the actual laptop',()=>
   expect(await service.metadata(admin)).toEqual({available:false});
   await expect(service.download('crt')).rejects.toThrow(NotFoundException);
  });
+ it('provides a shareable installation page with downloads pinned to the actual public root',async()=>{
+  const page=await service.installationPage(record.sha256);
+  expect(page).toContain('Safari');
+  expect(page).toContain('MAX');
+  expect(page).toContain('download/cer?sha256='+record.sha256);
+  expect(page).toContain('download/crt?sha256='+record.sha256);
+  expect(page).not.toContain('PRIVATE KEY');
+  expect(page).not.toContain('BEGIN CERTIFICATE');
+  await expect(service.download('cer',record.sha256)).resolves.toMatchObject({sha256:record.sha256});
+ });
+ it('rejects old links after a CA replacement and never serves an expired certificate',async()=>{
+  await expect(service.installationPage('0'.repeat(64))).rejects.toThrow(BadRequestException);
+  await expect(service.download('crt','0'.repeat(64))).rejects.toThrow(BadRequestException);
+  prisma.venueTlsCertificate.findUnique.mockResolvedValue({...record,notAfter:new Date(0)});
+  await expect(service.installationPage(record.sha256)).rejects.toThrow(NotFoundException);
+  await expect(service.download('cer')).rejects.toThrow(NotFoundException);
+ });
 });

@@ -31,6 +31,13 @@ jobs:
         run: python3 deploy/venue-lan/build-windows-kit.py --check
       - name: Validate RFC1918-only hub and independent credentials
         run: python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v && python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v
+      - name: Verify actual Caddy TLS, refresh cookies and HTTP spectator boundary
+        run: |
+          docker create --name usd-caddy-contract caddy:2-alpine
+          docker cp usd-caddy-contract:/usr/bin/caddy /tmp/usd-caddy
+          docker rm usd-caddy-contract
+          chmod +x /tmp/usd-caddy
+          CADDY_BIN=/tmp/usd-caddy python3 -m unittest discover -s deploy/venue-lan -p 'test_gateway_runtime.py' -v
       - name: Rehearse no-secret venue compose preflight
         working-directory: deploy/venue-lan
         run: |
@@ -189,6 +196,7 @@ jobs:
             'deploy/venue-lan/venue-control.ps1',
             'deploy/venue-lan/venue-season.ps1',
             'deploy/venue-lan/venue-ca.ps1',
+            'deploy/venue-lan/venue-update.ps1',
             'deploy/venue-lan/venue-dialogs.ps1',
             'deploy/venue-lan/venue-firewall.ps1',
             'deploy/venue-lan/test-windows-certificate.ps1'
@@ -212,6 +220,9 @@ jobs:
       - name: Verify native release quoting, selected environment and non-recreating database reads
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-release-regressions.ps1
+      - name: Update installed LIVE without replacing API or stage data
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-tv-upgrade.ps1
       - name: Retry Caddy root CA extraction and preserve last valid certificate
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-certificate.ps1

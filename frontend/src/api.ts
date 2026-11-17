@@ -35,6 +35,9 @@ export type Dashboard = {
 export function venueCertificateDownloadUrl(format:'cer'|'crt'):string{
   return API_BASE.replace(/\/$/,'')+'/stages/venue/certificate/download/'+format;
 }
+export function venueCertificateInstallUrl(sha256:string):string{
+  return API_BASE.replace(/\/$/,'')+'/stages/venue/certificate/install?sha256='+encodeURIComponent(sha256);
+}
 
 const REQUEST_TIMEOUT_MS = 30_000;
 // Only anonymous auth endpoints should bypass refresh. Historical-profile

@@ -45,6 +45,8 @@ def validate(env: dict[str, str]) -> None:
         raise ValueError("Публикация разрешена только на частном IPv4 интерфейсе роутера")
     if not re.fullmatch(r"[0-9a-f]{40}", env["VENUE_IMAGE_TAG"]):
         raise ValueError("Разрешены только образы, закреплённые полным SHA коммита")
+    if "VENUE_WEB_IMAGE_TAG" in env and not re.fullmatch(r"[0-9a-f]{40}", env["VENUE_WEB_IMAGE_TAG"]):
+        raise ValueError("Неверная закреплённая версия frontend")
     if not re.fullmatch(
         r"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
         env["VENUE_STAGE_ID"], re.IGNORECASE,

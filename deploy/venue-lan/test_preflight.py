@@ -42,6 +42,15 @@ class VenuePreflightTests(unittest.TestCase):
             env["VENUE_IMAGE_TAG"] = label
             with self.assertRaises(ValueError):
                 validate(env)
+    def test_frontend_update_requires_an_immutable_tag(self):
+        env = fixture()
+        env["VENUE_WEB_IMAGE_TAG"] = "c" * 40
+        validate(env)
+        for tag in ("latest", "main", "bad", "c" * 39):
+            env["VENUE_WEB_IMAGE_TAG"] = tag
+            with self.assertRaises(ValueError):
+                validate(env)
+
     def test_signing_public_key_fingerprint_required(self):
         for fingerprint in ("", "REPLACE_SHA", "a"*8, "x"*64):
             env=fixture()
