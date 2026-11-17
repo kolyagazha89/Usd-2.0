@@ -11,7 +11,7 @@ test('approved legal files open an internal reader instead of a cross-origin DOC
   const links = publicDocumentLinks(legal, { rulesDocument: { published: { url: 'https://api.usd-russia.ru/media/public-file/SITE_ASSET/rules-draft-valid', fileName: 'Rules.docx' } } });
   assert.deepEqual(links.map(x => x.openPath), ['/rules', '/documents/privacyPolicy', '/documents/cookiePolicy']);
   assert.ok(links.every(x => x.downloadUrl.startsWith('https://api.usd-russia.ru/')));
-  assert.equal(links[1].fileName, 'Privacy.docx');
+  assert.equal(links[1].description, 'Порядок обработки и защиты персональных данных');
 });
 
 test('draft and missing legal documents are never presented as publicly readable', () => {
@@ -27,7 +27,7 @@ test('official protocol publication terms are a separate approved reader, never 
   const legal = { legalApproved: true, documents: { officialProtocolConsent: doc } };
   const links = publicDocumentLinks(legal, {});
   assert.deepEqual(links.map(item => item.openPath), ['/documents/officialProtocolConsent']);
-  assert.equal(links[0].fileName, 'Протокол.docx');
+  assert.equal(links[0].description, 'Публикация ФИО и официальных спортивных результатов');
   assert.deepEqual(publicDocumentLinks({ ...legal, legalApproved: false }, {}), []);
   assert.deepEqual(publicDocumentLinks({ ...legal, documents: { officialProtocolConsent: { ...doc, targetId: 'legal-document-photoProfileConsent-wrong' } } }, {}), []);
 });
