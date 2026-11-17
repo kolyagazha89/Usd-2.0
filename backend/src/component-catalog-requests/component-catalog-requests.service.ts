@@ -1,4 +1,5 @@
 import {catalogRequestNotification} from '../admin-notifications/admin-notification-event';
+import {publicUsdSiteOrigin} from '../common/public-site-origin';
 import {lockSiteSettings} from '../site-settings/catalog-concurrency';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -28,7 +29,7 @@ function escapeHtml(value: unknown): string {
 
 @Injectable()
 export class ComponentCatalogRequestsService {
-  private readonly frontendUrl = (process.env.FRONTEND_URL ?? 'https://usd-russia.ru').replace(/\/+$/, '');
+  private readonly frontendUrl = publicUsdSiteOrigin(process.env.FRONTEND_URL);
 
   constructor(private readonly prisma: PrismaService, private readonly mail: MailService) {}
 
