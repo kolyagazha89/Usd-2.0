@@ -64,7 +64,7 @@ describe('MailService Resend delivery', () => {
     );
     await expect(service.sendVerificationEmail('recipient@gmail.com','private')).rejects.toThrow();
     const saved=(create.mock.calls[0][0] as any).data;
-    expect(saved.lastError).toBe('MAIL_TRANSPORT_ERROR code=EENVELOPE smtp=550 http=NONE');
+    expect(saved.lastError).toBe('MAIL_TRANSPORT_ERROR code=EENVELOPE smtp=550 http=NONE stage=UNKNOWN reason=UNSPECIFIED');
     expect(JSON.stringify(saved)).not.toContain('private');
     expect(saved.status).toBe('FAILED');
   });
