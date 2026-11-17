@@ -740,3 +740,29 @@ body .usd-live .p-article > .p-article-cover.p-photo-fallback {
     margin-block:20px!important;
   }
 }
+
+
+/* Participant card/avatar design candidate — intentionally isolated in prototype branch. */
+body .usd-live .p-person-card.u-person-card{
+ display:grid!important;grid-template-columns:86px minmax(0,1fr) 20px!important;
+ align-items:center;gap:14px;min-height:116px;padding:15px!important;
+}
+body .usd-live .p-person-card .p-person-photo{
+ display:block!important;width:86px!important;height:86px!important;aspect-ratio:1;
+ flex:0 0 86px;object-fit:cover!important;object-position:center;
+ border-radius:50%!important;border:2px solid #657a8d;
+}
+body .usd-live .p-person-card .p-person-photo.p-photo-fallback{display:grid!important;place-items:center;font-size:25px!important}
+body .usd-live .p-person-card>div:not(.p-person-photo){min-width:0;padding:0!important}
+body .usd-live .p-person-card small{display:block;margin:0;color:#a4b7c8;font-size:10px}
+body .usd-live .p-person-card h2{font-size:20px!important;line-height:1.16!important;margin:7px 0!important;overflow-wrap:anywhere}
+body .usd-live .p-person-card p{font-size:12px;margin:0;color:#a8b8c7}
+body .usd-live .p-person-card>svg{position:static!important;align-self:end;justify-self:end}
+@media(max-width:700px){
+ body .usd-live .p-person-card.u-person-card{grid-template-columns:70px minmax(0,1fr) 20px!important;gap:12px;min-height:96px;padding:12px!important}
+ body .usd-live .p-person-card .p-person-photo{width:70px!important;height:70px!important;flex-basis:70px}
+ body .usd-live .p-person-card h2{font-size:19px!important}
+ body .usd-live .p-profile-banner{gap:16px;padding:18px;align-items:center}
+ body .usd-live .p-profile-photo{width:100px;height:100px;flex-basis:100px;border-radius:50%!important}
+ body .usd-live .p-profile-banner h2{font-size:clamp(22px,6vw,34px)!important;margin:6px 0}
+}
