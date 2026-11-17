@@ -22,12 +22,12 @@ jobs:
   candidate-ui:
     name: candidate-ui (${{ matrix.suite }})
     runs-on: ubuntu-latest
-    # Every responsive/security scenario still runs. Shards execute in
-    # parallel rather than serially blocking the release gate for ~13 minutes.
+    # All original routes, account checks, and viewport widths are preserved.
+    # Four isolated shards avoid serial browser work blocking the release gate.
     strategy:
       fail-fast: false
       matrix:
-        suite: [core, visuals, accounts]
+        suite: [core-desktop, core-mobile, visuals, accounts]
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
     timeout-minutes: 30
@@ -45,32 +45,35 @@ jobs:
         working-directory: frontend
         run: |
           npm ci --ignore-scripts
-          if [ "$USD_BROWSER_SUITE" = "core" ]; then npm test; fi
+          if [ "$USD_BROWSER_SUITE" = "core-desktop" ]; then npm test; fi
           npm run build
       - name: Validate all browser QA shards and coverage are preserved
-        if: matrix.suite == 'core'
+        if: matrix.suite == 'core-desktop'
         run: node --test scripts/public-browser-qa-matrix.test.mjs
       - name: Verify admin drawer touch gestures preserve routes and scrolling
-        if: matrix.suite == 'core'
+        if: matrix.suite == 'core-desktop'
         run: node scripts/admin-drawer-swipe-browser-qa.mjs
       - name: Verify connected admin cards, save return and public route scroll
-        if: matrix.suite == 'core'
+        if: matrix.suite == 'core-desktop'
         run: node scripts/admin-navigation-browser-qa.mjs
       - name: Verify stage list controls and card actions across screen sizes
-        if: matrix.suite == 'core'
+        if: matrix.suite == 'core-desktop'
         run: node scripts/stage-actions-browser-qa.mjs
       - name: Test isolated public-read verification without network
-        if: matrix.suite == 'core'
+        if: matrix.suite == 'core-desktop'
         run: node --test scripts/public-browser-read-recheck.test.mjs
       - name: Validate safe online exact-SHA release probe without network
-        if: matrix.suite == 'core'
+        if: matrix.suite == 'core-desktop'
         run: node --test scripts/online-release-preflight.test.mjs
       - name: Verify live browser network boundary with local fixtures
-        if: matrix.suite == 'core'
+        if: matrix.suite == 'core-desktop'
         run: node scripts/browser-qa-routing-regression.mjs
       - name: Check candidate public, participant and admin interfaces
-        if: matrix.suite == 'core'
+        if: matrix.suite == 'core-desktop' || matrix.suite == 'core-mobile'
         run: node scripts/candidate-browser-qa.mjs
+        env:
+          # Full original 1440,1024,390,320 candidate matrix preserved.
+          USD_CANDIDATE_QA_WIDTHS: ${{ matrix.suite == 'core-mobile' && '390,320' || '1440,1024' }}
       - name: Verify PWA safe areas with nonzero status-bar and home-indicator insets
         if: matrix.suite == 'visuals'
         run: node scripts/safe-area-browser-qa.mjs
