@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only release acceptance, limited to the two approved USD site origins."""
+"""Read-only primary-domain release acceptance; legacy app is optional."""
 from html.parser import HTMLParser
 import json
 import re
@@ -81,7 +81,7 @@ class Entrypoints(HTMLParser):
 def verify_frontend() -> None:
     assets = {}
     for route in ('/', '/login', '/participant', '/admin/inspections'):
-        status, content_type, body = fetch(APP + route, 'text/html')
+        status, content_type, body = fetch(PRIMARY + route, 'text/html')
         if status != 200 or content_type != 'text/html':
             raise ValueError('Public frontend route is unavailable: ' + route)
         page = Entrypoints()
@@ -89,8 +89,8 @@ def verify_frontend() -> None:
         if not page.root or not page.scripts or not page.styles:
             raise ValueError('Public frontend does not contain built application entrypoints: ' + route)
         for path, types in [(p, ('text/javascript', 'application/javascript')) for p in page.scripts] + [(p, ('text/css',)) for p in page.styles]:
-            url = urllib.parse.urljoin(APP + '/', path)
-            if allowed_origin(url) != APP or not urllib.parse.urlsplit(url).path.startswith('/assets/'):
+            url = urllib.parse.urljoin(PRIMARY + '/', path)
+            if allowed_origin(url) != PRIMARY or not urllib.parse.urlsplit(url).path.startswith('/assets/'):
                 raise ValueError('Public frontend contains an unexpected built asset')
             assets[url] = types
     for url, types in assets.items():
@@ -101,7 +101,7 @@ def verify_frontend() -> None:
 
 
 def public_image_url(value) -> str | None:
-    """Only an existing prerelease API SITE_ASSET URL may be probed."""
+    """Only an exact approved USD API SITE_ASSET URL may be probed."""
     if not isinstance(value, str):
         return None
     if value.startswith('/media/public-file/SITE_ASSET/'):
@@ -208,14 +208,14 @@ def require_revision(metadata, expected: str, kind: str) -> None:
         raise ValueError(
             'Public ' + kind + ' revision does not match the requested commit; '
             'expected=' + expected[:12] + ', observed=' + observed +
-            '. Check the prerelease ingress target and cache; release must roll back.'
+            '. Check the primary-domain ingress target and cache; release must roll back.'
         )
 
 
 def verify(sha: str) -> None:
     if not re.fullmatch(r'[a-f0-9]{40}', sha):
         raise ValueError('Expected a full Git commit SHA')
-    metadata = get_json(APP + '/usd-release.json?check=' + str(time.time_ns()))
+    metadata = get_json(PRIMARY + '/usd-release.json?check=' + str(time.time_ns()))
     require_revision(metadata, sha, 'frontend')
     api_metadata = get_json(API + '/release?check=' + str(time.time_ns()))
     require_revision(api_metadata, sha, 'API')
@@ -239,5 +239,5 @@ if __name__ == '__main__':
         verify(sys.argv[1])
         print('Public frontend assets/routes, exact API revision, application data and anonymous access protection verified: ' + sys.argv[1])
     except (ValueError, OSError, urllib.error.URLError) as exc:
-        print('Prerelease acceptance failed: ' + str(exc), file=sys.stderr)
+        print('Public primary-domain acceptance failed: ' + str(exc), file=sys.stderr)
         sys.exit(1)
