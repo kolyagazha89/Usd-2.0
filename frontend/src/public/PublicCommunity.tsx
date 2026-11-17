@@ -48,7 +48,7 @@ export default function PublicCommunity({path,settings}:{path:string;settings:an
     <div className="p-document-intro u-panel"><FileText size={40} strokeWidth={1}/><div><h2>Правила перед стартом</h2><p>Читай документы прямо на сайте. Исходники Word доступны для скачивания.</p></div><Button to="/rules" quiet>Читать регламент</Button></div>
     {files.length?<div className="u-document-list">{files.map(document=>
       <Link key={document.key} to={document.openPath} className="u-document">
-        <FileText size={28}/><div><h3>{document.label}</h3><p>{document.fileName}</p><small>Читать на сайте</small></div><ArrowUpRight size={22}/>
+        <FileText size={28}/><div><h3>{document.label}</h3><p>{document.description}</p><small>Читать на сайте</small></div><ArrowUpRight size={22}/>
       </Link>)}</div>
       :<EmptyState title="Файлы пока не опубликованы">Официальные документы появятся здесь после публикации организатором.</EmptyState>}
     <div className="p-legal-links"><Button quiet to="/privacy">Конфиденциальность</Button><Button quiet to="/terms">Условия использования</Button><Button quiet to="/consent">Обработка данных</Button></div>
