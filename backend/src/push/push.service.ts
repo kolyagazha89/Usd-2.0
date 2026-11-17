@@ -11,6 +11,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import {lockSiteSettings} from '../site-settings/catalog-concurrency';
+import {loadPushTemplates,pushTemplateRevision,renderPushTemplate,validatePushTemplates,type PushTemplateKey} from './push-templates';
 import { AuditService } from '../common/audit/audit.service';
 import { PushTransport } from './push.transport';
 import { safePushPath } from './push-endpoint';
@@ -288,6 +290,48 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /** ADMIN-only editor; templates live in existing site settings (no DB migration). */
+  async listTemplates(){
+    const row=await this.db.siteSettings?.findUnique({where:{id:'default'},select:{registration:true}});
+    const templates=loadPushTemplates(row?.registration);
+    return {templates,revision:pushTemplateRevision(templates)};
+  }
+  async updateTemplates(userId:string,input:{revision:string;templates:unknown}){
+    if(!input||typeof input.revision!=='string'||!/^[a-f0-9]{64}$/.test(input.revision))
+      throw new BadRequestException('Обновите страницу редактора PUSH перед сохранением.');
+    const templates=validatePushTemplates(input.templates);
+    return this.db.$transaction(async tx=>{
+      await lockSiteSettings(tx);
+      const row=await tx.siteSettings.findUnique({where:{id:'default'},select:{registration:true}});
+      if(!row)throw new ServiceUnavailableException('Настройки USD ещё не созданы.');
+      const current=loadPushTemplates(row.registration);
+      if(input.revision!==pushTemplateRevision(current))
+        throw new ConflictException('Шаблоны PUSH изменил другой администратор. Обновите редактор.');
+      const registration=(row.registration&&typeof row.registration==='object'&&!Array.isArray(row.registration))
+        ? row.registration as Record<string,unknown>:{};
+      const stored=templates.map(({key,enabled,title,body})=>({key,enabled,title,body}));
+      await tx.siteSettings.update({where:{id:'default'},data:{registration:{...registration,pushTemplates:stored}}});
+      const changes=templates.filter(t=>{
+        const old=current.find(x=>x.key===t.key)!;
+        return t.enabled!==old.enabled||t.title!==old.title||t.body!==old.body;
+      }).map(t=>t.key);
+      await tx.auditLog.create({data:{
+        userId,action:'PUSH_TEMPLATES_UPDATED',entity:'SiteSettings',entityId:'default',
+        metadata:{changedKeys:changes},
+      }});
+      return {templates,revision:pushTemplateRevision(templates)};
+    });
+  }
+  private async enqueueAutomatic(
+    key:PushTemplateKey,
+    input:{eventKey:string;category:Category;path:string;stageId?:string;userIds?:string[]},
+    vars:{stageName?:string}={},
+  ){
+    const templates=(await this.listTemplates()).templates;
+    const rendered=renderPushTemplate(templates,key,vars);
+    if(!rendered)return;
+    return this.enqueue({...input,...rendered});
+  }
   private async enqueue(input: {
     eventKey: string;
     category: Category;
@@ -415,14 +459,10 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
       (stage.registrationEndsAt && stage.registrationEndsAt.getTime() < now)
     )
       return;
-    await this.enqueue({
-      eventKey: 'registration-open:' + stage.id,
-      category: 'registrationOpen',
-      title: 'Открыта регистрация USD',
-      body: stage.name.slice(0, 240),
-      path: '/stages/' + encodeURIComponent(stage.id),
-      stageId: stage.id,
-    });
+    await this.enqueueAutomatic('registrationOpen',{
+      eventKey:'registration-open:'+stage.id,category:'registrationOpen',
+      path:'/stages/'+encodeURIComponent(stage.id),stageId:stage.id,
+    },{stageName:stage.name});
   }
   /** Reminder is opt-in through the existing 'reminders' subscription switch.
    * One notification per registration on days +1, +7 and +14, with idempotent
@@ -457,55 +497,27 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
         if (!configurationStillPending(registration.configurationSnapshot)) continue;
         const userId = registration.participant.user?.id;
         if (!userId) continue; // Unlinked gate profiles cannot receive push.
-        await this.enqueue({
-          eventKey: 'configuration-pending:' + registration.id + ':' + days,
-          category: 'reminders',
-          title: 'USD · заполните конфигурацию',
-          body: ('После этапа «' + stage.name + '» необходимо заполнить аудиосистему автомобиля перед следующей регистрацией.').slice(0, 240),
-          path: '/participant?tab=registrations',
-          stageId: stage.id,
-          userIds: [userId],
-        });
+        await this.enqueueAutomatic('configurationPending',{
+          eventKey:'configuration-pending:'+registration.id+':'+days,category:'reminders',
+          path:'/participant?tab=registrations',stageId:stage.id,userIds:[userId],
+        },{stageName:stage.name});
       }
     }
   }
 
-  /** Durable source records close the commit-to-notification crash window.
-   * Existing announcement consent applies; never include claim text or PII.
-   * Stable event keys reuse the queue's unique constraint across workers.
+  /** Only pending requests generate ADMIN PUSH; successful linking is email-only.
+   * Old profile-linked queue entries are explicitly skipped in processQueue.
    */
-  async scheduleProfileLinks(now = new Date()) {
-    if (!this.transport.configured()) return;
-    const since = new Date(now.getTime() - 86400000);
-    const [requests, linked] = await Promise.all([
-      this.db.profileLinkRequest.findMany({
-        where: { status: 'PENDING', createdAt: { gte: since } },
-        select: { id: true },
-      }),
-      this.db.auditLog.findMany({
-        where: {
-          action: { in: ['PARTICIPANT_PROFILE_LINKED', 'PROFILE_LINK_APPROVED'] },
-          createdAt: { gte: since },
-        },
-        select: { id: true },
-      }),
-    ]);
-    for (const request of requests) {
-      await this.enqueue({
-        eventKey: 'profile-link-request:' + request.id,
-        category: 'profileLinks',
-        title: 'USD · Заявка на привязку профиля',
-        body: 'Участник запросил привязку существующего профиля. Проверьте заявку в административной панели.',
-        path: '/admin/profile-links',
-      });
-    }
-    for (const event of linked) {
-      await this.enqueue({
-        eventKey: 'profile-linked:' + event.id,
-        category: 'profileLinks',
-        title: 'USD · Профиль присоединён',
-        body: 'Существующий профиль участника успешно привязан к аккаунту USD.',
-        path: '/admin/participants',
+  async scheduleProfileLinks(now=new Date()){
+    if(!this.transport.configured())return;
+    const requests=await this.db.profileLinkRequest.findMany({
+      where:{status:'PENDING',createdAt:{gte:new Date(now.getTime()-86400000)}},
+      select:{id:true},
+    });
+    for(const request of requests){
+      await this.enqueueAutomatic('profileLinkRequest',{
+        eventKey:'profile-link-request:'+request.id,category:'profileLinks',
+        path:'/admin/profile-links',
       });
     }
   }
@@ -519,8 +531,9 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     for(const notice of notices){
       const request=await this.db.componentCatalogRequest.findUnique({where:{id:notice.sourceId},select:{status:true}});
       if(request?.status!=='PENDING')continue;
-      await this.enqueue({eventKey:notice.eventKey,category:'catalogRequests',title:'USD · Запрос оборудования',
-        body:'Поступил запрос на добавление комплектующего. Проверьте центр уведомлений администраторов.',path:'/admin/inbox'});
+      await this.enqueueAutomatic('catalogRequest',{
+        eventKey:notice.eventKey,category:'catalogRequests',path:'/admin/inbox',
+      });
     }
   }
 
@@ -538,21 +551,11 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
       const date = stage.date;
       const days = calendarDaysUntil(date, now);
       if (days !== 1 && days !== 3) continue;
-      await this.enqueue({
-        eventKey:
-          'reminder:' +
-          stage.id +
-          ':' +
-          date.toISOString().slice(0, 10) +
-          ':' +
-          days,
-        category: 'reminders',
-        title: days === 1 ? 'Этап USD завтра' : 'До этапа USD три дня',
-        body: stage.name.slice(0, 240),
-        path: '/stages/' + encodeURIComponent(stage.id),
-        stageId: stage.id,
-        userIds: await this.stageUserIds(stage.id),
-      });
+      await this.enqueueAutomatic(days===1?'stageReminder1d':'stageReminder3d',{
+        eventKey:'reminder:'+stage.id+':'+date.toISOString().slice(0,10)+':'+days,
+        category:'reminders',path:'/stages/'+encodeURIComponent(stage.id),stageId:stage.id,
+        userIds:await this.stageUserIds(stage.id),
+      },{stageName:stage.name});
     }
     await this.schedulePendingConfigurations(now);
   }
@@ -602,7 +605,9 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
           })
         : null;
       const category = row.message.category as Category;
+      // Do not send any profile-linked PUSH, including those queued by older releases.
       let skip =
+        row.message.eventKey.startsWith('profile-linked:') ||
         !subscription ||
         !subscription.user.isActive ||
         !subscription.user.emailVerifiedAt ||
