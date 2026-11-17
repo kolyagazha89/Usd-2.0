@@ -47,6 +47,42 @@ class SafeSqlTests(unittest.TestCase):
         self.assertIn('ALTER TABLE "VenueSyncAuthorization" ADD CONSTRAINT', sql)
         self.assertNotIn('CONSTRAINT "VenueSyncAuthorization_stageId_fkey" FOREIGN KEY', sql.split(');')[0])
 
+    def test_registration_consent_migrations_pass_the_installed_additive_gate(self):
+        """Production old SHA lacks both consent migrations; no helper upgrade required.
+
+        The host gate only allows a single nullable ADD COLUMN per SQL
+        statement. Every shipped migration must pass THIS original parser.
+        """
+        root = Path(__file__).parents[2] / "backend/prisma/migrations"
+        migrations = {
+            "20261116180000_participant_publication_consent": [
+                'ALTER TABLE "Participant" ADD COLUMN "publicationConsent" JSONB',
+                'ALTER TABLE "Participant" ADD COLUMN "publicationConsentAt" TIMESTAMPTZ(3)',
+                'ALTER TABLE "Participant" ADD COLUMN "publicationConsentVersion" TEXT',
+                'ALTER TABLE "Participant" ADD COLUMN "publicationRestrictions" VARCHAR(4000)',
+            ],
+            "20261116184500_official_protocol_consent": [
+                'ALTER TABLE "User" ADD COLUMN "protocolConsentAt" TIMESTAMPTZ(3)',
+                'ALTER TABLE "User" ADD COLUMN "protocolConsentVersion" TEXT',
+                'ALTER TABLE "User" ADD COLUMN "protocolConsentRevokedAt" TIMESTAMPTZ(3)',
+                'ALTER TABLE "Registration" ADD COLUMN "protocolConsentAt" TIMESTAMPTZ(3)',
+                'ALTER TABLE "Registration" ADD COLUMN "protocolConsentVersion" TEXT',
+            ],
+        }
+        for folder, expected_statements in migrations.items():
+            with self.subTest(migration=folder):
+                sql = (root / folder / "migration.sql").read_text(encoding="utf-8")
+                module.check_additive_sql(sql)
+                # Compare exact column names and types: a passing parser alone
+                # must never hide an accidental omission in the release SQL.
+                without_comments = " ".join(line.split("--", 1)[0] for line in sql.splitlines())
+                statements = [" ".join(x.split()) for x in without_comments.split(";") if x.strip()]
+                self.assertEqual(statements, expected_statements)
+                self.assertEqual(sql.count("ADD COLUMN"), len(expected_statements))
+                self.assertNotIn("ADD COLUMN IF NOT EXISTS", sql.upper())
+                self.assertNotIn("NOT NULL", sql.upper())
+                self.assertNotIn("DEFAULT ", sql.upper())
+
     def test_new_table_and_index(self):
         module.check_additive_sql("""
             CREATE TABLE "NewThing" (
