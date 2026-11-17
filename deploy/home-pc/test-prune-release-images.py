@@ -21,7 +21,7 @@ class PruneReleaseImagesTests(unittest.TestCase):
 if [[ "$1" == image && "$2" == ls ]]; then
   printf '%s\\n' "$USD_TEST_IMAGES"
 elif [[ "$1" == image && "$2" == rm ]]; then
-  printf '%s\\n' "$3" >> "$USD_TEST_REMOVED"
+  printf '%s\\n' "$4" >> "$USD_TEST_REMOVED"
   [[ "$USD_TEST_FAIL_REMOVE" != 1 ]]
 else
   exit 3
