@@ -57,7 +57,7 @@ test('every original browser QA and offline boundary step remains exactly once a
 });
 
 test('all candidate shards independently build and keep screenshot artifacts', () => {
-  assert.match(workflow, /if \[\[ "\$USD_BROWSER_SUITE" == "core" \]\]; then npm test; fi/);
+  assert.match(workflow, /if \[ "\$USD_BROWSER_SUITE" = "core" \]; then npm test; fi/);
   assert.match(workflow, /npm run build/);
   assert.match(workflow, /name: candidate-browser-qa-\$\{\{ matrix\.suite \}\}-\$\{\{ github\.run_attempt \}\}/);
   assert.match(workflow, /if: always\(\)/);
