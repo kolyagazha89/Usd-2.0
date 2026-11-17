@@ -339,6 +339,18 @@ publish RELEASING
 if USD_DEPLOY_LOCK_HELD=1 USD_LOCAL_SECOND_DISK_APPROVED=1 /usr/local/sbin/usd-release-approved "$SHA"; then
   rm -f "$STATE_DIR/failed-release-sha"
   finish RELEASED
+  # Cleanup is post-acceptance only. Never prune before the verified switch,
+  # and never let a cleanup failure change a successful release to failure.
+  # The previous deployed SHA is preserved as an immediate rollback target.
+  cleanup=/usr/local/libexec/usd-prune-release-images
+  if [[ -f "$cleanup" && -x "$cleanup" && ! -L "$cleanup" &&
+        "$(stat -c %u "$cleanup")" == 0 ]] &&
+     (( (8#$(stat -c %a "$cleanup") & 022) == 0 )); then
+    "$cleanup" "$SHA" "$OLD_TAG" ||
+      echo 'Post-release image cleanup deferred; release remains accepted' >&2
+  else
+    echo 'Post-release image cleanup helper unavailable; skipping' >&2
+  fi
 else
   status=$?
   # The helper acquires its own lock after we release ours. A competing
