@@ -47,6 +47,13 @@ root-only `.env`: проверяются deployed API identity, связь pin �
 Успех переносит marker в `reviewed-failed-release-<SHA>` для аудита, не применяя
 SQL и не подменяя approvals. Повторный review того же SHA запрещён. Следующий
 service launch вновь выполняет CI/signature/fresh backup/full restore gates.
+
+Повтор application-only релиза с неизменным `backend/prisma` проверяется отдельно:
+`usd-safe-schema-migration --check` сверяет прежний source tree с текущим pin,
+точный образ работающего API, здоровье PostgreSQL и полную историю миграций
+с контрольными суммами. Пропуски, дубли, незавершённые и неизвестные миграции
+блокируют повтор. SQL и pin в этом режиме не изменяются; `--apply` для одинаковых
+деревьев по-прежнему запрещён. Это не требует добавлять фиктивную миграцию.
 Снятие immutable/append-only атрибута по-прежнему разрешено только для исходного
 bootstrap baseline. Обычная установка без флага сохраняет карантин.
 
