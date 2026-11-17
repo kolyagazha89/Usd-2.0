@@ -47,6 +47,28 @@ describe('MailService Resend delivery', () => {
     jest.restoreAllMocks();
   });
 
+  it('records only safe SMTP error metadata for failed verification attempts', async () => {
+    delete process.env.RESEND_API_KEY;
+    delete process.env.GMAIL_REFRESH_TOKEN;
+    process.env.SMTP_HOST='smtp.yandex.ru';
+    process.env.SMTP_USER='sender@yandex.ru';
+    process.env.SMTP_PASSWORD='fake-password';
+    process.env.SMTP_FROM='sender@yandex.ru';
+    process.env.SMTP_EGRESS_ALLOWED='true';
+    const create=jest.fn<(...args:any[])=>Promise<any>>().mockResolvedValue({});
+    const service=new MailService({emailNotificationLog:{create}} as any);
+    jest.spyOn((service as any).transporter,'sendMail').mockRejectedValue(
+      Object.assign(new Error('550 rejected https://secret.invalid/?token=private'),{
+        code:'EENVELOPE',responseCode:550,response:'550 private token'
+      })
+    );
+    await expect(service.sendVerificationEmail('recipient@gmail.com','private')).rejects.toThrow();
+    const saved=(create.mock.calls[0][0] as any).data;
+    expect(saved.lastError).toBe('MAIL_TRANSPORT_ERROR code=EENVELOPE smtp=550 http=NONE');
+    expect(JSON.stringify(saved)).not.toContain('private');
+    expect(saved.status).toBe('FAILED');
+  });
+
   it('sends verification mail through the HTTPS API when configured', async () => {
     process.env.RESEND_API_KEY = 'test-api-key';
     process.env.RESEND_FROM_EMAIL = 'USD <no-reply@example.com>';

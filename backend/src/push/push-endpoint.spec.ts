@@ -57,6 +57,16 @@ describe('browser push endpoint trust boundary', () => {
     expect(result.endpoint).toBe('https://web.push.apple.com/token');
     expect(result.address).toEqual({ address: '17.57.144.10', family: 4 });
   });
+  it('prefers a validated IPv4 answer over IPv6 on dual-stack push hosts', async () => {
+    const result = await validatePushSubscription(
+      input('https://web.push.apple.com/token'),
+      async () => [
+        { address: '2620:149:149:1031::1e', family: 6 },
+        { address: '17.57.144.10', family: 4 },
+      ],
+    );
+    expect(result.address).toEqual({ address: '17.57.144.10', family: 4 });
+  });
   it('rejects malformed keys and mixed public/private DNS answers', async () => {
     await expect(
       validatePushSubscription(

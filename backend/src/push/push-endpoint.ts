@@ -121,7 +121,9 @@ export async function validatePushSubscription(
   return {
     endpoint: url.href,
     keys: { p256dh: key, auth },
-    address: addresses[0],
+    // Prefer reachable IPv4 on Ubuntu hosts without an IPv6 default route.
+    // All resolved addresses were validated as public above.
+    address: addresses.find((item) => item.family === 4) ?? addresses[0],
   };
 }
 
