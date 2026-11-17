@@ -25,6 +25,19 @@ describe('AuthController email verification link', () => {
     else process.env.FRONTEND_URL = originalFrontendUrl;
   });
 
+  it('production confirmation links go to the verified primary site, never the old app host',async()=>{
+    const previous=process.env.NODE_ENV;
+    process.env.NODE_ENV='production';
+    try{
+      const token='a'.repeat(64);
+      await controller.verifyEmailFromLink(token,response as never);
+      expect(authService.verifyEmail).not.toHaveBeenCalled();
+      expect(response.redirect).toHaveBeenCalledWith(302,'https://usd-russia.ru/verify-email#token='+token);
+    }finally{
+      if(previous===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=previous;
+    }
+  });
+
   it('GET only forwards a valid link to the explicit-confirmation page, without consuming it', async () => {
     const token = 'a'.repeat(64);
     await controller.verifyEmailFromLink(token, response as never);
