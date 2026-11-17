@@ -55,15 +55,31 @@ class SafeSqlTests(unittest.TestCase):
         """
         root = Path(__file__).parents[2] / "backend/prisma/migrations"
         migrations = {
-            "20261116180000_participant_publication_consent": 4,
-            "20261116184500_official_protocol_consent": 5,
+            "20261116180000_participant_publication_consent": [
+                'ALTER TABLE "Participant" ADD COLUMN "publicationConsent" JSONB',
+                'ALTER TABLE "Participant" ADD COLUMN "publicationConsentAt" TIMESTAMPTZ(3)',
+                'ALTER TABLE "Participant" ADD COLUMN "publicationConsentVersion" TEXT',
+                'ALTER TABLE "Participant" ADD COLUMN "publicationRestrictions" VARCHAR(4000)',
+            ],
+            "20261116184500_official_protocol_consent": [
+                'ALTER TABLE "User" ADD COLUMN "protocolConsentAt" TIMESTAMPTZ(3)',
+                'ALTER TABLE "User" ADD COLUMN "protocolConsentVersion" TEXT',
+                'ALTER TABLE "User" ADD COLUMN "protocolConsentRevokedAt" TIMESTAMPTZ(3)',
+                'ALTER TABLE "Registration" ADD COLUMN "protocolConsentAt" TIMESTAMPTZ(3)',
+                'ALTER TABLE "Registration" ADD COLUMN "protocolConsentVersion" TEXT',
+            ],
         }
-        for folder, expected_columns in migrations.items():
+        for folder, expected_statements in migrations.items():
             with self.subTest(migration=folder):
                 sql = (root / folder / "migration.sql").read_text(encoding="utf-8")
                 module.check_additive_sql(sql)
-                statements = [x.strip() for x in sql.split(";") if x.strip() and not x.strip().startswith("--")]
-                self.assertEqual(sql.count("ADD COLUMN"), expected_columns)
+                import re
+                # Compare exact column names and types: a passing parser alone
+                # must never hide an accidental omission in the release SQL.
+                without_comments = re.sub(r"--[^\\n]*", "", sql)
+                statements = [" ".join(x.split()) for x in without_comments.split(";") if x.strip()]
+                self.assertEqual(statements, expected_statements)
+                self.assertEqual(sql.count("ADD COLUMN"), len(expected_statements))
                 self.assertNotIn("ADD COLUMN IF NOT EXISTS", sql.upper())
                 self.assertNotIn("NOT NULL", sql.upper())
                 self.assertNotIn("DEFAULT ", sql.upper())
