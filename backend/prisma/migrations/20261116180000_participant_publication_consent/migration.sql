@@ -1,6 +1,6 @@
 -- A legacy public profile flag is NOT evidence of separate consent.
 -- All historical rows start without publication permissions.
--- Each nullable ADD COLUMN is a separate statement for the installed
+-- Each nullable field addition is a separate statement for the installed
 -- production additive-only Prisma migration gate.
 ALTER TABLE "Participant" ADD COLUMN "publicationConsent" JSONB;
 ALTER TABLE "Participant" ADD COLUMN "publicationConsentAt" TIMESTAMPTZ(3);
