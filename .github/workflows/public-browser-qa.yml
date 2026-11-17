@@ -45,7 +45,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci --ignore-scripts
-          if [[ "$USD_BROWSER_SUITE" == "core" ]]; then npm test; fi
+          if [ "$USD_BROWSER_SUITE" = "core" ]; then npm test; fi
           npm run build
       - name: Validate all browser QA shards and coverage are preserved
         if: matrix.suite == 'core'
