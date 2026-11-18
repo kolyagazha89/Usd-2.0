@@ -95,3 +95,101 @@ body .app-shell .main .content .usd-filter-drawer .usd-filter-content label{colo
 @media(prefers-reduced-motion:reduce){
  .usd-filter-chevron{transition:none}
 }
+
+/* Keep high-priority search visible without the former three-column filter wall. */
+body .usd-live .p-measurement-filters.usd-measurement-filter-bar{
+ display:flex!important;
+ flex-wrap:wrap!important;
+ gap:10px!important;
+ align-items:flex-start!important;
+}
+body .usd-live .p-measurement-filters.usd-measurement-filter-bar>.p-search{
+ flex:1 1 260px!important;
+ min-width:0!important;
+ max-width:100%!important;
+}
+body .usd-live .p-measurement-filters.usd-measurement-filter-bar>.usd-filter-drawer{
+ flex:0 1 auto;
+ border:0!important;
+ background:transparent!important;
+ padding:0!important;
+}
+body .usd-live .p-measurement-filters.usd-measurement-filter-bar .usd-filter-content{
+ width:min(470px,100%);
+}
+body .usd-live .p-measurement-filters.usd-measurement-filter-bar .usd-filter-content>.p-filter{
+ flex:1 1 180px;
+ min-width:0;
+}
+body .usd-live .usd-filter-theme-public .usd-filter-trigger{
+ background:#19232e!important;
+ border:1px solid #445368!important;
+ color:#f3f6fa!important;
+}
+body .usd-live .usd-filter-theme-public .usd-filter-content :is(select,option){
+ color:#f3f6fa;
+ background:#19232e;
+}
+.team-achievement-overview>.usd-filter-drawer{min-width:0;width:100%}
+.team-achievement-overview>.usd-filter-drawer .usd-filter-content{display:block}
+.team-achievement-overview>.usd-filter-drawer .team-achievement-filters{
+ display:flex;
+ flex-wrap:wrap;
+ gap:10px;
+ align-items:flex-end;
+}
+.team-achievement-overview>.usd-filter-drawer .team-achievement-filter{
+ flex:1 1 170px;
+ min-width:0;
+}
+.news-workbench-toolbar>.usd-filter-drawer,
+.partner-workbench-toolbar>.usd-filter-drawer{min-width:0;max-width:100%;align-self:start}
+.news-workbench-toolbar .usd-filter-content>label,
+.partner-workbench-toolbar .usd-filter-content>label{min-width:min(190px,100%)}
+body .app-shell .main .content .toolbar.usd-resource-filter-toolbar{
+ display:flex;
+ flex-wrap:wrap;
+ gap:10px;
+ align-items:center;
+}
+body .app-shell .main .content .toolbar.usd-resource-filter-toolbar>.search-box{
+ min-width:170px;
+ flex:1 1 220px;
+}
+body .app-shell .main .content .toolbar.usd-resource-filter-toolbar>.usd-filter-drawer{
+ flex:0 1 auto;
+}
+body .app-shell .main .content .event-ops-page .stage-picker>.usd-filter-drawer{
+ min-width:0;
+ width:100%;
+}
+body .app-shell .main .content .event-ops-page .stage-picker>.usd-filter-drawer .usd-filter-content{
+ width:100%;
+}
+body .app-shell .main .content .event-ops-page .stage-picker>.usd-filter-drawer .usd-filter-content>label{
+ flex:1 1 160px;
+ min-width:0;
+}
+body .app-shell .main .content .catalog-filter-bar>.usd-filter-drawer{
+ min-width:0;
+ flex:0 1 auto;
+}
+@media(max-width:700px){
+ body .usd-live .p-measurement-filters.usd-measurement-filter-bar>.p-search{
+  width:100%!important;
+  flex-basis:100%!important;
+ }
+ body .usd-live .p-measurement-filters.usd-measurement-filter-bar>.usd-filter-drawer{
+  width:100%;
+  flex-basis:100%;
+ }
+ body .usd-live .p-measurement-filters.usd-measurement-filter-bar .usd-filter-content{width:100%}
+ body .app-shell .main .content .toolbar.usd-resource-filter-toolbar>.usd-filter-drawer{
+  flex:1 1 100%;
+ }
+ body .app-shell .main .content .catalog-filter-bar>.usd-filter-drawer{flex:1 1 100%}
+ .team-achievement-overview>.usd-filter-drawer .team-achievement-filters{display:grid;grid-template-columns:minmax(0,1fr)}
+ .team-achievement-overview>.usd-filter-drawer .team-achievement-filter{width:100%}
+ .news-workbench-toolbar>.usd-filter-drawer,
+ .partner-workbench-toolbar>.usd-filter-drawer{width:100%;grid-column:1/-1}
+}
