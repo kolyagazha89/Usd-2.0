@@ -28,7 +28,7 @@ function moscowCalendarDay(value:Date):string{
 export function stageStartTimestamp(stage:{date?:unknown;startTimeMsk?:string|null}):number|null{
  const day=stageCalendarDay(stage?.date);
  const time=stage?.startTimeMsk??'10:00';
- if(!day||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(time))return null;
+ if(!day||!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))return null;
  const target=Date.parse(day+'T'+time+':00+03:00');
  return Number.isFinite(target)?target:null;
 }
