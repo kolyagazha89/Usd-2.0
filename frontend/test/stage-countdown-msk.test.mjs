@@ -23,6 +23,15 @@ test('time overrides affect countdown but never shift the advertised stage calen
  assert.equal(stageCountdownTarget({...stage,startTimeMsk:'00:00'}),Date.parse('2026-11-27T21:00:00.000Z'));
 });
 
+test('the next stage is selected by Moscow calendar day, not device local time',()=>{
+ const stages=[
+  {id:'yesterday',date:'2026-11-27T12:00:00.000Z',status:'PUBLISHED'},
+  {id:'today',date:'2026-11-28T12:00:00.000Z',status:'PUBLISHED'},
+ ];
+ assert.equal(nextPublishedStage(stages,Date.parse('2026-11-27T20:30:00Z'))?.id,'yesterday');
+ assert.equal(nextPublishedStage(stages,Date.parse('2026-11-27T21:30:00Z'))?.id,'today');
+});
+
 test('invalid stage dates and times cannot silently produce a misleading countdown',()=>{
  assert.equal(stageCountdownTarget({date:'bad'}),null);
  assert.equal(stageCountdownTarget({date:'2026-02-30T12:00:00Z'}),null);
