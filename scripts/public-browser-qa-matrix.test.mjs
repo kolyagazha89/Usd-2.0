@@ -82,8 +82,8 @@ test('team directory and season comparison are tested as separate, accessible sc
   assert.match(teamJourney, /\.team-standings/, 'keep season and stage protocol assertions');
   assert.ok(teamJourney.indexOf(catalog) !== -1, 'check the catalog tab');
   assert.ok(teamJourney.indexOf(results) !== -1, 'check the results tab');
-  assert.ok(teamJourney.indexOf(results + '.click()') < teamJourney.indexOf(standings),
+  assert.ok(teamJourney.indexOf('await resultsTab.click();') > 0 && teamJourney.indexOf('await resultsTab.click();') < teamJourney.indexOf(standings),
     'open the results tab before inspecting the standings');
-  assert.ok(teamJourney.lastIndexOf(catalog + '.click()') > teamJourney.indexOf(standings),
+  assert.ok(teamJourney.lastIndexOf('await catalogTab.click();') > teamJourney.indexOf(standings),
     'return to the catalog and verify it remains accessible');
 });
