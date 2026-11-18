@@ -188,11 +188,11 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
       <input aria-label="Поиск результата" type="search" value={search}
        onChange={e=>setSearch(e.target.value)} placeholder="№, ФИО, госномер, класс или команда"/>
      </label>
-     <select className="filter-select" aria-label="Фильтр результатов по классу" value={classFilter}
+     <CollapsibleFilters activeCount={Number(classFilter!=='ALL')}><select className="filter-select" aria-label="Фильтр результатов по классу" value={classFilter}
       onChange={e=>setClassFilter(e.target.value)}>
       <option value="ALL">Все классы</option>
       {classes.map((c:any)=><option key={c.id} value={c.id}>{c.direction?.name?c.direction.name+' · ':''}{c.name}</option>)}
-     </select>
+     </select></CollapsibleFilters>
      <button className="primary-button compact" type="button" disabled={loading||!canCreate} onClick={()=>{
       setEditor({});setEditorError('');setDetail(null);
      }}><Plus size={15}/>Внести результат</button>
