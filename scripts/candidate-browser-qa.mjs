@@ -425,12 +425,21 @@ try{
       await first.getByLabel('Название марки').fill('Fixture edit — unsaved');
       await first.getByRole('button',{name:'Отмена'}).click();
       assert.equal(await first.getByLabel('Название марки').count(),0);
+      const workspace=page.getByRole('group',{name:'Рабочие вкладки каталога'});
+      assert.equal(await workspace.getByRole('button',{name:'Каталог',exact:true}).getAttribute('aria-pressed'),'true');
+      assert.equal(await page.locator('.catalog-import-panel').count(),0,'CSV import is not mixed into the catalog list');
+      await workspace.getByRole('button',{name:'Управление',exact:true}).click();
       const bulk=page.locator('.catalog-bulk-panel');
       await bulk.getByRole('button',{name:/Включить все в категории/}).click();
       await bulk.getByRole('group',{name:'Подтверждение массового включения'}).getByText(/включить 1 марок и 1 моделей/).waitFor();
       await bulk.getByRole('button',{name:'Отмена'}).click();
+      assert.equal(await page.locator('.catalog-merge').count(),1,'brand merging has its own workspace');
+      await workspace.getByRole('button',{name:'Импорт CSV',exact:true}).click();
+      assert.equal(await page.locator('.catalog-bulk-panel').count(),0,'destructive bulk management is hidden on import');
       assert.equal(await page.getByRole('button',{name:/Подготовить базовый каталог USD/}).count(),1,'official 3388-model seed is available without manual CSV download');
-      row.componentCatalog='brand/model management, official 3388-model seed, filters and bulk confirmation without writing';
+      await workspace.getByRole('button',{name:'Каталог',exact:true}).click();
+      assert.equal(await page.locator('.catalog-two-column').count(),1,'browse list returns with category choice intact');
+      row.componentCatalog='browse/management/CSV workspaces, seed available, filters and bulk confirmation without writes';
      }
      if(route==='/offline-event'){
       await page.getByRole('heading',{name:'День соревнований'}).waitFor();
@@ -444,6 +453,16 @@ try{
       await desk.getByRole('heading',{name:'Активные'}).waitFor();
       await desk.locator('.event-day-person').first().waitFor({state:'visible'});
       assert.equal(await desk.locator('.event-day-person').count(),1,'one active registration renders without scrolling table');
+      if(width<=760){
+       const extra=desk.getByRole('button',{name:'Ещё действия',exact:true});
+       await extra.waitFor({state:'visible'});
+       assert.equal(await extra.getAttribute('aria-expanded'),'false');
+       await extra.click();
+       await desk.getByRole('button',{name:'Все инспекции',exact:true}).waitFor({state:'visible'});
+       assert.equal(await desk.getByRole('button',{name:'Скрыть действия'}).getAttribute('aria-expanded'),'true');
+       await desk.getByRole('button',{name:'Скрыть действия'}).click();
+       assert.equal(await desk.getByRole('button',{name:'Ещё действия'}).getAttribute('aria-expanded'),'false');
+      }
       await desk.getByRole('button',{name:'Допустить'}).click();
       const confirm=desk.getByRole('group',{name:/Подтверждение допуска/});
       await confirm.waitFor({state:'visible'});
