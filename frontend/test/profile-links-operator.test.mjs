@@ -35,7 +35,7 @@ test('profile request search matches claimant email, full name and notes without
   {id:'x',status:'PENDING',claimant:{email:'IVAN@USD.TEST'},participant:{firstName:'Иван',lastName:'Петров',middleName:'Игоревич'},note:'Новая машина'},
   {id:'y',status:'PENDING',claimant:{email:'alena@usd.test'},participant:{firstName:'Алёна',lastName:'Сидорова'},note:'Архив 2020'},
  ];
- assert.deepEqual(filterProfileLinkRequests(users,'  иВаН@usd ' ).map(x=>x.id),['x']);
+ assert.deepEqual(filterProfileLinkRequests(users,'  IVAN@usd ' ).map(x=>x.id),['x']);
  assert.deepEqual(filterProfileLinkRequests(users,'сидорова алёна').map(x=>x.id),['y']);
  assert.deepEqual(filterProfileLinkRequests(users,'2020').map(x=>x.id),['y']);
  assert.equal(filterProfileLinkRequests(users,'несуществующий').length,0);
