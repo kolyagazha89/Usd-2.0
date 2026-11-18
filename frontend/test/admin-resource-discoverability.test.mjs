@@ -53,5 +53,5 @@ test('admin list allows finding, clearing and opening filtered records without a
  assert.match(resource,/aria-label="Очистить поиск"/);
  assert.match(resource,/tabIndex=\{0\}/);
  assert.match(resource,/e\.target===e\.currentTarget&&\(e\.key==='Enter'\|\|e\.key===' '\)/);
- assert.doesNotMatch(stages,/permanentDeleteKind=\{admin\?'stage':undefined\}/);
+ assert.match(stages,/permanentDeleteKind=\{admin\?'stage':undefined\}/);
 });
