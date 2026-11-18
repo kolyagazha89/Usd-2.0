@@ -5,6 +5,7 @@ import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {judgingNumbers,judgingResultLink} from './results-operations-model';
 import {isPendingEquipment,walkInRegistrationPath} from './event-ops-model';
 import {canChangeDayInspection,dayPath,dayStatus,eventDayCounts,filterEventDayRows,hasDayPermission,stageIsReadOnly,type DayRow,type DayStatus} from './event-day-model';
+import {chooseInitialStage,USD_STAGE_TIME_ZONE} from './stage-calendar';
 import {buildOfflineEventPackage} from './offline-event-model';
 import {createOfflineVault} from './offline-event-vault';
 import './event-day.css';
@@ -15,14 +16,7 @@ const statusClass=(status:string)=>status==='PASSED'?'is-passed':status==='FAILE
 const participantLabel=(row:DayRow)=>[row.participant?.lastName,row.participant?.firstName,row.participant?.middleName].filter(Boolean).join(' ')||'Участник без имени';
 const carLabel=(row:DayRow)=>[row.car?.brand,row.car?.model].filter(Boolean).join(' ')||'Автомобиль не указан';
 const stageLabel=(stage:Stage)=>['№'+(stage.stageNumber??'—'),stage.name,stage.city].filter(Boolean).join(' · ');
-const dateLabel=(date?:string|null)=>date?new Date(date).toLocaleDateString('ru-RU',{day:'2-digit',month:'long',year:'numeric'}):'Дата этапа не задана';
-function chooseInitialStage(stages:Stage[]):string{
- const now=new Date();now.setHours(0,0,0,0);
- const sorted=[...stages].filter(s=>s.status!=='CANCELLED')
-  .sort((a,b)=>Date.parse(a.date??'')-Date.parse(b.date??''));
- return sorted.find(s=>Number.isFinite(Date.parse(s.date??''))&&Date.parse(s.date??'')>=now.getTime())?.id
-  ??sorted.at(-1)?.id??stages[0]?.id??'';
-}
+const dateLabel=(date?:string|null)=>date?new Date(date).toLocaleDateString('ru-RU',{day:'2-digit',month:'long',year:'numeric',timeZone:USD_STAGE_TIME_ZONE}):'Дата этапа не задана';
 function displayError(value:unknown,fallback:string){return value instanceof Error?value.message:fallback;}
 
 export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:{
