@@ -16,6 +16,24 @@ function stageCalendarDay(value:unknown):string|null{
  }
  return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
 }
+/**
+ * Stage.date is a calendar day persisted at an artificial UTC hour.
+ * Countdown is a separate instant: 10:00 Europe/Moscow (UTC+03:00)
+ * unless the stage explicitly overrides startTimeMsk. Never count down
+ * to the persisted date timestamp or infer a visitor's local timezone.
+ */
+export const DEFAULT_STAGE_START_TIME_MSK='10:00';
+export function stageStartTimeLabel(stage:{startTimeMsk?:string|null}):string{
+ return (stage.startTimeMsk??DEFAULT_STAGE_START_TIME_MSK)+' МСК';
+}
+export function stageCountdownTarget(stage:{date?:unknown;startTimeMsk?:string|null}):number|null{
+ const day=stageCalendarDay(stage.date);
+ const time=stage.startTimeMsk??DEFAULT_STAGE_START_TIME_MSK;
+ if(!day||typeof time!=='string'||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(time))return null;
+ const timestamp=Date.parse(day+'T'+time+':00+03:00');
+ return Number.isFinite(timestamp)?timestamp:null;
+}
+
 export function nextPublishedStage(stages:any[]=[],now=Date.now()){
  const today=stageCalendarDay(new Date(now));
  if(!today)return undefined;
