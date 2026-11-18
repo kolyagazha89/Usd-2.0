@@ -2011,3 +2011,103 @@ body .app-shell .main .content .event-day-extra-actions {display:contents}
     transition:none;
   }
 }
+
+/* Focused second pass: list recovery and keyboard/touch affordances.
+ * Scoped to the staff workspace, no public or participant selectors. */
+body .app-shell .main .content .usd-admin-search-clear {
+  flex:0 0 auto;
+  min-height:40px;
+  padding:6px 10px;
+  border:1px solid #dbe0e7;
+  border-radius:9px;
+  background:#f7f8fa;
+  color:#46505e;
+  font-size:12px;
+  font-weight:750;
+  cursor:pointer;
+}
+body .app-shell .main .content .usd-admin-search-clear:hover {
+  background:#edf0f4;
+  border-color:#c4ccd6;
+}
+body .app-shell .main .content .usd-admin-filter-empty {
+  display:grid;
+  justify-items:center;
+  align-content:center;
+  gap:12px;
+  min-width:0;
+  min-height:160px;
+  padding:12px;
+  border-radius:12px;
+}
+body .app-shell .main .content .usd-admin-filter-empty .empty-state {
+  max-width:100%;
+  min-width:0;
+  text-align:center;
+}
+body .app-shell .main .content .usd-admin-filter-empty >button {
+  min-height:44px;
+  width:auto;
+  max-width:100%;
+  padding:10px 16px;
+}
+body .app-shell .main .content .catalog-workspace-page .catalog-filter-reset {
+  min-height:44px;
+  border:1px solid #d7dce4;
+  white-space:normal;
+}
+body .app-shell .main .content .usd-admin-cars-list .usd-admin-car-action-copy {
+  display:none;
+}
+body .app-shell .main .content .usd-admin-cars-list .usd-admin-car-row-action {
+  min-width:42px;
+  min-height:42px;
+  border-radius:9px;
+}
+body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table tbody tr:focus-visible,
+body .app-shell .main .content .usd-admin-cars-list .data-table tbody tr:focus-visible {
+  outline:3px solid #b9213a!important;
+  outline-offset:3px;
+}
+body .app-shell .main .content :is(.usd-admin-search-clear,.usd-admin-car-row-action,.catalog-filter-reset):focus-visible {
+  outline:3px solid #b9213a;
+  outline-offset:2px;
+}
+@media(max-width:760px) {
+  body .app-shell .main .content .usd-admin-cars-list .usd-admin-car-row-action {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    width:auto;
+    min-height:44px;
+    padding:9px 12px;
+    font-size:12px;
+    font-weight:750;
+    text-align:center;
+    white-space:normal;
+  }
+  body .app-shell .main .content .usd-admin-cars-list .usd-admin-car-action-copy {
+    display:inline;
+  }
+  body .app-shell .main .content .usd-admin-cars-list .row-actions {
+    gap:7px;
+  }
+  body .app-shell .main .content .usd-admin-cars-list .row-actions button {
+    max-width:100%;
+  }
+  body .app-shell .main .content .catalog-workspace-page .catalog-filter-reset {
+    width:100%;
+    justify-content:center;
+  }
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table tbody tr,
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody tr {
+    scroll-margin-top:12px;
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  body .app-shell .main .content .usd-admin-search-clear,
+  body .app-shell .main .content .usd-admin-filter-empty button {
+    transition:none;
+  }
+}

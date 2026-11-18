@@ -48,3 +48,39 @@ test('existing admin stylesheet remains last and mobile participant/car cards ar
  assert.match(css,/@media\s*\(max-width:760px\)/);
  assert.match(css,/min-height:44px/);
 });
+
+test('participant search can be cleared and has actionable, accurate empty results',async()=>{
+ const code=await source('admin/ResourcePage.tsx');
+ assert.match(code,/path==='\/admin\/participants'&&search/);
+ assert.match(code,/aria-label="Очистить поиск участников"/);
+ assert.match(code,/Ничего не найдено по запросу/);
+ assert.match(code,/Показать всех участников/);
+ assert.match(code,/tabIndex=\{path==='\/admin\/participants'\?0:undefined\}/);
+ assert.match(code,/onKeyDown=\{e=>\{if\(path==='\/admin\/participants'/);
+});
+
+test('cars keep accessible row actions, search reset, and useful empty state',async()=>{
+ const code=await source('admin/CarsPage.tsx');
+ assert.match(code,/aria-label="Очистить поиск автомобилей"/);
+ assert.match(code,/Показать все автомобили/);
+ assert.match(code,/aria-label=\{'Открыть автомобиль: '/);
+ assert.match(code,/onKeyDown=\{e=>\{if\(e.target===e.currentTarget/);
+ assert.match(code,/aria-label=\{'Редактировать автомобиль/);
+ assert.match(code,/aria-label=\{'Деактивировать автомобиль/);
+});
+
+test('operator empty filter state has a one-click recovery and accurate filtered totals',async()=>{
+ const code=await source('admin/EventDayPage.tsx');
+ assert.match(code,/const filteredTotal=/);
+ assert.match(code,/visible.length\+' из '\+filteredTotal/);
+ assert.match(code,/Сбросить поиск и статус/);
+ assert.match(code,/setSearch\(''\);setFilter\('ALL'\)/);
+});
+
+test('catalog filters offer reset and do not destroy user data',async()=>{
+ const code=await source('admin/CatalogPage.tsx');
+ assert.match(code,/aria-label="Сбросить фильтры комплектующих"/);
+ assert.match(code,/setQuery\(''\);setActivityFilter\('ALL'\)/);
+ assert.match(code,/setLifecycleFilter\('ALL'\)/);
+ assert.match(code,/setModelBrand\(''\)/);
+});

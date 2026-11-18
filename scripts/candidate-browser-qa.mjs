@@ -439,7 +439,11 @@ try{
       assert.equal(await page.getByRole('button',{name:/Подготовить базовый каталог USD/}).count(),1,'official 3388-model seed is available without manual CSV download');
       await workspace.getByRole('button',{name:'Каталог',exact:true}).click();
       assert.equal(await page.locator('.catalog-two-column').count(),1,'browse list returns with category choice intact');
-      row.componentCatalog='browse/management/CSV workspaces, seed available, filters and bulk confirmation without writes';
+      const catalogSearch=page.getByRole('textbox',{name:'Поиск по брендам и моделям'});
+      await catalogSearch.fill('Случайная несуществующая марка USD');
+      await page.getByRole('button',{name:'Сбросить фильтры комплектующих'}).click();
+      assert.equal(await catalogSearch.inputValue(),'','catalog reset must clear search');
+      row.componentCatalog='browse/management/CSV workspaces, resettable filters, seed and bulk confirmation without writes';
      }
      if(route==='/offline-event'){
       await page.getByRole('heading',{name:'День соревнований'}).waitFor();
@@ -477,7 +481,8 @@ try{
       await desk.getByRole('button',{name:'Допущено'}).first().click();
       await desk.getByText('По текущему фильтру участники не найдены').waitFor({state:'visible'});
       assert.equal(await desk.locator('.event-day-person').count(),0,'no pending registration may enter the admitted-only final list');
-      await desk.getByRole('button',{name:'Активные'}).first().click();
+      await desk.getByRole('button',{name:'Сбросить поиск и статус'}).click();
+      assert.equal(await desk.locator('.event-day-person').count(),1,'one click restores the active event roster');
       await desk.getByRole('search').getByRole('searchbox',{name:'Поиск участника в день соревнований'}).fill('№7');
       assert.equal(await desk.locator('.event-day-person').count(),1,'operator finds exact participant number');
       await desk.getByRole('search').getByRole('searchbox',{name:'Поиск участника в день соревнований'}).fill('№8');
@@ -1259,12 +1264,34 @@ try{
       await page.unroute('**/participants/me');
       row.memberDockStability='mobile dock is bottom-fixed and unchanged during delayed first data load';
      }
+     if(route==='/admin/participants'&&role==='ADMIN'){
+      const participants=page.locator('.panel.table-wrap[data-resource="/admin/participants"]');
+      const rows=participants.locator('.data-table tbody tr');
+      await rows.first().waitFor({state:'visible'});
+      assert.equal(await rows.first().getAttribute('tabindex'),'0','participant list has keyboard focusable cards');
+      const search=page.getByRole('searchbox',{name:'ФИО, город, команда'});
+      await search.fill('Случайный несуществующий участник USD 999');
+      await page.getByText('Ничего не найдено по запросу').waitFor({state:'visible'});
+      await page.getByRole('button',{name:'Показать всех участников'}).click();
+      assert.equal(await search.inputValue(),'');
+      await rows.first().waitFor({state:'visible'});
+      row.participantSearchRecovery='clear no-match filter, restore participant cards and keyboard focus';
+     }
      if(route==='/admin/cars'&&role==='ADMIN'){
       assert.equal(await page.locator('.data-table tbody tr').count(),25);
       await page.getByRole('button',{name:'Следующая страница автомобилей',exact:true}).click();
       assert.equal(await page.locator('.data-table tbody tr').count(),25);
       assert.match(await page.locator('.data-table tbody tr').first().innerText(),/Vesta 26/);
       await page.getByRole('button',{name:'Предыдущая страница автомобилей',exact:true}).click();
+      const carSearch=page.getByRole('searchbox',{name:'Поиск автомобилей'});
+      await carSearch.fill('Случайная несуществующая модель USD 999');
+      await page.getByText('По запросу ничего не найдено').waitFor({state:'visible'});
+      assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').count(),0);
+      await page.getByRole('button',{name:'Показать все автомобили'}).click();
+      assert.equal(await carSearch.inputValue(),'');
+      assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').count(),25);
+      assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').first().getAttribute('tabindex'),'0','car card can receive keyboard focus');
+      row.carSearchRecovery='no-match state recovers to all 25 cars with keyboard focusable rows';
       row.carPagination='25 rows per page; next and previous passed';
      }
      if(route==='/participant'&&role==='PARTICIPANT'){

@@ -233,6 +233,7 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
     <option value="ALL">Все записи</option><option value="ENABLED">Включены</option><option value="DISABLED">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option>
    </select>
   </label>
+  {(query||activityFilter!=='ALL'||lifecycleFilter!=='ALL'||modelBrand)&&<button type="button" className="secondary-button compact catalog-filter-reset" aria-label="Сбросить фильтры комплектующих" onClick={()=>{setQuery('');setActivityFilter('ALL');setLifecycleFilter('ALL');setModelBrand('');setModelPage(1)}}>Сбросить фильтры</button>}
  </div>}
  {workspace==='browse'&&<div className="catalog-two-column">
   <section className="panel">
