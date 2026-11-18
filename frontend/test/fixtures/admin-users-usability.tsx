@@ -41,7 +41,7 @@ export async function runAdminUserUsability(){
  assert.equal((globalThis as any).__userPatches[1].path,'/auth/admin/users/usr1/custom-role');
  assert.equal((globalThis as any).__userPatches[1].body.customRoleId,'judge');
  const search=host.querySelector('input[aria-label="Поиск пользователей по email"]') as HTMLInputElement;
- await act(async()=>{search.value='missing@example.test';search.dispatchEvent(new window.Event('input',{bubbles:true}))});await flush();
+ await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value')!.set!.call(search,'missing@example.test');search.dispatchEvent(new window.Event('input',{bubbles:true}))});await flush();
  await click(button('Найти'));
  assert.ok(host.textContent?.includes('Пользователи не найдены'),'no-results state explains the missing rows');
  await click(button('Сбросить поиск и фильтры'));
