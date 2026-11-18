@@ -766,3 +766,34 @@ body .usd-live .p-person-card>svg{position:static!important;align-self:end;justi
  body .usd-live .p-profile-photo{width:100px;height:100px;flex-basis:100px;border-radius:50%!important}
  body .usd-live .p-profile-banner h2{font-size:clamp(22px,6vw,34px)!important;margin:6px 0}
 }
+
+/* Mobile configuration routes are embedded in the existing participant shell.
+   They must not reserve a second viewport or a separate top gutter beneath
+   the fixed/sticky cabinet header. Admin editor routes remain untouched. */
+@media(max-width:760px){
+ body .participant-portal.usd-member .participant-configurations-main{
+  padding-top:8px!important;
+ }
+ body .participant-portal.usd-member .participant-configurations-main .configurations-page-shell{
+  display:block!important;
+  min-height:0!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important;
+ }
+ body .participant-portal.usd-member .participant-configurations-main .configurations-embedded-content,
+ body .participant-portal.usd-member .participant-configurations-main .configurations-page{
+  min-height:0!important;
+  margin-top:0!important;
+  padding-top:0!important;
+ }
+ body .participant-portal.usd-member .participant-configurations-main .configuration-editor-page,
+ body .participant-portal.usd-member .participant-configurations-main .configuration-details-page{
+  min-height:0!important;
+  margin-top:0!important;
+  padding-top:0!important;
+ }
+ body .participant-portal.usd-member .participant-configurations-main .configuration-subpage-header{
+  margin-top:0!important;
+ }
+}

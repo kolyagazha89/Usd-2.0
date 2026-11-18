@@ -831,6 +831,19 @@ try{
       assert.ok(header.height<=80,'mobile account header stays one row');
       const actions=await page.locator('.participant-header-actions').boundingBox();assert.ok(actions.x+actions.width<=width,'account actions fit the mobile viewport');
       assert.ok(await page.getByRole('button',{name:'Выйти из аккаунта',exact:true}).isVisible(),'logout remains accessible');
+      const routeContent=page.locator('.configuration-editor-page,.configuration-details-page,.configurations-page-top').first();
+      if(await routeContent.count()){
+       await page.evaluate(()=>window.scrollTo(0,0));
+       const distance=await page.evaluate(()=>{
+        const header=document.querySelector('.participant-portal-header');
+        const content=document.querySelector('.configuration-editor-page,.configuration-details-page,.configurations-page-top');
+        return {gap:content.getBoundingClientRect().top-header.getBoundingClientRect().bottom,
+          contentTop:content.getBoundingClientRect().top,headerBottom:header.getBoundingClientRect().bottom};
+       });
+       assert.ok(distance.gap>=-4&&distance.gap<=84,'configuration content must start just below the mobile header: '+JSON.stringify(distance));
+       row.configurationTopGap=Math.round(distance.gap);
+      }
+      assert.equal(await page.locator('.member-config-zone-overview').count(),0,'duplicate Bass Front Rear tile navigation must not render');
      }
      if(width<=740&&role===null&&['/','/stages','/results?stageId=stage1'].includes(route)){
       assert.equal(await page.locator('.u-mobile-dock [aria-current="page"]').count(),1,'public dock marks one current section');
@@ -854,6 +867,20 @@ try{
       row.headerReservation='actual border-box height before and after resize';
      }
      if(width<=740&&role===null&&route==='/stages'){
+      const card=page.locator('.public-stage-grid .usd-stage-card-approved').first();
+      await card.waitFor();
+      const geometry=await card.evaluate(element=>{
+       const box=selector=>element.querySelector(selector)?.getBoundingClientRect().toJSON();
+       return {card:element.getBoundingClientRect().toJSON(),poster:box('.usd-stage-poster'),
+        info:box('.usd-stage-card-info'),actions:box('.public-stage-actions'),
+        copyDisplay:getComputedStyle(element.querySelector('.usd-stage-card-copy')).display};
+      });
+      assert.equal(geometry.copyDisplay,'contents','mobile stage copy must expose a three-row layout');
+      assert.ok(geometry.poster&&geometry.info&&geometry.actions,'stage poster, summary, and actions are present');
+      assert.ok(geometry.actions.top>=Math.max(geometry.poster.bottom,geometry.info.bottom)-2,'stage actions must sit below poster and details: '+JSON.stringify(geometry));
+      assert.ok(geometry.actions.width>geometry.info.width+30,'stage buttons must use the full card width: '+JSON.stringify(geometry));
+      assert.ok(geometry.poster.width<geometry.info.width,'stage poster should be smaller than text column: '+JSON.stringify(geometry));
+      row.mobileStageGeometry={posterWidth:Math.round(geometry.poster.width),actionsWidth:Math.round(geometry.actions.width)};
       row.mobileChrome=[];
       for(const height of [568,844,960]){
        await page.setViewportSize({width,height});
