@@ -11,7 +11,7 @@ test('real partner editor previews, saves, reopens and resets image framing',asy
  const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'http://localhost'});
  const values={window:dom.window,document:dom.window.document,navigator:dom.window.navigator,
   HTMLElement:dom.window.HTMLElement,Event:dom.window.Event,File:dom.window.File,
-  IS_REACT_ACT_ENVIRONMENT:true,requestAnimationFrame:fn=>setTimeout(fn,0),cancelAnimationFrame:clearTimeout,__partnerWrites:0,__revokedUrls:[],
+  IS_REACT_ACT_ENVIRONMENT:true,requestAnimationFrame:fn=>setTimeout(fn,0),cancelAnimationFrame:clearTimeout,__partnerWrites:0,__partnerReadFailAfterWrite:false,__revokedUrls:[],
   __partnerSettings:{partners:[{id:'aura',name:'Aura',tier:'PREMIUM',photoUrl:'/media/aura.png',
    isPublished:true,isActive:true,internalNote:'keep'}],contacts:{phone:'keep-phone'}}};
  const previous=new Map(Object.keys(values).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));
@@ -25,15 +25,21 @@ test('real partner editor previews, saves, reopens and resets image framing',asy
   await build({entryPoints:[path.join(base,'fixtures/partner-image-editor.tsx')],bundle:true,
    platform:'node',format:'esm',jsx:'automatic',outfile,packages:'external',loader:{'.css':'empty'},
    plugins:[{name:'partner-api',setup(builder){builder.onLoad({filter:/[\\/]api\.ts$/},()=>({loader:'ts',contents:`
-    export const getSiteSettings=async()=>({settings:globalThis.__partnerSettings});
-    export const updateSiteSettings=async value=>{globalThis.__partnerWrites++;globalThis.__partnerSettings={...globalThis.__partnerSettings,...JSON.parse(JSON.stringify(value))};};
+    export const getSiteSettings=async()=>{if(globalThis.__partnerReadFailAfterWrite&&globalThis.__partnerWrites>0)throw new Error('Read service unavailable after accepted write');return {settings:globalThis.__partnerSettings}};
+    export const updateSiteSettings=async value=>{globalThis.__partnerWrites++;globalThis.__partnerSettings={...globalThis.__partnerSettings,...JSON.parse(JSON.stringify(value))};return {settings:globalThis.__partnerSettings}};
     export const uploadSiteAsset=async()=>({publicPath:'/media/new-logo.webp'});
    `}))}}]});
-  const {runPartnerImageEditor}=await import(pathToFileURL(outfile).href);
+  const {runPartnerImageEditor,runPartnerSaveWithoutReload}=await import(pathToFileURL(outfile).href);
   await runPartnerImageEditor();
   globalThis.__partnerSettings={partners:[{id:'legacy',name:123,tier:'PREMIUM',photoUrl:'/media/aura.png',
    isPublished:true,isActive:true,internalNote:'keep'}],contacts:{phone:'keep-phone'}};
   await runPartnerImageEditor();
+  globalThis.__partnerSettings={partners:[{id:'aura',name:'Aura',tier:'PREMIUM',photoUrl:'/media/aura.png',
+   isPublished:true,isActive:true}],contacts:{phone:'keep-phone'}};
+  globalThis.__partnerWrites=0;
+  globalThis.__partnerReadFailAfterWrite=true;
+  await runPartnerSaveWithoutReload();
+  assert.equal(globalThis.__partnerSettings.partners[0].name,'Aura обновлённая');
  }finally{
   URL.createObjectURL=oldCreate;URL.revokeObjectURL=oldRevoke;dom.window.close();
   for(const [key,descriptor] of previous){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key]}
