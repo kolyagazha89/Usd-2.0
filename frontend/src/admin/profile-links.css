@@ -86,3 +86,10 @@
 }
 
 .profile-link-review-notice{border:1px solid #a9d9c0;background:#edf8f1;color:#1e6545;padding:10px 13px;margin:0 0 12px;border-radius:10px;line-height:1.5;font-size:14px}
+
+.profile-link-filters input[type="search"]{box-sizing:border-box;width:min(360px,100%);min-width:190px;min-height:44px;padding:10px 13px;border:1px solid #cdd7df;border-radius:10px;background:#fff;color:#202b3d;font:inherit}
+.profile-link-filters input[type="search"]:focus-visible{outline:2px solid #d52b46;outline-offset:2px}
+@media(max-width:660px){
+ .profile-link-filters label:first-child{flex:1 1 100%;min-width:0}
+ .profile-link-filters input[type="search"]{width:100%;min-width:0}
+}
