@@ -31,10 +31,11 @@ export async function runStageCardActions(){
  state.__stageFail=true;await click(button('Открыть регистрацию'));state.__stageFail=false;
  assert.match(document.querySelector('[role="alert"]')!.textContent!,/Изменение недоступно/);
  assert.ok(button('Открыть регистрацию'));
- await click(row());
+ assert.equal(row().getAttribute('tabindex'),'0','stage rows are reachable from the keyboard');
+ await act(async()=>row().dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})));await flush();
  assert.match(location.search,/view=stage-11/);
  assert.ok(button('Афиша'));assert.ok(button('Опубликовать результаты'));
- assert.ok(button('Отменить этап'));assert.ok(button('Удалить навсегда'));
+ assert.ok(button('Отменить этап'));assert.equal(button('Удалить навсегда'),undefined,'permanent stage removal is not a normal admin action');
  assert.equal(button('Удалить'),undefined,'cancellation must not masquerade as deletion');
  const before=state.__stageCalls.length;
  await click(button('Опубликовать результаты'));
@@ -50,10 +51,7 @@ export async function runStageCardActions(){
  await click(button('Подтвердить отмену этапа'));
  assert.deepEqual(state.__stageCalls.at(-1),{method:'DELETE',path:'/stages/stage-11'});
  assert.equal(button('Отменить этап'),undefined,'cancelled stage cannot be cancelled again');
- await click(button('Удалить навсегда'));
- assert.ok(document.querySelector('[role="dialog"]'));
- assert.equal(document.querySelector('[role="dialog"] .danger-button')?.getAttribute('disabled'),'');
- await click([...document.querySelectorAll('[role="dialog"] button')].find(b=>b.textContent==='Отмена')!);
+ assert.equal(button('Удалить навсегда'),undefined,'dangerous permanent deletion remains hidden');
  await click(button('Редактировать'));
  assert.match(location.pathname,/\/edit$/);
  assert.equal(button('Афиша'),undefined);assert.equal(button('Удалить навсегда'),undefined);
