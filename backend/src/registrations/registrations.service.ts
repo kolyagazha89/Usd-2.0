@@ -182,6 +182,42 @@ export class RegistrationsService {
     });
   }
 
+  
+  /**
+   * Read-only stage snapshot for an authenticated participant's confirmation step.
+   * This does NOT reserve a number. The transactional allocation in create()
+   * remains authoritative (also after cancellations and concurrent signups).
+   */
+  async previewStageRegistration(stageId: string) {
+    const stage = await this.prisma.stage.findUnique({
+      where: { id: stageId },
+      select: { id: true, status: true, isDeleted: true },
+    });
+    if (!stage || stage.isDeleted || stage.status !== 'PUBLISHED') {
+      throw new NotFoundException('Опубликованный этап не найден');
+    }
+    const [registrations, numbers] = await Promise.all([
+      this.prisma.registration.findMany({
+        where: { stageId, status: 'ACTIVE' },
+        select: { participantId: true },
+      }),
+      this.prisma.registrationNumber.findMany({
+        where: { stageId, number: { gt: 0 } },
+        select: { number: true },
+      }),
+    ]);
+    const occupied = new Set(numbers.map(row => row.number));
+    let nextAvailablePrimaryNumber = 1;
+    while (occupied.has(nextAvailablePrimaryNumber)) nextAvailablePrimaryNumber += 1;
+    return {
+      stageId,
+      registeredParticipants: new Set(registrations.map(row => row.participantId)).size,
+      nextAvailablePrimaryNumber,
+      provisional: true,
+      observedAt: new Date().toISOString(),
+    };
+  }
+
   // ==========================================
   // СПИСОК РЕГИСТРАЦИЙ
   // ==========================================
