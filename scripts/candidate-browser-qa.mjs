@@ -547,6 +547,10 @@ try{
       await form.getByLabel('Номер этапа',{exact:true}).fill('2');
       await form.getByLabel('Название этапа',{exact:true}).fill('Тестовый этап USD');
       await form.getByLabel('Дата проведения',{exact:true}).fill('2026-11-22');
+      const startTime=form.getByLabel('Время начала (МСК)',{exact:true});
+      await startTime.waitFor({state:'visible'});
+      await startTime.fill('10:00');
+      assert.equal(await startTime.inputValue(),'10:00','stage start must explicitly use Moscow time');
       await form.getByRole('button',{name:/Продолжить/}).click();
       assert.equal(await form.getByLabel('Сезон',{exact:true}).count(),1,'stage editor exposes season only on second screen');
       assert.match(await form.locator('.entity-form-journey-progress').innerText(),/Шаг 2 из 3/,'progress includes the review step');
