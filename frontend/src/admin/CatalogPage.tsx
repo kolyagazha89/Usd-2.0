@@ -233,7 +233,7 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
    <select value={activityFilter} onChange={e=>{setActivityFilter(e.target.value as typeof activityFilter);setModelPage(1)}} aria-label="Статус записей справочника">
     <option value="ALL">Все записи</option><option value="ENABLED">Включены</option><option value="DISABLED">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option>
    </select>
-  </label>
+  </label></CollapsibleFilters>
   {(query||activityFilter!=='ALL'||lifecycleFilter!=='ALL'||modelBrand)&&<button type="button" className="secondary-button compact catalog-filter-reset" aria-label="Сбросить фильтры комплектующих" onClick={()=>{setQuery('');setActivityFilter('ALL');setLifecycleFilter('ALL');setModelBrand('');setModelPage(1)}}>Сбросить фильтры</button>}
  </div>}
  {workspace==='browse'&&<div className="catalog-two-column">
@@ -288,7 +288,7 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
      {editor?.kind==='model'&&editor.id===x.id?
       <form className="catalog-inline-editor" onSubmit={e=>{e.preventDefault();void saveEditor()}}>
        <label>Модель<input autoFocus value={editor.value} onChange={e=>setEditor({...editor,value:e.target.value})} maxLength={160}/></label>
-       <label>Марка<select value={editor.brand} onChange={e=>setEditor({...editor,brand:e.target.value})}>{selectBrands.map((b:any)=><option key={b.id} value={b.name}>{b.name}</option>)}</select></label></CollapsibleFilters>
+       <label>Марка<select value={editor.brand} onChange={e=>setEditor({...editor,brand:e.target.value})}>{selectBrands.map((b:any)=><option key={b.id} value={b.name}>{b.name}</option>)}</select></label>
        <div className="catalog-row-actions"><button type="submit" className="primary-button compact" disabled={saving||!editor.value.trim()}>Сохранить</button><button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setEditor(null)}>Отмена</button></div>
       </form>:
       <>
