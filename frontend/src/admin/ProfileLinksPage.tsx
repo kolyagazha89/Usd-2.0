@@ -1,7 +1,7 @@
 import {AdminEntityLink} from './AdminEntityLink';
 import './profile-links.css';
 import DuplicateProfilesPreview from './DuplicateProfilesPreview';
-import {afterProfileLinkDecision} from './profile-link-operator-model';
+import {afterProfileLinkDecision,filterProfileLinkRequests} from './profile-link-operator-model';
 import {useEffect,useState} from 'react';
 import {apiGet,apiPatch,apiPost} from '../api';
 
@@ -35,7 +35,7 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
  const [rows,setRows]=useState<LinkRequest[]>([]),[status,setStatus]=useState('PENDING'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [diagnoses,setDiagnoses]=useState<Record<string,string>>({}),[diagnosing,setDiagnosing]=useState<string|null>(null);
  const [advancedVisited,setAdvancedVisited]=useState(false);
- const [reviewNotice,setReviewNotice]=useState('');
+ const [reviewNotice,setReviewNotice]=useState(''),[query,setQuery]=useState('');
  const loadCoverage=async()=>{try{setCoverageError('');setCoverage(await apiGet<Coverage>('/admin/profile-links/coverage'))}catch(e){setCoverageError(e instanceof Error?e.message:'Статистика архивных email недоступна')}};
  useEffect(()=>{if(advancedVisited)void loadCoverage()},[advancedVisited]);
  const reconcileEmails=async(apply:boolean)=>{
@@ -71,16 +71,17 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
    await load();
   }catch(e){setError(e instanceof Error?e.message:'Не удалось обработать заявку')}finally{setBusy(false)}
  };
+ const visibleRows=filterProfileLinkRequests(rows,query);
  return <PageFrame title="Привязка профилей" subtitle="Заявки на восстановление исторических профилей. Привязка только после проверки владения администратором.">
   <section className="profile-link-work-queue" aria-label="Заявки на привязку профилей">
    <header className="profile-link-queue-heading"><div><h2>Заявки на привязку</h2><p>Сначала разберите заявки участников. Проверка архивных email и объединение дублей доступны ниже отдельно.</p></div>{status==='PENDING'&&!loading&&<span className="profile-link-pending-count" role="status">{rows.length} ожидают решения</span>}</header>
-  <div className="profile-link-filters"><label>Статус
+  <div className="profile-link-filters"><label>Поиск заявок<input type="search" aria-label="Поиск заявок по ФИО или email" placeholder="ФИО, email, заметка…" value={query} onChange={e=>setQuery(e.target.value)}/></label><label>Статус
    <select value={status} onChange={e=>{setStatus(e.target.value);setError('');setReviewNotice('')}}>
     <option value="">Все</option>{Object.entries(statusText).map(([value,label])=><option key={value} value={value}>{label}</option>)}
-   </select></label><button type="button" onClick={()=>void load()} disabled={loading||busy}>Обновить</button></div>
+   </select></label>{query&&<button type="button" className="secondary-button compact" aria-label="Сбросить поиск заявок" onClick={()=>setQuery('')}>Очистить</button>}<button type="button" onClick={()=>void load()} disabled={loading||busy}>Обновить</button></div>
   {reviewNotice&&<p className="profile-link-review-notice" role="status">{reviewNotice}</p>}
   {error&&<div className="form-error" role="alert">{error}</div>}
-  {loading?<LoadingPage/>:rows.length===0?<p className="muted">Заявок с выбранным статусом нет.</p>:<div className="profile-link-list">{rows.map(row=><article className="profile-link-card" key={row.id}>
+  {loading?<LoadingPage/>:visibleRows.length===0?<p className="muted">{query?'По вашему запросу заявок не найдено':'Заявок с выбранным статусом нет.'}</p>:<div className="profile-link-list">{visibleRows.map(row=><article className="profile-link-card" key={row.id}>
    <div><small>{statusText[row.status]??row.status} · {new Date(row.createdAt).toLocaleString('ru-RU')}</small>
     <h3><AdminEntityLink kind="participant" id={row.participant.id}>{[row.participant.lastName,row.participant.firstName,row.participant.middleName].filter(Boolean).join(' ')}</AdminEntityLink></h3>
     <p>Аккаунт заявителя: <strong>{row.claimant.email}</strong></p>
