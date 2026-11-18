@@ -1748,3 +1748,266 @@ body .app-shell .venue-admin-banner{
 body .app-shell .venue-admin-banner svg{flex:0 0 18px;margin-top:1px}
 body .app-shell .venue-admin-banner strong{font-weight:850;letter-spacing:.025em}
 @media(max-width:600px){body .app-shell .venue-admin-banner{font-size:12px;padding:10px 14px}}
+
+/* USD / staff mobile workspaces. The admin-owned last stylesheet keeps the
+ * public site and participant portal untouched. No action/data changes. */
+body .app-shell .main .content .catalog-workspace-tabs {
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;
+  padding:6px;margin:0 0 14px;border:1px solid #e1e5eb;
+  border-radius:14px;background:#f0f2f5;
+}
+body .app-shell .main .content .catalog-workspace-tabs button {
+  min-width:0;min-height:44px;padding:9px 10px;border:1px solid transparent;
+  border-radius:10px;background:transparent;color:#47515f;
+  font-size:14px;font-weight:750;line-height:1.25;cursor:pointer;
+}
+body .app-shell .main .content .catalog-workspace-tabs button[aria-pressed="true"] {
+  background:#fff;border-color:#d9dee5;color:#9a2335;
+  box-shadow:0 2px 8px rgba(25,30,42,.08);
+}
+body .app-shell .main .content .catalog-workspace-tabs button:focus-visible {
+  outline:3px solid #bb263f;outline-offset:1px;
+}
+body .app-shell .main .content .event-day-more-toggle {display:none}
+body .app-shell .main .content .event-day-extra-actions {display:contents}
+
+@media (max-width:760px) {
+  /* Stage selector first, then two small contextual filters. */
+  body .app-shell .main .content .event-ops-page .stage-picker {
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px!important;padding:12px!important;margin-bottom:10px!important;
+    border-radius:13px;background:#fff;
+  }
+  body .app-shell .main .content .event-ops-page .stage-picker label {
+    min-width:0!important;width:100%!important;margin:0!important;
+    font-size:12px!important;color:#515966;
+  }
+  body .app-shell .main .content .event-ops-page .stage-picker label:nth-of-type(3) {
+    grid-row:1;grid-column:1/-1;
+  }
+  body .app-shell .main .content .event-ops-page .stage-picker :is(select,.filter-select) {
+    min-width:0!important;width:100%!important;max-width:100%!important;
+    height:auto!important;min-height:44px!important;padding:8px 9px;
+    font-size:16px!important;margin-top:4px;
+  }
+  body .app-shell .main .content .event-ops-page .stage-picker>.filter-select {
+    grid-column:1/-1;margin:0!important;
+  }
+  /* One compact row instead of three oversized workflow tiles. */
+  body .app-shell .main .content .event-ops-page .event-ops-workflow {
+    margin:0 0 10px;border-radius:13px;
+  }
+  body .app-shell .main .content .event-ops-workflow-context {
+    display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+    gap:7px;padding:10px 12px;border-bottom:1px solid #e7e9ef;
+  }
+  body .app-shell .main .content .event-ops-workflow-context :is(.event-ops-workflow-kicker,small) {display:none}
+  body .app-shell .main .content .event-ops-workflow-context>strong {
+    flex:1 1 150px;min-width:0;font-size:14px;
+  }
+  body .app-shell .main .content .event-ops-workflow-context>button {
+    min-height:38px;padding:6px 10px;font-size:12px;
+  }
+  body .app-shell .main .content .event-ops-workflow-steps {
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  body .app-shell .main .content .event-ops-workflow-step {
+    min-height:58px;padding:8px 5px;justify-content:center;border-bottom-width:3px;
+  }
+  body .app-shell .main .content .event-ops-workflow-step>svg,
+  body .app-shell .main .content .event-ops-workflow-number,
+  body .app-shell .main .content .event-ops-workflow-copy small {display:none}
+  body .app-shell .main .content .event-ops-workflow-copy strong {
+    font-size:12px;line-height:1.2;text-align:center;
+  }
+  /* Search is earlier in the DOM, immediately following stage navigation. */
+  body .app-shell .main .content .event-ops-page .event-ops-search {
+    min-height:48px;margin:0 0 11px;padding:2px 10px;gap:7px;
+    background:#fff;border-radius:12px;
+  }
+  body .app-shell .main .content .event-ops-page .event-ops-search input {
+    min-height:44px;font-size:16px!important;
+  }
+  body .app-shell .main .content .event-ops-page .event-ops-search span {font-size:11px}
+  body .app-shell .main .content .event-ops-page .event-ops-overview {
+    display:grid;gap:10px;margin:0 0 11px;padding:12px;border-radius:13px;
+  }
+  body .app-shell .main .content .event-ops-page .event-ops-intro>.eyebrow,
+  body .app-shell .main .content .event-ops-page .event-ops-intro>p {display:none}
+  body .app-shell .main .content .event-ops-page .event-ops-intro h2 {
+    margin:0 0 8px;font-size:18px;
+  }
+  body .app-shell .main .content .event-ops-page .event-ops-quick-actions {
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:7px;
+  }
+  body .app-shell .main .content .event-ops-page .event-ops-quick-actions button {
+    width:100%;min-height:44px;min-width:0;padding:8px;font-size:12px;
+  }
+  body .app-shell .main .content .event-ops-page .event-ops-metrics {
+    display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:6px;max-width:none;
+  }
+  body .app-shell .main .content .event-ops-page .event-ops-metrics> :is(div,button) {
+    display:grid;align-content:center;justify-items:center;gap:3px;
+    min-width:0;min-height:74px;padding:6px 3px!important;text-align:center;border-radius:10px;
+  }
+  body .app-shell .main .content .event-ops-page .event-ops-metrics strong {font-size:22px}
+  body .app-shell .main .content .event-ops-page .event-ops-metrics svg {width:14px;height:14px}
+  body .app-shell .main .content .event-ops-page .event-ops-metrics span {
+    font-size:10px;line-height:1.25;overflow-wrap:anywhere;
+  }
+  /* Day-of-event: keep walk-in and QR visible; put secondary tools behind
+   * an explicitly named, accessible expand control only on mobile. */
+  body .app-shell .main .content .event-day-page .event-day-heading {padding:12px;gap:8px}
+  body .app-shell .main .content .event-day-page .event-day-heading :is(.eyebrow,p) {display:none}
+  body .app-shell .main .content .event-day-page .event-day-heading h2 {margin:0;font-size:19px}
+  body .app-shell .main .content .event-day-page .event-day-stage-context {
+    padding:8px 2px;font-size:12px;
+  }
+  body .app-shell .main .content .event-day-page .event-day-overview {
+    grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:6px 0 11px;
+  }
+  body .app-shell .main .content .event-day-page .event-day-metric {
+    min-height:74px;gap:4px;padding:8px!important;justify-content:center;border-radius:10px;
+  }
+  body .app-shell .main .content .event-day-page .event-day-metric span {
+    font-size:10px;line-height:1.25;overflow-wrap:anywhere;
+  }
+  body .app-shell .main .content .event-day-page .event-day-metric strong {font-size:22px}
+  body .app-shell .main .content .event-day-page .event-day-actions {
+    display:block;padding:12px;margin-bottom:11px;
+  }
+  body .app-shell .main .content .event-day-page .event-day-actions h3 {margin:0 0 8px;font-size:17px}
+  body .app-shell .main .content .event-day-page .event-day-actions p {display:none}
+  body .app-shell .main .content .event-day-page .event-day-action-buttons {
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
+  }
+  body .app-shell .main .content .event-day-page .event-day-action-buttons>button {
+    width:100%;min-width:0;min-height:44px;padding:8px;font-size:12px;line-height:1.3;
+  }
+  body .app-shell .main .content .event-day-page .event-day-more-toggle {
+    display:flex;grid-column:1/-1;justify-content:center;
+    background:#f4f5f8;color:#333e4d;
+  }
+  body .app-shell .main .content .event-day-page .event-day-extra-actions {
+    display:none;grid-column:1/-1;min-width:0;
+  }
+  body .app-shell .main .content .event-day-page .event-day-extra-actions.is-open {
+    display:grid;grid-template-columns:minmax(0,1fr);gap:7px;
+    padding-top:8px;border-top:1px solid #e5e8ef;
+  }
+  body .app-shell .main .content .event-day-page .event-day-extra-actions button {
+    width:100%;min-height:44px;padding:8px 10px;font-size:12px;
+    white-space:normal;justify-content:flex-start;text-align:left;
+  }
+  body .app-shell .main .content .event-day-page .event-day-roster {padding:12px}
+  body .app-shell .main .content .event-day-page .event-day-filter-tabs {gap:6px}
+  body .app-shell .main .content .event-day-page .event-day-filter-tabs button {
+    min-height:44px;padding-inline:5px;font-size:12px;
+  }
+  /* Participants and cars: no sideways scrolling, details remain accessible.
+   * Buttons and entity links preserve existing click handlers. */
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"],
+  body .app-shell .main .content .usd-admin-cars-list .panel.table-wrap {
+    padding:0!important;min-width:0;max-width:100%;overflow:visible!important;
+    border:0!important;background:transparent!important;box-shadow:none!important;
+  }
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table,
+  body .app-shell .main .content .usd-admin-cars-list .data-table {
+    display:block;width:100%;min-width:0!important;border:0;background:transparent;
+  }
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table thead,
+  body .app-shell .main .content .usd-admin-cars-list .data-table thead {
+    position:absolute!important;width:1px!important;height:1px!important;
+    clip-path:inset(50%);overflow:hidden!important;white-space:nowrap;
+  }
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table tbody,
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody {
+    display:grid!important;grid-template-columns:minmax(0,1fr);
+    gap:10px;min-width:0;
+  }
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table tbody tr,
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody tr {
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px 12px;min-width:0;width:100%;margin:0;padding:13px!important;
+    border:1px solid #e1e5ec!important;border-left:3px solid #b52a41!important;
+    border-radius:13px;background:#fff!important;
+  }
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table tbody td,
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody td {
+    display:flex!important;flex-direction:column!important;align-items:flex-start!important;
+    min-width:0!important;width:100%!important;padding:0!important;gap:3px;
+    border:0!important;background:transparent!important;
+    font-size:13px;line-height:1.35;overflow-wrap:anywhere;color:#28313e!important;
+  }
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table tbody td::before,
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody td::before {
+    content:attr(data-label);font-size:10px;line-height:1.2;font-weight:800;
+    letter-spacing:.035em;text-transform:uppercase;color:#657080;
+  }
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table tbody td:first-child,
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody td:first-child {
+    grid-column:1/-1;font-size:16px;font-weight:800;
+  }
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody td[data-label="Участник"] {grid-column:1/-1}
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table tbody td.row-actions,
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody td.row-actions {
+    display:flex!important;flex-direction:row!important;flex-wrap:wrap;
+    align-items:center!important;grid-column:1/-1;
+    border-top:1px solid #e7eaf0!important;padding-top:10px!important;
+  }
+  body .app-shell .main .content .panel.table-wrap[data-resource="/admin/participants"] .data-table tbody td.row-actions::before,
+  body .app-shell .main .content .usd-admin-cars-list .data-table tbody td.row-actions::before {content:none}
+  body .app-shell .main .content .usd-admin-cars-list .data-table .car-name-button,
+  body .app-shell .main .content .usd-admin-cars-list .data-table .text-button {
+    max-width:100%;min-height:35px;overflow-wrap:anywhere;
+  }
+  /* Catalogue categories are swipeable instead of three tall rows of buttons. */
+  body .app-shell .main .content .catalog-workspace-page .catalog-category-panel {padding:12px}
+  body .app-shell .main .content .catalog-workspace-page .catalog-category-panel .catalog-category-tabs {
+    display:flex!important;flex-wrap:nowrap!important;gap:7px;
+    overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;
+    padding-bottom:6px;margin-top:10px;scrollbar-width:thin;
+  }
+  body .app-shell .main .content .catalog-workspace-page .catalog-category-panel .catalog-category-tabs button {
+    flex:0 0 auto;min-width:0;min-height:44px;padding:9px 12px;
+    white-space:nowrap;font-size:12px;scroll-snap-align:start;
+  }
+  body .app-shell .main .content .catalog-workspace-tabs {padding:4px;gap:4px;margin-bottom:10px}
+  body .app-shell .main .content .catalog-workspace-tabs button {
+    min-height:44px;padding:8px 4px;font-size:12px;
+  }
+  body .app-shell .main .content .catalog-workspace-page .catalog-two-column {
+    grid-template-columns:minmax(0,1fr);gap:12px;
+  }
+  body .app-shell .main .content .catalog-workspace-page :is(.catalog-import-panel,.catalog-merge,.catalog-bulk-panel,.catalog-two-column>.panel) {
+    min-width:0;padding:13px;border-radius:13px;
+  }
+  body .app-shell .main .content .catalog-workspace-page .catalog-filter-bar {
+    display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-bottom:10px;
+  }
+  body .app-shell .main .content .catalog-workspace-page .catalog-filter-bar .search-box {min-width:0;width:100%}
+  body .app-shell .main .content .catalog-workspace-page .catalog-row-actions {
+    width:100%;gap:6px;flex-wrap:wrap;
+  }
+  body .app-shell .main .content .catalog-workspace-page .catalog-row-actions button {
+    min-height:40px;white-space:normal;text-align:left;
+  }
+  body .app-shell .main .content .catalog-workspace-page .catalog-add-row :is(input,select,button) {
+    min-width:0;font-size:16px;
+  }
+}
+@media(max-width:380px) {
+  body .app-shell .main .content .event-ops-page .event-ops-quick-actions,
+  body .app-shell .main .content .event-day-page .event-day-action-buttons {
+    grid-template-columns:minmax(0,1fr);
+  }
+  body .app-shell .main .content .event-day-page .event-day-overview {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  body .app-shell .main .content .catalog-workspace-tabs button {
+    transition:none;
+  }
+}

@@ -38,6 +38,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
  const [search,setSearch]=useState(''),[filter,setFilter]=useState<DayStatus>('ALL');
  const [savingId,setSavingId]=useState(''),[confirmPass,setConfirmPass]=useState('');
  const [failId,setFailId]=useState(''),[failureReason,setFailureReason]=useState('');
+ const [showExtraDayActions,setShowExtraDayActions]=useState(false);
  const [offlinePrepOpen,setOfflinePrepOpen]=useState(false),[offlinePass,setOfflinePass]=useState(''),[offlineConfirm,setOfflineConfirm]=useState(''),[offlineSaving,setOfflineSaving]=useState(false);
  const requestId=useRef(0);
  const canList=hasDayPermission(user,'registrations','view');
@@ -165,6 +166,8 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
      <div className="event-day-action-buttons">
       {canRegister&&!readOnly&&<button type="button" className="primary-button compact" onClick={()=>go(walkInRegistrationPath(stageId))}><Plus size={15}/>Регистрация на въезде</button>}
       {canSeeInspections&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/inspections?stageId='+encodeURIComponent(stageId)+'&scan=1')}><ScanQrCode size={15}/>QR / USD ID</button>}
+      <button type="button" className="secondary-button compact event-day-more-toggle" aria-controls="event-day-extra-actions" aria-expanded={showExtraDayActions} onClick={()=>setShowExtraDayActions(v=>!v)}>{showExtraDayActions?'Скрыть действия':'Ещё действия'}</button>
+      <div id="event-day-extra-actions" className={'event-day-extra-actions'+(showExtraDayActions?' is-open':'')}>
       {canSeeInspections&&<button type="button" className="secondary-button compact" onClick={()=>go(dayPath('/admin/inspections',stageId))}><ClipboardCheck size={15}/>Все инспекции</button>}
       {(canSeeInspections||canSeeResults)&&<button type="button" className="secondary-button compact" aria-pressed={filter==='PASSED'} onClick={()=>{setSearch('');setFilter('PASSED')}}><Check size={15}/>Сформировать список допущенных · {counts.passed}</button>}
       {canSeeResults&&<button type="button" className="secondary-button compact" onClick={()=>go(judgingResultLink(stageId))}><Trophy size={15}/>Судейский протокол</button>}
@@ -172,6 +175,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
       {canExportVenue&&<span className="event-day-venue-export-warning">Настоящий пакет и отдельный ключ для входа действующих судей скачиваются в разделе офлайн-сервера. Пакет действует до 72 часов.</span>}
       {canPrepareOffline&&!readOnly&&<button type="button" className="secondary-button compact" aria-expanded={offlinePrepOpen} onClick={()=>setOfflinePrepOpen(x=>!x)}><HardDrive size={15}/>Подготовить автономный пакет</button>}
       <button type="button" className="secondary-button compact" onClick={()=>go('/offline-event')}><LockKeyhole size={15}/>Открыть локальные черновики</button>
+      </div>
      </div>
     </section>
     {offlinePrepOpen&&canPrepareOffline&&!readOnly&&<section className="panel event-day-offline-prepare" aria-label="Подготовка автономного пакета">
