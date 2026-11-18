@@ -256,32 +256,6 @@ body .usd-member .registration-number-preview-warning{
   line-height:1.6;
 }
 body .usd-member .registration-number-preview-warning strong{color:#fff}
-/* Configurator: the same SUB / FRONT / REAR model with clearer status and density. */
-body .usd-member .member-config-zone-overview{
-  display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:10px;
-  margin:14px 0;
-}
-body .usd-member .member-config-zone-overview button{
-  display:flex;
-  flex-direction:column;
-  gap:5px;
-  padding:13px 14px;
-  border:1px solid #394957;
-  border-radius:12px;
-  background:linear-gradient(145deg,#141f29,#161b22);
-  text-align:left;
-  color:#e7eff6;
-  min-width:0;
-}
-body .usd-member .member-config-zone-overview button.is-active{
-  border-color:#ed3153;
-  background:linear-gradient(135deg,#49202b,#171e29);
-}
-body .usd-member .member-config-zone-overview span{font-size:15px;font-weight:800}
-body .usd-member .member-config-zone-overview strong{font-size:11px;font-weight:700;color:#c4d3e0}
-body .usd-member .member-config-zone-overview small{font-size:10px;color:#a1b5c5}
 @media(max-width:900px){
   body .usd-live .public-stage-grid{grid-template-columns:minmax(0,1fr)!important}
 }
@@ -451,10 +425,6 @@ body .usd-member .member-config-zone-overview small{font-size:10px;color:#a1b5c5
     gap:12px!important;
   }
   body .usd-live .usd-partner-showcase--full .usd-partner-tier--general .usd-partner-badge{grid-column:auto}
-  body .usd-member .member-config-zone-overview{gap:6px}
-  body .usd-member .member-config-zone-overview button{padding:11px 9px}
-  body .usd-member .member-config-zone-overview span{font-size:13px}
-  body .usd-member .member-config-zone-overview strong{font-size:10px}
 }
 @media(max-width:410px){
   body .usd-live .public-stage-card.usd-stage-card-approved{
