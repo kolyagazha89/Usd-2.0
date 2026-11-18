@@ -1,3 +1,4 @@
+import CollapsibleFilters from '../CollapsibleFilters';
 import {useEditorScroll} from './view-state';
 import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,ChevronLeft,Loader2,Pencil,Plus} from 'lucide-react';
@@ -24,8 +25,8 @@ function PartnersPage({PageFrame,ErrorPanel,LoadingPage,Empty}: {PageFrame:React
   <div className="panel partner-workbench" aria-label="Поиск и фильтры партнёров">
    <div className="partner-workbench-toolbar">
     <label>Поиск<input type="search" aria-label="Поиск партнёров" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Название, описание или сайт" autoComplete="off"/></label>
-    <label>Категория<select aria-label="Категория партнёров" value={tierFilter} onChange={e=>setTierFilter(e.target.value)}><option value="all">Все категории</option><option value="GENERAL">Генеральные</option><option value="PREMIUM">Премиальные</option><option value="REGULAR">Обычные</option><option value="STUDIO">Студии-партнёры</option></select></label>
-    <label>Статус<select aria-label="Видимость партнёров" value={visibilityFilter} onChange={e=>setVisibilityFilter(e.target.value as PartnerVisibilityFilter)}><option value="all">Все статусы</option><option value="visible">Опубликованы</option><option value="draft">Черновики</option><option value="hidden">Скрытые</option></select></label>
+    <CollapsibleFilters activeCount={Number(tierFilter!=='all')+Number(visibilityFilter!=='all')}><label>Категория<select aria-label="Категория партнёров" value={tierFilter} onChange={e=>setTierFilter(e.target.value)}><option value="all">Все категории</option><option value="GENERAL">Генеральные</option><option value="PREMIUM">Премиальные</option><option value="REGULAR">Обычные</option><option value="STUDIO">Студии-партнёры</option></select></label>
+    <label>Статус<select aria-label="Видимость партнёров" value={visibilityFilter} onChange={e=>setVisibilityFilter(e.target.value as PartnerVisibilityFilter)}><option value="all">Все статусы</option><option value="visible">Опубликованы</option><option value="draft">Черновики</option><option value="hidden">Скрытые</option></select></label></CollapsibleFilters>
    </div>
    <div className="partner-workbench-footer"><span role="status">Показано {visiblePartners.length} из {partners.length}</span>{(query||tierFilter!=='all'||visibilityFilter!=='all')&&<button type="button" className="secondary-button compact" onClick={()=>{setQuery('');setTierFilter('all');setVisibilityFilter('all')}}>Сбросить фильтры партнёров</button>}</div>
   </div>
