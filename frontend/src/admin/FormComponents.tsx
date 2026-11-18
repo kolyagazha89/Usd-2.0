@@ -42,7 +42,9 @@ export function SearchableSelect({value,options,onChange,placeholder='Выбер
 }
 
 export function EntityForm({fields,initial,saving,relationOptions={},onSubmit,enumLabel}:{fields:Field[];initial:any;saving:boolean;relationOptions?:Record<string,any[]>;onSubmit:(v:any)=>Promise<void>;enumLabel:(v:any)=>string}){
- const[v,setV]=useState<any>(initial??{}),[validationError,setValidationError]=useState(''),[step,setStep]=useState(0);
+ const[v,setV]=useState<any>(()=>fields.some(field=>field.name==='startTimeMsk')
+  ? {...(initial??{}),startTimeMsk:initial?.startTimeMsk||'10:00'}
+  : initial??{}),[validationError,setValidationError]=useState(''),[step,setStep]=useState(0);
  // Keep the start time alongside the date without adding a third data page
  // to the stage editor. Other resource forms retain five fields per step.
  const groups=groupFormFields(fields,fields.some(field=>field.name==='startTimeMsk')?6:5);
