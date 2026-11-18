@@ -9,6 +9,7 @@ import {
   IsString,
   Max,
   MaxLength,
+  Matches,
   Min,
 } from 'class-validator';
 
@@ -29,6 +30,11 @@ export class CreateStageDto {
 
   @IsDateString()
   date!: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^([01]\\d|2[0-3]):[0-5]\\d$/)
+  startTimeMsk?: string;
 
   @IsOptional()
   @IsString()
@@ -105,6 +111,11 @@ export class UpdateStageDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^([01]\\d|2[0-3]):[0-5]\\d$/)
+  startTimeMsk?: string;
 
   @IsOptional()
   @IsString()
