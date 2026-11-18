@@ -472,12 +472,25 @@ try{
       await first.getByLabel('Название марки').fill('Fixture edit — unsaved');
       await first.getByRole('button',{name:'Отмена'}).click();
       assert.equal(await first.getByLabel('Название марки').count(),0);
+      const workspace=page.getByRole('group',{name:'Рабочие вкладки каталога'});
+      assert.equal(await workspace.getByRole('button',{name:'Каталог',exact:true}).getAttribute('aria-pressed'),'true');
+      assert.equal(await page.locator('.catalog-import-panel').count(),0,'CSV import is not mixed into the catalog list');
+      await workspace.getByRole('button',{name:'Управление',exact:true}).click();
       const bulk=page.locator('.catalog-bulk-panel');
       await bulk.getByRole('button',{name:/Включить все в категории/}).click();
       await bulk.getByRole('group',{name:'Подтверждение массового включения'}).getByText(/включить 1 марок и 1 моделей/).waitFor();
       await bulk.getByRole('button',{name:'Отмена'}).click();
+      assert.equal(await page.locator('.catalog-merge').count(),1,'brand merging has its own workspace');
+      await workspace.getByRole('button',{name:'Импорт CSV',exact:true}).click();
+      assert.equal(await page.locator('.catalog-bulk-panel').count(),0,'destructive bulk management is hidden on import');
       assert.equal(await page.getByRole('button',{name:/Подготовить базовый каталог USD/}).count(),1,'official 3388-model seed is available without manual CSV download');
-      row.componentCatalog='brand/model management, official 3388-model seed, filters and bulk confirmation without writing';
+      await workspace.getByRole('button',{name:'Каталог',exact:true}).click();
+      assert.equal(await page.locator('.catalog-two-column').count(),1,'browse list returns with category choice intact');
+      const catalogSearch=page.getByRole('textbox',{name:'Поиск по брендам и моделям'});
+      await catalogSearch.fill('Случайная несуществующая марка USD');
+      await page.getByRole('button',{name:'Сбросить фильтры комплектующих'}).click();
+      assert.equal(await catalogSearch.inputValue(),'','catalog reset must clear search');
+      row.componentCatalog='browse/management/CSV workspaces, resettable filters, seed and bulk confirmation without writes';
      }
      if(route==='/offline-event'){
       await page.getByRole('heading',{name:'День соревнований'}).waitFor();
@@ -491,6 +504,16 @@ try{
       await desk.getByRole('heading',{name:'Активные'}).waitFor();
       await desk.locator('.event-day-person').first().waitFor({state:'visible'});
       assert.equal(await desk.locator('.event-day-person').count(),1,'one active registration renders without scrolling table');
+      if(width<=760){
+       const extra=desk.getByRole('button',{name:'Ещё действия',exact:true});
+       await extra.waitFor({state:'visible'});
+       assert.equal(await extra.getAttribute('aria-expanded'),'false');
+       await extra.click();
+       await desk.getByRole('button',{name:'Все инспекции',exact:true}).waitFor({state:'visible'});
+       assert.equal(await desk.getByRole('button',{name:'Скрыть действия'}).getAttribute('aria-expanded'),'true');
+       await desk.getByRole('button',{name:'Скрыть действия'}).click();
+       assert.equal(await desk.getByRole('button',{name:'Ещё действия'}).getAttribute('aria-expanded'),'false');
+      }
       await desk.getByRole('button',{name:'Допустить'}).click();
       const confirm=desk.getByRole('group',{name:/Подтверждение допуска/});
       await confirm.waitFor({state:'visible'});
@@ -505,7 +528,8 @@ try{
       await desk.getByRole('button',{name:'Допущено'}).first().click();
       await desk.getByText('По текущему фильтру участники не найдены').waitFor({state:'visible'});
       assert.equal(await desk.locator('.event-day-person').count(),0,'no pending registration may enter the admitted-only final list');
-      await desk.getByRole('button',{name:'Активные'}).first().click();
+      await desk.getByRole('button',{name:'Сбросить поиск и статус'}).click();
+      assert.equal(await desk.locator('.event-day-person').count(),1,'one click restores the active event roster');
       await desk.getByRole('search').getByRole('searchbox',{name:'Поиск участника в день соревнований'}).fill('№7');
       assert.equal(await desk.locator('.event-day-person').count(),1,'operator finds exact participant number');
       await desk.getByRole('search').getByRole('searchbox',{name:'Поиск участника в день соревнований'}).fill('№8');
@@ -1287,12 +1311,34 @@ try{
       await page.unroute('**/participants/me');
       row.memberDockStability='mobile dock is bottom-fixed and unchanged during delayed first data load';
      }
+     if(route==='/admin/participants'&&role==='ADMIN'){
+      const participants=page.locator('.panel.table-wrap[data-resource="/admin/participants"]');
+      const rows=participants.locator('.data-table tbody tr');
+      await rows.first().waitFor({state:'visible'});
+      assert.equal(await rows.first().getAttribute('tabindex'),'0','participant list has keyboard focusable cards');
+      const search=page.getByRole('searchbox',{name:'ФИО, город, команда'});
+      await search.fill('Случайный несуществующий участник USD 999');
+      await page.getByText('Ничего не найдено по запросу').waitFor({state:'visible'});
+      await page.getByRole('button',{name:'Показать всех участников'}).click();
+      assert.equal(await search.inputValue(),'');
+      await rows.first().waitFor({state:'visible'});
+      row.participantSearchRecovery='clear no-match filter, restore participant cards and keyboard focus';
+     }
      if(route==='/admin/cars'&&role==='ADMIN'){
       assert.equal(await page.locator('.data-table tbody tr').count(),25);
       await page.getByRole('button',{name:'Следующая страница автомобилей',exact:true}).click();
       assert.equal(await page.locator('.data-table tbody tr').count(),25);
       assert.match(await page.locator('.data-table tbody tr').first().innerText(),/Vesta 26/);
       await page.getByRole('button',{name:'Предыдущая страница автомобилей',exact:true}).click();
+      const carSearch=page.getByRole('searchbox',{name:'Поиск автомобилей'});
+      await carSearch.fill('Случайная несуществующая модель USD 999');
+      await page.getByText('По запросу ничего не найдено').waitFor({state:'visible'});
+      assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').count(),0);
+      await page.getByRole('button',{name:'Показать все автомобили'}).click();
+      assert.equal(await carSearch.inputValue(),'');
+      assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').count(),25);
+      assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').first().getAttribute('tabindex'),'0','car card can receive keyboard focus');
+      row.carSearchRecovery='no-match state recovers to all 25 cars with keyboard focusable rows';
       row.carPagination='25 rows per page; next and previous passed';
      }
      if(route==='/participant'&&role==='PARTICIPANT'){

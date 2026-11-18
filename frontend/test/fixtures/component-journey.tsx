@@ -9,7 +9,7 @@ const select=async(label:string,value:string)=>{const e=[...document.querySelect
 const Frame=({children}:any)=><main>{children}</main>,Title=({title}:any)=><h2>{title}</h2>,Empty=({text}:any)=><p>{text}</p>;
 export async function run(){const root=createRoot(document.getElementById('root')!);try{
  await act(async()=>root.render(<CatalogPage mode="components" PageFrame={Frame} PanelTitle={Title} Empty={Empty} LoadingPage={()=>null}/>));await flush();
- await click('Запросы');assert.match(document.body.textContent!,/Ошибка очереди/);await click('Повторить');assert.match(document.body.textContent!,/Old One/);await select('Статус','RESOLVED');assert.match(document.body.textContent!,/New Done/);await click('Каталог');
+ await click('Запросы');assert.match(document.body.textContent!,/Ошибка очереди/);await click('Повторить');assert.match(document.body.textContent!,/Old One/);await select('Статус','RESOLVED');assert.match(document.body.textContent!,/New Done/);await click('Каталог');await click('Управление');
  await select('Исходная марка','source');await select('Оставить название','target');
  (globalThis as any).__hold=true;await act(async()=>button('Предпросмотр').click());await flush();
  for(const label of ['Исходная марка','Оставить название','Область']){const e=[...document.querySelectorAll('label')].find(x=>x.textContent?.startsWith(label))?.querySelector('select');assert.ok(e?.disabled,label+' must be disabled while preview is pending')}
