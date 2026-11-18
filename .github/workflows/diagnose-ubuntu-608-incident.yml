@@ -1,13 +1,9 @@
 name: USD read-only Ubuntu PR608 incident evidence
 
-# One-off incident probe on an isolated diagnostic branch. Deliberately not
-# triggered on main, PRs, schedules, or general branches.
 on:
   push:
-    branches:
-      - diagnose/ubuntu-608-precheck-20261118
-    paths:
-      - .github/workflows/diagnose-ubuntu-608-incident.yml
+    branches: [diagnose/ubuntu-608-precheck-20261118]
+    paths: [.github/workflows/diagnose-ubuntu-608-incident.yml]
 
 permissions: {}
 
@@ -15,176 +11,34 @@ jobs:
   inspect:
     if: github.repository == 'kolyagazha89/Usd-2.0'
     runs-on: [self-hosted, linux, x64, usd-home-pc]
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
-      - name: Classify failed pre-switch release without disclosing host logs
+      - name: Read exact deployment status and timer without host mutations
         shell: bash
         run: |
           set -Eeuo pipefail
-          # Do not checkout repository, read files/env, call Docker/sudo,
-          # request deployments, or print raw journal messages.
           python3 - <<'PY'
-          import re
-          import subprocess
-
-          START = '2026-11-18 10:00:00 UTC'
-          END = '2026-11-18 10:25:00 UTC'
-          ERRORS = (
-              ('compose_overlay_mismatch', r'compose overlay counts differ|compose overlay order or names differ'),
-              ('compose_workdir_mismatch', r'compose working directories are not the approved|project.directory mismatch'),
-              ('compose_snapshot_missing', r'untrusted root-owned compose|missing or untrusted root-owned compose snapshot|compose file missing or symlinked'),
-              ('compose_unrecognized', r'unknown active compose file|legacy compose requires supervised|legacy overlay requires supervised'),
-              ('compose_source_differs', r'compose source.+differ|compose overlay.+hash|compose.*content mismatch|compose.*snapshot mismatch'),
-              ('rollback_image_mismatch', r'running images do not match the deployment environment|rollback tag does not identify|invalid running rollback image'),
-              ('database_baseline_unhealthy', r'existing api/frontend failed pre-release readiness|production db.*unhealthy|database.+not healthy'),
-              ('backup_failed', r'backup.+failed|backup.+missing|backup.+untrusted|backup.+unavailable|pg_dump|pg_restore|restore.*failed'),
-              ('verification_helper_missing', r'trusted.+helper missing|missing or untrusted.+verifier|untrusted public prerelease verifier'),
-              ('env_policy_rejected', r'production env|deployment targets are not the approved|unsupported ingress token|invalid or duplicated usd_image_tag'),
-              ('signature_failed', r'signature.+not verified|invalid verified candidate|image signature'),
-              ('candidate_image_missing', r'candidate.+image.*missing|requested sha was not built locally|docker image'),
-              ('failed_precheck_marker', r'usd_deploy_pre_switch_failure|release_precheck_failed'),
-          )
-
-          def capture(command):
+          import json, subprocess, re
+          def execute(argv):
               try:
-                  return subprocess.run(command, capture_output=True, text=True, timeout=18, check=False)
-              except (OSError, subprocess.TimeoutExpired):
-                  return None
-
-          print('USD_INCIDENT_PROBE=read_only_v1')
-          result = capture(['systemctl', 'show', 'usd-auto-deploy.service',
-                            '--property=ActiveState,SubState,Result,ExecMainCode,ExecMainStatus',
-                            '--no-pager'])
-          if result is not None and result.returncode == 0:
-              for line in result.stdout.splitlines():
-                  if re.fullmatch(r'(ActiveState|SubState|Result|ExecMainCode|ExecMainStatus)=[A-Za-z0-9_-]{0,40}', line):
-                      print('SERVICE_' + line)
-          else:
-              print('SERVICE_STATE=unavailable')
-
-          # Recheck without a time filter: journalctl may interpret the host
-          # local timezone differently; no raw entries are ever emitted.
-          for probe, command in [
-              ('incident_window', ['journalctl', '--no-pager', '-o', 'cat',
-                                  '-u', 'usd-auto-deploy.service',
-                                  '--since', START, '--until', END, '-n', '900']),
-              ('service_recent', ['journalctl', '--no-pager', '-o', 'cat',
-                                 '-u', 'usd-auto-deploy.service', '-n', '250']),
-              ('unit_status', ['systemctl', '--no-pager', '--lines=80',
-                               'status', 'usd-auto-deploy.service']),
-          ]:
-              journal = capture(command)
-              if journal is None:
-                  print(probe + '_ACCESS=unavailable')
-                  continue
-              if journal.returncode not in (0, 3):
-                  print(probe + '_ACCESS=denied_or_error')
-                  continue
-              lines = journal.stdout.splitlines()
-              matched = []
-              for line in lines:
-                  lower = line.lower()[:1400]
-                  for name, pattern in ERRORS:
-                      if re.search(pattern, lower):
-                          matched.append(name)
-              print(probe + '_LINES=' + str(min(9999, len(lines))))
-              print(probe + '_CODES=' + (','.join(dict.fromkeys(matched[-20:])) or 'no_known_pattern'))
-              if journal.stderr:
-                  stderr = journal.stderr.lower()
-                  hint = ('journal_unprivileged_hint' if 'not seeing messages' in stderr
-                          else 'access_error' if 'permission denied' in stderr
-                          else 'other_notice')
-                  print(probe + '_STDERR_CLASS=' + hint)
-          # Existing permission check only, never sudo or any Docker mutation.
-          # If the unprivileged runner has no Docker socket access, report that
-          # limitation instead of attempting privilege escalation.
-          containers = {}
-          for name in ('api', 'frontend'):
-              query = capture(['docker', 'ps', '-q',
-                               '--filter', 'label=com.docker.compose.project=usd-home',
-                               '--filter', 'label=com.docker.compose.service=' + name])
-              if query is None or query.returncode != 0:
-                  containers = {}
-                  break
-              identifiers = [x for x in query.stdout.splitlines()
-                             if re.fullmatch(r'[0-9a-f]{12,64}', x)]
-              if len(identifiers) != 1:
-                  containers = {}
-                  break
-              containers[name] = identifiers[0]
-          if len(containers) != 2:
-              print('DOCKER_READONLY=unavailable_for_unprivileged_runner')
-          else:
-              data = {}
-              for name, identifier in containers.items():
-                  item = capture(['docker', 'inspect', '--format',
-                                  '{{ index .Config.Labels "com.docker.compose.project.config_files" }}'
-                                  + '||' + '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}',
-                                  identifier])
-                  if item is not None and item.returncode == 0 and '||' in item.stdout:
-                      files, workdir = item.stdout.strip().split('||', 1)
-                      data[name] = (tuple(p.rsplit('/', 1)[-1] for p in files.split(',')), workdir)
-              if len(data) != 2:
-                  print('DOCKER_READONLY=unable_to_inspect')
-              else:
-                  print('DOCKER_READONLY=available')
-                  print('API_COMPOSE_OVERLAY_COUNT=' + str(len(data['api'][0])))
-                  print('FRONTEND_COMPOSE_OVERLAY_COUNT=' + str(len(data['frontend'][0])))
-                  print('COMPOSE_OVERLAY_ORDER_SAME=' + str(data['api'][0] == data['frontend'][0]).lower())
-                  print('COMPOSE_WORKDIR_SAME=' + str(data['api'][1] == data['frontend'][1]).lower())
-                  print('API_CONTAINS_LOCAL_OVERLAY=' + str('compose.local.yaml' in data['api'][0]).lower())
-                  print('FRONTEND_CONTAINS_LOCAL_OVERLAY=' + str('compose.local.yaml' in data['frontend'][0]).lower())
-          # Compare only the known Compose files as unprivileged runner.
-          # Never print host file contents or environment values.
-          from pathlib import Path
-          import hashlib
-          import difflib
-          left = Path('/home/usd/usd-deploy/deploy/home-pc/compose.yaml')
-          right = Path('/etc/usd-deployer/compose/compose.yaml')
-          print('COMPOSE_COMPARE=read_only')
-          contents = []
-          for name, path in (('running', left), ('reviewed', right)):
-              try:
-                  raw = path.read_bytes()
-                  if len(raw) > 1024 * 1024:
-                      print('COMPOSE_' + name.upper() + '=too_large')
-                      continue
-                  print('COMPOSE_' + name.upper() + '=readable')
-                  print('COMPOSE_' + name.upper() + '_SIZE=' + str(len(raw)))
-                  print('COMPOSE_' + name.upper() + '_SHA256=' + hashlib.sha256(raw).hexdigest())
-                  contents.append(raw)
-              except (OSError, UnicodeError):
-                  print('COMPOSE_' + name.upper() + '=not_accessible')
-          if len(contents) == 2:
-              print('COMPOSE_BYTES_IDENTICAL=' + str(contents[0] == contents[1]).lower())
-              try:
-                  a = contents[0].decode('utf-8').splitlines()
-                  b = contents[1].decode('utf-8').splitlines()
-                  differences = difflib.SequenceMatcher(None,a,b,autojunk=False).get_opcodes()
-                  changes = [(kind,i1,i2,j1,j2) for kind,i1,i2,j1,j2 in differences if kind!='equal']
-                  print('COMPOSE_CHANGED_RANGES=' + str(min(999,len(changes))))
-                  for kind,i1,i2,j1,j2 in changes[:8]:
-                      print('COMPOSE_DIFF_SHAPE=' + kind + ':' + str(i1+1) + '-' + str(i2) + ':'
-                            + str(j1+1) + '-' + str(j2))
-              except UnicodeError:
-                  print('COMPOSE_DIFF_SHAPE=undecodable')
-          # Public root-issued status protocol, already designed for
-          # unprivileged observation of a deployment attempt.
-          public_status = capture(['/usr/local/libexec/usd-deploy-status', 'read'])
-          if public_status is not None and public_status.returncode == 0:
-              try:
-                  import json
-                  payload = json.loads(public_status.stdout)
-                  allowed = {'candidate','completed','phase','reason','retryable','updated_at'}
-                  if isinstance(payload, dict) and isinstance(payload.get('reason'), str):
-                      print('PUBLIC_ATTEMPT=' + json.dumps(
-                          {key:payload.get(key) for key in sorted(allowed)},
-                          separators=(',',':'),sort_keys=True))
-                  else:
-                      print('PUBLIC_ATTEMPT=unavailable')
-              except (ValueError, TypeError):
-                  print('PUBLIC_ATTEMPT=invalid_protocol')
-          else:
-              print('PUBLIC_ATTEMPT=unavailable')
-          print('PROBE_FINISHED=read_only_no_host_changes')
+                  p=subprocess.run(argv, capture_output=True, text=True, timeout=12, check=False)
+                  return p.stdout if p.returncode==0 else None
+              except (OSError, subprocess.TimeoutExpired): return None
+          for unit in ('usd-auto-deploy.timer','usd-auto-deploy.service'):
+              response=execute(['systemctl','show',unit,
+                  '--property=ActiveState,SubState,Result,LastTriggerUSec,NextElapseUSecRealtime,NextElapseUSecMonotonic,ExecMainStatus',
+                  '--no-pager'])
+              values={}
+              for line in (response or '').splitlines():
+                  k,_,v=line.partition('=')
+                  if k in ('ActiveState','SubState','Result','LastTriggerUSec','NextElapseUSecRealtime','NextElapseUSecMonotonic','ExecMainStatus'):
+                      if re.fullmatch(r'[A-Za-z0-9 :+._-]{0,75}',v):values[k]=v
+              print(('TIMER' if unit.endswith('.timer') else 'SERVICE')+'='+json.dumps(values,sort_keys=True))
+          response=execute(['/usr/local/libexec/usd-deploy-status','read'])
+          try:
+              status=json.loads(response) if response else {}
+          except (ValueError,TypeError): status={}
+          fields=('candidate','completed','phase','reason','updated_at')
+          print('DEPLOY_STATUS='+json.dumps({k:status.get(k) for k in fields},sort_keys=True))
+          print('READ_ONLY_CHECK_COMPLETE=true')
           PY
