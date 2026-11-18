@@ -22,7 +22,7 @@ test('user search supports explicit submit and one-click clearing',async()=>{
  assert.match(code,/aria-label="Поиск пользователей по email"/);
  assert.match(code,/Найти/);
  assert.match(code,/aria-label="Очистить поиск пользователей"/);
- assert.match(code,/onClick=\{\(\)=>void load\(\{search:''\}\)\}/);
+ assert.match(code,/void load\(\{search:''\}\)/);
  assert.match(code,/Пользователи не найдены/);
  assert.match(code,/Сбросить поиск и фильтры/);
  assert.match(code,/aria-label="Обновить список пользователей"/);
@@ -31,8 +31,8 @@ test('user search supports explicit submit and one-click clearing',async()=>{
 test('system and custom roles are only persisted after an explicit confirmation',async()=>{
  const code=await get('UsersPage.tsx');
  assert.match(code,/pendingRoleChange/);
- assert.match(code,/setPendingRoleChange\(\{userId:u\.id,kind:'system'/);
- assert.match(code,/setPendingRoleChange\(\{userId:u\.id,kind:'custom'/);
+ assert.match(code,/proposeRole\(u,'system',e\.target\.value\)/);
+ assert.match(code,/proposeRole\(u,'custom',e\.target\.value\)/);
  assert.match(code,/Подтвердить изменение роли/);
  assert.match(code,/Отмена/);
  assert.match(code,/полный доступ/);
@@ -48,6 +48,7 @@ test('user list remains keyboard accessible with labelled status actions and vis
  assert.match(code,/e\.target===e\.currentTarget&&\(e\.key==='Enter'\|\|e\.key===' '\)/);
  assert.match(code,/aria-label=\{'Изменить статус пользователя '/);
  assert.match(code,/role="status"/);
+ assert.match(code,/requestId\.current/,'stale server searches must not overwrite newer results');
  assert.match(code,/setError\(''\)/);
 });
 
