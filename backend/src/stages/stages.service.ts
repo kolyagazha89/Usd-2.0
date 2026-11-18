@@ -324,7 +324,7 @@ export class StagesService {
     if (
       stage.name !== updated.name ||
       String(stage.date ?? '') !== String(updated.date ?? '') ||
-      stage.startTimeMsk !== updated.startTimeMsk ||
+      (stage.startTimeMsk ?? '10:00') !== (updated.startTimeMsk ?? '10:00') ||
       stage.city !== updated.city ||
       stage.venue !== updated.venue ||
       stage.address !== updated.address ||
