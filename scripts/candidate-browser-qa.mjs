@@ -267,7 +267,23 @@ try{
       row.newsPhotoFit=article?'article dimensions bounded with natural aspect':'home/list preview contains full image';
      }
      if(role===null&&route==='/teams'){
+      // The approved public directory opens on the catalog tab. The season
+      // comparison is intentionally lazy-mounted on its own accessible tab.
+      const tabs=page.getByRole('group',{name:'Раздел команд'});
+      const catalogTab=tabs.getByRole('button',{name:'Каталог команд'});
+      const resultsTab=tabs.getByRole('button',{name:'Результаты по этапам и сезонам'});
+      const directory=page.locator('.team-public-directory');
       const comparison=page.locator('.team-standings');
+      await catalogTab.waitFor({state:'visible'});
+      assert.equal(await catalogTab.getAttribute('aria-pressed'),'true',
+       'public teams first shows a compact, searchable directory');
+      await directory.locator('.p-team-card').first().waitFor({state:'visible'});
+      assert.equal(await directory.locator('.p-team-card').count(),1,
+       'catalog must render the real team before switching tabs');
+      assert.equal(await comparison.count(),0,'do not render standings behind the catalog');
+      await resultsTab.click();
+      assert.equal(await resultsTab.getAttribute('aria-pressed'),'true',
+       'the chosen results tab must be announced to assistive technologies');
       await comparison.getByRole('button',{name:/Показать выступления · USD Team/}).waitFor({state:'visible'});
       assert.equal(await comparison.getByRole('radio',{name:'Сезон'}).isChecked(),true,
        'team comparison opens on the latest published season');
@@ -280,11 +296,16 @@ try{
        'both performances link to the original athlete');
       assert.equal(await comparison.locator('.team-standings-performances a[href^="/results?stageId="]').count(),2,
        'each result links to its primary stage protocol');
-      assert.match(await comparison.innerText(),/30,?\.500|30\.500/,'MPS values remain distinct from dB values');
+      assert.match(await comparison.innerText(),/30,?\\.500|30\\.500/,'MPS values remain distinct from dB values');
       await comparison.getByRole('radio',{name:'Этап'}).check();
       await comparison.locator('select[aria-label="Выберите этап"]').waitFor();
       await comparison.getByRole('button',{name:/Показать выступления · USD Team/}).waitFor();
-      row.teamComparison='published results by season/stage with original protocol drilldown; no points';
+      await catalogTab.click();
+      assert.equal(await catalogTab.getAttribute('aria-pressed'),'true',
+       'returning to catalog switches the selected tab back');
+      await directory.locator('.p-team-card').first().waitFor({state:'visible'});
+      assert.equal(await comparison.count(),0,'results should unmount when returning to catalog');
+      row.teamComparison='compact directory -> live season/stage results -> catalog; original protocol drilldown and no points';
      }
      if(role===null&&(route==='/cars/car1'||route==='/participants/p1')){
       const carPhoto=route==='/cars/car1';
