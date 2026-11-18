@@ -9,6 +9,7 @@ import {
   IsString,
   Max,
   MaxLength,
+  Matches,
   Min,
 } from 'class-validator';
 
@@ -29,6 +30,12 @@ export class CreateStageDto {
 
   @IsDateString()
   date!: string;
+
+  /** Wall-clock start time on the event date, always in Moscow time. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([01]\\d|2[0-3]):[0-5]\\d$/, { message: 'Время начала этапа указывается в формате ЧЧ:ММ по Москве' })
+  startTimeMsk?: string;
 
   @IsOptional()
   @IsString()
@@ -105,6 +112,11 @@ export class UpdateStageDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^([01]\\d|2[0-3]):[0-5]\\d$/, { message: 'Время начала этапа указывается в формате ЧЧ:ММ по Москве' })
+  startTimeMsk?: string;
 
   @IsOptional()
   @IsString()
