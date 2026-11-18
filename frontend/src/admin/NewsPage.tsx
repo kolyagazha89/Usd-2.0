@@ -4,6 +4,8 @@ import {AlertTriangle,Bell,Plus,Pencil,Trash2} from 'lucide-react';
 import {getSiteSettings,updateSiteSettings,uploadSiteAsset} from '../api';
 import {validateImageUpload} from './upload-validation';
 import {newNewsDraft,prepareNewsItem,switchNewsPublication} from './news-content-lifecycle';
+import {filterNewsItems,type NewsPublicationFilter} from './admin-communications-utils';
+import './news-workbench.css';
 
 function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
  PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;
@@ -14,6 +16,7 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
  const [editing,setEditing]=useState<any|null>(null),[preview,setPreview]=useState(false);
  const [previewPhoto,setPreviewPhoto]=useState('');
  const [confirmDeleteId,setConfirmDeleteId]=useState('');
+ const [query,setQuery]=useState(''),[publicationFilter,setPublicationFilter]=useState<NewsPublicationFilter>('all');
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState('');
  useEditorScroll('news',editing!==null,!loading);
  const load=async()=>{
@@ -77,6 +80,8 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
  };
  const openEditor=(item:any)=>{setError('');setPreview(false);setEditing({...item})};
  const previewImage=previewPhoto||editing?.photoUrl;
+ const visibleItems=filterNewsItems(items,query,publicationFilter);
+ const publishedCount=items.filter(item=>item.isPublished!==false).length;
  return <PageFrame title="Новости" subtitle="Черновики, предпросмотр и публикация новостей USD"
   action={<button type="button" className="primary-button compact" disabled={saving}
    onClick={()=>openEditor(newNewsDraft())}><Plus size={15}/>Создать новость</button>}>
@@ -116,9 +121,17 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
      onClick={()=>{setEditing(null);setPreview(false)}}>Отмена</button>
    </div>
   </div>}
-  <div className="panel table-wrap">{loading?<LoadingPage small/>:items.length?<table className="data-table">
+  <div className="panel news-workbench">
+   <div className="news-workbench-toolbar" role="search" aria-label="Поиск и фильтры новостей">
+    <label>Поиск<input type="search" aria-label="Поиск новостей" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Заголовок или текст" autoComplete="off"/></label>
+    <label>Публикация<select aria-label="Статус публикации новости" value={publicationFilter} onChange={e=>setPublicationFilter(e.target.value as NewsPublicationFilter)}><option value="all">Все новости</option><option value="published">Опубликованные</option><option value="draft">Черновики</option></select></label>
+    {(query||publicationFilter!=='all')&&<button type="button" className="secondary-button compact" onClick={()=>{setQuery('');setPublicationFilter('all')}}>Сбросить фильтры новостей</button>}
+   </div>
+   <p className="news-workbench-count" role="status">Показано {visibleItems.length} из {items.length} · Опубликовано {publishedCount} · Черновиков {items.length-publishedCount}</p>
+  </div>
+  <div className="panel table-wrap news-workbench-results">{loading?<LoadingPage small/>:visibleItems.length?<table className="data-table">
    <thead><tr><th>Заголовок</th><th>Дата</th><th>Статус</th><th>Действия</th></tr></thead>
-   <tbody>{items.map((n:any)=><tr key={n.id}>
+   <tbody>{visibleItems.map((n:any)=><tr key={n.id}>
     <td data-label="Заголовок"><strong>{n.title}</strong><small className="table-sub">{n.excerpt}</small></td>
     <td data-label="Дата">{n.publishedAt?formatDate(n.publishedAt):'Не опубликована'}</td>
     <td data-label="Статус"><span className={'badge '+(n.isPublished!==false?'good':'')}>{n.isPublished===false?'Черновик':'Опубликована'}</span></td>
@@ -136,7 +149,7 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
        onClick={()=>setConfirmDeleteId(n.id)} title="Удалить"><Trash2 size={14}/></button>}
     </td>
    </tr>)}</tbody>
-  </table>:<Empty text="Новостей пока нет. Создайте первую публикацию."/>}</div>
+  </table>:items.length?<div className="news-workbench-empty"><Empty text="По выбранным фильтрам новости не найдены."/><button type="button" className="secondary-button compact" onClick={()=>{setQuery('');setPublicationFilter('all')}}>Показать все новости</button></div>:<Empty text="Новостей пока нет. Создайте первую публикацию."/>}</div>
  </PageFrame>
 }
 
