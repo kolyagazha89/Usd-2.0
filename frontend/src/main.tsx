@@ -13,12 +13,12 @@ import './public/premium-base.css';
 import './public/premium-public.css';
 import './public/premium-member.css';
 import './public/premium-configurator.css';
+import './approved-public-refresh.css';
 import './participant/member-experience.css';
 import './dark-velocity-sitewide.css';
 import './sitewide-finish.css';
 import './sitewide-premium-2026.css';
 import './admin/admin-shell-layout.css';
-import './approved-public-refresh.css';
 
 // Keep the LAN spectator display free of consent modals, scrolling effects
 // and service-worker update attempts. It has no account or write workflow.
