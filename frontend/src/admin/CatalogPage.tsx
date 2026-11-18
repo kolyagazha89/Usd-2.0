@@ -229,7 +229,7 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
  </section>}
  {workspace==='browse'&&<div className="toolbar catalog-filter-bar">
   <div className="search-box"><Search size={15}/><input value={query} aria-label="Поиск по брендам и моделям" onChange={e=>{setQuery(e.target.value);setModelPage(1)}} placeholder="Поиск марки или модели"/></div>
-  <CollapsibleFilters activeCount={Number(activityFilter!=='ALL')+Number(lifecycleFilter!=='ALL')}><label className="catalog-filter-label">Статус
+  <CollapsibleFilters activeCount={Number(activityFilter!=='ALL')}><label className="catalog-filter-label">Статус
    <select value={activityFilter} onChange={e=>{setActivityFilter(e.target.value as typeof activityFilter);setModelPage(1)}} aria-label="Статус записей справочника">
     <option value="ALL">Все записи</option><option value="ENABLED">Включены</option><option value="DISABLED">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option>
    </select>
@@ -277,7 +277,7 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
     <input aria-label="Название новой модели" value={model} onChange={e=>setModel(e.target.value)} placeholder="Модель / серия" maxLength={160} required/>
     <button type="submit" className="primary-button compact" disabled={saving||!modelBrand||!model.trim()}><Plus size={15}/>Добавить</button>
    </form>
-   <CollapsibleFilters activeCount={Number(lifecycleFilter!=='ALL')+Number(Boolean(modelBrand))} className="usd-catalog-lifecycle-drawer"><div className="catalog-category-tabs catalog-model-filters">
+   <CollapsibleFilters activeCount={Number(lifecycleFilter!=='ALL')+Number(Boolean(modelBrand))} className="usd-catalog-lifecycle-drawer" label="Фильтры моделей"><div className="catalog-category-tabs catalog-model-filters">
     <button type="button" className={'secondary-button compact '+(lifecycleFilter==='ALL'?'active':'')} onClick={()=>setLifecycleFilter('ALL')}>Все</button>
     <button type="button" className={'secondary-button compact '+(lifecycleFilter==='ACTIVE'?'active':'')} onClick={()=>setLifecycleFilter('ACTIVE')}>Актуальные</button>
     <button type="button" className={'secondary-button compact '+(lifecycleFilter==='DISCONTINUED'?'active':'')} onClick={()=>setLifecycleFilter('DISCONTINUED')}>Снятые с производства</button>
