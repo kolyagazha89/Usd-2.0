@@ -67,3 +67,28 @@ test('all candidate shards independently build and keep screenshot artifacts', (
   assert.match(workflow, /if: always\(\)/);
   assert.match(workflow, /timeout-minutes:\s*30/);
 });
+
+test('team directory and season comparison are tested as separate, accessible screens on both browser widths', () => {
+  const candidate = readFileSync(path.join(root, 'scripts/candidate-browser-qa.mjs'), 'utf8');
+  const start = candidate.indexOf("if(role===null&&route==='/teams'){");
+  const end = candidate.indexOf("if(role===null&&(route==='/cars/car1'", start);
+  assert.ok(start >= 0 && end > start, 'team QA must stay in both public browser matrix suites');
+  const teamJourney = candidate.slice(start, end);
+  const catalog = "getByRole('button',{name:'Каталог команд'})";
+  const results = "getByRole('button',{name:'Результаты по этапам и сезонам'})";
+  const standings = "getByRole('button',{name:/Показать выступления · USD Team/})";
+  assert.match(teamJourney, /\.team-public-directory/, 'verify directory on the initial catalog screen');
+  assert.match(teamJourney, /\.p-team-card/, 'directory should show actual team links');
+  assert.match(teamJourney, /\.team-standings/, 'keep season and stage protocol assertions');
+  assert.ok(teamJourney.indexOf(catalog) !== -1, 'check the catalog tab');
+  assert.ok(teamJourney.indexOf(results) !== -1, 'check the results tab');
+  assert.ok(teamJourney.indexOf('await resultsTab.click();') > 0 && teamJourney.indexOf('await resultsTab.click();') < teamJourney.indexOf(standings),
+    'open the results tab before inspecting the standings');
+  assert.ok(teamJourney.lastIndexOf('await catalogTab.click();') > teamJourney.indexOf(standings),
+    'return to the catalog and verify it remains accessible');
+  const measurementAssertion=teamJourney.match(/assert\.match\(await comparison\.innerText\(\),\/([^/]+)\/,'MPS values remain distinct/);
+  assert.ok(measurementAssertion,'keep an actual result measurement check after expanding a team');
+  const measurementPattern=new RegExp(measurementAssertion[1]);
+  assert.match('30.500 м/с',measurementPattern,'the browser QA regex must accept actual MPS result');
+  assert.doesNotMatch('30x500 м/с',measurementPattern,'decimal separator must be treated literally');
+});

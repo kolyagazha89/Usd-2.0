@@ -223,6 +223,16 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
     </div>
 
     <nav className="member-config-directions" aria-label="Разделы конфигуратора">{editorViews.map(({key,short,icon:Icon})=><button key={key} data-section={key} type="button" aria-pressed={activeView===key} className={activeView===key?'is-active':''} onClick={()=>setActiveView(key)}><Icon size={17}/><span>{short}</span>{viewIsReady(key)&&<i aria-label="Заполнено"/>}</button>)}</nav>
+    <div className="member-config-zone-overview" role="group" aria-label="Басс, фронт и тыл">
+      {(['SUB','FRONT','REAR'] as const).map(direction=><button
+        key={direction} type="button" aria-pressed={activeView===direction}
+        className={activeView===direction?'is-active':''}
+        onClick={()=>setActiveView(direction)}>
+        <span>{direction==='SUB'?'Басс':direction==='FRONT'?'Фронт':'Тыл'}</span>
+        <strong>{v.audioComponents.filter((item:any)=>item.direction===direction).length} компонентов</strong>
+        <small>{viewIsReady(direction)?'Заполнено':'Можно дополнить'}</small>
+      </button>)}
+    </div>
     <div className="member-config-readiness"><span><span className={viewIsReady(activeView)?'ready-dot':'pending-dot'}/>{activeView==='SUB'?'SPL / BassRace / Storm Wall':activeView==='FRONT'?'BFSPL':activeView==='REAR'?'BDW SPL':selectedView.label}</span><strong>{viewIsReady(activeView)?'Заполнено':activeView==='SETUP'?'Укажите название':['SUB','FRONT','REAR'].includes(activeView)?'Не заполнено':'Необязательно'}</strong></div>
     {picker&&!admin&&<div ref={pickerOverlayRef} className="member-config-picker-overlay" role="presentation" onClick={()=>{if(!mobilePicker)setPicker(null)}}>
       <section ref={pickerDialogRef} tabIndex={-1} className="member-config-picker-screen" role={mobilePicker?'region':'dialog'} aria-modal={mobilePicker?undefined:true} aria-label="Добавить оборудование" onClick={e=>e.stopPropagation()}>

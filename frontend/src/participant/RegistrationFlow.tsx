@@ -1,4 +1,5 @@
 import {canContinueVehicleRegistration} from './registration-classes';
+import RegistrationNumberPreview from './RegistrationNumberPreview';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {ArrowLeft,ArrowRight,CalendarDays,Check,MapPin,ShieldCheck} from 'lucide-react';
 
@@ -20,6 +21,7 @@ export default function RegistrationFlow({stage,date,vehicle,classes,confirmatio
  return <div className="member-entry-flow">
   <nav className="entry-steps" aria-label="Шаги регистрации"><ol>{steps.map((label,index)=><li key={label} data-state={index===step?'current':index<step?'complete':'next'}><button type="button" disabled={busy||index>step} aria-current={index===step?'step':undefined} onClick={()=>move(index)}><span>{index<step?<Check size={15}/>:String(index+1).padStart(2,'0')}</span><strong>{label}</strong></button></li>)}</ol></nav>
   <div className="entry-workspace"><div className="entry-task"><div className="entry-task-title"><span className="eyebrow">ШАГ {step+1} ИЗ 3</span><h2 ref={title} tabIndex={-1}>{['На чём выступаете?','В каких классах участвуете?','Проверьте вашу заявку'][step]}</h2><p>{['Выберите автомобиль и состав системы для этого этапа.','Отметьте классы. Доступность зависит от оборудования автомобиля.','Проверьте данные и подтвердите согласия перед отправкой.'][step]}</p></div>
+   {step===2&&<RegistrationNumberPreview stageId={stage.id}/>}
    {step===0?vehicle:step===1?classes:confirmation}
    {step===0&&repeatVehicle&&vehicleReady&&<fieldset className="entry-configuration-review">
     <legend>Вы меняли аудиосистему после предыдущего выступления?</legend>

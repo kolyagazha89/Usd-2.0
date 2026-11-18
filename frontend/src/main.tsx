@@ -13,6 +13,7 @@ import './public/premium-base.css';
 import './public/premium-public.css';
 import './public/premium-member.css';
 import './public/premium-configurator.css';
+import './approved-public-refresh.css';
 import './participant/member-experience.css';
 import './dark-velocity-sitewide.css';
 import './sitewide-finish.css';

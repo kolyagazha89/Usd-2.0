@@ -116,6 +116,14 @@ export class RegistrationsController {
     return this.registrationsService.createOnSiteCar(request, body);
   }
 
+
+  // Authenticated registration review only — never shows participant identities.
+  @Roles('ADMIN', 'PARTICIPANT')
+  @Get('stage/:stageId/preview')
+  previewStageRegistration(@Param('stageId') stageId: string) {
+    return this.registrationsService.previewStageRegistration(stageId);
+  }
+
   @Get(':id')
   async findOne(
     @Req() request: AuthenticatedRequest,
