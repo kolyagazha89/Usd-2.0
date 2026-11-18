@@ -1,6 +1,7 @@
 import {AdminEntityLink} from './AdminEntityLink';
 import './profile-links.css';
 import DuplicateProfilesPreview from './DuplicateProfilesPreview';
+import {afterProfileLinkDecision} from './profile-link-operator-model';
 import {useEffect,useState} from 'react';
 import {apiGet,apiPatch,apiPost} from '../api';
 
@@ -34,6 +35,7 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
  const [rows,setRows]=useState<LinkRequest[]>([]),[status,setStatus]=useState('PENDING'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [diagnoses,setDiagnoses]=useState<Record<string,string>>({}),[diagnosing,setDiagnosing]=useState<string|null>(null);
  const [advancedVisited,setAdvancedVisited]=useState(false);
+ const [reviewNotice,setReviewNotice]=useState('');
  const loadCoverage=async()=>{try{setCoverageError('');setCoverage(await apiGet<Coverage>('/admin/profile-links/coverage'))}catch(e){setCoverageError(e instanceof Error?e.message:'Статистика архивных email недоступна')}};
  useEffect(()=>{if(advancedVisited)void loadCoverage()},[advancedVisited]);
  const reconcileEmails=async(apply:boolean)=>{
@@ -60,9 +62,12 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
   if(decision==='APPROVE'&&(row.participant.user||row.claimant.participantId)){
    setError('Привязка заблокирована: профиль или аккаунт уже занят. Обновите список.');return;
   }
-  setBusy(true);setError('');
+  setBusy(true);setError('');setReviewNotice('');
   try{
    await apiPatch('/admin/profile-links/'+encodeURIComponent(row.id),{decision});
+   setRows(current=>afterProfileLinkDecision(current,row.id,decision,status));
+   if(decision==='APPROVE')setReviewNotice('Привязка подтверждена');
+   else setReviewNotice('Заявка отклонена');
    await load();
   }catch(e){setError(e instanceof Error?e.message:'Не удалось обработать заявку')}finally{setBusy(false)}
  };
@@ -70,9 +75,10 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
   <section className="profile-link-work-queue" aria-label="Заявки на привязку профилей">
    <header className="profile-link-queue-heading"><div><h2>Заявки на привязку</h2><p>Сначала разберите заявки участников. Проверка архивных email и объединение дублей доступны ниже отдельно.</p></div>{status==='PENDING'&&!loading&&<span className="profile-link-pending-count" role="status">{rows.length} ожидают решения</span>}</header>
   <div className="profile-link-filters"><label>Статус
-   <select value={status} onChange={e=>{setStatus(e.target.value);setError('')}}>
+   <select value={status} onChange={e=>{setStatus(e.target.value);setError('');setReviewNotice('')}}>
     <option value="">Все</option>{Object.entries(statusText).map(([value,label])=><option key={value} value={value}>{label}</option>)}
    </select></label><button type="button" onClick={()=>void load()} disabled={loading||busy}>Обновить</button></div>
+  {reviewNotice&&<p className="profile-link-review-notice" role="status">{reviewNotice}</p>}
   {error&&<div className="form-error" role="alert">{error}</div>}
   {loading?<LoadingPage/>:rows.length===0?<p className="muted">Заявок с выбранным статусом нет.</p>:<div className="profile-link-list">{rows.map(row=><article className="profile-link-card" key={row.id}>
    <div><small>{statusText[row.status]??row.status} · {new Date(row.createdAt).toLocaleString('ru-RU')}</small>
