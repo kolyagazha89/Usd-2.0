@@ -192,6 +192,13 @@ body .usd-live .usd-partner-showcase--full .usd-partner-card .usd-partner-info h
   line-height:1.2!important;
   overflow-wrap:anywhere;
 }
+/* Keep the existing Bass / Front / Rear editor regions as the source of truth. */
+body .usd-member .configuration-editor-page[data-member-view] .config-direction-workspace {
+  scroll-margin-top:94px;
+}
+body .usd-member .configuration-editor-page[data-member-view] .config-direction-workspace-head {
+  border-radius:12px;
+}
 /* Participant registration review: actual estimate, never a reserved sticker. */
 body .usd-member .registration-number-preview{
   border:1px solid #48586b;
