@@ -30,6 +30,9 @@ test('approved compact visuals preserve stage posters, original partner framing 
   assert.match(app,/usd-stage-card-approved/);
   assert.match(community,/usd-public-cars-approved/);
   assert.match(community,/usd-contact-approved/);
+  const contacts=community.slice(community.indexOf("if(kind==='contacts'){"),community.indexOf("if(kind==='about')"));
+  assert.ok(contacts.indexOf('p-contacts u-panel')<contacts.indexOf('p-contact-story u-panel'),
+    'contact links must precede decoration in keyboard and screen-reader reading order');
   assert.match(partners,/PartnerImage/);
   assert.match(refresh,/object-fit:\s*contain/);
 });
