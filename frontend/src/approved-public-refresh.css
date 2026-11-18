@@ -185,9 +185,8 @@ body .usd-live .usd-partner-showcase--full .usd-partner-tier--general .usd-partn
 body .usd-live .usd-partner-showcase--full .usd-partner-card{
   border-radius:14px!important;
 }
-body .usd-live .usd-partner-showcase--full .usd-partner-visual img{
-  object-fit:contain;
-}
+/* PartnerImage already respects original LOGO / BANNER fit and manual zoom.
+   Do not override its object-fit: a user-managed banner may require cover. */
 body .usd-live .usd-partner-showcase--full .usd-partner-card .usd-partner-info h3{
   line-height:1.2!important;
   overflow-wrap:anywhere;
