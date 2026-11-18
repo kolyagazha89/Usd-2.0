@@ -24,6 +24,15 @@ export async function runStageCardActions(){
  await act(async()=>root.render(<Harness/>));await flush();
  const row=()=>document.querySelector('tbody tr') as HTMLElement;
  assert.equal(row().querySelectorAll('button').length,2,'only edit and registration toggle belong in the list');
+ const stageFilter=document.querySelector('select[aria-label="Статус этапа"]') as HTMLSelectElement;
+ assert.ok(stageFilter,'stage status filter must be accessible');
+ for(const state of ['DRAFT','PUBLISHED','COMPLETED','CANCELLED'])
+  assert.ok([...stageFilter.options].some(option=>option.value===state),'missing '+state);
+ await act(async()=>{stageFilter.value='COMPLETED';stageFilter.dispatchEvent(new window.Event('change',{bubbles:true}))});await flush();
+ assert.equal(document.querySelectorAll('tbody tr').length,0,'published stage must be absent in completed filter');
+ assert.match(document.querySelector('.usd-admin-filter-empty')?.textContent??'',/фильтр/i);
+ await click(document.querySelector('button[aria-label="Сбросить фильтры"]') as HTMLElement);
+ assert.equal(document.querySelectorAll('tbody tr').length,1,'reset filters restores the stage');
  assert.equal(button('Удалить навсегда'),undefined);
  await click(button('Закрыть регистрацию'));
  assert.deepEqual(state.__stageCalls.at(-1),{method:'PATCH',path:'/stages/stage-11',body:{registrationOpen:false}});
@@ -31,7 +40,8 @@ export async function runStageCardActions(){
  state.__stageFail=true;await click(button('Открыть регистрацию'));state.__stageFail=false;
  assert.match(document.querySelector('[role="alert"]')!.textContent!,/Изменение недоступно/);
  assert.ok(button('Открыть регистрацию'));
- await click(row());
+ assert.equal(row().getAttribute('tabindex'),'0','stage rows are reachable from the keyboard');
+ await act(async()=>row().dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true})));await flush();
  assert.match(location.search,/view=stage-11/);
  assert.ok(button('Афиша'));assert.ok(button('Опубликовать результаты'));
  assert.ok(button('Отменить этап'));assert.ok(button('Удалить навсегда'));

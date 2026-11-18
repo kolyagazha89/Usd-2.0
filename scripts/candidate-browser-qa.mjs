@@ -443,6 +443,9 @@ try{
       row.pushTemplates='pending changes warning, explicit discard, no accidental broadcast';
      }
      if(role==='ADMIN'&&route==='/admin/news'){
+      const drawer=page.locator('.news-workbench-toolbar .usd-filter-drawer');
+      assert.equal(await drawer.getAttribute('open'),null,'news filters are compact by default');
+      await drawer.locator('summary').click();
       const filter=page.getByRole('combobox',{name:'Статус публикации новости'});
       await filter.selectOption('draft');
       await page.getByText('По выбранным фильтрам новости не найдены.').waitFor({state:'visible'});
@@ -455,6 +458,9 @@ try{
       row.newsFilters='draft/published filter, search, reset; no publication changes';
      }
      if(role==='ADMIN'&&route==='/admin/partners'){
+      const drawer=page.locator('.partner-workbench-toolbar .usd-filter-drawer');
+      assert.equal(await drawer.getAttribute('open'),null,'partner filters are compact by default');
+      await drawer.locator('summary').click();
       const visibility=page.getByRole('combobox',{name:'Видимость партнёров'});
       await visibility.selectOption('hidden');
       await page.getByText('Скрытый тестовый').waitFor({state:'visible'});

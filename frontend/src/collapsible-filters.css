@@ -1,0 +1,195 @@
+/* Shared admin/public filter disclosure. Keep the search and stage selector visible. */
+.usd-filter-drawer{
+ display:block;
+ min-width:0;
+ max-width:100%;
+ align-self:start;
+}
+.usd-filter-trigger{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ gap:9px;
+ min-height:42px;
+ padding:9px 14px;
+ border:1px solid #cbd5e1;
+ border-radius:11px;
+ background:#fff;
+ color:#172335;
+ font:inherit;
+ font-size:13px;
+ font-weight:750;
+ cursor:pointer;
+ list-style:none;
+ box-sizing:border-box;
+ user-select:none;
+}
+.usd-filter-trigger::-webkit-details-marker{display:none}
+.usd-filter-trigger::marker{display:none}
+.usd-filter-trigger:focus-visible{
+ outline:3px solid #e23e4e;
+ outline-offset:3px;
+}
+.usd-filter-active-count{
+ display:inline-grid;
+ place-items:center;
+ min-width:19px;
+ height:19px;
+ padding:0 5px;
+ border-radius:10px;
+ background:#d92944;
+ color:#fff;
+ font-size:11px;
+ font-weight:800;
+}
+.usd-filter-chevron{
+ width:8px;
+ height:8px;
+ border-right:2px solid currentColor;
+ border-bottom:2px solid currentColor;
+ transform:rotate(45deg) translateY(-2px);
+ transition:transform .16s ease;
+}
+.usd-filter-drawer[open] .usd-filter-chevron{transform:rotate(225deg) translate(-2px,-1px)}
+.usd-filter-content{
+ display:flex;
+ flex-wrap:wrap;
+ gap:10px 14px;
+ align-items:flex-end;
+ min-width:0;
+ padding:12px 0 4px;
+}
+.usd-filter-content>label{
+ display:flex;
+ flex-direction:column;
+ align-items:stretch;
+ gap:5px;
+ min-width:min(190px,100%);
+ flex:1 1 190px;
+}
+.usd-filter-content select{
+ box-sizing:border-box;
+ max-width:100%;
+ min-width:0;
+ min-height:42px;
+}
+.usd-filter-content>button{min-height:42px}
+.usd-filter-theme-public .usd-filter-trigger{
+ background:#121923;
+ border-color:#374759;
+ color:#edf2f6;
+}
+.usd-filter-theme-public .usd-filter-content>label{color:inherit}
+.usd-filter-theme-public .usd-filter-content select{color:inherit}
+body .app-shell .main .content .usd-filter-drawer .usd-filter-trigger{color:#172335;background:#fff;border-color:#cbd5e1}
+body .app-shell .main .content .usd-filter-drawer .usd-filter-content select{color:#1d2026;background:#fff}
+body .app-shell .main .content .usd-filter-drawer .usd-filter-content label{color:#444d5a}
+@media(max-width:700px){
+ .usd-filter-drawer{width:100%}
+ .usd-filter-trigger{width:100%;justify-content:flex-start}
+ .usd-filter-chevron{margin-left:auto}
+ .usd-filter-content{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+ .usd-filter-content>label{width:100%;min-width:0}
+ .usd-filter-content select{width:100%;min-height:44px}
+}
+@media(prefers-reduced-motion:reduce){
+ .usd-filter-chevron{transition:none}
+}
+
+/* Keep high-priority search visible without the former three-column filter wall. */
+body .usd-live .p-measurement-filters.usd-measurement-filter-bar{
+ display:flex!important;
+ flex-wrap:wrap!important;
+ gap:10px!important;
+ align-items:flex-start!important;
+}
+body .usd-live .p-measurement-filters.usd-measurement-filter-bar>.p-search{
+ flex:1 1 260px!important;
+ min-width:0!important;
+ max-width:100%!important;
+}
+body .usd-live .p-measurement-filters.usd-measurement-filter-bar>.usd-filter-drawer{
+ flex:0 1 auto;
+ border:0!important;
+ background:transparent!important;
+ padding:0!important;
+}
+body .usd-live .p-measurement-filters.usd-measurement-filter-bar .usd-filter-content{
+ width:min(470px,100%);
+}
+body .usd-live .p-measurement-filters.usd-measurement-filter-bar .usd-filter-content>.p-filter{
+ flex:1 1 180px;
+ min-width:0;
+}
+body .usd-live .usd-filter-theme-public .usd-filter-trigger{
+ background:#19232e!important;
+ border:1px solid #445368!important;
+ color:#f3f6fa!important;
+}
+body .usd-live .usd-filter-theme-public .usd-filter-content :is(select,option){
+ color:#f3f6fa;
+ background:#19232e;
+}
+.team-achievement-overview>.usd-filter-drawer{min-width:0;width:100%}
+.team-achievement-overview>.usd-filter-drawer .usd-filter-content{display:block}
+.team-achievement-overview>.usd-filter-drawer .team-achievement-filters{
+ display:flex;
+ flex-wrap:wrap;
+ gap:10px;
+ align-items:flex-end;
+}
+.team-achievement-overview>.usd-filter-drawer .team-achievement-filter{
+ flex:1 1 170px;
+ min-width:0;
+}
+.news-workbench-toolbar>.usd-filter-drawer,
+.partner-workbench-toolbar>.usd-filter-drawer{min-width:0;max-width:100%;align-self:start}
+.news-workbench-toolbar .usd-filter-content>label,
+.partner-workbench-toolbar .usd-filter-content>label{min-width:min(190px,100%)}
+body .app-shell .main .content .toolbar.usd-resource-filter-toolbar{
+ display:flex;
+ flex-wrap:wrap;
+ gap:10px;
+ align-items:center;
+}
+body .app-shell .main .content .toolbar.usd-resource-filter-toolbar>.search-box{
+ min-width:170px;
+ flex:1 1 220px;
+}
+body .app-shell .main .content .toolbar.usd-resource-filter-toolbar>.usd-filter-drawer{
+ flex:0 1 auto;
+}
+body .app-shell .main .content .event-ops-page .stage-picker>.usd-filter-drawer{
+ min-width:0;
+ width:100%;
+}
+body .app-shell .main .content .event-ops-page .stage-picker>.usd-filter-drawer .usd-filter-content{
+ width:100%;
+}
+body .app-shell .main .content .event-ops-page .stage-picker>.usd-filter-drawer .usd-filter-content>label{
+ flex:1 1 160px;
+ min-width:0;
+}
+body .app-shell .main .content .catalog-filter-bar>.usd-filter-drawer{
+ min-width:0;
+ flex:0 1 auto;
+}
+@media(max-width:700px){
+ body .usd-live .p-measurement-filters.usd-measurement-filter-bar>.p-search{
+  width:100%!important;
+  flex-basis:100%!important;
+ }
+ body .usd-live .p-measurement-filters.usd-measurement-filter-bar>.usd-filter-drawer{
+  width:100%;
+  flex-basis:100%;
+ }
+ body .usd-live .p-measurement-filters.usd-measurement-filter-bar .usd-filter-content{width:100%}
+ body .app-shell .main .content .toolbar.usd-resource-filter-toolbar>.usd-filter-drawer{
+  flex:1 1 100%;
+ }
+ body .app-shell .main .content .catalog-filter-bar>.usd-filter-drawer{flex:1 1 100%}
+ .team-achievement-overview>.usd-filter-drawer .team-achievement-filters{display:grid;grid-template-columns:minmax(0,1fr)}
+ .team-achievement-overview>.usd-filter-drawer .team-achievement-filter{width:100%}
+ .news-workbench-toolbar>.usd-filter-drawer,
+ .partner-workbench-toolbar>.usd-filter-drawer{width:100%;grid-column:1/-1}
+}

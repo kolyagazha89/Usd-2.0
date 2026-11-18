@@ -1,3 +1,4 @@
+import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,AdminRouteLink} from '../admin/AdminEntityLink';
 import {useEffect,useState} from 'react';
 import {apiGet} from '../api';
@@ -47,7 +48,7 @@ export default function TeamStageAchievements({teamId,mode='current',admin=false
     <p><strong>{selectedFilters?visibleSummary.podiums:data.summary.podiums}</strong><span>личных призовых мест</span></p>
     <p><strong>{selectedFilters?visibleSummary.firstPlaces:data.summary.firstPlaces}</strong><span>личных первых мест</span></p>
    </div>
-   <div className="team-achievement-filters"><label className="team-achievement-filter">Направление
+   <CollapsibleFilters theme={admin?'admin':'public'} activeCount={Number(Boolean(direction))+Number(Boolean(season))+Number(Boolean(stageId))}><div className="team-achievement-filters"><label className="team-achievement-filter">Направление
     <select aria-label="Фильтр выступлений по направлению" value={direction} onChange={e=>setDirection(e.target.value)}>
      <option value="">Все направления</option>
      {data.summary.directions.map(item=><option key={item.name} value={item.name}>{item.name} · {item.performances}</option>)}
@@ -65,7 +66,7 @@ export default function TeamStageAchievements({teamId,mode='current',admin=false
      {data.stages.filter(stage=>!season||stage.date.slice(0,4)===season).map(stage=><option key={stage.id} value={stage.id}>{stage.name}</option>)}
     </select>
    </label>
-   {selectedFilters&&<button type="button" className="u-btn u-quiet team-filter-reset" onClick={()=>{setDirection('');setSeason('');setStageId('')}}>Сбросить все фильтры</button>}</div>
+   {selectedFilters&&<button type="button" className="u-btn u-quiet team-filter-reset" onClick={()=>{setDirection('');setSeason('');setStageId('')}}>Сбросить все фильтры</button>}</div></CollapsibleFilters>
   </div>:null}
   {loading?<p role="status">Загружаем результаты…</p>:error?<div role="alert"><p>{error}</p><button className="u-btn u-quiet" onClick={()=>setRetry(v=>v+1)}>Повторить загрузку</button></div>:data?.stages.length?
    <><p className="team-achievements-total">{visibleStages.length} этапов · {visibleCount} выступлений{direction?' в направлении '+direction:''}{season?' · сезон '+season:''}{selectedFilters?' · показатели только по выбранным результатам':''}</p>{selectedFilters&&visibleStages.length===0&&<div role="status" className="team-achievement-empty"><p>Нет выступлений с выбранными фильтрами.</p><button type="button" className="u-btn u-quiet" onClick={()=>{setDirection('');setSeason('');setStageId('')}}>Сбросить фильтр</button></div>}

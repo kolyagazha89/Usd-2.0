@@ -1,3 +1,4 @@
+import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,useAdminDetail} from './AdminEntityLink';
 import './form-journey.css';
 import {useEffect,useRef,useState} from 'react';
@@ -41,12 +42,12 @@ function StagePicker({path,go,Empty,children}:{path:string;go:Go;Empty:React.Com
  const choose=(id:string)=>{setStageId(id);go(id?judgingResultLink(id):'/admin/results')};
  const current=stages.find(s=>s.id===stageId);
  return <>
-  <div className="toolbar stage-picker judging-stage-picker">
+  <div className="toolbar stage-picker judging-stage-picker"><CollapsibleFilters activeCount={Number(season!=='ALL')}>
    <label>Сезон<select aria-label="Сезон судейства" value={season} disabled={loading} onChange={e=>{
     const next=e.target.value;setSeason(next);
     const stage=stages.find(s=>matchesSeason(s,next));choose(stage?.id??'');
    }}><option value="ALL">Все сезоны</option>{seasonYears(stages).map(y=><option key={y} value={y}>{y}</option>)}</select></label>
-   <label>Этап<select aria-label="Этап судейства" value={stageId} disabled={loading} onChange={e=>choose(e.target.value)}>
+   </CollapsibleFilters><label>Этап<select aria-label="Этап судейства" value={stageId} disabled={loading} onChange={e=>choose(e.target.value)}>
     <option value="">{loading?'Загрузка этапов…':'Выберите этап'}</option>
     {stages.filter(s=>matchesSeason(s,season)).map(s=><option key={s.id} value={s.id}>№{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}
    </select></label>
@@ -187,11 +188,11 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
       <input aria-label="Поиск результата" type="search" value={search}
        onChange={e=>setSearch(e.target.value)} placeholder="№, ФИО, госномер, класс или команда"/>
      </label>
-     <select className="filter-select" aria-label="Фильтр результатов по классу" value={classFilter}
+     <CollapsibleFilters activeCount={Number(classFilter!=='ALL')}><select className="filter-select" aria-label="Фильтр результатов по классу" value={classFilter}
       onChange={e=>setClassFilter(e.target.value)}>
       <option value="ALL">Все классы</option>
       {classes.map((c:any)=><option key={c.id} value={c.id}>{c.direction?.name?c.direction.name+' · ':''}{c.name}</option>)}
-     </select>
+     </select></CollapsibleFilters>
      <button className="primary-button compact" type="button" disabled={loading||!canCreate} onClick={()=>{
       setEditor({});setEditorError('');setDetail(null);
      }}><Plus size={15}/>Внести результат</button>

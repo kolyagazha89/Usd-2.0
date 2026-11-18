@@ -1,3 +1,4 @@
+import CollapsibleFilters from '../CollapsibleFilters';
 import {useEffect,useState} from 'react';
 import {filterComponentRequests} from './component-request-filter';
 import {AlertTriangle,Check,CheckCircle2,Layers,Package,Plus,RefreshCw,Search,Trash2,Pencil,DownloadCloud} from 'lucide-react';
@@ -228,11 +229,11 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
  </section>}
  {workspace==='browse'&&<div className="toolbar catalog-filter-bar">
   <div className="search-box"><Search size={15}/><input value={query} aria-label="Поиск по брендам и моделям" onChange={e=>{setQuery(e.target.value);setModelPage(1)}} placeholder="Поиск марки или модели"/></div>
-  <label className="catalog-filter-label">Статус
+  <CollapsibleFilters activeCount={Number(activityFilter!=='ALL')}><label className="catalog-filter-label">Статус
    <select value={activityFilter} onChange={e=>{setActivityFilter(e.target.value as typeof activityFilter);setModelPage(1)}} aria-label="Статус записей справочника">
     <option value="ALL">Все записи</option><option value="ENABLED">Включены</option><option value="DISABLED">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option>
    </select>
-  </label>
+  </label></CollapsibleFilters>
   {(query||activityFilter!=='ALL'||lifecycleFilter!=='ALL'||modelBrand)&&<button type="button" className="secondary-button compact catalog-filter-reset" aria-label="Сбросить фильтры комплектующих" onClick={()=>{setQuery('');setActivityFilter('ALL');setLifecycleFilter('ALL');setModelBrand('');setModelPage(1)}}>Сбросить фильтры</button>}
  </div>}
  {workspace==='browse'&&<div className="catalog-two-column">
@@ -276,12 +277,12 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
     <input aria-label="Название новой модели" value={model} onChange={e=>setModel(e.target.value)} placeholder="Модель / серия" maxLength={160} required/>
     <button type="submit" className="primary-button compact" disabled={saving||!modelBrand||!model.trim()}><Plus size={15}/>Добавить</button>
    </form>
-   <div className="catalog-category-tabs catalog-model-filters">
+   <CollapsibleFilters activeCount={Number(lifecycleFilter!=='ALL')+Number(Boolean(modelBrand))} className="usd-catalog-lifecycle-drawer" label="Фильтры моделей"><div className="catalog-category-tabs catalog-model-filters">
     <button type="button" className={'secondary-button compact '+(lifecycleFilter==='ALL'?'active':'')} onClick={()=>setLifecycleFilter('ALL')}>Все</button>
     <button type="button" className={'secondary-button compact '+(lifecycleFilter==='ACTIVE'?'active':'')} onClick={()=>setLifecycleFilter('ACTIVE')}>Актуальные</button>
     <button type="button" className={'secondary-button compact '+(lifecycleFilter==='DISCONTINUED'?'active':'')} onClick={()=>setLifecycleFilter('DISCONTINUED')}>Снятые с производства</button>
     {modelBrand&&<button type="button" className="secondary-button compact" onClick={()=>setModelBrand('')}>Все марки</button>}
-   </div>
+   </div></CollapsibleFilters>
    <div className="catalog-list">{visibleModels.map((x:any)=>
     <div className="catalog-list-row catalog-manage-row" key={x.id}>
      {editor?.kind==='model'&&editor.id===x.id?

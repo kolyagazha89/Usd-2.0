@@ -55,8 +55,8 @@ test('participant search can be cleared and has actionable, accurate empty resul
  assert.match(code,/aria-label="Очистить поиск участников"/);
  assert.match(code,/Ничего не найдено по запросу/);
  assert.match(code,/Показать всех участников/);
- assert.match(code,/tabIndex=\{path==='\/admin\/participants'\?0:undefined\}/);
- assert.match(code,/onKeyDown=\{e=>\{if\(path==='\/admin\/participants'/);
+ assert.match(code,/tabIndex=\{0\}/);
+ assert.match(code,/onKeyDown=\{e=>\{if\(e\.target===e\.currentTarget/);
 });
 
 test('cars keep accessible row actions, search reset, and useful empty state',async()=>{

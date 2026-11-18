@@ -1,3 +1,4 @@
+import CollapsibleFilters from '../CollapsibleFilters';
 import {useCallback,useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,CheckCircle2,CarFront,Pencil,Plus,RefreshCw,Search,Trash2,Upload} from 'lucide-react';
 import {getSiteSettings,updateSiteSettings} from '../api';
@@ -144,7 +145,7 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
     </div>
     {bulkScope&&<div className="catalog-inline-confirm" role="group"><span>Подтвердить включение {countDisabledVehicles(catalog,bulkScope).total} записей ({bulkScope==='ALL'?'весь справочник':brandNames.get(bulkScope)})?</span><button type="button" className="primary-button compact" disabled={saving} onClick={()=>void activate()}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setBulkScope(null)}>Отмена</button></div>}
    </section>
-   <div className="toolbar catalog-filter-bar"><div className="search-box"><Search size={15}/><input aria-label="Поиск марок и моделей" placeholder="Марка или модель" value={search} onChange={e=>{setSearch(e.target.value);setSelectedBrand('');setPage(1)}}/></div><label className="catalog-filter-label">Статус<select aria-label="Статус записей автомобилей" value={status} onChange={e=>{setStatus(e.target.value as Status);setPage(1)}}><option value="ALL">Все</option><option value="ACTIVE">Включены</option><option value="INACTIVE">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option></select></label></div>
+   <div className="toolbar catalog-filter-bar"><div className="search-box"><Search size={15}/><input aria-label="Поиск марок и моделей" placeholder="Марка или модель" value={search} onChange={e=>{setSearch(e.target.value);setSelectedBrand('');setPage(1)}}/></div><CollapsibleFilters activeCount={Number(status!=='ALL')}><label className="catalog-filter-label">Статус<select aria-label="Статус записей автомобилей" value={status} onChange={e=>{setStatus(e.target.value as Status);setPage(1)}}><option value="ALL">Все</option><option value="ACTIVE">Включены</option><option value="INACTIVE">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option></select></label></CollapsibleFilters></div>
    <div className="catalog-two-column">
     <section className="panel">
      <PanelTitle title={'Марки · '+brands.length} icon={CarFront}/>
