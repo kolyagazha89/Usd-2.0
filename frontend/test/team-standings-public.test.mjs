@@ -20,6 +20,7 @@ test('public teams directory includes a cross-team stage and season comparison, 
  assert.match(comparison,/encodeURIComponent\(direction\)/);
 
  assert.match(comparison,/Выберите сезон|Сезон/);
+ assert.match(comparison,/seasonDisplay\(season\)/, 'season label must not repeat its year');
  assert.match(comparison,/Выберите этап|Этап/);
  assert.match(comparison,/aria-expanded=\{/);
  assert.match(comparison,/\/participants\//);
