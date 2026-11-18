@@ -62,3 +62,25 @@
 @media(max-width:420px){.profile-email-coverage{padding:14px}.profile-email-coverage-grid{gap:8px}.profile-email-coverage-grid>div{padding:10px}.profile-email-coverage-grid strong{font-size:23px}}
 
 .profile-email-audit{border-top:1px solid #e0e7ed;margin-top:18px;padding-top:16px}.profile-email-audit h3{margin:0 0 8px;font-size:17px}.profile-email-audit p{line-height:1.5;margin:8px 0}.profile-email-audit button{margin:10px 0}
+
+/* Keep daily link approvals above infrequent archive and duplicate-recovery tools. */
+.profile-link-work-queue{min-width:0;margin-bottom:18px}
+.profile-link-queue-heading{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:4px 0 12px}
+.profile-link-queue-heading h2{font-size:20px;line-height:1.25;margin:0 0 5px;color:#203047}
+.profile-link-queue-heading p{color:#5c6a7a;font-size:13px;line-height:1.5;margin:0}
+.profile-link-pending-count{display:inline-flex;align-items:center;min-height:33px;padding:5px 11px;border-radius:999px;background:#fff0f2;color:#a21e35;font-size:13px;font-weight:750}
+.profile-link-advanced-tools{min-width:0;border:1px solid #dce2e9;border-radius:15px;background:#fff;margin:20px 0 10px}
+.profile-link-advanced-tools>summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:16px 18px;cursor:pointer;color:#26364b;font-size:14px;font-weight:750;list-style:none}
+.profile-link-advanced-tools>summary::-webkit-details-marker{display:none}
+.profile-link-advanced-tools>summary::before{content:'+';display:inline-grid;place-items:center;width:24px;height:24px;border:1px solid #ccd6df;border-radius:7px;color:#46566e;font-size:18px}
+.profile-link-advanced-tools[open]>summary::before{content:'−'}
+.profile-link-advanced-tools>summary small{font-size:12px;font-weight:500;color:#65778a}
+.profile-link-advanced-tools>summary:focus-visible{outline:3px solid #d72d45;outline-offset:3px;border-radius:12px}
+.profile-link-advanced-content{padding:0 16px 16px;min-width:0}
+.profile-link-advanced-content>.profile-email-coverage,.profile-link-advanced-content>.duplicate-profile-preview{margin-bottom:14px}
+@media(max-width:660px){
+ .profile-link-queue-heading{display:grid;gap:7px}
+ .profile-link-queue-heading h2{font-size:19px}
+ .profile-link-advanced-tools>summary{padding:14px}
+ .profile-link-advanced-content{padding:0 10px 12px}
+}
