@@ -33,8 +33,9 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
  const [emailAudit,setEmailAudit]=useState<EmailAudit|null>(null),[emailBusy,setEmailBusy]=useState(false),[emailError,setEmailError]=useState('');
  const [rows,setRows]=useState<LinkRequest[]>([]),[status,setStatus]=useState('PENDING'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [diagnoses,setDiagnoses]=useState<Record<string,string>>({}),[diagnosing,setDiagnosing]=useState<string|null>(null);
+ const [advancedVisited,setAdvancedVisited]=useState(false);
  const loadCoverage=async()=>{try{setCoverageError('');setCoverage(await apiGet<Coverage>('/admin/profile-links/coverage'))}catch(e){setCoverageError(e instanceof Error?e.message:'Статистика архивных email недоступна')}};
- useEffect(()=>{void loadCoverage()},[]);
+ useEffect(()=>{if(advancedVisited)void loadCoverage()},[advancedVisited]);
  const reconcileEmails=async(apply:boolean)=>{
   if(emailBusy)return;setEmailBusy(true);setEmailError('');
   try{const result=apply?await apiPost<EmailAudit>('/admin/profile-links/emails/reconcile',{confirmation:'APPLY'}):await apiGet<EmailAudit>('/admin/profile-links/emails/reconcile');
@@ -66,32 +67,8 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
   }catch(e){setError(e instanceof Error?e.message:'Не удалось обработать заявку')}finally{setBusy(false)}
  };
  return <PageFrame title="Привязка профилей" subtitle="Заявки на восстановление исторических профилей. Привязка только после проверки владения администратором.">
-  <section className="profile-email-coverage" aria-label="Наличие email в исторических профилях">
-   <div className="profile-email-coverage-heading"><div><h2>Email исторических участников</h2><p>Подсчёт по реальной базе USD. Учитываются действующие профили без объединённых дублей.</p></div><button type="button" className="secondary-button compact" onClick={()=>void loadCoverage()}>Обновить</button></div>
-   {coverageError&&<p role="alert">{coverageError}</p>}
-   {!coverage&&!coverageError&&<p role="status">Загружаем статистику…</p>}
-   {coverage&&<div className="profile-email-coverage-grid">
-    <div><small>Всего профилей</small><strong>{coverage.totalProfiles}</strong></div>
-    <div><small>Всего с архивным email</small><strong>{coverage.profilesWithLegacyEmail}</strong></div>
-    <div><small>Уже привязаны к аккаунту</small><strong>{coverage.linkedProfiles}</strong></div>
-    <div><small>Архивный email есть (без привязки)</small><strong>{coverage.unlinkedWithLegacyEmail}</strong></div>
-    <div><small>Без архивного email (без привязки)</small><strong>{coverage.unlinkedWithoutLegacyEmail}</strong></div>
-   </div>}
-   <div className="profile-email-audit">
-    <h3>Сверка по всем таблицам регистраций</h3>
-    <p className="muted">Ищем email в сохранённых исходных строках импорта всех этапов и сверяем ФИО с участниками. Восстанавливаем только однозначные совпадения по ФИО и этапу; старые email не заменяем.</p>
-    <button type="button" className="secondary-button compact" disabled={emailBusy} onClick={()=>void reconcileEmails(false)}>{emailBusy?'Проверяем…':'Проверить все этапы'}</button>
-    {emailError&&<p role="alert">{emailError}</p>}
-    {emailAudit&&<div role="status">
-     <p><strong>Строк с email:</strong> {emailAudit.rowsWithEmail}. <strong>Найденных соответствий:</strong> {emailAudit.matchedRows}. <strong>Новых email для восстановления:</strong> {emailAudit.safeProfiles}.</p>
-     <p><strong>Конфликтных профилей:</strong> {emailAudit.conflictingProfiles}; <strong>тёзок:</strong> {emailAudit.ambiguousRows}; <strong>без совпадения:</strong> {emailAudit.unmatchedRows}; <strong>некорректных адресов:</strong> {emailAudit.invalidEmailRows}.</p>
-     {emailAudit.applied&&<p><strong>Добавлено email:</strong> {emailAudit.updatedProfiles??0}. Существующие email не перезаписывались.</p>}
-     {!emailAudit.applied&&emailAudit.safeProfiles>0&&<button type="button" className="primary-button" disabled={emailBusy} onClick={()=>void reconcileEmails(true)}>Восстановить {emailAudit.safeProfiles} email</button>}
-    </div>}
-   </div>
-   <p className="muted">Не означает автоматическую привязку: она возможна только при совпадении архивного адреса с подтверждённым email нового аккаунта. Для остальных доступна ручная заявка администратору.</p>
-  </section>
-  <DuplicateProfilesPreview/>
+  <section className="profile-link-work-queue" aria-label="Заявки на привязку профилей">
+   <header className="profile-link-queue-heading"><div><h2>Заявки на привязку</h2><p>Сначала разберите заявки участников. Проверка архивных email и объединение дублей доступны ниже отдельно.</p></div>{status==='PENDING'&&!loading&&<span className="profile-link-pending-count" role="status">{rows.length} ожидают решения</span>}</header>
   <div className="profile-link-filters"><label>Статус
    <select value={status} onChange={e=>{setStatus(e.target.value);setError('')}}>
     <option value="">Все</option>{Object.entries(statusText).map(([value,label])=><option key={value} value={value}>{label}</option>)}
@@ -117,6 +94,40 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
     </div>
    </div>}
   </article>)}</div>}
+
+  </section>
+  <details className="profile-link-advanced-tools" onToggle={e=>{if(e.currentTarget.open)setAdvancedVisited(true)}}>
+   <summary>Дополнительные инструменты <small>Архивные email · объединение дублей</small></summary>
+   <div className="profile-link-advanced-content">
+  <section className="profile-email-coverage" aria-label="Наличие email в исторических профилях">
+   <div className="profile-email-coverage-heading"><div><h2>Email исторических участников</h2><p>Подсчёт по реальной базе USD. Учитываются действующие профили без объединённых дублей.</p></div><button type="button" className="secondary-button compact" onClick={()=>void loadCoverage()}>Обновить</button></div>
+   {coverageError&&<p role="alert">{coverageError}</p>}
+   {!coverage&&!coverageError&&<p role="status">Загружаем статистику…</p>}
+   {coverage&&<div className="profile-email-coverage-grid">
+    <div><small>Всего профилей</small><strong>{coverage.totalProfiles}</strong></div>
+    <div><small>Всего с архивным email</small><strong>{coverage.profilesWithLegacyEmail}</strong></div>
+    <div><small>Уже привязаны к аккаунту</small><strong>{coverage.linkedProfiles}</strong></div>
+    <div><small>Архивный email есть (без привязки)</small><strong>{coverage.unlinkedWithLegacyEmail}</strong></div>
+    <div><small>Без архивного email (без привязки)</small><strong>{coverage.unlinkedWithoutLegacyEmail}</strong></div>
+   </div>}
+   <div className="profile-email-audit">
+    <h3>Сверка по всем таблицам регистраций</h3>
+    <p className="muted">Ищем email в сохранённых исходных строках импорта всех этапов и сверяем ФИО с участниками. Восстанавливаем только однозначные совпадения по ФИО и этапу; старые email не заменяем.</p>
+    <button type="button" className="secondary-button compact" disabled={emailBusy} onClick={()=>void reconcileEmails(false)}>{emailBusy?'Проверяем…':'Проверить все этапы'}</button>
+    {emailError&&<p role="alert">{emailError}</p>}
+    {emailAudit&&<div role="status">
+     <p><strong>Строк с email:</strong> {emailAudit.rowsWithEmail}. <strong>Найденных соответствий:</strong> {emailAudit.matchedRows}. <strong>Новых email для восстановления:</strong> {emailAudit.safeProfiles}.</p>
+     <p><strong>Конфликтных профилей:</strong> {emailAudit.conflictingProfiles}; <strong>тёзок:</strong> {emailAudit.ambiguousRows}; <strong>без совпадения:</strong> {emailAudit.unmatchedRows}; <strong>некорректных адресов:</strong> {emailAudit.invalidEmailRows}.</p>
+     {emailAudit.applied&&<p><strong>Добавлено email:</strong> {emailAudit.updatedProfiles??0}. Существующие email не перезаписывались.</p>}
+     {!emailAudit.applied&&emailAudit.safeProfiles>0&&<button type="button" className="primary-button" disabled={emailBusy} onClick={()=>void reconcileEmails(true)}>Восстановить {emailAudit.safeProfiles} email</button>}
+    </div>}
+   </div>
+   <p className="muted">Не означает автоматическую привязку: она возможна только при совпадении архивного адреса с подтверждённым email нового аккаунта. Для остальных доступна ручная заявка администратору.</p>
+  </section>
+  {advancedVisited&&<DuplicateProfilesPreview/>}
+
+   </div>
+  </details>
  </PageFrame>;
 }
 export default ProfileLinksPage;
