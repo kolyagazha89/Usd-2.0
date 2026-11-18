@@ -134,5 +134,39 @@ jobs:
                   print('COMPOSE_WORKDIR_SAME=' + str(data['api'][1] == data['frontend'][1]).lower())
                   print('API_CONTAINS_LOCAL_OVERLAY=' + str('compose.local.yaml' in data['api'][0]).lower())
                   print('FRONTEND_CONTAINS_LOCAL_OVERLAY=' + str('compose.local.yaml' in data['frontend'][0]).lower())
+          # Compare only the known Compose files as unprivileged runner.
+          # Never print host file contents or environment values.
+          from pathlib import Path
+          import hashlib
+          import difflib
+          left = Path('/home/usd/usd-deploy/deploy/home-pc/compose.yaml')
+          right = Path('/etc/usd-deployer/compose/compose.yaml')
+          print('COMPOSE_COMPARE=read_only')
+          contents = []
+          for name, path in (('running', left), ('reviewed', right)):
+              try:
+                  raw = path.read_bytes()
+                  if len(raw) > 1024 * 1024:
+                      print('COMPOSE_' + name.upper() + '=too_large')
+                      continue
+                  print('COMPOSE_' + name.upper() + '=readable')
+                  print('COMPOSE_' + name.upper() + '_SIZE=' + str(len(raw)))
+                  print('COMPOSE_' + name.upper() + '_SHA256=' + hashlib.sha256(raw).hexdigest())
+                  contents.append(raw)
+              except (OSError, UnicodeError):
+                  print('COMPOSE_' + name.upper() + '=not_accessible')
+          if len(contents) == 2:
+              print('COMPOSE_BYTES_IDENTICAL=' + str(contents[0] == contents[1]).lower())
+              try:
+                  a = contents[0].decode('utf-8').splitlines()
+                  b = contents[1].decode('utf-8').splitlines()
+                  differences = difflib.SequenceMatcher(None,a,b,autojunk=False).get_opcodes()
+                  changes = [(kind,i1,i2,j1,j2) for kind,i1,i2,j1,j2 in differences if kind!='equal']
+                  print('COMPOSE_CHANGED_RANGES=' + str(min(999,len(changes))))
+                  for kind,i1,i2,j1,j2 in changes[:8]:
+                      print('COMPOSE_DIFF_SHAPE=' + kind + ':' + str(i1+1) + '-' + str(i2) + ':'
+                            + str(j1+1) + '-' + str(j2))
+              except UnicodeError:
+                  print('COMPOSE_DIFF_SHAPE=undecodable')
           print('PROBE_FINISHED=read_only_no_host_changes')
           PY
