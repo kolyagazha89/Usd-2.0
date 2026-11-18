@@ -296,7 +296,7 @@ try{
        'both performances link to the original athlete');
       assert.equal(await comparison.locator('.team-standings-performances a[href^="/results?stageId="]').count(),2,
        'each result links to its primary stage protocol');
-      assert.match(await comparison.innerText(),/30,?\\.500|30\\.500/,'MPS values remain distinct from dB values');
+      assert.match(await comparison.innerText(),/30,?\.500|30\.500/,'MPS values remain distinct from dB values');
       await comparison.getByRole('radio',{name:'Этап'}).check();
       await comparison.locator('select[aria-label="Выберите этап"]').waitFor();
       await comparison.getByRole('button',{name:/Показать выступления · USD Team/}).waitFor();
