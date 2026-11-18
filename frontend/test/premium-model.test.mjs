@@ -96,7 +96,7 @@ test('homepage stage selection compares calendar days rather than midnight UTC i
 });
 
 test('homepage stage selection handles timezone-offset dates without shifting the advertised day',()=>{
-  const now=new Date(2026,9,28,23,45).getTime();
+  const now=Date.parse('2026-10-28T20:45:00Z'); // 23:45 Moscow on Oct 28
   const stages=[
     {id:'later',status:'PUBLISHED',date:'2026-10-29T00:00:00+05:00'},
     {id:'local-day',status:'PUBLISHED',date:'2026-10-28T00:00:00+05:00'},
