@@ -95,5 +95,44 @@ jobs:
                           else 'access_error' if 'permission denied' in stderr
                           else 'other_notice')
                   print(probe + '_STDERR_CLASS=' + hint)
+          # Existing permission check only, never sudo or any Docker mutation.
+          # If the unprivileged runner has no Docker socket access, report that
+          # limitation instead of attempting privilege escalation.
+          containers = {}
+          for name in ('api', 'frontend'):
+              query = capture(['docker', 'ps', '-q',
+                               '--filter', 'label=com.docker.compose.project=usd-home',
+                               '--filter', 'label=com.docker.compose.service=' + name])
+              if query is None or query.returncode != 0:
+                  containers = {}
+                  break
+              identifiers = [x for x in query.stdout.splitlines()
+                             if re.fullmatch(r'[0-9a-f]{12,64}', x)]
+              if len(identifiers) != 1:
+                  containers = {}
+                  break
+              containers[name] = identifiers[0]
+          if len(containers) != 2:
+              print('DOCKER_READONLY=unavailable_for_unprivileged_runner')
+          else:
+              data = {}
+              for name, identifier in containers.items():
+                  item = capture(['docker', 'inspect', '--format',
+                                  '{{ index .Config.Labels "com.docker.compose.project.config_files" }}'
+                                  + '||' + '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}',
+                                  identifier])
+                  if item is not None and item.returncode == 0 and '||' in item.stdout:
+                      files, workdir = item.stdout.strip().split('||', 1)
+                      data[name] = (tuple(p.rsplit('/', 1)[-1] for p in files.split(',')), workdir)
+              if len(data) != 2:
+                  print('DOCKER_READONLY=unable_to_inspect')
+              else:
+                  print('DOCKER_READONLY=available')
+                  print('API_COMPOSE_OVERLAY_COUNT=' + str(len(data['api'][0])))
+                  print('FRONTEND_COMPOSE_OVERLAY_COUNT=' + str(len(data['frontend'][0])))
+                  print('COMPOSE_OVERLAY_ORDER_SAME=' + str(data['api'][0] == data['frontend'][0]).lower())
+                  print('COMPOSE_WORKDIR_SAME=' + str(data['api'][1] == data['frontend'][1]).lower())
+                  print('API_CONTAINS_LOCAL_OVERLAY=' + str('compose.local.yaml' in data['api'][0]).lower())
+                  print('FRONTEND_CONTAINS_LOCAL_OVERLAY=' + str('compose.local.yaml' in data['frontend'][0]).lower())
           print('PROBE_FINISHED=read_only_no_host_changes')
           PY
