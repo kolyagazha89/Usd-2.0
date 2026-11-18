@@ -9,7 +9,7 @@ test('provisional number appears only inside the authenticated registration revi
   assert.match(flow,/step===2.*RegistrationNumberPreview/s);
   assert.match(preview,/registrations\/stage\//);
   assert.match(preview,/Номер предварительный/);
-  assert.match(preview,/зарегистрирован/);
+  assert.match(preview,/Зарегистрировано участников/);
   assert.doesNotMatch(app.slice(app.indexOf("page==='stages'&&"),app.indexOf("page==='stage-detail'&&")),/RegistrationNumberPreview|nextAvailablePrimaryNumber/);
 });
 
