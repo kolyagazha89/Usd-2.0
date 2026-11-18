@@ -9,14 +9,64 @@ import PartnerImageEditor from './PartnerImageEditor';
 import {DEFAULT_PARTNER_IMAGE_LAYOUT} from '../public/partner-image-layout';
 
 const tierRank=(tier:string)=>tier==='GENERAL'?0:tier==='PREMIUM'?1:tier==='REGULAR'?2:tier==='STUDIO'?3:4;
+const sortPartnerRows=(rows:any[])=>[...rows].sort((a:any,b:any)=>tierRank(a.tier)-tierRank(b.tier)||(Number(a.sortOrder)||0)-(Number(b.sortOrder)||0)||String(a.name??'').localeCompare(String(b.name??''),'ru'));
 function PartnersPage({PageFrame,ErrorPanel,LoadingPage,Empty}: {PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>}){
  const[query,setQuery]=useState(''),[tierFilter,setTierFilter]=useState('all'),[visibilityFilter,setVisibilityFilter]=useState<PartnerVisibilityFilter>('all');
  const[partners,setPartners]=useState<any[]>([]),[partnersRevision,setPartnersRevision]=useState(''),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[modal,setModal]=useState<any|null>(null),[modalError,setModalError]=useState(''),[confirmHideId,setConfirmHideId]=useState('');
  useEditorScroll('partners',modal!==null,!loading);
- const load=async()=>{setLoading(true);setError('');try{const r=await getSiteSettings();setPartners(Array.isArray(r?.settings?.partners)?[...r.settings.partners].sort((a:any,b:any)=>tierRank(a.tier)-tierRank(b.tier)||(Number(a.sortOrder)||0)-(Number(b.sortOrder)||0)||String(a.name??'').localeCompare(String(b.name??''),'ru')):[]);setPartnersRevision(String(r?.settings?._partnersRevision??''))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить партнёров')}finally{setLoading(false)}};
+ const load=async()=>{
+  setLoading(true);setError('');
+  try{
+   const response=await getSiteSettings();
+   setPartners(sortPartnerRows(Array.isArray(response?.settings?.partners)?response.settings.partners:[]));
+   setPartnersRevision(String(response?.settings?._partnersRevision??''));
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить партнёров')}
+  finally{setLoading(false)}
+ };
  useEffect(()=>{void load()},[]);
- const save=async(v:any)=>{setSaving(true);setModalError('');try{const r=await getSiteSettings();const current=Array.isArray(r?.settings?.partners)?r.settings.partners:[];let item={...(modal?.id?modal:{}),id:modal?.id??crypto.randomUUID(),name:String(v.name??'').trim(),description:String(v.description??'').trim(),tier:v.tier||'REGULAR',website:String(v.website??'').trim(),isActive:v.isActive!==false,isPublished:v.isPublished!==false,sortOrder:Number(v.sortOrder??0),photoUrl:modal?.photoUrl??null,imageLayout:v.imageLayout};if(v.file instanceof File){const validationError=validateImageUpload(v.file);if(validationError)throw new Error(validationError);const uploaded=await uploadSiteAsset('partner-'+item.id,v.file);item.photoUrl=uploaded.publicPath}const next=modal?.id?current.map((x:any)=>x.id===item.id?item:x):[...current,item];await updateSiteSettings({_partnersRevision:partnersRevision,partners:next});setModal(null);await load()}catch(e){setModalError(e instanceof Error?e.message:'Не удалось сохранить партнёра')}finally{setSaving(false)}};
- const remove=async(id:string)=>{try{const r=await getSiteSettings();const current=Array.isArray(r?.settings?.partners)?r.settings.partners:[];await updateSiteSettings({_partnersRevision:partnersRevision,partners:current.map((x:any)=>x.id===id?{...x,isActive:false}:x)});setConfirmHideId('');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить статус')}};
+ // The mutation response already contains the authoritative partners and new
+ // concurrency revision. Never rely on a second GET after a committed write.
+ const applyCommittedPartners=(response:any,fallback:any[])=>{
+  setPartners(sortPartnerRows(Array.isArray(response?.settings?.partners)?response.settings.partners:fallback));
+  setPartnersRevision(String(response?.settings?._partnersRevision??partnersRevision));
+  setError('');
+ };
+ const save=async(v:any)=>{
+  if(saving)return;
+  setSaving(true);setModalError('');
+  try{
+   const response=await getSiteSettings();
+   const current=Array.isArray(response?.settings?.partners)?response.settings.partners:[];
+   let item={...(modal?.id?modal:{}),id:modal?.id??crypto.randomUUID(),name:String(v.name??'').trim(),
+    description:String(v.description??'').trim(),tier:v.tier||'REGULAR',website:String(v.website??'').trim(),
+    isActive:v.isActive!==false,isPublished:v.isPublished!==false,sortOrder:Number(v.sortOrder??0),
+    photoUrl:modal?.photoUrl??null,imageLayout:v.imageLayout};
+   if(v.file instanceof File){
+    const validationError=validateImageUpload(v.file);
+    if(validationError)throw new Error(validationError);
+    const uploaded=await uploadSiteAsset('partner-'+item.id,v.file);
+    item.photoUrl=uploaded.publicPath;
+   }
+   const next=modal?.id?current.map((x:any)=>x.id===item.id?item:x):[...current,item];
+   const committed=await updateSiteSettings({_partnersRevision:partnersRevision,partners:next});
+   applyCommittedPartners(committed,next);
+   setModal(null);
+  }catch(e){setModalError(e instanceof Error?e.message:'Не удалось сохранить партнёра')}
+  finally{setSaving(false)}
+ };
+ const remove=async(id:string)=>{
+  if(saving)return;
+  setSaving(true);setError('');
+  try{
+   const response=await getSiteSettings();
+   const current=Array.isArray(response?.settings?.partners)?response.settings.partners:[];
+   const next=current.map((x:any)=>x.id===id?{...x,isActive:false}:x);
+   const committed=await updateSiteSettings({_partnersRevision:partnersRevision,partners:next});
+   applyCommittedPartners(committed,next);
+   setConfirmHideId('');
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось изменить статус')}
+  finally{setSaving(false)}
+ };
  const visiblePartners=filterPartners(partners,query,tierFilter,visibilityFilter);
  const tierName=(x:string)=>x==='GENERAL'?'Генеральный':x==='PREMIUM'?'Премиальный':x==='STUDIO'?'Студии-партнёры':'Обычный';
  return <PageFrame title="Партнёры" subtitle="Партнёры USD и размещение на публичном сайте" action={modal===null?<button className="primary-button compact" onClick={()=>{setModal({tier:'REGULAR',isActive:true,isPublished:false,sortOrder:0,imageLayout:{...DEFAULT_PARTNER_IMAGE_LAYOUT,aspectWidth:16,aspectHeight:9}});setModalError("")}}><Plus size={15}/>Добавить партнёра</button>:undefined}>{modal!==null ? <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">КОНТЕНТ САЙТА · ПАРТНЁРЫ</span><h2>{modal.id?'Редактирование партнёра':'Новый партнёр'}</h2><p>Генеральный партнёр получает отдельный крупный блок, премиальный — увеличенную карточку, обычный — место в сетке, а студии-партнёры выводятся отдельным разделом. Порядок внутри категории задаётся ниже.</p></div><button type="button" className="secondary-button" onClick={()=>{setModal(null);setModalError("")}}><ChevronLeft size={16}/>К списку</button></div>{modalError&&<div className="form-error" role="alert"><AlertTriangle size={16}/><span>{modalError}</span></div>}<PartnerForm value={modal} saving={saving} onSubmit={save}/></section> : <>

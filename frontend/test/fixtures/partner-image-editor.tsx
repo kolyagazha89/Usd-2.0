@@ -82,3 +82,28 @@ export async function runPartnerImageEditor(){
  assert.ok(publicHost.querySelector('img[src="/media/new-logo.webp"]'));
  await act(async()=>{root.unmount();publicRoot.unmount()});host.remove();publicHost.remove();
 }
+
+/** A successful CMS write must remain visible when an optional refresh would fail. */
+export async function runPartnerSaveWithoutReload(){
+ const host=document.createElement('div');document.body.append(host);
+ const root=createRoot(host);
+ const Empty=()=>null;
+ const PageFrame=({children}:any)=><div>{children}</div>;
+ await act(async()=>root.render(<PartnersPage PageFrame={PageFrame} ErrorPanel={Empty} LoadingPage={Empty} Empty={Empty}/>));
+ await act(async()=>{
+  const button=host.querySelector('button[title="Изменить"]') as HTMLButtonElement;
+  assert.ok(button,'existing partner must be editable');button.click();
+ });
+ const name=host.querySelector('form .form-grid-2 input') as HTMLInputElement;
+ assert.ok(name,'partner name editor must exist');
+ await act(async()=>{
+  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value')!.set!.call(name,'Aura обновлённая');
+  name.dispatchEvent(new Event('input',{bubbles:true}));
+ });
+ await act(async()=>host.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
+ assert.equal((globalThis as any).__partnerWrites,1,'only one partner write is committed');
+ assert.equal(host.querySelector('.resource-editor-page'),null,'successful save closes editor even if refresh is unavailable');
+ assert.equal(host.querySelector('.data-table tbody tr strong')?.textContent,'Aura обновлённая',
+  'the committed CMS response updates the visible list without a second GET');
+ await act(async()=>root.unmount());host.remove();
+}

@@ -184,6 +184,7 @@ export class StagesService {
       name: dto.name.trim(),
       city: dto.city?.trim() || null,
       date,
+      startTimeMsk: dto.startTimeMsk ?? '10:00',
       description: dto.description?.trim() || null,
       venue: dto.venue?.trim() || null,
       address: dto.address?.trim() || null,
@@ -225,7 +226,7 @@ export class StagesService {
     const stage = await this.prisma.stage.findFirst({ where: { id, isDeleted: false } });
     if (!stage) throw new NotFoundException('Этап не найден');
 
-    const hasOperationalFields = ['stageNumber', 'date', 'latitude', 'longitude', 'status', 'registrationOpen', 'registrationStartsAt', 'registrationEndsAt']
+    const hasOperationalFields = ['stageNumber', 'date', 'startTimeMsk', 'latitude', 'longitude', 'status', 'registrationOpen', 'registrationStartsAt', 'registrationEndsAt']
       .some((key) => Object.prototype.hasOwnProperty.call(dto, key));
 
     /*
@@ -298,6 +299,7 @@ export class StagesService {
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
       ...(dto.city !== undefined ? { city: dto.city?.trim() || null } : {}),
       ...(dto.date !== undefined ? { date: parsedDate } : {}),
+      ...(dto.startTimeMsk !== undefined ? { startTimeMsk: dto.startTimeMsk } : {}),
       ...(dto.description !== undefined ? { description: dto.description?.trim() || null } : {}),
       ...(dto.venue !== undefined ? { venue: dto.venue?.trim() || null } : {}),
       ...(dto.address !== undefined ? { address: dto.address?.trim() || null } : {}),
@@ -322,6 +324,7 @@ export class StagesService {
     if (
       stage.name !== updated.name ||
       String(stage.date ?? '') !== String(updated.date ?? '') ||
+      (stage.startTimeMsk ?? '10:00') !== (updated.startTimeMsk ?? '10:00') ||
       stage.city !== updated.city ||
       stage.venue !== updated.venue ||
       stage.address !== updated.address ||

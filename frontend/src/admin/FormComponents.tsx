@@ -42,8 +42,9 @@ export function SearchableSelect({value,options,onChange,placeholder='Выбер
 }
 
 export function EntityForm({fields,initial,saving,relationOptions={},onSubmit,enumLabel}:{fields:Field[];initial:any;saving:boolean;relationOptions?:Record<string,any[]>;onSubmit:(v:any)=>Promise<void>;enumLabel:(v:any)=>string}){
- const[v,setV]=useState<any>(initial??{}),[validationError,setValidationError]=useState(''),[step,setStep]=useState(0);
- const groups=groupFormFields(fields,5);
+ const[v,setV]=useState<any>(()=>fields.some(f=>f.name==='startTimeMsk')?{...initial,startTimeMsk:initial?.startTimeMsk??'10:00'}:initial??{}),[validationError,setValidationError]=useState(''),[step,setStep]=useState(0);
+ // Keep the stage editor at two data pages after adding the start-time field.
+ const groups=groupFormFields(fields,fields.some(f=>f.name==='startTimeMsk')?6:5);
  const hasReview=groups.length>1;
  const reviewStep=groups.length;
  const activeStep=Math.min(step,hasReview?reviewStep:groups.length-1);
