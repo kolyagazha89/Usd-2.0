@@ -7,5 +7,5 @@ export function afterProfileLinkDecision<T extends {id:string;status:string}>(
 ):T[]{
  const nextStatus=decision==='APPROVE'?'APPROVED':'REJECTED';
  if(filter&&filter!==nextStatus)return rows.filter(row=>row.id!==id);
- return rows.map(row=>row.id===id?{...row,status:nextStatus}:row);
+ return rows.map(row=>row.id===id?{...row,status:nextStatus} as T:row);
 }
