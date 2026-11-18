@@ -277,12 +277,12 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
     <input aria-label="Название новой модели" value={model} onChange={e=>setModel(e.target.value)} placeholder="Модель / серия" maxLength={160} required/>
     <button type="submit" className="primary-button compact" disabled={saving||!modelBrand||!model.trim()}><Plus size={15}/>Добавить</button>
    </form>
-   <div className="catalog-category-tabs catalog-model-filters">
+   <CollapsibleFilters activeCount={Number(lifecycleFilter!=='ALL')+Number(Boolean(modelBrand))} className="usd-catalog-lifecycle-drawer"><div className="catalog-category-tabs catalog-model-filters">
     <button type="button" className={'secondary-button compact '+(lifecycleFilter==='ALL'?'active':'')} onClick={()=>setLifecycleFilter('ALL')}>Все</button>
     <button type="button" className={'secondary-button compact '+(lifecycleFilter==='ACTIVE'?'active':'')} onClick={()=>setLifecycleFilter('ACTIVE')}>Актуальные</button>
     <button type="button" className={'secondary-button compact '+(lifecycleFilter==='DISCONTINUED'?'active':'')} onClick={()=>setLifecycleFilter('DISCONTINUED')}>Снятые с производства</button>
     {modelBrand&&<button type="button" className="secondary-button compact" onClick={()=>setModelBrand('')}>Все марки</button>}
-   </div>
+   </div></CollapsibleFilters>
    <div className="catalog-list">{visibleModels.map((x:any)=>
     <div className="catalog-list-row catalog-manage-row" key={x.id}>
      {editor?.kind==='model'&&editor.id===x.id?
