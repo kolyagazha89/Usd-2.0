@@ -32,7 +32,7 @@ export async function runStageCardActions(){
  assert.match(document.querySelector('[role="alert"]')!.textContent!,/Изменение недоступно/);
  assert.ok(button('Открыть регистрацию'));
  assert.equal(row().getAttribute('tabindex'),'0','stage rows are reachable from the keyboard');
- await act(async()=>row().dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})));await flush();
+ await act(async()=>row().dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true})));await flush();
  assert.match(location.search,/view=stage-11/);
  assert.ok(button('Афиша'));assert.ok(button('Опубликовать результаты'));
  assert.ok(button('Отменить этап'));assert.equal(button('Удалить навсегда'),undefined,'permanent stage removal is not a normal admin action');
