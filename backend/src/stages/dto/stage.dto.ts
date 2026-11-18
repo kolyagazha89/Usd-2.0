@@ -33,7 +33,7 @@ export class CreateStageDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^([01]\\d|2[0-3]):[0-5]\\d$/)
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   startTimeMsk?: string;
 
   @IsOptional()
@@ -114,7 +114,7 @@ export class UpdateStageDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^([01]\\d|2[0-3]):[0-5]\\d$/)
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   startTimeMsk?: string;
 
   @IsOptional()
