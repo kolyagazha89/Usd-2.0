@@ -16,8 +16,31 @@ function stageCalendarDay(value:unknown):string|null{
  }
  return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
 }
+const moscowDayFormatter=new Intl.DateTimeFormat('en-GB',{
+ timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',
+});
+function moscowCalendarDay(value:Date):string{
+ const parts=Object.fromEntries(moscowDayFormatter.formatToParts(value).map(part=>[part.type,part.value]));
+ return parts.year+'-'+parts.month+'-'+parts.day;
+}
+
+/** A competition date is a calendar day; its start is a separate Moscow wall-clock time. */
+export function stageStartTimestamp(stage:{date?:unknown;startTimeMsk?:string|null}):number|null{
+ const day=stageCalendarDay(stage?.date);
+ const time=stage?.startTimeMsk??'10:00';
+ if(!day||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(time))return null;
+ const target=Date.parse(day+'T'+time+':00+03:00');
+ return Number.isFinite(target)?target:null;
+}
+export function stageCountdownSeconds(stage:{date?:unknown;startTimeMsk?:string|null},now=Date.now()):number|null{
+ const target=stageStartTimestamp(stage);
+ return target===null?null:Math.max(0,Math.floor((target-now)/1000));
+}
+export function stageStartLabel(stage:{startTimeMsk?:string|null}):string{
+ return (stage?.startTimeMsk??'10:00')+' МСК';
+}
 export function nextPublishedStage(stages:any[]=[],now=Date.now()){
- const today=stageCalendarDay(new Date(now));
+ const today=Number.isFinite(now)?moscowCalendarDay(new Date(now)):null;
  if(!today)return undefined;
  return stages.filter(stage=>{
   const day=stageCalendarDay(stage?.date);
