@@ -1,6 +1,7 @@
 import {AdminEntityLink,useAdminDetail} from './AdminEntityLink';
 import {useEditorScroll,useViewState} from './view-state';
 import CollapsibleFilters from '../CollapsibleFilters';
+import './user-operator-ux.css';
 import {PermanentDeletionDialog} from './PermanentDeletionDialog';
 import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,ChevronLeft,Plus,RefreshCw,Search} from 'lucide-react';
