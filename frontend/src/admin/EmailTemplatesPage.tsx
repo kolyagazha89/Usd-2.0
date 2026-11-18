@@ -70,7 +70,7 @@ export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:Rea
   <div className="settings-section">
    <PanelTitle title="Шаблоны и триггеры" icon={Mail}/>
    <p className="settings-help">Email используется только для подтверждения аккаунта, восстановления пароля и смены адреса. Уведомления об этапах переводятся на PUSH. Старые шаблоны событий сохраняются в настройках, но не используются в релизной рассылке.</p>
-   <div className="button-row"><button className="secondary-button" onClick={addTemplate}><CopyPlus size={15}/> Добавить шаблон</button><button className="primary-button" onClick={()=>void save()} disabled={saving||!selected}><Save size={15}/>{saving?'Сохраняем…':'Сохранить изменения'}</button></div>
+   <div className="button-row"><a href="#mail-journal" className="secondary-button">К журналу писем</a><button className="secondary-button" onClick={addTemplate}><CopyPlus size={15}/> Добавить шаблон</button><button className="primary-button" onClick={()=>void save()} disabled={saving||!selected}><Save size={15}/>{saving?'Сохраняем…':'Сохранить изменения'}</button></div>
    <div className="email-template-layout">
     <div className="email-template-list">{visibleTemplates.map(t=><button type="button" key={t.id} className={'email-template-item '+(selected?.id===t.id?'active':'')} onClick={()=>setSelectedId(t.id)}><strong>{t.name||'Без названия'}</strong><span>{triggers.find(x=>x.value===t.trigger)?.label||t.trigger}</span><small>{t.enabled?'Включён':'Отключён'}</small></button>)}</div>
     {selected&&<div className="email-template-editor">
