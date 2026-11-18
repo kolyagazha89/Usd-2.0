@@ -245,6 +245,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     if (!updated || updated.status === 'DRAFT' || updated.status === 'CANCELLED' && previous.status === 'CANCELLED') return;
     const relevantFields = ['name', 'date', 'startTimeMsk', 'city', 'venue', 'address'];
     const changed = relevantFields.filter((key) => {
+      if (key === 'startTimeMsk') return (previous[key] ?? '10:00') !== (updated[key] ?? '10:00');
       const before = previous[key] instanceof Date ? previous[key].toISOString() : String(previous[key] ?? '');
       const after = updated[key] instanceof Date ? updated[key].toISOString() : String(updated[key] ?? '');
       return before !== after;
@@ -266,7 +267,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       heading: wasCancelled ? 'Этап отменён' : 'Изменились сведения об этапе',
       intro: wasCancelled
         ? 'Организатор отменил этап. Пожалуйста, ознакомьтесь с информацией и следите за обновлениями на сайте USD.'
-        : 'Организатор обновил сведения об этапе. Проверьте актуальные дату и место проведения.',
+        : 'Организатор обновил сведения об этапе. Проверьте актуальные дату, время начала и место проведения.',
       details,
     });
   }
