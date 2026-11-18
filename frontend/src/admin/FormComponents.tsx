@@ -42,7 +42,7 @@ export function SearchableSelect({value,options,onChange,placeholder='Выбер
 }
 
 export function EntityForm({fields,initial,saving,relationOptions={},onSubmit,enumLabel}:{fields:Field[];initial:any;saving:boolean;relationOptions?:Record<string,any[]>;onSubmit:(v:any)=>Promise<void>;enumLabel:(v:any)=>string}){
- const[v,setV]=useState<any>(initial??{}),[validationError,setValidationError]=useState(''),[step,setStep]=useState(0);
+ const[v,setV]=useState<any>(()=>fields.some(f=>f.name==='startTimeMsk')?{...initial,startTimeMsk:initial?.startTimeMsk??'10:00'}:initial??{}),[validationError,setValidationError]=useState(''),[step,setStep]=useState(0);
  const groups=groupFormFields(fields,5);
  const hasReview=groups.length>1;
  const reviewStep=groups.length;
