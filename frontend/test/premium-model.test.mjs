@@ -65,11 +65,11 @@ test('public counts use Russian number forms',()=>{assert.deepEqual([0,1,2,5,11,
 test('public car labels hide archive placeholders without losing known models',()=>{assert.equal(carName({brand:'Не указано',model:'Toyota Celica'}),'Toyota Celica');assert.equal(carName({brand:'Не указано',model:'Не указано'}),'Автомобиль USD');assert.equal(carName({brand:'Lada',model:'Vesta'}),'Lada Vesta')});
 
 
-test('homepage keeps a published event visible for its entire local day',()=>{
-  const today=new Date(2026,9,28,20,30).getTime();
-  const stageDate=new Date(2026,9,28,9,0).toISOString();
-  const tomorrow=new Date(2026,9,29,9,0).toISOString();
-  const yesterday=new Date(2026,9,27,9,0).toISOString();
+test('homepage keeps an event visible for its entire Moscow calendar day',()=>{
+  const today=Date.parse('2026-10-28T18:30:00Z');
+  const stageDate='2026-10-28T09:00:00Z';
+  const tomorrow='2026-10-29T09:00:00Z';
+  const yesterday='2026-10-27T09:00:00Z';
   const stages=[
     {id:'invalid',status:'PUBLISHED',date:'not-a-date'},
     {id:'draft',status:'DRAFT',date:stageDate},
@@ -84,7 +84,7 @@ test('homepage keeps a published event visible for its entire local day',()=>{
 
 
 test('homepage stage selection compares calendar days rather than midnight UTC instants',()=>{
-  const now=new Date(2026,9,28,20,30).getTime();
+  const now=Date.parse('2026-10-28T18:30:00Z');
   const stages=[
     {id:'tomorrow',status:'PUBLISHED',date:'2026-10-29T00:00:00.000Z'},
     {id:'today',status:'PUBLISHED',date:'2026-10-28T00:00:00.000Z'},
@@ -96,12 +96,13 @@ test('homepage stage selection compares calendar days rather than midnight UTC i
 });
 
 test('homepage stage selection handles timezone-offset dates without shifting the advertised day',()=>{
-  const now=new Date(2026,9,28,23,45).getTime();
+  const now=Date.parse('2026-10-28T20:45:00Z');
   const stages=[
     {id:'later',status:'PUBLISHED',date:'2026-10-29T00:00:00+05:00'},
     {id:'local-day',status:'PUBLISHED',date:'2026-10-28T00:00:00+05:00'},
   ];
   assert.equal(nextPublishedStage(stages,now)?.id,'local-day');
+  assert.equal(nextPublishedStage(stages,Date.parse('2026-10-28T21:45:00Z'))?.id,'later');
 });
 
 test('stage date labels preserve the advertised day across UTC and offset timestamps',()=>{
