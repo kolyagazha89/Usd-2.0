@@ -21,6 +21,8 @@ type TeamStandingsResponse={
 
 const resultUnit=(unit:string)=>unit==='DB'?'дБ':unit==='MPS'?'м/с':unit;
 const readableDate=(value:string)=>new Date(value).toLocaleDateString('ru-RU');
+const seasonDisplay=(season:SeasonChoice)=>season.name.includes(String(season.year))
+ ? season.name : season.name+' · '+season.year;
 
 export default function TeamStandings(){
  const [seasons,setSeasons]=useState<SeasonChoice[]>([]);
@@ -97,7 +99,7 @@ export default function TeamStandings(){
     <label className="team-standings-select">{scopeType==='SEASON'?'Выберите сезон':'Выберите этап'}
      {scopeType==='SEASON'?
       <select aria-label="Выберите сезон" value={scopeId} onChange={event=>setScopeId(event.target.value)} disabled={!seasons.length}>
-       {seasons.map(season=><option key={season.id} value={season.id}>{season.name} · {season.year}</option>)}
+       {seasons.map(season=><option key={season.id} value={season.id}>{seasonDisplay(season)}</option>)}
       </select>:
       <select aria-label="Выберите этап" value={scopeId} onChange={event=>setScopeId(event.target.value)} disabled={!stages.length}>
        {stages.map(stage=><option key={stage.id} value={stage.id}>{stage.name} · {readableDate(stage.date)}</option>)}
