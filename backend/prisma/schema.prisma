@@ -412,6 +412,7 @@ model Stage {
   name                 String
   city                 String?
   date                 DateTime
+  startTimeMsk         String?
   description          String?
   venue                String?
   address              String?

@@ -1,4 +1,5 @@
 import {isPendingEquipment} from './event-ops-model.ts';
+import {isPastStageCalendar} from './stage-calendar.ts';
 import {judgingInspectionStatus,judgingNumbers,matchesJudgeSearch} from './results-operations-model.ts';
 import type {User} from '../api.ts';
 
@@ -44,14 +45,7 @@ export function filterEventDayRows(rows:readonly DayRow[],search:string,status:D
   ||a.id.localeCompare(b.id));
 }
 export function stageIsReadOnly(stage:{date?:string|null;status?:string|null}|undefined,now=new Date()):boolean{
- if(!stage)return true;
- if(stage.status==='COMPLETED'||stage.status==='CANCELLED')return true;
- if(!stage.date)return false;
- const date=new Date(stage.date);
- if(!Number.isFinite(date.getTime()))return false;
- const today=new Date(now);
- date.setHours(0,0,0,0);today.setHours(0,0,0,0);
- return date.getTime()<today.getTime();
+ return !stage||isPastStageCalendar(stage,now);
 }
 export function hasDayPermission(user:User,module:string,action:'view'|'create'|'update'):boolean{
  if(user.role==='ADMIN')return true;

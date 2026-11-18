@@ -553,10 +553,11 @@ try{
       await form.getByLabel('Номер этапа',{exact:true}).fill('2');
       await form.getByLabel('Название этапа',{exact:true}).fill('Тестовый этап USD');
       await form.getByLabel('Дата проведения',{exact:true}).fill('2026-11-22');
+      assert.equal(await form.getByLabel('Время начала (МСК)',{exact:true}).inputValue(),'10:00','new stages start at 10 MSK by default');
       await form.getByRole('button',{name:/Продолжить/}).click();
       assert.equal(await form.getByLabel('Сезон',{exact:true}).count(),1,'stage editor exposes season only on second screen');
       assert.match(await form.locator('.entity-form-journey-progress').innerText(),/Шаг 2 из 3/,'progress includes the review step');
-      assert.equal(await form.locator('[role="progressbar"]').getAttribute('aria-valuenow'),'3','required field progress survives next-screen transition');
+      assert.equal(await form.locator('[role="progressbar"]').getAttribute('aria-valuenow'),'4','stage time and other required fields count in progress');
       await form.getByRole('button',{name:/Назад/}).click();
       assert.equal(await form.getByLabel('Название этапа',{exact:true}).inputValue(),'Тестовый этап USD');
       row.dynamicFormJourney='two data screens and final review; retains values, validates before advancement';

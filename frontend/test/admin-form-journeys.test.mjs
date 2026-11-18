@@ -88,7 +88,8 @@ test('generic long admin resource forms are progressively grouped with required-
 
 test('the generic resource editor preserves existing field types and validates each page before final save',async()=>{
  const [form,css,resource]=await Promise.all([source('../src/admin/FormComponents.tsx'),source('../src/admin/form-journey.css'),source('../src/admin/ResourcePage.tsx')]);
- assert.match(form,/groupFormFields\(fields,5\)/);
+ assert.match(form,/groupFormFields\(fields,fields\.some\(f=>f\.name==='startTimeMsk'\)\?6:5\)/);
+ assert.match(form,/startTimeMsk:initial\?\.startTimeMsk\?\?'10:00'/);
  assert.match(form,/missingJourneyField\(visible,v\)/);
  assert.match(form,/journeyRequiredProgress\(fields,v\)/);
  assert.match(form,/aria-label="Этапы заполнения формы"/);

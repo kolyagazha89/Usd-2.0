@@ -1,3 +1,4 @@
+import {isPastStageCalendar} from './stage-calendar';
 import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,AdminRelatedEntities} from './AdminEntityLink';
 import './form-journey.css';
@@ -15,7 +16,6 @@ import {useVehicleDirectory} from '../use-vehicle-directory';
 import {formatPlateInput,isValidPlate} from '../profile-validation';
 import {MAX_PRIMARY_NUMBER_CLASSES,MAX_REGISTRATION_CLASSES,primaryNumberClassCount,isBassRaceStageOption,nextRegistrationClassIds} from '../participant/registration-classes';
 
-function isPastStageCalendar(s:any){if(!s)return false;if(s.status==='COMPLETED'||s.status==='CANCELLED')return true;if(!s.date)return false;const d=new Date(s.date),today=new Date();d.setHours(0,0,0,0);today.setHours(0,0,0,0);return d.getTime()<today.getTime()}
 
 function inspectionClassGroups(registration:any){
  const groups=new Map<number,Map<string,any[]>>();
