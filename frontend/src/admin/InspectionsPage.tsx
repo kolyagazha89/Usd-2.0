@@ -1,3 +1,4 @@
+import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,AdminRelatedEntities} from './AdminEntityLink';
 import './form-journey.css';
 import {walkInNextStep,walkInStepProgress} from './walk-in-form-journey';
@@ -102,9 +103,9 @@ export function InspectionsPage({user,go,PageFrame,Empty,LoadingPage,SearchableS
  useEffect(()=>{if(loadingStages)return;const params=new URLSearchParams(location.search);if(stageId)params.set('stageId',stageId);else params.delete('stageId');history.replaceState({},'',location.pathname+'?'+params.toString())},[stageId,loadingStages]);
  return <PageFrame className="event-ops-page" title="Инспекция въезда" subtitle="Проверка зарегистрированных участников перед допуском на этап" action={!scanOpen?<button className="secondary-button compact" onClick={()=>setScanOpen(true)}><ScanQrCode size={15}/>Сканировать QR</button>:undefined}>
   {scanOpen ? <InspectionQrScanner stageId={new URLSearchParams(location.search).has('usdId')?'':stageId} initialUsdId={new URLSearchParams(location.search).get('usdId')??''} onClose={()=>setScanOpen(false)} onScan={(nextStageId,registrationId)=>{setScanOpen(false);go('/admin/inspections?stageId='+encodeURIComponent(nextStageId)+'&registrationId='+encodeURIComponent(registrationId))}}/> : <>
-  <div className="toolbar stage-picker">
+  <div className="toolbar stage-picker"><CollapsibleFilters activeCount={Number(season!=='ALL')+Number(period!=='UPCOMING')}>
    <label>Сезон<select aria-label="Сезон инспекций" value={season} onChange={e=>{const next=e.target.value;setSeason(next);const candidates=stages.filter(s=>matchesSeason(s,next)&&(period==='PAST'?isPastStage(s):!isPastStage(s)));setStageId(candidates[0]?.id??'')}}><option value="ALL">Все сезоны</option>{seasonYears(stages).map(year=><option key={year} value={year}>{year}</option>)}</select></label><label>Период<select value={period} onChange={e=>{const next=e.target.value as 'UPCOMING'|'PAST';setPeriod(next);const nextStages=stages.filter(s=>matchesSeason(s,season)&&(next==='PAST'?isPastStage(s):!isPastStage(s)));setStageId(nextStages[0]?.id??'')}}><option value="UPCOMING">Будущие этапы</option><option value="PAST">Прошедшие этапы</option></select></label>
-   <label>Этап<select value={stageId} onChange={e=>setStageId(e.target.value)} disabled={loadingStages}><option value="">Выберите этап</option>{visibleStages.map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>
+   </CollapsibleFilters><label>Этап<select value={stageId} onChange={e=>setStageId(e.target.value)} disabled={loadingStages}><option value="">Выберите этап</option>{visibleStages.map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>
   </div>
   <EventOperationsNavigation current="inspections" stageId={stageId} stageName={stages.find(s=>s.id===stageId)?.name} go={go}/>
   {loadingStages?<LoadingPage small/>:stageId?<EntryInspection key={stageId} stageId={stageId} go={go} user={user} readOnly={period==='PAST'} Empty={Empty} LoadingPage={LoadingPage} SearchableSelect={SearchableSelect} displayCarName={displayCarName} enumLabel={enumLabel}/>:<div className="panel"><Empty text="Выберите этап"/></div>}
