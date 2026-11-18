@@ -1,0 +1,85 @@
+name: USD read-only Ubuntu PR608 incident evidence
+
+# One-off incident probe on an isolated diagnostic branch. Deliberately not
+# triggered on main, PRs, schedules, or general branches.
+on:
+  push:
+    branches:
+      - diagnose/ubuntu-608-precheck-20261118
+    paths:
+      - .github/workflows/diagnose-ubuntu-608-incident.yml
+
+permissions: {}
+
+jobs:
+  inspect:
+    if: github.repository == 'kolyagazha89/Usd-2.0'
+    runs-on: [self-hosted, linux, x64, usd-home-pc]
+    timeout-minutes: 5
+    steps:
+      - name: Classify failed pre-switch release without disclosing host logs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          # Do not checkout repository, read files/env, call Docker/sudo,
+          # request deployments, or print raw journal messages.
+          python3 - <<'PY'
+          import re
+          import subprocess
+
+          START = '2026-11-18 10:00:00 UTC'
+          END = '2026-11-18 10:25:00 UTC'
+          ERRORS = (
+              ('compose_overlay_mismatch', r'compose overlay counts differ|compose overlay order or names differ'),
+              ('compose_workdir_mismatch', r'compose working directories are not the approved|project.directory mismatch'),
+              ('compose_snapshot_missing', r'untrusted root-owned compose|missing or untrusted root-owned compose snapshot|compose file missing or symlinked'),
+              ('compose_unrecognized', r'unknown active compose file|legacy compose requires supervised|legacy overlay requires supervised'),
+              ('compose_source_differs', r'compose source.+differ|compose overlay.+hash|compose.*content mismatch|compose.*snapshot mismatch'),
+              ('rollback_image_mismatch', r'running images do not match the deployment environment|rollback tag does not identify|invalid running rollback image'),
+              ('database_baseline_unhealthy', r'existing api/frontend failed pre-release readiness|production db.*unhealthy|database.+not healthy'),
+              ('backup_failed', r'backup.+failed|backup.+missing|backup.+untrusted|backup.+unavailable|pg_dump|pg_restore|restore.*failed'),
+              ('verification_helper_missing', r'trusted.+helper missing|missing or untrusted.+verifier|untrusted public prerelease verifier'),
+              ('env_policy_rejected', r'production env|deployment targets are not the approved|unsupported ingress token|invalid or duplicated usd_image_tag'),
+              ('signature_failed', r'signature.+not verified|invalid verified candidate|image signature'),
+              ('candidate_image_missing', r'candidate.+image.*missing|requested sha was not built locally|docker image'),
+              ('failed_precheck_marker', r'usd_deploy_pre_switch_failure|release_precheck_failed'),
+          )
+
+          def capture(command):
+              try:
+                  return subprocess.run(command, capture_output=True, text=True, timeout=18, check=False)
+              except (OSError, subprocess.TimeoutExpired):
+                  return None
+
+          print('USD_INCIDENT_PROBE=read_only_v1')
+          result = capture(['systemctl', 'show', 'usd-auto-deploy.service',
+                            '--property=ActiveState,SubState,Result,ExecMainCode,ExecMainStatus',
+                            '--no-pager'])
+          if result is not None and result.returncode == 0:
+              for line in result.stdout.splitlines():
+                  if re.fullmatch(r'(ActiveState|SubState|Result|ExecMainCode|ExecMainStatus)=[A-Za-z0-9_-]{0,40}', line):
+                      print('SERVICE_' + line)
+          else:
+              print('SERVICE_STATE=unavailable')
+
+          journal = capture(['journalctl', '--no-pager', '-o', 'cat',
+                             '-u', 'usd-auto-deploy.service',
+                             '--since', START, '--until', END, '-n', '900'])
+          if journal is None:
+              print('JOURNAL_ACCESS=unavailable')
+          elif journal.returncode != 0:
+              print('JOURNAL_ACCESS=denied_or_error')
+          else:
+              print('JOURNAL_ACCESS=ok')
+              lines = journal.stdout.splitlines()
+              print('JOURNAL_LINES=' + str(min(9999, len(lines))))
+              matched = []
+              for line in lines:
+                  lower = line.lower()[:1400]
+                  for name, pattern in ERRORS:
+                      if re.search(pattern, lower):
+                          matched.append(name)
+              print('INCIDENT_CODES=' + (','.join(dict.fromkeys(matched[-20:])) or 'no_known_pattern'))
+              print('PRECHECK_FAILURE_SEEN=' + str('failed_precheck_marker' in matched).lower())
+          print('PROBE_FINISHED=read_only_no_host_changes')
+          PY
