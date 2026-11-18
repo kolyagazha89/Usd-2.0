@@ -50,7 +50,7 @@ test('editing a stage exposes explicit Moscow time, while date stays calendar-on
  assert.match(dashboard,/startTimeMsk:/);
  assert.match(dto,/startTimeMsk\?: string/);
  assert.match(service,/startTimeMsk:/);
- assert.match(schema,/startTimeMsk\s+String\s+@default\("10:00"\)/);
+ assert.match(schema,/startTimeMsk\s+String\?/);
  const sql=await read('../../backend/prisma/migrations/20261118170000_stage_start_time_msk/migration.sql');
- assert.match(sql,/ALTER TABLE "Stage" ADD COLUMN "startTimeMsk" TEXT NOT NULL DEFAULT '10:00'/);
+ assert.match(sql,/ALTER TABLE "Stage" ADD COLUMN "startTimeMsk" TEXT;/);
 });
