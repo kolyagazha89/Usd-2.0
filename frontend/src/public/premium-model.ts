@@ -34,8 +34,19 @@ export function stageCountdownTarget(stage:{date?:unknown;startTimeMsk?:string|n
  return Number.isFinite(timestamp)?timestamp:null;
 }
 
+function moscowCalendarDay(now:number):string|null{
+ const date=new Date(now);
+ if(!Number.isFinite(date.getTime()))return null;
+ const parts=new Intl.DateTimeFormat('en-GB',{
+  timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',
+ }).formatToParts(date);
+ const read=(part:string)=>parts.find(item=>item.type===part)?.value;
+ const year=read('year'),month=read('month'),day=read('day');
+ return year&&month&&day?year+'-'+month+'-'+day:null;
+}
+
 export function nextPublishedStage(stages:any[]=[],now=Date.now()){
- const today=stageCalendarDay(new Date(now));
+ const today=moscowCalendarDay(now);
  if(!today)return undefined;
  return stages.filter(stage=>{
   const day=stageCalendarDay(stage?.date);
