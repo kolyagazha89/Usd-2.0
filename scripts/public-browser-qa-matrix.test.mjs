@@ -86,4 +86,9 @@ test('team directory and season comparison are tested as separate, accessible sc
     'open the results tab before inspecting the standings');
   assert.ok(teamJourney.lastIndexOf('await catalogTab.click();') > teamJourney.indexOf(standings),
     'return to the catalog and verify it remains accessible');
+  const measurementAssertion=teamJourney.match(/assert\.match\(await comparison\.innerText\(\),\/([^/]+)\/,'MPS values remain distinct/);
+  assert.ok(measurementAssertion,'keep an actual result measurement check after expanding a team');
+  const measurementPattern=new RegExp(measurementAssertion[1]);
+  assert.match('30.500 м/с',measurementPattern,'the browser QA regex must accept actual MPS result');
+  assert.doesNotMatch('30x500 м/с',measurementPattern,'decimal separator must be treated literally');
 });
