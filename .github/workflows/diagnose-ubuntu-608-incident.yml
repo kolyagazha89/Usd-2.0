@@ -62,24 +62,38 @@ jobs:
           else:
               print('SERVICE_STATE=unavailable')
 
-          journal = capture(['journalctl', '--no-pager', '-o', 'cat',
-                             '-u', 'usd-auto-deploy.service',
-                             '--since', START, '--until', END, '-n', '900'])
-          if journal is None:
-              print('JOURNAL_ACCESS=unavailable')
-          elif journal.returncode != 0:
-              print('JOURNAL_ACCESS=denied_or_error')
-          else:
-              print('JOURNAL_ACCESS=ok')
+          # Recheck without a time filter: journalctl may interpret the host
+          # local timezone differently; no raw entries are ever emitted.
+          for probe, command in [
+              ('incident_window', ['journalctl', '--no-pager', '-o', 'cat',
+                                  '-u', 'usd-auto-deploy.service',
+                                  '--since', START, '--until', END, '-n', '900']),
+              ('service_recent', ['journalctl', '--no-pager', '-o', 'cat',
+                                 '-u', 'usd-auto-deploy.service', '-n', '250']),
+              ('unit_status', ['systemctl', '--no-pager', '--lines=80',
+                               'status', 'usd-auto-deploy.service']),
+          ]:
+              journal = capture(command)
+              if journal is None:
+                  print(probe + '_ACCESS=unavailable')
+                  continue
+              if journal.returncode not in (0, 3):
+                  print(probe + '_ACCESS=denied_or_error')
+                  continue
               lines = journal.stdout.splitlines()
-              print('JOURNAL_LINES=' + str(min(9999, len(lines))))
               matched = []
               for line in lines:
                   lower = line.lower()[:1400]
                   for name, pattern in ERRORS:
                       if re.search(pattern, lower):
                           matched.append(name)
-              print('INCIDENT_CODES=' + (','.join(dict.fromkeys(matched[-20:])) or 'no_known_pattern'))
-              print('PRECHECK_FAILURE_SEEN=' + str('failed_precheck_marker' in matched).lower())
+              print(probe + '_LINES=' + str(min(9999, len(lines))))
+              print(probe + '_CODES=' + (','.join(dict.fromkeys(matched[-20:])) or 'no_known_pattern'))
+              if journal.stderr:
+                  stderr = journal.stderr.lower()
+                  hint = ('journal_unprivileged_hint' if 'not seeing messages' in stderr
+                          else 'access_error' if 'permission denied' in stderr
+                          else 'other_notice')
+                  print(probe + '_STDERR_CLASS=' + hint)
           print('PROBE_FINISHED=read_only_no_host_changes')
           PY
