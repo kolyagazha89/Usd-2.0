@@ -1,3 +1,4 @@
+import CollapsibleFilters from '../CollapsibleFilters';
 import {useEditorScroll} from './view-state';
 import {useEffect,useState} from 'react';
 import {AlertTriangle,Bell,Plus,Pencil,Trash2} from 'lucide-react';
@@ -124,7 +125,7 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
   <div className="panel news-workbench">
    <div className="news-workbench-toolbar" role="search" aria-label="Поиск и фильтры новостей">
     <label>Поиск<input type="search" aria-label="Поиск новостей" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Заголовок или текст" autoComplete="off"/></label>
-    <label>Публикация<select aria-label="Статус публикации новости" value={publicationFilter} onChange={e=>setPublicationFilter(e.target.value as NewsPublicationFilter)}><option value="all">Все новости</option><option value="published">Опубликованные</option><option value="draft">Черновики</option></select></label>
+    <CollapsibleFilters activeCount={Number(publicationFilter!=='all')}><label>Публикация<select aria-label="Статус публикации новости" value={publicationFilter} onChange={e=>setPublicationFilter(e.target.value as NewsPublicationFilter)}><option value="all">Все новости</option><option value="published">Опубликованные</option><option value="draft">Черновики</option></select></label></CollapsibleFilters>
     {(query||publicationFilter!=='all')&&<button type="button" className="secondary-button compact" onClick={()=>{setQuery('');setPublicationFilter('all')}}>Сбросить фильтры новостей</button>}
    </div>
    <p className="news-workbench-count" role="status">Показано {visibleItems.length} из {items.length} · Опубликовано {publishedCount} · Черновиков {items.length-publishedCount}</p>
