@@ -412,6 +412,7 @@ model Stage {
   name                 String
   city                 String?
   date                 DateTime
+  startTimeMsk         String             @default("10:00")
   description          String?
   venue                String?
   address              String?
