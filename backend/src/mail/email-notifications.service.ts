@@ -8,7 +8,7 @@ import { MailService } from './mail.service';
 type Notice = { eventKey: string; type: string; recipient: string; stageId: string; registrationId?: string; subject: string; heading: string; intro: string; details: string[]; href: string };
 
 function formatStageDate(stage: { date: Date | string; city?: string | null }): string {
-  // Stage dates are calendar dates normalized to UTC noon; no event start-time field exists.
+  // The date is a calendar day. Start time is stored independently in Moscow time.
   // Show only the calendar date rather than inventing a local time from the storage timestamp.
   return new Date(stage.date).toLocaleDateString('ru-RU', { dateStyle: 'long', timeZone: 'UTC' });
 }
@@ -243,7 +243,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
 
   async stageChanged(previous: any, updated: any) {
     if (!updated || updated.status === 'DRAFT' || updated.status === 'CANCELLED' && previous.status === 'CANCELLED') return;
-    const relevantFields = ['name', 'date', 'city', 'venue', 'address'];
+    const relevantFields = ['name', 'date', 'startTimeMsk', 'city', 'venue', 'address'];
     const changed = relevantFields.filter((key) => {
       const before = previous[key] instanceof Date ? previous[key].toISOString() : String(previous[key] ?? '');
       const after = updated[key] instanceof Date ? updated[key].toISOString() : String(updated[key] ?? '');
@@ -255,8 +255,9 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const details = [
       'Этап: ' + updated.name + ' · №' + updated.stageNumber,
       'Дата: ' + formatStageDate(updated),
+      'Начало: ' + (updated.startTimeMsk ?? '10:00') + ' МСК',
       'Место: ' + [updated.city, updated.venue, updated.address].filter(Boolean).join(', '),
-      ...(changed.length ? ['Изменённые сведения: ' + changed.map((key) => ({ name: 'название этапа', date: 'дата проведения', city: 'город', venue: 'площадка', address: 'адрес' } as Record<string, string>)[key]).join(', ')] : []),
+      ...(changed.length ? ['Изменённые сведения: ' + changed.map((key) => ({ name: 'название этапа', date: 'дата проведения', startTimeMsk: 'время начала (МСК)', city: 'город', venue: 'площадка', address: 'адрес' } as Record<string, string>)[key]).join(', ')] : []),
     ];
     await this.notifyStageRegistrants({
       stage: updated,
