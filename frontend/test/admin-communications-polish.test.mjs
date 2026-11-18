@@ -112,3 +112,9 @@ test('long communication pages provide keyboard-friendly direct links to tools a
  assert.match(templates,/href="#mail-journal"/);
  assert.match(journal,/id="mail-journal"/);
 });
+
+test('queued PUSH stays acknowledged if only the subsequent history refresh fails',async()=>{
+ const page=await source('NotificationsPage.tsx');
+ assert.match(page,/Объявление поставлено в очередь, но историю не удалось обновить/);
+ assert.match(page,/try\s*\{\s*await load\(\);\s*\}\s*catch/);
+});

@@ -184,7 +184,11 @@ export default function NotificationsPage({
       setConfirmed(false);
       setTitle("");setBody("");setPath("/");setStageId("");
       request.current = { signature: "", key: "" };
-      await load();
+      try {
+        await load();
+      } catch {
+        setError("Объявление поставлено в очередь, но историю не удалось обновить. Нажмите «Обновить сводку».");
+      }
     } catch (e) {
       setError(
         e instanceof Error
