@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiGet, apiPatch, apiPost, listData, type User } from "../api";
 import "./notifications.css";
 import { parsePushTemplateResponse, type PushTemplate, type PushTemplateResponse } from "./push-template-response";
+import {pushTemplatesChanged} from "./admin-communications-utils";
 type Message = {
   id: string;
   title: string;
@@ -66,9 +67,15 @@ export default function NotificationsPage({
     setTemplateDraft(parsed.templates.map(template=>({...template})));
 
   };
+  const templateDirty=Boolean(templateOriginal&&pushTemplatesChanged(templateOriginal.templates,templateDraft));
+  const discardTemplateChanges=()=>{
+    if(!templateOriginal||templateBusy)return;
+    setTemplateDraft(templateOriginal.templates.map(template=>({...template})));
+    setTemplateError('');setTemplateNotice('');
+  };
   const editTemplate=(key:string,changes:Partial<Pick<PushTemplate,'enabled'|'title'|'body'>>)=>{
     setTemplateDraft(previous=>previous.map(template=>template.key===key?{...template,...changes}:template));
-    setTemplateNotice('');
+    setTemplateNotice('');setTemplateError('');
   };
   const saveTemplates=async(event:React.FormEvent)=>{
     event.preventDefault();
@@ -175,8 +182,13 @@ export default function NotificationsPage({
         "Объявление поставлено в очередь. Согласие и выбранные темы проверяются перед отправкой.",
       );
       setConfirmed(false);
+      setTitle("");setBody("");setPath("/");setStageId("");
       request.current = { signature: "", key: "" };
-      await load();
+      try {
+        await load();
+      } catch {
+        setError("Объявление поставлено в очередь, но историю не удалось обновить. Нажмите «Обновить сводку».");
+      }
     } catch (e) {
       setError(
         e instanceof Error
@@ -193,6 +205,12 @@ export default function NotificationsPage({
       subtitle="Объявления для подписчиков USD и состояние доставки"
     >
       <div className="notifications-page">
+        <nav className="notification-jump-nav" aria-label="Разделы PUSH-уведомлений">
+          {canCreate&&<a href="#push-test">Тестирование</a>}
+          {user.role==='ADMIN'&&<a href="#push-templates">Шаблоны</a>}
+          {canCreate&&<a href="#push-composer">Рассылка</a>}
+          <a href="#push-history">История</a>
+        </nav>
         {error && (
           <p role="alert" className="form-error">
             {error}
@@ -229,7 +247,7 @@ export default function NotificationsPage({
           </div>
         )}
         {canCreate && (
-          <section className="panel notification-composer" aria-label="Тест уведомлений">
+          <section id="push-test" className="panel notification-composer" aria-label="Тест уведомлений">
             <h2>Тест уведомлений</h2>
             <p>Проверьте разрешение браузера и показ уведомления только на текущем устройстве. Подписчикам USD ничего не отправляется.</p>
             <button type="button" className="secondary-button compact" disabled={testBusy} onClick={() => void testOnThisDevice()}>{testBusy ? "Проверяем…" : "Показать тестовое уведомление"}</button>
@@ -243,14 +261,14 @@ export default function NotificationsPage({
           </section>
         )}
         {user.role==='ADMIN'&&(
-          <section className="panel notification-composer push-template-editor" aria-label="Редактор автоматических PUSH">
+          <section id="push-templates" className="panel notification-composer push-template-editor" aria-label="Редактор автоматических PUSH">
             <div className="push-template-heading">
               <div>
                 <h2>Шаблоны автоматических PUSH</h2>
                 <p>Меняйте заголовки, тексты и включённость событий. Получатели и ссылки определяются системой и не редактируются. Сохранение не отправляет уведомления.</p>
                 <p>Для названия этапа используйте <code>{'{{stageName}}'}</code>. Не добавляйте ФИО, email и другие личные данные: PUSH может быть виден на экране блокировки.</p>
               </div>
-              <button type="button" className="secondary-button compact" disabled={templateBusy} onClick={()=>void loadTemplates().catch(e=>setTemplateError(e instanceof Error?e.message:'Не удалось обновить шаблоны.'))}>Обновить</button>
+              <button type="button" className="secondary-button compact" disabled={templateBusy||templateDirty} title={templateDirty?'Сначала сохраните или отмените изменения':''} onClick={()=>void loadTemplates().catch(e=>setTemplateError(e instanceof Error?e.message:'Не удалось обновить шаблоны.'))}>Обновить</button>
             </div>
             {templateError&&<p className="form-error" role="alert">{templateError}</p>}
             {templateNotice&&<p role="status" className="notification-notice">{templateNotice}</p>}
@@ -276,7 +294,9 @@ export default function NotificationsPage({
                 </div>
               </article>)}
               <div className="push-template-actions">
-                <button className="primary-button" type="submit" disabled={templateBusy||JSON.stringify(templateDraft.map(({key,enabled,title,body})=>({key,enabled,title,body})))===JSON.stringify(templateOriginal.templates.map(({key,enabled,title,body})=>({key,enabled,title,body})))}>{templateBusy?'Сохраняем…':'Сохранить шаблоны'}</button>
+                {templateDirty&&<span className="push-template-unsaved" role="status">Несохранённые изменения</span>}
+                <button className="primary-button" type="submit" disabled={templateBusy||!templateDirty}>{templateBusy?'Сохраняем…':'Сохранить шаблоны'}</button>
+                {templateDirty&&<button type="button" className="secondary-button" disabled={templateBusy} onClick={discardTemplateChanges}>Отменить изменения шаблонов</button>}
                 <small>Если другой администратор изменил шаблоны, сервер сообщит о конфликте — изменения не перезапишутся.</small>
               </div>
             </form>}
@@ -284,6 +304,7 @@ export default function NotificationsPage({
         )}
         {canCreate && (
           <form
+            id="push-composer"
             className="panel notification-composer"
             onSubmit={(e) => void submit(e)}
           >
@@ -387,7 +408,7 @@ export default function NotificationsPage({
             </button>
           </form>
         )}
-        <section className="panel notification-history">
+        <section id="push-history" className="panel notification-history">
           <h2>Последние объявления и автоматические уведомления</h2>
           {summary?.messages.length === 0 && <p>Уведомлений пока нет.</p>}
           {summary?.messages.map((message) => (

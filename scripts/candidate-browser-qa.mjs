@@ -129,6 +129,7 @@ function dataFor(url,role){
  if(p==='/results/admin/stage/stage1'||p.startsWith('/results/stage/')||p==='/results/public')return [result];
  if(p==='/results/public/latest')return [result];
  if(p==='/auth/admin/users')return [user('PARTICIPANT')];
+ if(p==='/mail/journal')return {entries:[{id:'mail-1',type:'AUTH_EMAIL_VERIFICATION',recipient:'fixture@example.test',status:'PROVIDER_ACCEPTED',attempts:1,createdAt:'2026-11-18T09:00:00Z',providerAcceptedAt:'2026-11-18T09:00:03Z'}],nextCursor:null};
  if(p==='/push/admin/messages')return {enabled:true,subscribers:1,messages:[]};
  if(p==='/push/admin/templates')return {revision:'a'.repeat(64),templates:[{key:'profileLinkRequest',label:'Заявка на привязку',description:'Администраторам',enabled:true,title:'Новая заявка',body:'Проверьте заявку'}]};
  return [];
@@ -415,6 +416,52 @@ try{
       await bulk.getByRole('group').getByText(/Подтвердить включение/).waitFor();
       await bulk.getByRole('button',{name:'Отмена'}).click();
       row.vehicleCatalog='308 makes and 4,347 models; pagination, inline edit/cancel, scoped bulk confirmation';
+     }
+     if(role==='ADMIN'&&route==='/admin/email-templates'){
+      const journal=page.locator('#mail-journal');
+      await journal.getByText('fixture@example.test').waitFor({state:'visible'});
+      const search=journal.getByRole('searchbox',{name:'Поиск по журналу писем'});
+      await search.fill('неизвестный адрес');
+      await journal.getByText(/По запросу ничего не найдено среди загруженных писем/).waitFor({state:'visible'});
+      await journal.getByRole('button',{name:'Очистить поиск'}).click();
+      assert.equal(await search.inputValue(),'');
+      await journal.getByText('fixture@example.test').waitFor({state:'visible'});
+      row.mailJournal='read-only provider acceptance, local search, clear without data loss';
+     }
+     if(role==='ADMIN'&&route==='/admin/notifications'){
+      const nav=page.getByRole('navigation',{name:'Разделы PUSH-уведомлений'});
+      await nav.waitFor({state:'visible'});
+      const editor=page.locator('#push-templates');
+      await editor.getByRole('heading',{name:'Шаблоны автоматических PUSH'}).waitFor();
+      const title=editor.getByRole('textbox',{name:/Заголовок/}).first();
+      const old=await title.inputValue();
+      await title.fill('Новый тестовый заголовок');
+      await editor.getByText('Несохранённые изменения').waitFor();
+      assert.equal(await editor.getByRole('button',{name:'Обновить'}).isDisabled(),true,'refresh cannot discard unsaved text');
+      await editor.getByRole('button',{name:'Отменить изменения шаблонов'}).click();
+      assert.equal(await title.inputValue(),old,'discard restores server snapshot without writing');
+      row.pushTemplates='pending changes warning, explicit discard, no accidental broadcast';
+     }
+     if(role==='ADMIN'&&route==='/admin/news'){
+      const filter=page.getByRole('combobox',{name:'Статус публикации новости'});
+      await filter.selectOption('draft');
+      await page.getByText('По выбранным фильтрам новости не найдены.').waitFor({state:'visible'});
+      await page.getByRole('button',{name:'Показать все новости'}).click();
+      assert.equal(await filter.inputValue(),'all');
+      const search=page.getByRole('searchbox',{name:'Поиск новостей'});
+      await search.fill('нет такой новости');
+      await page.getByRole('button',{name:'Сбросить фильтры новостей'}).click();
+      assert.equal(await search.inputValue(),'');
+      row.newsFilters='draft/published filter, search, reset; no publication changes';
+     }
+     if(role==='ADMIN'&&route==='/admin/partners'){
+      const visibility=page.getByRole('combobox',{name:'Видимость партнёров'});
+      await visibility.selectOption('hidden');
+      await page.getByText('Скрытый тестовый').waitFor({state:'visible'});
+      assert.equal(await page.locator('.data-table tbody tr').count(),1);
+      await page.getByRole('button',{name:'Сбросить фильтры партнёров'}).click();
+      assert.equal(await visibility.inputValue(),'all');
+      row.partnerFilters='hidden/published partner filtering without write';
      }
      if(role==='ADMIN'&&route==='/admin/components'){
       await page.getByRole('button',{name:'Сабвуферы',exact:true}).click();

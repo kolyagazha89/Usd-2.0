@@ -1,0 +1,40 @@
+/* Partner list controls stay inside staff CMS; publishing flags are untouched. */
+body .app-shell .main .content .partner-workbench {
+ display:grid;gap:12px;padding:14px;margin-bottom:12px;
+ min-width:0;border:1px solid #e1e5eb;border-radius:13px;background:#fff;
+}
+body .app-shell .main .content .partner-workbench-toolbar {
+ display:grid;grid-template-columns:minmax(0,1.6fr) repeat(2,minmax(125px,1fr));
+ gap:10px;min-width:0;align-items:end;
+}
+body .app-shell .main .content .partner-workbench-toolbar label {
+ display:grid;gap:5px;min-width:0;color:#4b5563;font-size:12px;font-weight:750;
+}
+body .app-shell .main .content .partner-workbench-toolbar :is(input,select) {
+ min-width:0;width:100%;min-height:44px;padding:9px 11px;
+ background:#fff;color:#19222d;border:1px solid #cbd2db;
+ border-radius:9px;font-size:16px;
+}
+body .app-shell .main .content .partner-workbench-footer {
+ display:flex;align-items:center;justify-content:space-between;
+ flex-wrap:wrap;gap:10px;font-size:12px;color:#5a6472;
+}
+body .app-shell .main .content .partner-workbench-footer button {min-height:44px}
+body .app-shell .main .content .partner-workbench-empty {
+ display:grid;justify-items:center;gap:12px;min-height:160px;
+ padding:20px 12px;
+}
+body .app-shell .main .content .partner-workbench-empty button {min-height:44px}
+body .app-shell .main .content .partner-edit-action {min-width:44px;min-height:44px}
+@media(max-width:750px) {
+ body .app-shell .main .content .partner-workbench {padding:12px}
+ body .app-shell .main .content .partner-workbench-toolbar {
+  grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+ }
+ body .app-shell .main .content .partner-workbench-toolbar label:first-child {grid-column:1/-1}
+ body .app-shell .main .content .partner-workbench-footer button {width:100%}
+}
+@media(max-width:370px){
+ body .app-shell .main .content .partner-workbench-toolbar {grid-template-columns:minmax(0,1fr)}
+ body .app-shell .main .content .partner-workbench-toolbar label:first-child {grid-column:auto}
+}

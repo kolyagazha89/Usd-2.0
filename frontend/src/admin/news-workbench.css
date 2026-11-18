@@ -1,0 +1,36 @@
+/* Staff-only news controls; no public news styles or publication behavior. */
+body .app-shell .main .content .news-workbench {
+  display:grid;gap:11px;min-width:0;margin:0 0 12px;padding:14px;
+  background:#fff;border:1px solid #e2e5ea;border-radius:13px;
+}
+body .app-shell .main .content .news-workbench-toolbar {
+  display:grid;grid-template-columns:minmax(0,1.8fr) minmax(150px,1fr) auto;
+  align-items:end;gap:10px;min-width:0;
+}
+body .app-shell .main .content .news-workbench-toolbar label {
+  display:grid;gap:5px;min-width:0;font-size:12px;font-weight:750;color:#4b5563;
+}
+body .app-shell .main .content .news-workbench-toolbar :is(input,select) {
+  width:100%;max-width:100%;min-width:0;min-height:44px;
+  padding:9px 11px;font-size:16px;border:1px solid #cbd2dc;
+  background:#fff;color:#18212f;border-radius:9px;
+}
+body .app-shell .main .content .news-workbench-toolbar button {min-height:44px;white-space:normal}
+body .app-shell .main .content .news-workbench-count {
+  margin:0;font-size:12px;color:#5a6472;line-height:1.5;
+}
+body .app-shell .main .content .news-workbench-empty {
+  display:grid;justify-items:center;gap:12px;padding:24px 12px;
+}
+body .app-shell .main .content .news-workbench-empty button {min-height:44px}
+body .app-shell .main .content .news-workbench-results {min-width:0}
+@media(max-width:750px) {
+  body .app-shell .main .content .news-workbench-toolbar {
+    grid-template-columns:minmax(0,1fr) minmax(110px,.7fr);gap:8px;
+  }
+  body .app-shell .main .content .news-workbench-toolbar button {grid-column:1/-1;width:100%}
+  body .app-shell .main .content .news-workbench {padding:12px}
+}
+@media(max-width:380px) {
+  body .app-shell .main .content .news-workbench-toolbar {grid-template-columns:minmax(0,1fr)}
+}

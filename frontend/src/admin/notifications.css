@@ -132,3 +132,35 @@
 .push-template-actions{display:flex;flex-wrap:wrap;align-items:center;gap:13px}
 .push-template-actions small{flex:1 1 250px}
 @media(max-width:540px){.push-template-card{padding:14px}.push-template-actions button{width:100%}}
+/* Compact jump navigation and explicit non-sending template draft status. */
+.notifications-page .notification-jump-nav {
+ display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+ min-width:0;scroll-margin-top:18px;
+}
+.notifications-page .notification-jump-nav a {
+ display:inline-flex;align-items:center;justify-content:center;
+ min-height:44px;padding:9px 13px;border:1px solid #d5dae3;
+ border-radius:10px;background:#fff;color:#313b49;
+ font-size:13px;font-weight:750;text-decoration:none;
+}
+.notifications-page .notification-jump-nav a:hover {background:#f5f6f8;border-color:#bcc5d0}
+.notifications-page .notification-jump-nav a:focus-visible,
+.notifications-page .push-template-actions button:focus-visible {outline:3px solid #bb263f;outline-offset:2px}
+.notifications-page #push-test,
+.notifications-page #push-templates,
+.notifications-page #push-composer,
+.notifications-page #push-history {scroll-margin-top:20px}
+.notifications-page .push-template-unsaved {
+ display:inline-flex;align-items:center;gap:5px;
+ min-height:40px;color:#963744;font-size:13px;font-weight:750;
+}
+.notifications-page .push-template-unsaved::before {
+ content:'•';font-size:19px;line-height:0;color:#b7263d;
+}
+@media(max-width:540px) {
+ .notifications-page .notification-jump-nav {
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
+ }
+ .notifications-page .notification-jump-nav a {width:100%;min-width:0;text-align:center;padding:8px}
+ .notifications-page .push-template-unsaved {width:100%;justify-content:flex-start}
+}
