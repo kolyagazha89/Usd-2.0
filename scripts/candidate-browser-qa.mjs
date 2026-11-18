@@ -549,8 +549,9 @@ try{
       await form.getByLabel('Дата проведения',{exact:true}).fill('2026-11-22');
       const startTime=form.getByLabel('Время начала (МСК)',{exact:true});
       await startTime.waitFor({state:'visible'});
-      await startTime.fill('10:00');
-      assert.equal(await startTime.inputValue(),'10:00','stage start must explicitly use Moscow time');
+      assert.equal(await startTime.inputValue(),'10:00','new stages start at 10:00 MSK by default');
+      await startTime.fill('11:30');
+      assert.equal(await startTime.inputValue(),'11:30','exceptional start times remain editable');
       await form.getByRole('button',{name:/Продолжить/}).click();
       assert.equal(await form.getByLabel('Сезон',{exact:true}).count(),1,'stage editor exposes season only on second screen');
       assert.match(await form.locator('.entity-form-journey-progress').innerText(),/Шаг 2 из 3/,'progress includes the review step');
