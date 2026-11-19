@@ -137,15 +137,15 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
   for(const person of snapshot.participantDirectory){
    if(!isObject(person)||Object.keys(person).some(k=>!participantFields.has(k))
     ||!UUID.test(person.id??'')||directoryPeople.has(person.id)
-    ||typeof person.isPublic!=='boolean'||!String(person.firstName??'').trim()
-    ||!String(person.lastName??'').trim()||!Array.isArray(person.cars)||person.cars.length>250)
+    ||typeof person.isPublic!=='boolean'||typeof person.firstName!=='string'
+    ||typeof person.lastName!=='string'||!Array.isArray(person.cars)||person.cars.length>250)
     throw new Error('Лишние личные поля или повтор участника справочника');
    directoryPeople.set(person.id,person);
    for(const car of person.cars){
     if(!isObject(car)||Object.keys(car).some(k=>!carFields.has(k))
      ||!UUID.test(car.id??'')||directoryCars.has(car.id)||car.participantId!==person.id
-     ||!String(car.brand??'').trim()||!String(car.model??'').trim()
-     ||!String(car.registrationNumber??'').trim()||typeof car.isPublic!=='boolean'
+     ||typeof car.brand!=='string'||typeof car.model!=='string'
+     ||typeof car.registrationNumber!=='string'||typeof car.isPublic!=='boolean'
      ||typeof car.isActive!=='boolean')
      throw new Error('Автомобиль принадлежит другому участнику или содержит запрещённые поля');
     directoryCars.set(car.id,car);
@@ -525,6 +525,9 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
    return {addedParticipants:0,addedCars:0,replayed:true};
   const lookalike={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
   const normalizedPlate=car=>{
+   // Old centrally signed cars may legitimately have no plate assigned yet.
+   // Empty identifiers are never evidence that two cars are identical.
+   if(!String(car.registrationNumber??'').trim())return '';
    const value=String(car.registrationNumber).normalize('NFKC').toLocaleUpperCase('ru-RU')
     .replace(/[\u200B-\u200D\uFEFF]/g,'').trim();
    const letters=car.registrationCountry==='RU'
@@ -537,6 +540,7 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
   const plates=new Map();
   for(const car of currentCars){
    const plate=normalizedPlate(car);
+   if(!plate)continue;
    if(!plates.has(plate))plates.set(plate,new Set());
    plates.get(plate).add(car.id);
   }
@@ -547,6 +551,7 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
   for(const person of plan.participantDirectory){
    for(const car of person.cars){
     const plate=normalizedPlate(car);
+    if(!plate)continue;
     const owners=plates.get(plate)??new Set();
     if([...owners].some(id=>id!==car.id&&!sourceCarIds.has(id)))
      throw new Error('MANUAL_REVIEW: госномер уже занят локальным автомобилем под другим ID');

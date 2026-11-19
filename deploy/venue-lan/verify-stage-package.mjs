@@ -108,8 +108,7 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
   const people=new Set(),cars=new Set();
   for(const person of snapshot.participantDirectory){
    fields(person,['id','firstName','lastName','middleName','city','team','isPublic','cars'],'участник справочника');
-   if(!uuid(person.id)||people.has(person.id)||!String(person.firstName??'').trim()
-    ||!String(person.lastName??'').trim()||typeof person.isPublic!=='boolean'
+   if(!uuid(person.id)||people.has(person.id)||typeof person.firstName!=='string'||typeof person.lastName!=='string'||typeof person.isPublic!=='boolean'
     ||!Array.isArray(person.cars)||person.cars.length>250)
     throw new Error('Повтор или повреждение участника справочника');
    people.add(person.id);
@@ -117,8 +116,8 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
     fields(car,['id','participantId','brand','model','registrationCountry','registrationNumber',
      'color','isPublic','isActive'],'автомобиль справочника');
     if(!uuid(car.id)||cars.has(car.id)||car.participantId!==person.id
-     ||!String(car.brand??'').trim()||!String(car.model??'').trim()
-     ||!String(car.registrationNumber??'').trim()||typeof car.isPublic!=='boolean'
+     ||typeof car.brand!=='string'||typeof car.model!=='string'
+     ||typeof car.registrationNumber!=='string'||typeof car.isPublic!=='boolean'
      ||typeof car.isActive!=='boolean')
      throw new Error('Повтор или повреждение автомобиля справочника');
     cars.add(car.id);
