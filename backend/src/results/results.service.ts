@@ -8,6 +8,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { redactArchivedResult } from '../participants/car-visibility';
+import {readSignedVenueDisqualifications} from '../stages/venue-disqualification-snapshot';
 import { RecordsService } from '../records/records.service';
 import { ResultsRankingService } from './results-ranking.service';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
@@ -226,7 +227,9 @@ export class ResultsService {
       throw new NotFoundException('Этап не найден');
     }
 
-    const active = await tx.disqualification.findMany({
+    const active = process.env.USD_VENUE_LAN_MODE==='true'
+      ? await readSignedVenueDisqualifications(tx,participantId,stage.id,stage.seasonId)
+      : await tx.disqualification.findMany({
       where: {
         participantId,
         status: 'ACTIVE',
