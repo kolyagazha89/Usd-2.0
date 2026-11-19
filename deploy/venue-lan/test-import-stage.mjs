@@ -113,6 +113,7 @@ function mockDb(){
    count:async()=>0,
    findUnique:async()=>null,
    create:async value=>{log.push({model:name,data:value.data});return {id:value.data?.id??uuid.version}},
+   createMany:async value=>{for(const item of value.data)log.push({model:name,data:item});return {count:value.data.length}},
    update:async value=>{log.push({model:name,update:value.data});return {}},
   };
  }
@@ -395,6 +396,19 @@ test('RED: new signed roster with blank vehicle plates cannot collide with exist
  assert.equal(done.addedCars,1);
 });
 
+test('database failure reports a fixed import phase and safe Prisma code without participant names or SQL',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {db,tx}=mockDb();
+ tx.car.createMany=async()=>{const error=new Error('private row Иванов, secret /local-private');
+  error.code='P2002';throw error};
+ await assert.rejects(()=>applyVenueStageImport(plan,db),error=>{
+  assert.equal(importer.classifyVenueImportFailure(error),'DATABASE_P2002_CARS');
+  return true;
+ });
+ const unsafe=new Error('participant Иванов /local-private SELECT password');
+ unsafe.code='P2002';unsafe.venueImportPhase='unsafe-dynamic-message';
+ assert.equal(importer.classifyVenueImportFailure(unsafe),'DATABASE_P2002');
+});
 test('RED: startup refusal produces safe, PII-free reason codes for clock, historical roster, trust and database',()=>{
  assert.equal(importer.classifyVenueImportFailure(new Error('Пакет просрочен или время ноутбука неверно')),'PACKAGE_EXPIRED_OR_CLOCK');
  assert.equal(importer.classifyVenueImportFailure(new Error('Повтор или повреждение участника справочника')),'SIGNED_DIRECTORY_INVALID');
