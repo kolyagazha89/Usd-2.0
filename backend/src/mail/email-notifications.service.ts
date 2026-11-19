@@ -152,9 +152,9 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     const current = criticalStageSnapshot(stage);
     const changedDescriptions = previous ? changes.filter(key => key !== 'cancelled').map(key => {
       const oldValue = key === 'date' && previous.date
-        ? new Date(previous.date + 'T12:00:00Z').toLocaleDateString('ru-RU', {timeZone:'UTC'}) : String(previous[key] || 'не указано');
+        ? new Date(String(previous.date) + 'T12:00:00Z').toLocaleDateString('ru-RU', {timeZone:'UTC'}) : String(previous[key] || 'не указано');
       const newValue = key === 'date' && current.date
-        ? new Date(current.date + 'T12:00:00Z').toLocaleDateString('ru-RU', {timeZone:'UTC'}) : String(current[key] || 'не указано');
+        ? new Date(String(current.date) + 'T12:00:00Z').toLocaleDateString('ru-RU', {timeZone:'UTC'}) : String(current[key] || 'не указано');
       return CRITICAL_STAGE_LABELS[key] + ': было «' + oldValue + '», стало «' + newValue + '»';
     }) : [];
     const details = [
