@@ -463,6 +463,8 @@ function Install-Local {
  Set-VenueStep 'validate-compose'
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
  if($state.phase -eq 'READY'){Update-ReadyVenueFrontend $state;Start-Local;return}
+ Set-VenueStep 'check-other-stage-ports'
+ Assert-NoOtherVenueGatewayRunning
  if($state.phase -ne 'CONFIGURED'){Start-VenueDatabase}
  Set-VenueStep 'verify-stage-and-staff'
  $mounts=Confirm-SignedStage $state
