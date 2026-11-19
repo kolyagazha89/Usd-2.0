@@ -1216,19 +1216,17 @@ export class ParticipantsService {
 
   async findMyCars(
     request: AuthenticatedRequest,
+    visibility: 'active' | 'hidden' = 'active',
   ) {
-    const user =
-      await this.getAuthenticatedUser(request);
+    const user = await this.getAuthenticatedUser(request);
+    const participantId = this.requireParticipantId(user.participantId);
 
-    const participantId =
-      this.requireParticipantId(
-        user.participantId,
-      );
-
-    return this.findCarsInternal(
-      participantId,
-      true,
-    );
+    // The private archive is scoped to the authenticated participant only.
+    // Normal garage and registration requests continue to return active cars.
+    if (visibility !== 'active' && visibility !== 'hidden') {
+      throw new BadRequestException('Некорректная категория автомобилей');
+    }
+    return this.findCarsInternal(participantId, visibility === 'active');
   }
 
   async createMyCar(
@@ -1267,7 +1265,7 @@ export class ParticipantsService {
   ) {
     await this.requireAdminOrCustomRole(request);
 
-    // Hidden cars are only accessible in the dedicated administrator archive.
+    // Operator car selections must never include archived vehicles.
     return this.findCarsInternal(participantId, true);
   }
 
@@ -1360,7 +1358,7 @@ export class ParticipantsService {
 
   private async findCarsInternal(
     participantId: string,
-    activeOnly: boolean,
+    isActive: boolean,
   ) {
     await this.ensureParticipantExists(
       participantId,
@@ -1369,11 +1367,7 @@ export class ParticipantsService {
     return this.prisma.car.findMany({
       where: {
         participantId,
-        ...(activeOnly
-          ? {
-              isActive: true,
-            }
-          : {}),
+        isActive,
       },
 
       orderBy: [
@@ -1843,12 +1837,8 @@ export class ParticipantsService {
     }
 
     if (body.isActive !== undefined) {
-      if (!isAdmin) {
-        throw new ForbiddenException(
-          'Только администратор может изменять активность автомобиля',
-        );
-      }
-
+      // ADMIN may archive any permitted historical car; a participant may
+      // archive or restore only a car they own (ownership checked above).
       if (body.isActive === false) {
         // Historical registrations remain ACTIVE for their published results.
         // Only a registration for today's or a future published stage blocks

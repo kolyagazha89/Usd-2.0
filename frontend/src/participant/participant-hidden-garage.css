@@ -1,0 +1,28 @@
+/* Member-only vehicle archive: intentionally quiet and collapsed at the bottom of Garage. */
+body .participant-portal.usd-member .participant-hidden-garage{
+  margin:24px 0 8px;border:1px solid #303946;border-radius:12px;
+  background:#121820;overflow:hidden;
+}
+body .participant-portal.usd-member .participant-hidden-toggle{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  width:100%;min-height:52px;padding:14px 18px;
+  color:#b7c0cc;background:transparent;border:0;cursor:pointer;text-align:left;
+}
+body .participant-portal.usd-member .participant-hidden-toggle>span{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
+body .participant-portal.usd-member .participant-hidden-toggle>svg{transition:transform .2s ease}
+body .participant-portal.usd-member .participant-hidden-toggle[aria-expanded="true"]>svg{transform:rotate(180deg)}
+body .participant-portal.usd-member .participant-hidden-toggle:focus-visible{outline:2px solid #f04b61;outline-offset:-3px}
+body .participant-portal.usd-member .participant-hidden-body{padding:8px 18px 18px;border-top:1px solid #303946}
+body .participant-portal.usd-member .participant-hidden-body>p{margin:10px 0;color:#aeb8c5;font-size:13px;line-height:1.5}
+body .participant-portal.usd-member .participant-hidden-list{display:grid;gap:10px;margin-top:12px}
+body .participant-portal.usd-member .participant-hidden-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 15px;background:#181f29;border:1px solid #303946;border-radius:9px}
+body .participant-portal.usd-member .participant-hidden-row>div{display:grid;gap:5px;min-width:0}
+body .participant-portal.usd-member .participant-hidden-row strong{font-size:15px;overflow-wrap:anywhere}
+body .participant-portal.usd-member .participant-hidden-row small{font-size:12px;color:#aeb8c5}
+body .participant-portal.usd-member .participant-hide-car{opacity:.85}
+@media(max-width:560px){
+  body .participant-portal.usd-member .participant-hidden-toggle{padding:14px}
+  body .participant-portal.usd-member .participant-hidden-body{padding:8px 14px 14px}
+  body .participant-portal.usd-member .participant-hidden-row{align-items:stretch;flex-direction:column}
+  body .participant-portal.usd-member .participant-hidden-row button{min-height:44px;justify-content:center}
+}

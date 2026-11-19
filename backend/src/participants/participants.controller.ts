@@ -150,8 +150,9 @@ export class ParticipantsController {
   @Get('participants/me/cars')
   findMyCars(
     @Req() request: AuthenticatedRequest,
+    @Query('visibility') visibility?: 'active' | 'hidden',
   ) {
-    return this.participantsService.findMyCars(request);
+    return this.participantsService.findMyCars(request, visibility);
   }
 
   @Roles('PARTICIPANT')
