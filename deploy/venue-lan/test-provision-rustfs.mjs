@@ -139,6 +139,24 @@ test('never reuse broader stored IAM policy and never mutate conflicting identit
   assert.equal(writes.length,0);
  }
 });
+test('waits for the actual RustFS readiness endpoint before authenticating during slow first boot',async()=>{
+ const {fetcher}=resumedRustfsFetcher();
+ let readinessChecks=0,rootChecks=0;
+ const slowFirstBoot=async(url,init)=>{
+  if(url.endsWith('/health/ready')){
+   readinessChecks++;
+   return mockResponse(readinessChecks<36?503:200,{ready:readinessChecks>=36});
+  }
+  if(url.endsWith('/')&&init.method==='GET')rootChecks++;
+  return fetcher(url,init);
+ };
+ const result=await provisionVenueMedia(cfg,{
+  fetcher:slowFirstBoot,endpoint,sleep:async()=>{},startupTimeoutMs:180000,
+ });
+ assert.deepEqual(result,{bucket:'usd-venue-media',restricted:true});
+ assert.equal(readinessChecks,36,'installer must wait through RustFS startup instead of racing the first boot');
+ assert.equal(rootChecks,1,'root authentication starts only after RustFS reports ready');
+});
 test('root auth or failed IAM write reports step and HTTP code without printing secrets',async()=>{
  const unauthorized=async()=>mockResponse(403);
  await assert.rejects(()=>provisionVenueMedia(cfg,{fetcher:unauthorized,endpoint}),/USD VENUE MEDIA FAILED AT root-readiness \[HTTP 403\]/);
