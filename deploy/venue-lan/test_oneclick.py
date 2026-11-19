@@ -328,5 +328,30 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("assertInstalledVenueStageReceipt",staff)
         self.assertIn("if(extra[0]==='--check')",staff)
 
+
+    def test_windows_first_boot_fixes_only_its_own_rustfs_volume_before_start(self):
+        lifecycle=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
+        control=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        self.assertIn('function Initialize-VenueMediaVolume',lifecycle)
+        section=lifecycle[lifecycle.index('function Initialize-VenueMediaVolume'):lifecycle.index('function Get-VenueKitFiles')]
+        self.assertIn("com.docker.compose.project",section)
+        self.assertIn("'--network','none'",section)
+        self.assertIn("'--user','0:0'",section)
+        self.assertIn('10001:10001',section)
+        self.assertIn('venue_media',section)
+        self.assertNotIn("'down'",section)
+        self.assertNotIn("'--volumes'",section)
+        install=control[control.index('function Install-Local'):control.index('function Start-Local')]
+        self.assertIn('Initialize-VenueMediaVolume',install)
+        self.assertLess(install.index('Initialize-VenueMediaVolume'),install.index("Invoke-Compose @('up','-d','db','rustfs')"))
+
+    def test_windows_rustfs_provision_failure_shows_safe_step_without_dumping_credentials(self):
+        control=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        media=(ROOT/'provision-rustfs.mjs').read_text(encoding='utf-8')
+        self.assertIn('USD_VENUE_INSTALL_DIAG',control)
+        self.assertIn('USD_VENUE_INSTALL_DIAG',media)
+        self.assertIn('USD VENUE MEDIA FAILED AT',media)
+        self.assertNotIn("console.error(error)",media)
+
 if __name__=="__main__":
     unittest.main()
