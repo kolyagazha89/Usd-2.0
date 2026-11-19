@@ -101,6 +101,35 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
    stageInspection:null,results:[],
   }],
  };
+ // Mirror production exports: every historical profile/car plus the complete
+ // 19-class catalogue and more than one currently registered entrant. The
+ // old one-entrant CI fixture missed Windows transaction saturation.
+ snapshot.participantDirectory.push(...Array.from({length:750},(_,index)=>{
+  const participantId=randomUUID();
+  return {id:participantId,firstName:'Из архива',lastName:'Профиль '+index,
+   middleName:null,city:null,team:null,isPublic:false,
+   cars:[{id:randomUUID(),participantId,brand:'Lada',model:'',
+    registrationCountry:'RU',registrationNumber:'',color:null,isPublic:false,isActive:false}]};
+ }));
+ for(let i=1;i<19;i++){
+  const classId=randomUUID();
+  snapshot.stage.stageClasses.push({
+   id:randomUUID(),stageId:ID.stage,classId,sortOrder:i,
+   isActive:true,participantLimit:null,customName:null,description:null,settings:null,
+   class:{id:classId,code:'CI_EXTRA_'+i,name:'CI class '+i,unit:'DB',
+    sortOrder:i,isActive:true,direction:{id:ID.direction,name:'SPL',sortOrder:0,isActive:true}},
+  });
+ }
+ const second=structuredClone(snapshot.registrations[0]);
+ second.id=randomUUID();second.participantId=randomUUID();second.carId=randomUUID();
+ second.configurationVersionId=randomUUID();second.participantNumber=7;
+ second.participant.id=second.participantId;second.participant.firstName='Второй';
+ second.car.id=second.carId;second.car.participantId=second.participantId;
+ second.car.registrationNumber='А124ВС55';
+ second.numbers[0].id=randomUUID();second.numbers[0].number=7;
+ second.classes[0].id=randomUUID();second.classes[0].numberId=second.numbers[0].id;
+ second.inspection=null;second.stageInspection=null;
+ snapshot.registrations.push(second);
  mutate(snapshot);
  const {privateKey,publicKey}=generateKeyPairSync('ed25519');
  const bytes=Buffer.from(JSON.stringify(snapshot));
@@ -142,7 +171,9 @@ async function seed(){
   const privileges=await client.$queryRawUnsafe('SELECT rolsuper FROM pg_roles WHERE rolname=current_user');
   assert.equal(privileges[0].rolsuper,false,'API DB principal must never be superuser');
   const imported=await applyVenueStageImport(plan,client);
-  assert.equal(imported.registrations,1);
+  assert.equal(imported.registrations,2);
+  assert.equal(imported.classes,19);
+  assert.equal(await client.participant.count(),753,'all signed historical identities must import');
   const season=await client.season.findUnique({where:{id:ID.season}});
   assert.equal(season.status,'ACTIVE','The venue must permit on-site registration into active season');
   const settings=await client.siteSettings.findUnique({where:{id:'default'}});
