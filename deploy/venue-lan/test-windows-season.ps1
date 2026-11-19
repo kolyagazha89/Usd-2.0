@@ -48,7 +48,7 @@ function docker {
 }
 Initialize-VenueMediaVolume
 $calls=($script:MediaCalls -join [Environment]::NewLine)
-if($calls -notmatch 'create --no-recreate --no-deps rustfs'){throw 'Media volume was not created as own Compose resource'}
+if($calls -notmatch 'create --no-recreate rustfs' -or $calls -match 'create [^\r\n]*--no-deps'){throw 'Unsupported Compose create flags in media bootstrap'}
 if($calls -notmatch '--mount type=volume,source=usd-venue-[a-f0-9]{32}_venue_media,target=/data'){
  throw 'Media helper targeted wrong Docker volume'
 }
