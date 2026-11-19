@@ -20,6 +20,13 @@ describe('venue API is a subset of production administration',()=>{
    ['AppController','GET','/release'],
   ] as const)expect(isVenueApiAllowed(controller,method,path)).toBe(true);
  });
+ it('blocks offline disqualification writes until the signed return can import them',()=>{
+  // Disqualification has no row adapter in full-return-apply.mjs. Otherwise a
+  // local POST/PATCH can poison the journal and block all result imports.
+  expect(isVenueApiAllowed('DisqualificationsController','GET','/disqualifications')).toBe(true);
+  expect(isVenueApiAllowed('DisqualificationsController','POST','/disqualifications')).toBe(false);
+  expect(isVenueApiAllowed('DisqualificationsController','PATCH','/disqualifications/uuid/revoke')).toBe(false);
+ });
  it('rejects global edits, user administration, mail, pub server syncing and signup',()=>{
   for(const [controller,method,path] of [
    ['AuthController','POST','/auth/register'],
