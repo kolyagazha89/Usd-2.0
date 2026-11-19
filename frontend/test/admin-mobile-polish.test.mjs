@@ -86,3 +86,27 @@ test('catalog filters offer reset and do not destroy user data',async()=>{
  assert.match(code,/setLifecycleFilter\('ALL'\)/);
  assert.match(code,/setModelBrand\(''\)/);
 });
+
+test('mobile catalog category picker exposes all categories without a horizontal swipe',async()=>{
+ const code=await source('admin/CatalogPage.tsx');
+ const css=await source('admin/admin-shell-layout.css');
+ assert.match(code,/className="catalog-category-mobile"/);
+ assert.match(code,/aria-label="Категория оборудования"/);
+ assert.match(code,/onChange=\{e=>selectCategory\(e\.target\.value as CatalogCategory\)\}/);
+ assert.match(code,/onClick=\{\(\)=>selectCategory\(x\.value\)\}/);
+ assert.match(css,/\.catalog-category-mobile\s*\{display:none\}/);
+ assert.match(css,/\.catalog-category-panel \.catalog-category-tabs \{\s*display:none!important/);
+ assert.match(css,/\.catalog-category-panel \.catalog-category-mobile \{\s*display:grid!important/);
+});
+
+test('mobile competition operations put the selected stage above compact filters at full width',async()=>{
+ const css=await source('admin/admin-shell-layout.css');
+ assert.match(css,/\.event-ops-page \.stage-picker\s*\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
+ assert.match(css,/\.event-ops-page \.stage-picker>label\s*\{[^}]*grid-row:1/);
+ assert.match(css,/\.event-ops-page \.stage-picker>\.usd-filter-drawer\s*\{[^}]*grid-row:2/);
+ for(const file of ['RegistrationsPage.tsx','InspectionsPage.tsx','ResultsPage.tsx']){
+  const code=await source('admin/'+file);
+  const picker=code.slice(code.indexOf('className="toolbar stage-picker'));
+  assert.ok(picker.indexOf('<label>Этап')>=0&&picker.indexOf('<label>Этап')<picker.indexOf('<CollapsibleFilters'),file+' must put the stage before optional filters in DOM order');
+ }
+});
