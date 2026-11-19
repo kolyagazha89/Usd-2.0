@@ -95,8 +95,8 @@ const mockResponse=(status,body='')=>({status,ok:status>=200&&status<300,
 function resumedRustfsFetcher({userPolicy='usd-venue-media-only',policy=venueMediaPolicy(),userPresent=true,bucketPresent=true}={}){
  const writes=[];
  const fetcher=async(url,init)=>{
-  const isRoot=init.headers.Authorization.includes('Credential=venue-root-example/');
   if(url.endsWith('/health/ready'))return mockResponse(200,{ready:true});
+  const isRoot=init.headers.Authorization.includes('Credential=venue-root-example/');
   if(init.method==='PUT'){writes.push(url);return mockResponse(200)}
   if(url.endsWith('/rustfs/admin/v3/user-info?accessKey='+cfg.VENUE_S3_APP_ACCESS))
    return userPresent?mockResponse(200,{status:'enabled',policyName:userPolicy}):mockResponse(404);
