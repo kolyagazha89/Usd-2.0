@@ -335,7 +335,7 @@ export class StagesService {
             select: { criticalNoticeRevision: true, criticalNoticeState: true },
           });
           return state?.criticalNoticeRevision === revision && state.criticalNoticeState === 'SENDING';
-        });
+        }, baseline ?? undefined);
       completed = summary.total > 0 && summary.accepted === summary.total && !summary.interrupted;
       const settled = await this.prisma.stage.updateMany({
         where: { id, criticalNoticeRevision: revision, criticalNoticeState: 'SENDING' },
