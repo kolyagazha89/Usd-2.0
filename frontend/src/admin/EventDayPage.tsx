@@ -124,7 +124,9 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
   finally{setSavingId('')}
  };
  const linkToResults=(row:DayRow)=>go(judgingResultLink(stageId,row.id));
- const filteredTotal=filter==='ALL'?counts.active:filter==='PENDING'?counts.pending:filter==='PASSED'?counts.passed:filter==='FAILED'?counts.failed:filter==='EQUIPMENT'?counts.equipment:counts.cancelled;
+ const filterCounts:Record<DayStatus,number>={ALL:counts.active,PENDING:counts.pending,PASSED:counts.passed,FAILED:counts.failed,EQUIPMENT:counts.equipment,CANCELLED:counts.cancelled};
+ const filteredTotal=filterCounts[filter];
+ const jumpToRoster=()=>{(document.activeElement as HTMLElement|null)?.blur?.();document.getElementById('event-day-records')?.scrollIntoView({block:'start',behavior:'smooth'})};
  return <PageFrame className="event-ops-page event-day-page" title="День соревнований" subtitle="Единый рабочий список: въезд, допуски, классы и судейство"
   action={<button type="button" className="secondary-button compact" disabled={loading||stagesBusy||!!savingId||!selected} onClick={()=>void refresh()}><RefreshCw size={15}/>Обновить список</button>}>
   {!canList?<section className="panel event-day-blocked" role="alert"><ShieldAlert size={24}/><h2>Нет доступа к рабочему списку</h2><p>Для работы необходимы права «Регистрации → просмотр». Права на инспекции, регистрацию и результаты настраиваются отдельно.</p></section>:<>
@@ -140,7 +142,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
    {error&&<div className="form-error" role="alert"><AlertTriangle size={16}/>{error}</div>}
    {notice&&<div className="notice" role="status"><Check size={16}/>{notice}</div>}
    {stagesBusy?<LoadingPage small/>:!selected?<section className="panel"><Empty text={stageId?'Выбранный этап не найден или недоступен для вашей роли. Укажите другой этап.':'Выберите этап для работы'}/></section>:<>
-    <section className="event-day-stage-context" aria-label="Информация об этапе"><Flag size={17}/><strong>{selected.name}</strong><span>{selected.city||'Город не указан'} · {dateLabel(selected.date)}</span>{readOnly&&<span className="event-day-read-only"><Info size={14}/>Архив: изменения инспекций отключены</span>}</section>
+    <section className="event-day-stage-context" aria-label="Информация об этапе"><Flag size={17}/><strong>{selected.name}</strong><span>{selected.city||'Город не указан'} · {dateLabel(selected.date)}</span><button type="button" className="secondary-button compact event-day-list-jump" onClick={jumpToRoster}>↓ К списку участников</button>{readOnly&&<span className="event-day-read-only"><Info size={14}/>Архив: изменения инспекций отключены</span>}</section>
     {(window as Window & {__USD_VENUE_MODE__?:unknown}).__USD_VENUE_MODE__===true&&
      <p className="event-day-live-link"><a href="/venue/live" target="_blank" rel="noopener noreferrer">
       <Trophy size={17}/>Открыть локальное LIVE-табло этапа ↗
@@ -189,10 +191,10 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
      </form>
      <small>Если на устройстве уже есть пакет, сначала перенесите его черновики и удалите его вручную. Запись поверх запрещена. Перед отключением интернета откройте автономный экран и убедитесь, что оболочка установлена.</small>
     </section>}
-    <section className="panel event-day-roster" aria-label="Рабочий список участников">
+    <section id="event-day-records" className="panel event-day-roster" aria-label="Рабочий список участников">
      <header className="event-day-roster-head"><div><span className="eyebrow">СПИСОК УЧАСТНИКОВ</span><h3>{filter==='PASSED'?'Итоговый список допущенных':statusLabels[filter]}</h3><p>{filter==='PASSED'?'Здесь только действующие регистрации с подтверждённой общей инспекцией.':'Поиск по точному номеру участника, ФИО, автомобилю, госномеру и классу.'}</p></div><span aria-live="polite" role="status" className="event-day-count">{loading?'Загрузка…':visible.length+' из '+filteredTotal}</span></header>
-     <div className="event-day-search" role="search"><Search size={19}/><input type="search" aria-label="Поиск участника в день соревнований" value={search} onChange={e=>setSearch(e.target.value)} placeholder="№ участника, ФИО, госномер, автомобиль, класс…" autoComplete="off"/>{search&&<button type="button" className="secondary-button compact" onClick={()=>setSearch('')}>Очистить</button>}</div>
-     <div className="event-day-filter-tabs" role="group" aria-label="Статус допуска">{(['ALL','PENDING','PASSED','FAILED','EQUIPMENT','CANCELLED'] as DayStatus[]).map(value=><button type="button" className={'secondary-button compact '+(filter===value?'active':'')} key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{statusLabels[value]}</button>)}</div>
+     <div className="event-day-search" role="search"><Search size={19}/><input type="search" aria-label="Поиск участника в день соревнований" value={search} onChange={e=>setSearch(e.target.value)} placeholder="№ участника, ФИО, госномер, автомобиль, класс…" autoComplete="off"/>{search&&<button type="button" className="secondary-button compact event-day-search-clear" aria-label="Очистить поиск" onClick={()=>setSearch('')}><X size={16} aria-hidden="true"/><span>Очистить</span></button>}</div>
+     <div className="event-day-filter-tabs" role="group" aria-label="Статус допуска">{(['ALL','PENDING','PASSED','FAILED','EQUIPMENT','CANCELLED'] as DayStatus[]).map(value=><button type="button" className={'secondary-button compact '+(filter===value?'active':'')} key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{statusLabels[value]}<span className="event-day-filter-count" aria-hidden="true">{loading?'—':filterCounts[value]}</span></button>)}</div>
      {loading?<LoadingPage small/>:visible.length===0?<div className="usd-admin-filter-empty"><Empty text={rows.length?'По текущему фильтру участники не найдены':'На выбранном этапе нет регистраций'}/>{rows.length>0&&(search||filter!=='ALL')&&<button type="button" className="secondary-button compact" onClick={()=>{setSearch('');setFilter('ALL')}}>Сбросить поиск и статус</button>}</div>:<div className="event-day-list">
       {visible.map(row=>{
        const inspected=dayStatus(row),numbers=judgingNumbers(row),canInspect=canSeeInspections,canEdit=canChangeDayInspection(user,row,readOnly),incomplete=isPendingEquipment(row);
