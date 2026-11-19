@@ -135,6 +135,7 @@ try{
    assert.deepEqual(submittedReview?.decisions?.map(d=>({key:d.key,action:d.action,targetId:d.targetId})),
     [{key:reviewKey,action:'LINK',targetId}]);checks++;
    mode='ready';await page.reload();
+   await main.getByText('Подготовка файла настоящего этапа',{exact:true}).click();
   }
   mode='tamper';await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).click();
   await main.getByRole('alert').filter({hasText:'не прошёл проверку'}).waitFor();checks++;
