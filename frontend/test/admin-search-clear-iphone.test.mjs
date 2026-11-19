@@ -6,11 +6,13 @@ const read=path=>readFile(new URL(path,import.meta.url),'utf8');
 
 test('iPhone search clear buttons cannot collapse into a vertical stack of letters',async()=>{
  const css=await read('../src/admin/admin-shell-layout.css');
- const generic=css.indexOf('.app-shell .main .search-box>button,');
+ const baseCss=await read('../src/styles.css');
+ const main=await read('../src/main.tsx');
+ const generic=baseCss.indexOf('.app-shell .main .search-box>button,');
  const targeted=css.match(/body\s+\.app-shell\s+\.main\s+\.content\s+\.search-box>\.usd-admin-search-clear\s*\{([^}]+)\}/);
  assert.ok(generic>=0,'the shared search style currently caps toolbar buttons at 24px');
  assert.ok(targeted,'admin search clear needs a more specific override than generic icon sizing');
- assert.ok(targeted.index>generic,'override must appear after the 24px icon-only rule');
+ assert.ok(main.lastIndexOf("import './admin/admin-shell-layout.css';")>main.indexOf("import './styles.css';"),'scoped admin override must be imported after generic search styles');
  const rule=targeted[1];
  assert.match(rule,/max-width:\s*none\s*!important/,'clear text must not be constrained to 24px');
  assert.match(rule,/width:\s*auto\s*!important/);
