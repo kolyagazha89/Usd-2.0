@@ -109,7 +109,7 @@ test('PG18: a central car with the same plate but different owner forces manual 
  try{
   await assert.rejects(
    ()=>applyCompleteVenueJournal(changes,postgresFullVenueAdapter(client),{...opts,apply:false}),
-   /MANUAL_REVIEW.*DUPLICATE_CAR_PLATE/
+   /MANUAL_REVIEW.*DUPLICATE_(CAR_PLATE|PARTICIPANT_BY_PLATE)/
   );
   assert.equal(await read('Participant',participant),null);
   assert.equal(await read('Car',car),null);

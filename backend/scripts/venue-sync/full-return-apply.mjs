@@ -188,14 +188,14 @@ function remapRow(table,row,people,cars){
   result.carId=cars.get(result.carId)??result.carId;
  return result;
 }
-function reviewApproval(resolutions,table,sourceId,candidates,apply,reviewId,approvedBy){
+function reviewApproval(resolutions,table,sourceId,candidates,apply,reviewId,approvedBy,reasonCode){
  const key=conflictKey(table,sourceId),decision=resolutions[key]??null;
  const ids=candidates.map(x=>x.id).sort();
  if(!ids.length){
   if(decision)reject('MANUAL_REVIEW: stale ADMIN decision without central conflict '+key);
   return null;
  }
- if(!decision)reject('MANUAL_REVIEW: '+(table==='Participant'?'DUPLICATE_PARTICIPANT_NAME':'DUPLICATE_CAR_PLATE')+' '+sourceId);
+ if(!decision)reject('MANUAL_REVIEW: '+(reasonCode??(table==='Participant'?'DUPLICATE_PARTICIPANT_NAME':'DUPLICATE_CAR_PLATE'))+' '+sourceId);
  if(decision.key!==key||decision.table!==table||decision.sourceId!==sourceId
   ||!['LINK','NEW','DEFER'].includes(decision.action)
   ||!Array.isArray(decision.candidateIds)||JSON.stringify([...decision.candidateIds].sort())!==JSON.stringify(ids)
@@ -325,7 +325,9 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
      const candidates=participantReviewCandidates(after,matches,centralCars,offlineCars);
      if(newOfflinePeople.some(candidate=>candidate.id!==after.id&&participantNamesNeedReview(after,candidate)))
       reject('MANUAL_REVIEW: duplicate profiles within signed journal');
-     const choice=reviewApproval(resolutions,'Participant',after.id,candidates,apply,reviewId,approvedBy);
+     const reasonCode=candidates.some(candidate=>participantNamesNeedReview(after,candidate))
+      ?'DUPLICATE_PARTICIPANT_NAME':'DUPLICATE_PARTICIPANT_BY_PLATE';
+     const choice=reviewApproval(resolutions,'Participant',after.id,candidates,apply,reviewId,approvedBy,reasonCode);
      if(choice){
       approvedKeys.add(choice.key);
       if(choice.action==='LINK'){linkedPeople.set(after.id,choice.targetId);skipLinkedInsert=true;}

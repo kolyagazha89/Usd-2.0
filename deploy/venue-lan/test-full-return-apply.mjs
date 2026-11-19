@@ -286,7 +286,7 @@ test('same Russian plate with Latin lookalikes and a misspelled FIO blocks dupli
  candidate.events[0].payload.after.firstName='Андрей';
  candidate.events[1].payload.after.registrationCountry='RU';
  candidate.events[1].payload.after.registrationNumber='A123AA181';
- await assert.rejects(()=>applyCompleteVenueJournal(candidate,db,opts),/MANUAL_REVIEW.*DUPLICATE_CAR_PLATE/);
+ await assert.rejects(()=>applyCompleteVenueJournal(candidate,db,opts),/MANUAL_REVIEW.*DUPLICATE_(CAR_PLATE|PARTICIPANT_BY_PLATE)/);
  assert.equal(db.rows.get('Participant').size,1);
  assert.equal(db.rows.get('Car').size,1);
  assert.equal(db.rows.get('Registration'),undefined);
