@@ -26,7 +26,7 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
  const {snapshot,integrity}=packageValue;
  fields(packageValue,['snapshot','integrity'],'контейнер');
  fields(integrity,['algorithm','sha256','signature','publicKeyFingerprint'],'подпись');
- fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy','syncAuthorization','staffAccess','participantDirectory'],'снимок');
+ fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy','syncAuthorization','staffAccess','participantDirectory','disqualifications'],'снимок');
  if(snapshot.format!==1||snapshot.purpose!=='USD_VENUE_STAGE_READONLY'
   ||!uuid(snapshot.stageId)||integrity.algorithm!=='Ed25519'
   ||typeof integrity.signature!=='string'||!/^[A-Za-z0-9_-]{64,180}$/.test(integrity.signature)
@@ -97,6 +97,21 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
   'rulesSnapshot','season','stageClasses'],'этап');
  if(stage.id!==snapshot.stageId||!Array.isArray(stage.stageClasses)||stage.stageClasses.length>400)
   throw new Error('Состав этапа неверен');
+ if(snapshot.disqualifications!==undefined){
+  if(!Array.isArray(snapshot.disqualifications)||snapshot.disqualifications.length>25000)
+   throw new Error('Некорректный подписанный список дисквалификаций');
+  const seenBans=new Set();
+  for(const item of snapshot.disqualifications){
+   fields(item,['id','participantId','scope','stageId','seasonId'],'дисквалификация');
+   if(!uuid(item.id)||!uuid(item.participantId)||seenBans.has(item.id)
+    ||item.scope==='FORMAT'&&(item.stageId!==null||item.seasonId!==null)
+    ||item.scope==='SEASON'&&(item.stageId!==null||item.seasonId!==stage.seasonId)
+    ||item.scope==='STAGE'&&(item.stageId!==snapshot.stageId||item.seasonId!==null)
+    ||!['FORMAT','SEASON','STAGE'].includes(item.scope))
+    throw new Error('Некорректная связь дисквалификации с этапом');
+   seenBans.add(item.id);
+  }
+ }
  if(!Array.isArray(snapshot.registrations)||snapshot.registrations.length>2500)
   throw new Error('Превышен лимит участников');
 
