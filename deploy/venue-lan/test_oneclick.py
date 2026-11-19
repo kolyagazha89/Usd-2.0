@@ -292,5 +292,16 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("'--check-installed'",confirm)
         self.assertLess(confirm.index("'--dry-run'"),confirm.index("'--check-installed'"))
 
+    def test_fresh_stage_staff_preflight_never_opens_postgres(self):
+        windows=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
+        source=(ROOT/'provision-existing-staff.mjs').read_text(encoding='utf-8')
+        self.assertIn("'--preflight'",windows)
+        self.assertIn("function Confirm-VenueStaffKey",windows)
+        self.assertIn("phase -eq 'CONFIGURED'",windows)
+        self.assertIn("extra[0]==='--preflight'",source)
+        self.assertLess(source.index("if(extra[0]==='--preflight')"),source.index("const require=createRequire"))
+        self.assertIn("planVenueStageImport",source)
+        self.assertIn("decryptExistingVenueStaff",source)
+
 if __name__=="__main__":
     unittest.main()
