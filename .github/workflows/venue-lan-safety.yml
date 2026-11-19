@@ -196,6 +196,7 @@ jobs:
             'deploy/venue-lan/venue-control.ps1',
             'deploy/venue-lan/venue-season.ps1',
             'deploy/venue-lan/venue-coverage.ps1',
+            'deploy/venue-lan/venue-directory.ps1',
             'deploy/venue-lan/venue-ca.ps1',
             'deploy/venue-lan/venue-update.ps1',
             'deploy/venue-lan/venue-dialogs.ps1',

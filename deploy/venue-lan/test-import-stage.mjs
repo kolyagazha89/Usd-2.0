@@ -305,7 +305,7 @@ test('append-only directory refresh requires local root, matching stage and pres
  const plan=planVenueStageImport(signed(data),publicPem,env,now);
  assert.equal(typeof importer.applyVenueParticipantDirectory,'function');
  const {tx,db,log}=mockDb();
- tx.$queryRawUnsafe=async()=>[{name:'usd_venue_root',rolsuper:true}];
+ tx.$queryRawUnsafe=async sql=>sql.includes('current_user')?[{name:'usd_venue_root',rolsuper:true}]:[{stageId:uuid.stage}];
  tx.$executeRawUnsafe=async()=>1;
  tx.stage.findUnique=async()=>({id:uuid.stage});
  tx.auditLog.findFirst=async()=>({metadata:{sha256:'a'.repeat(64)}});
