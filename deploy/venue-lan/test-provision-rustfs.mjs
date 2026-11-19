@@ -96,6 +96,7 @@ function resumedRustfsFetcher({userPolicy='usd-venue-media-only',policy=venueMed
  const writes=[];
  const fetcher=async(url,init)=>{
   const isRoot=init.headers.Authorization.includes('Credential=venue-root-example/');
+  if(url.endsWith('/health/ready'))return mockResponse(200,{ready:true});
   if(init.method==='PUT'){writes.push(url);return mockResponse(200)}
   if(url.endsWith('/rustfs/admin/v3/user-info?accessKey='+cfg.VENUE_S3_APP_ACCESS))
    return userPresent?mockResponse(200,{status:'enabled',policyName:userPolicy}):mockResponse(404);
@@ -156,6 +157,18 @@ test('waits for the actual RustFS readiness endpoint before authenticating durin
  assert.deepEqual(result,{bucket:'usd-venue-media',restricted:true});
  assert.equal(readinessChecks,36,'installer must wait through RustFS startup instead of racing the first boot');
  assert.equal(rootChecks,1,'root authentication starts only after RustFS reports ready');
+});
+test('readiness timeout reports the last HTTP status without leaking the response body',async()=>{
+ const fetcher=async url=>url.endsWith('/health/ready')
+  ?mockResponse(503,'private readiness details and credentials')
+  :mockResponse(200);
+ await assert.rejects(()=>provisionVenueMedia(cfg,{
+  fetcher,endpoint,sleep:async()=>{},startupTimeoutMs:1,
+ }),error=>{
+  assert.match(error.message,/FAILED AT root-readiness \\[HTTP 503\\]/);
+  assert.doesNotMatch(error.message,/private readiness details|credentials|root-secret|VENUE_S3/);
+  return true;
+ });
 });
 test('root auth or failed IAM write reports step and HTTP code without printing secrets',async()=>{
  const unauthorized=async()=>mockResponse(403);
