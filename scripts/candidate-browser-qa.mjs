@@ -469,6 +469,17 @@ try{
       assert.equal(await visibility.inputValue(),'all');
       row.partnerFilters='hidden/published partner filtering without write';
      }
+     if(role==='ADMIN'&&width<=760&&['/admin/registrations','/admin/inspections','/admin/results'].includes(route.split('?')[0])){
+      const stageLayout=await page.locator('.stage-picker').evaluate(element=>{
+       const stage=element.querySelector(':scope > label')?.getBoundingClientRect();
+       const filters=element.querySelector(':scope > .usd-filter-drawer')?.getBoundingClientRect();
+       const outer=element.getBoundingClientRect();
+       return {stageWidth:stage?.width,stageTop:stage?.top,filtersTop:filters?.top,outerWidth:outer.width};
+      });
+      assert.ok(stageLayout.stageWidth>=stageLayout.outerWidth-32&&stageLayout.stageTop<=stageLayout.filtersTop,
+       'stage selection must be full width and above optional filters on phones '+JSON.stringify(stageLayout));
+      row.stagePicker='primary stage selector is full width and visually first';
+     }
      if(role==='ADMIN'&&route==='/admin/components'){
       const categoryPicker=page.getByRole('combobox',{name:'Категория оборудования'});
       if(width<=760){
