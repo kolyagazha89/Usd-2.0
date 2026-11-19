@@ -1,6 +1,7 @@
 import {AdminEntityLink} from './AdminEntityLink';
 import './profile-links.css';
 import DuplicateProfilesPreview from './DuplicateProfilesPreview';
+import {afterProfileLinkDecision,filterProfileLinkRequests} from './profile-link-operator-model';
 import {useEffect,useState} from 'react';
 import {apiGet,apiPatch,apiPost} from '../api';
 
@@ -33,8 +34,10 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
  const [emailAudit,setEmailAudit]=useState<EmailAudit|null>(null),[emailBusy,setEmailBusy]=useState(false),[emailError,setEmailError]=useState('');
  const [rows,setRows]=useState<LinkRequest[]>([]),[status,setStatus]=useState('PENDING'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [diagnoses,setDiagnoses]=useState<Record<string,string>>({}),[diagnosing,setDiagnosing]=useState<string|null>(null);
+ const [advancedVisited,setAdvancedVisited]=useState(false);
+ const [reviewNotice,setReviewNotice]=useState(''),[query,setQuery]=useState('');
  const loadCoverage=async()=>{try{setCoverageError('');setCoverage(await apiGet<Coverage>('/admin/profile-links/coverage'))}catch(e){setCoverageError(e instanceof Error?e.message:'Статистика архивных email недоступна')}};
- useEffect(()=>{void loadCoverage()},[]);
+ useEffect(()=>{if(advancedVisited)void loadCoverage()},[advancedVisited]);
  const reconcileEmails=async(apply:boolean)=>{
   if(emailBusy)return;setEmailBusy(true);setEmailError('');
   try{const result=apply?await apiPost<EmailAudit>('/admin/profile-links/emails/reconcile',{confirmation:'APPLY'}):await apiGet<EmailAudit>('/admin/profile-links/emails/reconcile');
@@ -59,13 +62,50 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
   if(decision==='APPROVE'&&(row.participant.user||row.claimant.participantId)){
    setError('Привязка заблокирована: профиль или аккаунт уже занят. Обновите список.');return;
   }
-  setBusy(true);setError('');
+  setBusy(true);setError('');setReviewNotice('');
   try{
    await apiPatch('/admin/profile-links/'+encodeURIComponent(row.id),{decision});
+   setRows(current=>afterProfileLinkDecision(current,row.id,decision,status));
+   if(decision==='APPROVE')setReviewNotice('Привязка подтверждена');
+   else setReviewNotice('Заявка отклонена');
    await load();
   }catch(e){setError(e instanceof Error?e.message:'Не удалось обработать заявку')}finally{setBusy(false)}
  };
+ const visibleRows=filterProfileLinkRequests(rows,query);
  return <PageFrame title="Привязка профилей" subtitle="Заявки на восстановление исторических профилей. Привязка только после проверки владения администратором.">
+  <section className="profile-link-work-queue" aria-label="Заявки на привязку профилей">
+   <header className="profile-link-queue-heading"><div><h2>Заявки на привязку</h2><p>Сначала разберите заявки участников. Проверка архивных email и объединение дублей доступны ниже отдельно.</p></div>{status==='PENDING'&&!loading&&<span className="profile-link-pending-count" role="status">{rows.length} ожидают решения</span>}</header>
+  <div className="profile-link-filters"><label>Поиск заявок<input type="search" aria-label="Поиск заявок по ФИО или email" placeholder="ФИО, email, заметка…" value={query} onChange={e=>setQuery(e.target.value)}/></label><label>Статус
+   <select value={status} onChange={e=>{setStatus(e.target.value);setError('');setReviewNotice('')}}>
+    <option value="">Все</option>{Object.entries(statusText).map(([value,label])=><option key={value} value={value}>{label}</option>)}
+   </select></label>{query&&<button type="button" className="secondary-button compact" aria-label="Сбросить поиск заявок" onClick={()=>setQuery('')}>Очистить</button>}<button type="button" onClick={()=>void load()} disabled={loading||busy}>Обновить</button></div>
+  {reviewNotice&&<p className="profile-link-review-notice" role="status">{reviewNotice}</p>}
+  {error&&<div className="form-error" role="alert">{error}</div>}
+  {loading?<LoadingPage/>:visibleRows.length===0?<p className="muted">{query?'По вашему запросу заявок не найдено':'Заявок с выбранным статусом нет.'}</p>:<div className="profile-link-list">{visibleRows.map(row=><article className="profile-link-card" key={row.id}>
+   <div><small>{statusText[row.status]??row.status} · {new Date(row.createdAt).toLocaleString('ru-RU')}</small>
+    <h3><AdminEntityLink kind="participant" id={row.participant.id}>{[row.participant.lastName,row.participant.firstName,row.participant.middleName].filter(Boolean).join(' ')}</AdminEntityLink></h3>
+    <p>Аккаунт заявителя: <strong>{row.claimant.email}</strong></p>
+    <p>Сведения для проверки: {row.note}</p>
+    {row.legacyEmailStatus&&<p className="muted" role="status"><strong>Проверка email:</strong> {legacyStatusText[row.legacyEmailStatus]}</p>}
+    <button type="button" onClick={()=>void diagnose(row)} disabled={!!diagnosing||busy} aria-label="Проверить возможность самостоятельной привязки по архивной почте">{diagnosing===row.id?'Проверяем…':'Проверить историческую привязку'}</button>
+    {diagnoses[row.id]&&<p className="muted" role="status"><strong>Диагностика:</strong> {diagnoses[row.id]}</p>}
+    {row.participant.user&&<p role="alert">Профиль уже привязан к аккаунту. Не подтверждайте без расследования.</p>}
+    {row.claimant.participantId&&<p role="alert">У заявителя уже есть профиль. Привязка запрещена.</p>}
+    {row.decisionReason&&<p>Решение: {row.decisionReason}</p>}
+   </div>
+   {row.status==='PENDING'&&<div className="profile-link-actions">
+    <p className="muted">Нажатие «Подтвердить привязку» означает, что администратор проверил принадлежность профиля. Решение автоматически сохраняется в журнале.</p>
+    <div className="profile-link-decisions">
+     <button type="button" className="primary-button" disabled={busy||!!row.participant.user||!!row.claimant.participantId} onClick={()=>void review(row,'APPROVE')}>{busy?'Сохраняем…':'Подтвердить привязку'}</button>
+     <button type="button" disabled={busy} onClick={()=>void review(row,'REJECT')}>Отклонить</button>
+    </div>
+   </div>}
+  </article>)}</div>}
+
+  </section>
+  <details className="profile-link-advanced-tools" onToggle={e=>{if(e.currentTarget.open)setAdvancedVisited(true)}}>
+   <summary>Дополнительные инструменты <small>Архивные email · объединение дублей</small></summary>
+   <div className="profile-link-advanced-content">
   <section className="profile-email-coverage" aria-label="Наличие email в исторических профилях">
    <div className="profile-email-coverage-heading"><div><h2>Email исторических участников</h2><p>Подсчёт по реальной базе USD. Учитываются действующие профили без объединённых дублей.</p></div><button type="button" className="secondary-button compact" onClick={()=>void loadCoverage()}>Обновить</button></div>
    {coverageError&&<p role="alert">{coverageError}</p>}
@@ -91,32 +131,10 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
    </div>
    <p className="muted">Не означает автоматическую привязку: она возможна только при совпадении архивного адреса с подтверждённым email нового аккаунта. Для остальных доступна ручная заявка администратору.</p>
   </section>
-  <DuplicateProfilesPreview/>
-  <div className="profile-link-filters"><label>Статус
-   <select value={status} onChange={e=>{setStatus(e.target.value);setError('')}}>
-    <option value="">Все</option>{Object.entries(statusText).map(([value,label])=><option key={value} value={value}>{label}</option>)}
-   </select></label><button type="button" onClick={()=>void load()} disabled={loading||busy}>Обновить</button></div>
-  {error&&<div className="form-error" role="alert">{error}</div>}
-  {loading?<LoadingPage/>:rows.length===0?<p className="muted">Заявок с выбранным статусом нет.</p>:<div className="profile-link-list">{rows.map(row=><article className="profile-link-card" key={row.id}>
-   <div><small>{statusText[row.status]??row.status} · {new Date(row.createdAt).toLocaleString('ru-RU')}</small>
-    <h3><AdminEntityLink kind="participant" id={row.participant.id}>{[row.participant.lastName,row.participant.firstName,row.participant.middleName].filter(Boolean).join(' ')}</AdminEntityLink></h3>
-    <p>Аккаунт заявителя: <strong>{row.claimant.email}</strong></p>
-    <p>Сведения для проверки: {row.note}</p>
-    {row.legacyEmailStatus&&<p className="muted" role="status"><strong>Проверка email:</strong> {legacyStatusText[row.legacyEmailStatus]}</p>}
-    <button type="button" onClick={()=>void diagnose(row)} disabled={!!diagnosing||busy} aria-label="Проверить возможность самостоятельной привязки по архивной почте">{diagnosing===row.id?'Проверяем…':'Проверить историческую привязку'}</button>
-    {diagnoses[row.id]&&<p className="muted" role="status"><strong>Диагностика:</strong> {diagnoses[row.id]}</p>}
-    {row.participant.user&&<p role="alert">Профиль уже привязан к аккаунту. Не подтверждайте без расследования.</p>}
-    {row.claimant.participantId&&<p role="alert">У заявителя уже есть профиль. Привязка запрещена.</p>}
-    {row.decisionReason&&<p>Решение: {row.decisionReason}</p>}
+  {advancedVisited&&<DuplicateProfilesPreview/>}
+
    </div>
-   {row.status==='PENDING'&&<div className="profile-link-actions">
-    <p className="muted">Нажатие «Подтвердить привязку» означает, что администратор проверил принадлежность профиля. Решение автоматически сохраняется в журнале.</p>
-    <div className="profile-link-decisions">
-     <button type="button" className="primary-button" disabled={busy||!!row.participant.user||!!row.claimant.participantId} onClick={()=>void review(row,'APPROVE')}>{busy?'Сохраняем…':'Подтвердить привязку'}</button>
-     <button type="button" disabled={busy} onClick={()=>void review(row,'REJECT')}>Отклонить</button>
-    </div>
-   </div>}
-  </article>)}</div>}
+  </details>
  </PageFrame>;
 }
 export default ProfileLinksPage;

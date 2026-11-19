@@ -2030,6 +2030,23 @@ body .app-shell .main .content .usd-admin-search-clear:hover {
   background:#edf0f4;
   border-color:#c4ccd6;
 }
+/* iOS: generic .search-box>button treats every action like a 24px icon.
+ * The text reset is not an icon: keep it horizontal and touch-sized. */
+body .app-shell .main .content .search-box>.usd-admin-search-clear {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto!important;
+  width:auto!important;
+  min-width:72px;
+  max-width:none!important;
+  min-height:44px;
+  white-space:nowrap!important;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+  writing-mode:horizontal-tb;
+  line-height:1.2;
+}
 body .app-shell .main .content .usd-admin-filter-empty {
   display:grid;
   justify-items:center;
