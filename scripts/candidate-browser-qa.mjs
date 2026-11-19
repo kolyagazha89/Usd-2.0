@@ -469,8 +469,27 @@ try{
       assert.equal(await visibility.inputValue(),'all');
       row.partnerFilters='hidden/published partner filtering without write';
      }
+     if(role==='ADMIN'&&width<=760&&['/admin/registrations','/admin/inspections','/admin/results'].includes(route.split('?')[0])){
+      const stageLayout=await page.locator('.stage-picker').evaluate(element=>{
+       const stage=element.querySelector(':scope > label')?.getBoundingClientRect();
+       const filters=element.querySelector(':scope > .usd-filter-drawer')?.getBoundingClientRect();
+       const outer=element.getBoundingClientRect();
+       return {stageWidth:stage?.width,stageTop:stage?.top,filtersTop:filters?.top,outerWidth:outer.width};
+      });
+      assert.ok(stageLayout.stageWidth>=stageLayout.outerWidth-32&&stageLayout.stageTop<=stageLayout.filtersTop,
+       'stage selection must be full width and above optional filters on phones '+JSON.stringify(stageLayout));
+      row.stagePicker='primary stage selector is full width and visually first';
+     }
      if(role==='ADMIN'&&route==='/admin/components'){
-      await page.getByRole('button',{name:'Сабвуферы',exact:true}).click();
+      const categoryPicker=page.getByRole('combobox',{name:'Категория оборудования'});
+      if(width<=760){
+       assert.ok(await categoryPicker.isVisible(),'all equipment categories are available without horizontal scrolling on phones');
+       await categoryPicker.selectOption('SUBWOOFER');
+       assert.equal(await categoryPicker.inputValue(),'SUBWOOFER','selected mobile equipment category is explicit');
+      }else{
+       assert.equal(await categoryPicker.isVisible(),false,'desktop category tabs remain the main control');
+       await page.getByRole('button',{name:'Сабвуферы',exact:true}).click();
+      }
       const brands=page.locator('.catalog-two-column .panel').first().locator('.catalog-manage-row');
       assert.equal(await brands.count(),2,'component catalog includes enabled and disabled brands');
       const first=brands.first();
@@ -520,7 +539,7 @@ try{
        await mobileSearch.fill('несуществующий номер');
        const clear=desk.getByRole('button',{name:'Очистить поиск'});
        const clearSize=await clear.boundingBox();
-       assert.ok(clearSize&&clearSize.width>=43&&clearSize.height>=43,'search clear is a 44px accessible target');
+       assert.ok(clearSize&&clearSize.width>=43&&clearSize.height>=43,`search clear is a 44px accessible target: ${JSON.stringify(clearSize)}`);
        await clear.click();
        assert.equal(await mobileSearch.inputValue(),'','one tap restores the full roster');
        row.eventDayMobile='no duplicate metrics, counted filters, roster jump and 44px search clear';
