@@ -247,7 +247,10 @@ export class StagesService {
     const previousBaseline = previous.criticalNoticeBaseline
       ? previous.criticalNoticeBaseline as CriticalStageSnapshot : before;
     const hasPendingChanges = criticalStageChanges(previousBaseline, after).length > 0;
-    const eligible = active > 0 && ['PUBLISHED', 'CANCELLED'].includes(next.status);
+    // A cancelled event that was already announced should not generate
+    // another cancellation email merely because its archived address changed.
+    const eligible = active > 0 && (next.status === 'PUBLISHED'
+      || (next.status === 'CANCELLED' && !previousBaseline.cancelled));
     return {
       criticalNoticeBaseline: (eligible ? previousBaseline : after) as any,
       criticalNoticeRevision: { increment: 1 },
