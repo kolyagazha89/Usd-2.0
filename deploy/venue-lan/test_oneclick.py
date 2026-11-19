@@ -303,5 +303,18 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("planVenueStageImport",source)
         self.assertIn("decryptExistingVenueStaff",source)
 
+    def test_recovery_backups_match_container_sha_before_any_database_repair_or_directory_write(self):
+        for name in ("venue-coverage.ps1", "venue-directory.ps1"):
+            source=(ROOT/name).read_text(encoding="utf-8-sig")
+            self.assertIn("sha256sum",source,name)
+            self.assertIn("Get-FileHash",source,name)
+            self.assertIn("backup checksum differs",source,name)
+            self.assertLess(source.index("sha256sum"),source.index("Get-FileHash"),name)
+            self.assertNotIn("down -v",source,name)
+        coverage=(ROOT/"venue-coverage.ps1").read_text(encoding="utf-8-sig")
+        directory=(ROOT/"venue-directory.ps1").read_text(encoding="utf-8-sig")
+        self.assertLess(coverage.index("backup checksum differs"),coverage.index("Get-Content -LiteralPath $sql"))
+        self.assertLess(directory.index("backup checksum differs"),directory.index("'--apply-directory'"))
+
 if __name__=="__main__":
     unittest.main()
