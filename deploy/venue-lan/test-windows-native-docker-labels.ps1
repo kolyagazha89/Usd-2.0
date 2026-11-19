@@ -8,6 +8,7 @@ $temp=Join-Path ([IO.Path]::GetTempPath()) ('usd-native-labels-'+[guid]::NewGuid
 [IO.Directory]::CreateDirectory($temp)|Out-Null
 $originalPrivate=$PrivateDir;$originalEnv=$EnvFile
 $oldScenario=$env:USD_TEST_GATEWAY_PROJECT
+$oldRustfsScenario=$env:USD_TEST_RUSTFS_PROJECT
 try {
  $shim=Join-Path $temp 'docker-argv.cjs'
  [IO.File]::WriteAllText($shim,@'
@@ -21,6 +22,7 @@ if(fmt>=0&&!["{{.ID}}","{{.Name}}","{{json .Config.Labels}}"].includes(args[fmt+
  fail("unexpected or unprotected Docker template: "+args[fmt+1]);
 if(args[0]==="ps"){
  if(args.includes("label=com.docker.compose.service=gateway"))console.log("abcdef123456");
+ else if(args.includes("label=com.docker.compose.service=rustfs"))console.log("fedcba654321");
  else if(args.includes("label=com.docker.compose.project=usd-venue"))console.log("123456abcdef");
  else fail("unexpected docker ps filter");
 }else if(args[0]==="inspect"){
@@ -29,6 +31,9 @@ if(args[0]==="ps"){
  else if(args.at(-1)==="abcdef123456")
   console.log(JSON.stringify({"com.docker.compose.service":"gateway",
     "com.docker.compose.project":process.env.USD_TEST_GATEWAY_PROJECT||"usd-venue"}));
+ else if(args.at(-1)==="fedcba654321")
+  console.log(JSON.stringify({"com.docker.compose.service":"rustfs",
+    "com.docker.compose.project":process.env.USD_TEST_RUSTFS_PROJECT||"usd-venue"}));
  else fail("unexpected container inspect target");
 }else if(args[0]==="volume"&&args[1]==="ls"){
  console.log("usd-venue_venue_db");
@@ -92,12 +97,22 @@ if(args[0]==="ps"){
   $conflict=$true
  }
  if(!$conflict){throw 'Foreign USD gateway was missed by native Docker labels inspection'}
- Write-Host 'USD WINDOWS LABELS: foreign gateway detection validated'
+ $env:USD_TEST_GATEWAY_PROJECT='usd-venue'
+ $env:USD_TEST_RUSTFS_PROJECT='usd-venue-foreign'
+ $conflict=$false
+ try{Assert-NoOtherVenueGatewayRunning}catch{
+  if($_.Exception.Message -notmatch 'другой этап'){throw}
+  $conflict=$true
+ }
+ if(!$conflict){throw 'Foreign USD RustFS was missed by native Docker labels inspection'}
+ Write-Host 'USD WINDOWS LABELS: foreign gateway and RustFS detection validated'
  Assert-VenueReleaseImages $sha
  Write-Host 'USD WINDOWS LABELS: both immutable images verified over native argv'
 }finally{
  $PrivateDir=$originalPrivate;$EnvFile=$originalEnv
  if($null -eq $oldScenario){Remove-Item Env:\USD_TEST_GATEWAY_PROJECT -ErrorAction SilentlyContinue}
  else{$env:USD_TEST_GATEWAY_PROJECT=$oldScenario}
+ if($null -eq $oldRustfsScenario){Remove-Item Env:\USD_TEST_RUSTFS_PROJECT -ErrorAction SilentlyContinue}
+ else{$env:USD_TEST_RUSTFS_PROJECT=$oldRustfsScenario}
  [IO.Directory]::Delete($temp,$true)
 }
