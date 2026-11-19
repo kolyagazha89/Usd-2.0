@@ -72,7 +72,10 @@ function stageRefs(event,scope){
     ||!scope.versions.has(r.configurationVersionId)))
   reject('unlinked registration graph');
  if(table==='Participant'&&!scope.participants.has(r.id))
-  reject('participant without this stage registration');
+  reject('participant outside stage');
+ if(table==='Participant'&&event.payload.operation!=='INSERT'
+  &&!scope.registeredPeople.has(r.id)&&!scope.newPeople.has(r.id))
+  reject('unregistered central identity cannot be changed through a new car');
  if(table==='Car'&&(!scope.cars.has(r.id)||!scope.participants.has(r.participantId)))
   reject('car outside this stage');
  if(table==='CarConfiguration'&&(!scope.configurations.has(r.id)||!scope.cars.has(r.carId)))
@@ -99,6 +102,8 @@ function buildScope(snapshot,original){
   registrations:new Set(original.registrations??[]),
   participants:new Set(original.participants??[]),
   cars:new Set(original.cars??[]),
+  registeredPeople:new Set(original.participants??[]),
+  newPeople:new Set(),
   configurations:new Set(original.configurations??[]),
   versions:new Set(original.versions??[]),
   classes:new Set(original.classes??[]),
@@ -117,6 +122,7 @@ function buildScope(snapshot,original){
    if(!newCarOwners.has(p.recordId))
     reject('MANUAL_REVIEW: unpaired on-site participant without signed car');
    scope.participants.add(p.recordId);
+   scope.newPeople.add(p.recordId);
   }
   if(p.operation==='INSERT'&&p.table==='Car'){
    scope.cars.add(p.recordId);
@@ -128,6 +134,7 @@ function buildScope(snapshot,original){
   if(p.table==='Registration'&&r?.stageId===scope.stageId){
    scope.registrations.add(r.id);
    scope.participants.add(r.participantId);
+   scope.registeredPeople.add(r.participantId);
    scope.cars.add(r.carId);
    scope.versions.add(r.configurationVersionId);
   }
