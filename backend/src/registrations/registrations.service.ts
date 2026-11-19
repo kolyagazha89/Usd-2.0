@@ -573,6 +573,9 @@ export class RegistrationsService {
       configurationVersionId,
     } = body;
     const source = body.source ?? 'PRE_REGISTRATION';
+    // Public online registration windows do not apply to authorized gate intake.
+    // Verify permission server-side; the client-controlled source is not a privilege.
+    if (source === 'ON_SITE') await this.requireGateCreationAccess(request);
     let consentLegalVersion: string | null = null;
     let consentProtocolVersion: string | null = null;
     let registrationPrivacyConsentAt: Date | null = null;
@@ -791,7 +794,7 @@ export class RegistrationsService {
           );
         }
 
-        if (!stage.registrationOpen) {
+        if (source !== 'ON_SITE' && !stage.registrationOpen) {
           throw new BadRequestException(
             'Регистрация на этот этап закрыта',
           );
@@ -800,6 +803,7 @@ export class RegistrationsService {
         const now = new Date();
 
         if (
+          source !== 'ON_SITE' &&
           stage.registrationStartsAt &&
           now < stage.registrationStartsAt
         ) {
@@ -809,6 +813,7 @@ export class RegistrationsService {
         }
 
         if (
+          source !== 'ON_SITE' &&
           stage.registrationEndsAt &&
           now > stage.registrationEndsAt
         ) {

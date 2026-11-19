@@ -57,7 +57,7 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
   stage:{
    id:ID.stage,seasonId:ID.season,stageNumber:7,name:'USD LAN ACCEPTANCE',city:'Тюмень',
    date:'2026-11-12T00:00:00.000Z',venue:'CI',address:null,status:'PUBLISHED',
-   registrationOpen:true,registrationStartsAt:null,registrationEndsAt:null,
+   registrationOpen:false,registrationStartsAt:null,registrationEndsAt:'2026-11-10T00:00:00.000Z',
    resultsPublishedAt:null,rulesSnapshot:{revision:'ci'},
    season:{id:ID.season,name:'USD CI',year:2026,status:'ACTIVE'},
    stageClasses:[{id:ID.stageClass,stageId:ID.stage,classId:ID.klass,sortOrder:0,
@@ -237,6 +237,15 @@ async function probe(){
   })});
  assert.equal(newProfile.status,201,'Real on-site profile creation must work: '+JSON.stringify(newProfile.body));
  assert.ok(newProfile.body.participantId&&newProfile.body.carId);
+ // Closing public signups 1-2 days before the event must not block the gate.
+ const onlineClosed=await request('/registrations',{method:'POST',headers:authAdmin,
+  body:JSON.stringify({
+   stageId:ID.stage,participantId:newProfile.body.participantId,carId:newProfile.body.carId,
+   configurationVersionId:ID.config,classIds:[ID.klass],source:'PRE_REGISTRATION',
+   rulesAccepted:true,privacyConsent:true,termsAccepted:true,protocolConsent:true,
+  })});
+ assert.equal(onlineClosed.status,400,'Online preregistration must remain closed for staff too');
+ assert.match(JSON.stringify(onlineClosed.body),/Регистрация на этот этап закрыта/);
  const onsite=await request('/registrations',{method:'POST',headers:authAdmin,
   body:JSON.stringify({
    stageId:ID.stage,participantId:newProfile.body.participantId,carId:newProfile.body.carId,

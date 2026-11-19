@@ -135,6 +135,109 @@ describe('RegistrationsService', () => {
     rulesAccepted: true,
   };
 
+  // On-site intake uses a distinct staff-authorized channel. Closing public
+  // registration before competition day must not shut the entrance desk.
+  function onlineClosedStageTx(overrides: Record<string, unknown> = {}) {
+    const tx = baseTx();
+    tx.stage.findUnique = jest.fn()
+      .mockResolvedValueOnce({
+        id: 'stage-1', isDeleted: false, status: 'PUBLISHED',
+        registrationOpen: false,
+        registrationStartsAt: new Date('2026-01-01T00:00:00.000Z'),
+        registrationEndsAt: new Date('2026-01-02T00:00:00.000Z'),
+        seasonId: 'season-1', rulesSnapshot: { revisionId: 'rules-v1' },
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        ...overrides,
+      })
+      .mockResolvedValueOnce({ id: 'stage-1', seasonId: 'season-1' });
+    return tx;
+  }
+
+  const staffRegistrationRequest: any = { user: { sub: 'staff-1', role: 'ADMIN' } };
+  const onSiteRegistrationBody = {
+    ...requestBody, source: 'ON_SITE' as const,
+    privacyConsent: true, termsAccepted: true, protocolConsent: true,
+  };
+
+  it('registers an entrant at the gate after online registration is closed and its deadline passed', async () => {
+    const tx = onlineClosedStageTx();
+    setupTransaction(tx);
+    await expect(service.create(staffRegistrationRequest, onSiteRegistrationBody))
+      .resolves.toEqual({ id: 'registration-1' });
+    expect(tx.registration.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ stageId: 'stage-1', source: 'ON_SITE', status: 'ACTIVE' }),
+    }));
+  });
+
+  it('keeps public pre-registration closed when a stage is closed', async () => {
+    const tx = onlineClosedStageTx();
+    setupTransaction(tx);
+    await expect(service.create(participantRequest, requestBody))
+      .rejects.toThrow('Регистрация на этот этап закрыта');
+    expect(tx.registration.create).not.toHaveBeenCalled();
+  });
+
+  it('does not let an admin pre-register through the staff API after public closure', async () => {
+    const tx = onlineClosedStageTx();
+    setupTransaction(tx);
+    await expect(service.create(staffRegistrationRequest, {
+      ...onSiteRegistrationBody, source: 'PRE_REGISTRATION',
+    })).rejects.toThrow('Регистрация на этот этап закрыта');
+    expect(tx.registration.create).not.toHaveBeenCalled();
+  });
+
+  it('keeps public registration deadlines enforced while the online switch is open', async () => {
+    const tx = onlineClosedStageTx({ registrationOpen: true });
+    setupTransaction(tx);
+    await expect(service.create(participantRequest, requestBody))
+      .rejects.toThrow('Срок регистрации на этот этап завершён');
+    expect(tx.registration.create).not.toHaveBeenCalled();
+  });
+
+  it('never accepts a self-declared ON_SITE source from a participant', async () => {
+    const tx = onlineClosedStageTx();
+    setupTransaction(tx);
+    await expect(service.create(participantRequest, onSiteRegistrationBody))
+      .rejects.toThrow(/Только сотрудник|Участник может создавать только предрегистрацию/);
+    expect(tx.registration.create).not.toHaveBeenCalled();
+  });
+
+  it('requires a real registrations.create grant before custom-role staff bypass public closure', async () => {
+    const tx = onlineClosedStageTx();
+    setupTransaction(tx);
+    prisma.user.findUnique.mockResolvedValueOnce({
+      isActive: true, emailVerifiedAt: new Date(), customRoleId: 'viewer-role',
+    });
+    prisma.role = { findUnique: jest.fn().mockResolvedValue({ permissions: { registrations: { read: true } } }) };
+    await expect(service.create({
+      user: { sub: 'viewer-1', role: 'PARTICIPANT', customRoleId: 'viewer-role' },
+    } as any, onSiteRegistrationBody)).rejects.toThrow('Недостаточно прав на регистрацию на месте');
+    expect(tx.registration.create).not.toHaveBeenCalled();
+  });
+
+  it('allows a verified judge with registrations.create to register after online closure', async () => {
+    const tx = onlineClosedStageTx();
+    setupTransaction(tx);
+    prisma.user.findUnique.mockResolvedValueOnce({
+      isActive: true, emailVerifiedAt: new Date(), customRoleId: 'gate-role',
+    });
+    prisma.role = { findUnique: jest.fn().mockResolvedValue({ permissions: { registrations: { create: true } } }) };
+    await expect(service.create({
+      user: { sub: 'judge-1', role: 'PARTICIPANT', customRoleId: 'gate-role' },
+    } as any, onSiteRegistrationBody)).resolves.toEqual({ id: 'registration-1' });
+    expect(tx.registration.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ source: 'ON_SITE' }),
+    }));
+  });
+
+  it('still rejects on-site registration for completed stages even when staff are authorized', async () => {
+    const tx = onlineClosedStageTx({ status: 'COMPLETED' });
+    setupTransaction(tx);
+    await expect(service.create(staffRegistrationRequest, onSiteRegistrationBody))
+      .rejects.toThrow('Регистрация доступна только на опубликованный этап');
+    expect(tx.registration.create).not.toHaveBeenCalled();
+  });
+
   it('requires an explicit configuration version', async () => {
     await expect(
       service.create(participantRequest, {
