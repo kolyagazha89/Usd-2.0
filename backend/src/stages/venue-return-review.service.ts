@@ -81,7 +81,7 @@ export class VenueReturnReviewService {
   if(!Array.isArray(decisions)||!decisions.length||!uuid.test(found.reviewedByUserId??''))
    throw new ConflictException('MANUAL_REVIEW: неполное решение администратора');
   const helper=await import('../../scripts/venue-sync/venue-return-review.mjs');
-  const validate=helper.validateVenueReviewDecisions(found.conflicts,decisions);
+  const validate=helper.validateStoredVenueReviewDecisions(found.conflicts,decisions);
   return {reviewId:found.id,approvedBy:found.reviewedByUserId,
    resolutions:helper.venueResolutionMap(validate)};
  }
