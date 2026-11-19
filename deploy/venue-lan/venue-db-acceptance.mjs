@@ -5,6 +5,10 @@
  */
 import {strict as assert} from 'node:assert';
 import {createHash,createCipheriv,randomBytes,randomUUID,generateKeyPairSync,sign} from 'node:crypto';
+import {mkdtemp,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {execFileSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 import {planVenueStageImport,applyVenueStageImport,planInstalledVenueStageImport} from './import-stage.mjs';
 import {planVenueStaff,provisionVenueStaff} from './provision-staff.mjs';
@@ -170,7 +174,20 @@ async function seed(){
  try{
   const privileges=await client.$queryRawUnsafe('SELECT rolsuper FROM pg_roles WHERE rolname=current_user');
   assert.equal(privileges[0].rolsuper,false,'API DB principal must never be superuser');
+  // Exercise the EXACT Windows launcher child CLI, not just the imported
+  // function that CI previously called. A tiny mock-only import hid failures.
+  const temporary=await mkdtemp(join(tmpdir(),'usd-venue-ci-stage-'));
+  try{
+   const pkg=join(temporary,'stage.json'),pem=join(temporary,'public.pem');
+   await writeFile(pkg,JSON.stringify(signed.container),{mode:0o600});
+   await writeFile(pem,signed.publicPem,{mode:0o600});
+   const stdout=execFileSync(process.execPath,[
+    '/app/import-stage.mjs',pkg,pem,'--apply',ID.stage,
+   ],{env:process.env,encoding:'utf8',stdio:['ignore','pipe','pipe']});
+   assert.match(stdout,/USD VENUE STAGE IMPORTED INTO ISOLATED LOCAL DB/);
+  }finally{await rm(temporary,{recursive:true,force:true})}
   const imported=await applyVenueStageImport(plan,client);
+  assert.equal(imported.replayed,true,'CLI committed the signed stage; module replay must be read-only');
   assert.equal(imported.registrations,2);
   assert.equal(imported.classes,19);
   assert.equal(await client.participant.count(),753,'all signed historical identities must import');
