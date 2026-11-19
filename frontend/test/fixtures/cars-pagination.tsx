@@ -11,7 +11,7 @@ const previous=()=>document.querySelector<HTMLButtonElement>('[aria-label="Пр�
 const type=async(value:string)=>{await act(async()=>{const input=document.querySelector<HTMLInputElement>('[aria-label="Поиск автомобилей"]')!;Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value')!.set!.call(input,value);input.dispatchEvent(new window.Event('input',{bubbles:true}))});await flush()};
 export async function runCarsPagination(){
  let cars=Array.from({length:63},(_,index)=>({id:'car-'+(index+1),brand:'Lada',model:'Модель '+String(index+1).padStart(2,'0'),isActive:true,configurations:[],participant:{firstName:'Тест',lastName:'Участник'}}));
- state.__getPublic=async(path:string)=>path==='/cars'?cars:[];
+ state.__getPublic=async(path:string)=>path==='/cars?visibility=active'?cars:[];
  history.replaceState({},'','/admin/cars');
  sessionStorage.setItem('usd:view:cars:page','2');
  const root=createRoot(document.getElementById('root')!);
