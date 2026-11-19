@@ -9,6 +9,7 @@ const record={id:banId,participantId,scope:'FORMAT',stageId:null,seasonId:null};
 const make=(records:unknown)=>({
  stage:{findUnique:async()=>({id:stageId,seasonId,name:'Тестовый этап',stageNumber:1,city:'Тюмень'})},
  participant:{findMany:async()=>[{id:participantId,firstName:'Анна',lastName:'Тестовая',middleName:null,team:null}]},
+ result:{findUnique:async()=>({id:'a610f672-79f7-44eb-8173-2a8ff94b1c0e',registration:{participantId,stageId,stage:{seasonId}}})},
  siteSettings:{findUnique:async()=>({registration:{
   venueDisqualificationSnapshot:{stageId,generatedAt:new Date().toISOString(),records},
  }})},
@@ -29,6 +30,13 @@ describe('LAN admin read-only disciplinary list',()=>{
   expect(rows).toMatchObject([{id:banId,participantId,scope:'FORMAT',
    status:'ACTIVE',participant:{firstName:'Анна',lastName:'Тестовая'}}]);
   expect(await service.findAll({status:'REVOKED'})).toEqual([]);
+ });
+ it('uses signed bans for participant and result status without reading empty local sanctions',async()=>{
+  const service=new DisqualificationsService(make([record]) as any,{} as any);
+  const active=await service.getActiveForParticipantAtStage(participantId,stageId);
+  expect(active.map(item=>item.scope)).toEqual(['FORMAT']);
+  expect(await service.listActiveForOwnProfile(participantId)).toHaveLength(1);
+  expect(await service.isResultDisqualified('a610f672-79f7-44eb-8173-2a8ff94b1c0e')).toBe(true);
  });
  it('refuses to present missing or corrupted signed eligibility as an empty list',async()=>{
   const service=new DisqualificationsService(make(undefined) as any,{} as any);
