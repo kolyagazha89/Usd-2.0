@@ -374,7 +374,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress
    resultsPublishedAt:maybeDate(stage.resultsPublishedAt,'публикация результатов'),
    rulesSnapshot:maybeJSON(stage.rulesSnapshot),
   }});
-  for(const sc of stage.stageClasses.sort(sortById))
+  for(const sc of [...stage.stageClasses].sort(sortById))
    await tx.stageClass.create({data:{
     id:sc.id,stageId:stage.id,classId:sc.classId,sortOrder:sc.sortOrder,
     isActive:sc.isActive,participantLimit:sc.participantLimit??null,
