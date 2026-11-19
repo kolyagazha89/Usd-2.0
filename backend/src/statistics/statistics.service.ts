@@ -1037,7 +1037,7 @@ export class StatisticsService {
       },
     });
 
-    if (!car) {
+    if (!car || !car.isActive) {
       throw new NotFoundException('Автомобиль не найден');
     }
 

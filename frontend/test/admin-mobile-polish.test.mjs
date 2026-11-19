@@ -68,7 +68,7 @@ test('cars keep accessible row actions, search reset, and useful empty state',as
  assert.match(code,/aria-label=\{'Открыть автомобиль: '/);
  assert.match(code,/onKeyDown=\{e=>\{if\(e.target===e.currentTarget/);
  assert.match(code,/aria-label=\{'Редактировать автомобиль/);
- assert.match(code,/aria-label=\{'Деактивировать автомобиль/);
+ assert.match(code,/aria-label=\{'Скрыть автомобиль/);
 });
 
 test('operator empty filter state has a one-click recovery and accurate filtered totals',async()=>{

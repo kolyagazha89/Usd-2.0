@@ -105,7 +105,7 @@ export class ParticipantsService {
         },
         _count: {
           select: {
-            cars: true,
+            cars: { where: { isActive: true } },
             registrations: true,
           },
         },
@@ -1265,13 +1265,10 @@ export class ParticipantsService {
     request: AuthenticatedRequest,
     participantId: string,
   ) {
-    const user =
-      await this.requireAdminOrCustomRole(request);
+    await this.requireAdminOrCustomRole(request);
 
-    return this.findCarsInternal(
-      participantId,
-      Boolean(user.customRoleId),
-    );
+    // Hidden cars are only accessible in the dedicated administrator archive.
+    return this.findCarsInternal(participantId, true);
   }
 
   // =========================================================
@@ -1280,17 +1277,18 @@ export class ParticipantsService {
 
   async findAllCars(
     request: AuthenticatedRequest,
+    visibility: 'active' | 'hidden' = 'active',
   ) {
-    const user =
-      await this.requireAdminOrCustomRole(request);
+    const user = await this.requireAdminOrCustomRole(request);
+    if (!['active', 'hidden'].includes(visibility)) {
+      throw new BadRequestException('Некорректная категория автомобилей');
+    }
+    if (visibility === 'hidden' && (user.role !== 'ADMIN' || user.customRoleId)) {
+      throw new ForbiddenException('Скрытые автомобили доступны только администратору');
+    }
 
     return this.prisma.car.findMany({
-      where:
-        Boolean(user.customRoleId)
-          ? {
-              isActive: true,
-            }
-          : undefined,
+      where: { isActive: visibility === 'active' },
 
       orderBy: [
         {
@@ -1852,10 +1850,25 @@ export class ParticipantsService {
       }
 
       if (body.isActive === false) {
+        // Historical registrations remain ACTIVE for their published results.
+        // Only a registration for today's or a future published stage blocks
+        // hiding. The stage day is interpreted in USD's UTC+05:00 timezone.
+        const todayParts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Asia/Yekaterinburg', year: 'numeric',
+          month: '2-digit', day: '2-digit',
+        }).formatToParts(new Date()).map(part => [part.type, part.value]));
+        const competitionDayStart = new Date(
+          `${todayParts.year}-${todayParts.month}-${todayParts.day}T00:00:00+05:00`,
+        );
         const activeRegistrations = await this.prisma.registration.count({
           where: {
             carId: id,
             status: 'ACTIVE',
+            stage: {
+              isDeleted: false,
+              status: 'PUBLISHED',
+              date: { gte: competitionDayStart },
+            },
           },
         });
 
@@ -1867,6 +1880,9 @@ export class ParticipantsService {
       }
 
       data.isActive = body.isActive;
+      // A hidden car must never become public merely because it was published
+      // previously. Restoring it does NOT automatically republish its details.
+      if (body.isActive === false) data.isPublic = false;
     }
 
     const save=async(db:PrismaService|Prisma.TransactionClient)=>db.car.update({

@@ -9,6 +9,7 @@ import {
 import {Prisma} from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RecordsService } from '../records/records.service';
+import { redactArchivedResult } from '../participants/car-visibility';
 import { ResultsRankingService } from '../results/results-ranking.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import type {
@@ -40,7 +41,7 @@ export class HistoricalResultsService {
   private sanitizePublicResult<T extends { registration?: { car?: any; participant?: any } | null }>(result: T): T {
     const car = result.registration?.car;
     const participant = result.registration?.participant;
-    const hideCar = Boolean(car && (car.isPublic === false || participant?.isPublic === false));
+    const hideCar = Boolean(car && (car.isPublic === false || car.isActive === false || participant?.isPublic === false));
     const hideParticipant = Boolean(participant && participant.isPublic === false);
     if (!hideCar && !hideParticipant) return result;
     return {
@@ -112,6 +113,7 @@ export class HistoricalResultsService {
               color: true,
               photoUrl: true,
               isPublic: true,
+              isActive: true,
             },
           },
           stage: {
@@ -241,7 +243,7 @@ export class HistoricalResultsService {
     });
 
     if (!result) throw new NotFoundException('Исторический результат не найден');
-    return result;
+    return redactArchivedResult(result);
   }
 
   private async getOrCreateCar(tx: any, data: CreateHistoricalResultDto) {

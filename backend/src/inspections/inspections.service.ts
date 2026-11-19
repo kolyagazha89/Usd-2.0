@@ -11,6 +11,7 @@ import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {MAX_REGISTRATION_CLASS_IDS,planRegistrationClassNumbers,isBassRaceStageClass} from '../registrations/registration-class-numbering';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
+import { redactArchivedRegistration, redactArchivedResult } from '../participants/car-visibility';
 
 type InspectionStatus = 'PASSED' | 'FAILED';
 type Actor = {
@@ -39,7 +40,7 @@ const classInspectionInclude = {
 const participantStageInspectionInclude = {
   participant: { select: { id: true, firstName: true, lastName: true, middleName: true, team: true, city: true, photoUrl: true } },
   stage: { include: { season: true } },
-  registrations: { include: { car: { select: { id: true, brand: true, model: true, registrationNumber: true, registrationCountry: true } }, classes: { include: { class: { include: { direction: true } }, number: true, results: { select: { id: true } } } }, results: { select: { id: true } } } },
+  registrations: { include: { car: { select: { id: true, brand: true, model: true, registrationNumber: true, registrationCountry: true, isActive: true } }, classes: { include: { class: { include: { direction: true } }, number: true, results: { select: { id: true } } } }, results: { select: { id: true } } } },
   checkedByUser: { select: { id: true, name: true, role: true } },
   createdByUser: { select: { id: true, name: true, role: true } },
 } satisfies Prisma.ParticipantStageInspectionInclude;
@@ -96,10 +97,10 @@ export class InspectionsService {
 
   async findOne(id: string) {
     const vehicleInspection = await this.prisma.inspection.findUnique({ where: { id }, include: inspectionInclude });
-    if (vehicleInspection) return vehicleInspection;
+    if (vehicleInspection) return redactArchivedResult(vehicleInspection);
     const shared = await this.prisma.participantStageInspection.findUnique({ where: { id }, include: participantStageInspectionInclude });
     if (!shared) throw new NotFoundException('Проверка не найдена');
-    return shared;
+    return { ...shared, registrations: shared.registrations.map(redactArchivedRegistration) };
   }
 
   /** Resolve a scanned permanent USD ID only inside the staff inspection module.
@@ -124,7 +125,7 @@ export class InspectionsService {
           inspection: { select: { status: true } },
           stageInspection: { select: { status: true } },
           stage: { select: { id: true, name: true, date: true } },
-          car: { select: { brand: true, model: true, registrationNumber: true } },
+          car: { select: { brand: true, model: true, registrationNumber: true, isActive: true } },
         },
       },
     } as const;
@@ -137,7 +138,7 @@ export class InspectionsService {
       :original;
     if(!resolved)throw new NotFoundException('Профиль USD ID не найден');
     const {mergeAsSource:_alias,...participant}=resolved;
-    return participant;
+    return { ...participant, registrations: participant.registrations.map(redactArchivedRegistration) };
   }
 
   async findByRegistration(registrationId: string) {
@@ -146,8 +147,8 @@ export class InspectionsService {
       include: { inspection: { include: inspectionInclude }, stageInspection: { include: participantStageInspectionInclude } },
     });
     if (!registration) throw new NotFoundException('Регистрация не найдена');
-    if (registration.inspection) return registration.inspection;
-    if (registration.stageInspection) return registration.stageInspection;
+    if (registration.inspection) return redactArchivedResult(registration.inspection);
+    if (registration.stageInspection) return { ...registration.stageInspection, registrations: registration.stageInspection.registrations.map(redactArchivedRegistration) };
     throw new NotFoundException('Инспекция автомобиля на этом этапе не найдена');
   }
 

@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 
@@ -136,8 +137,9 @@ export class ParticipantsController {
   @Get('cars')
   findAllCars(
     @Req() request: AuthenticatedRequest,
+    @Query('visibility') visibility?: 'active' | 'hidden',
   ) {
-    return this.participantsService.findAllCars(request);
+    return this.participantsService.findAllCars(request, visibility);
   }
 
   // =========================================================
