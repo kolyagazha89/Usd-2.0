@@ -1029,7 +1029,10 @@ try{
       await page.evaluate(()=>scrollTo(0,0));
      }
      if(role==='ADMIN'&&route==='/admin/profile-links'){
-      assert.ok(await page.getByRole('heading',{name:'Проверка дублирующихся профилей'}).isVisible());
+      const extraTools=page.locator('details.profile-link-advanced-tools');
+      assert.equal(await extraTools.getAttribute('open'),null,'advanced tools should be collapsed initially');
+      await extraTools.locator('summary').click();
+      await page.getByRole('heading',{name:'Проверка дублирующихся профилей'}).waitFor({state:'visible'});
       const selectors=page.locator('.duplicate-choose-profile input');
       await selectors.nth(0).fill('Тестовый');
       await page.locator('.duplicate-choose-profile').nth(0).locator('li button').first().click();
