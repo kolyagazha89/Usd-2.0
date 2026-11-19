@@ -65,6 +65,7 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
     class:{id:ID.klass,code:'L20_CI',name:'Limited 2.0',unit:'DB',sortOrder:0,isActive:true,
      direction:{id:ID.direction,name:'SPL',sortOrder:0,isActive:true}}}],
   },
+  disqualifications:[],
   venuePolicy:{
    legal:{legalApproved:true,legalVersion:'1',ipName:'USD CI',
     privacyText:'Тестовая политика USD',consentText:'Тестовое согласие USD',
@@ -139,6 +140,8 @@ async function seed(){
   assert.equal(season.status,'ACTIVE','The venue must permit on-site registration into active season');
   const settings=await client.siteSettings.findUnique({where:{id:'default'}});
   assert.equal(settings?.legal?.legalApproved,true,'The venue must carry the real approved legal policy');
+  assert.equal(settings?.registration?.venueDisqualificationSnapshot?.stageId,ID.stage);
+  assert.deepEqual(settings?.registration?.venueDisqualificationSnapshot?.records,[]);
   assert.equal(settings?.registration?.rulesDocument?.published?.id,'ci-rules-1');
   assert.equal((await applyVenueStageImport(plan,client)).replayed,true);
   if(REAL_MODE){
