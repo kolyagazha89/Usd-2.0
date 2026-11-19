@@ -88,3 +88,67 @@ test('provisioning refuses root/app reuse and external storage target',async()=>
  await assert.rejects(()=>provisionVenueMedia(cfg,{endpoint:'https://s3.amazonaws.com',
   fetcher:()=>{throw Error('should not call')}}),/локальн|RustFS/);
 });
+
+const mockResponse=(status,body='')=>({status,ok:status>=200&&status<300,
+ text:async()=>typeof body==='string'?body:JSON.stringify(body)});
+function resumedRustfsFetcher({userPolicy='usd-venue-media-only',policy=venueMediaPolicy(),userPresent=true,bucketPresent=true}={}){
+ const writes=[];
+ const fetcher=async(url,init)=>{
+  const isRoot=init.headers.Authorization.includes('Credential=venue-root-example/');
+  if(init.method==='PUT'){writes.push(url);return mockResponse(200)}
+  if(url.endsWith('/rustfs/admin/v3/user-info?accessKey='+cfg.VENUE_S3_APP_ACCESS))
+   return userPresent?mockResponse(200,{status:'enabled',policyName:userPolicy}):mockResponse(404);
+  if(url.includes('/rustfs/admin/v3/info-canned-policy?'))
+   return policy?mockResponse(200,{policy:JSON.stringify(policy)}):mockResponse(404);
+  if(url.endsWith('/usd-venue-media')&&init.method==='HEAD')return mockResponse(bucketPresent?200:404);
+  if(url.endsWith('/usd-venue-media')&&init.method==='GET')return mockResponse(200);
+  if(url.includes('/rustfs/admin/v3/list-users'))return mockResponse(isRoot?200:403);
+  if(url.endsWith('/'))return mockResponse(isRoot?200:403);
+  throw new Error('unexpected test route');
+ };
+ return {fetcher,writes};
+}
+test('re-run on an already fully provisioned media volume is read-only and verifies permissions',async()=>{
+ const {fetcher,writes}=resumedRustfsFetcher();
+ const result=await provisionVenueMedia(cfg,{fetcher,endpoint});
+ assert.deepEqual(result,{bucket:'usd-venue-media',restricted:true});
+ assert.equal(writes.length,0,'existing IAM identities and storage must not be overwritten');
+});
+test('resume after bucket and policy were created: create missing app user and narrow binding only',async()=>{
+ const {fetcher,writes}=resumedRustfsFetcher({userPresent:false});
+ await provisionVenueMedia(cfg,{fetcher,endpoint});
+ assert.equal(writes.length,2);
+ assert.ok(writes.some(url=>url.includes('/add-user?')));
+ assert.ok(writes.some(url=>url.includes('/set-user-or-group-policy?')));
+ assert.ok(!writes.some(url=>url.endsWith('/usd-venue-media')||url.includes('/add-canned-policy?')));
+});
+test('resume after new app user was created before IAM assignment',async()=>{
+ const {fetcher,writes}=resumedRustfsFetcher({userPolicy:''});
+ await provisionVenueMedia(cfg,{fetcher,endpoint});
+ assert.equal(writes.length,1);
+ assert.ok(writes[0].includes('/set-user-or-group-policy?'));
+});
+test('never reuse broader stored IAM policy and never mutate conflicting identities',async()=>{
+ for(const state of [
+  {policy:{...venueMediaPolicy(),Statement:[...venueMediaPolicy().Statement,{Effect:'Allow',Action:['s3:*'],Resource:['*']}]}},
+  {userPolicy:'admin'}
+ ]){
+  const {fetcher,writes}=resumedRustfsFetcher(state);
+  await assert.rejects(()=>provisionVenueMedia(cfg,{fetcher,endpoint}),/USD VENUE MEDIA FAILED AT inspect-(policy|user)/);
+  assert.equal(writes.length,0);
+ }
+});
+test('root auth or failed IAM write reports step and HTTP code without printing secrets',async()=>{
+ const unauthorized=async()=>mockResponse(403);
+ await assert.rejects(()=>provisionVenueMedia(cfg,{fetcher:unauthorized,endpoint}),/USD VENUE MEDIA FAILED AT root-readiness \[HTTP 403\]/);
+ const {fetcher}=resumedRustfsFetcher({userPresent:false});
+ const failWrite=async(url,init)=>{
+  if(url.includes('/add-user?'))return mockResponse(503,'private-credential-cannot-leak');
+  return fetcher(url,init);
+ };
+ await assert.rejects(()=>provisionVenueMedia(cfg,{fetcher:failWrite,endpoint}),err=>{
+  assert.match(err.message,/FAILED AT create-user \[HTTP 503\]/);
+  assert.doesNotMatch(err.message,/private-credential|root-secret|VENUE_S3/);
+  return true;
+ });
+});
