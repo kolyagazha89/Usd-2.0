@@ -6,7 +6,6 @@
 const EVENTS=new Set([
  'RegistrationsController','InspectionsController','ResultsController',
  'ParticipantsController','CarsController','ConfigurationsController',
- 'DisqualificationsController',
 ]);
 const NO_LAN=new Set([
  'GoogleController','AssistantController','ImportsController',
@@ -19,6 +18,11 @@ export function isVenueApiAllowed(controller:string,method:string,pathname:strin
  const action=method.toUpperCase();
  if(!path.startsWith('/')||path.includes('..')||/%(?:2f|5c|2e)/i.test(path))return false;
  if(NO_LAN.has(controller))return false;
+ // The LAN export journal records disciplinary operations, but the central
+ // full-return adapter cannot apply Disqualification rows yet. Fail closed:
+ // accepting a local POST/PATCH would make the entire stage return impossible.
+ if(controller==='DisqualificationsController')
+  return action==='GET'||action==='HEAD';
  if(controller==='AuthController'){
   if(path.startsWith('/auth/admin/'))return false;
   return action==='GET'||action==='HEAD'?path==='/auth/me'||path==='/auth/build-info'
