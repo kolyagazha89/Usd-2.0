@@ -32,6 +32,7 @@ describe('SiteSettingsService.getPublic', () => {
           registration: {
             rulesText: 'Официальные правила',
             price: 2000,
+            venueDisqualificationSnapshot:{stageId:'private-stage',generatedAt:'2026-11-19',records:[{participantId:'private-person-id'}]},
           },
           news: [
             { id: 'draft', title: 'Черновик', isPublished: false },
@@ -79,6 +80,8 @@ describe('SiteSettingsService.getPublic', () => {
       rulesText: 'Официальные правила',
       price: 2000,
     });
+    expect(response.settings.registration).not.toHaveProperty('venueDisqualificationSnapshot');
+    expect(JSON.stringify(response.settings)).not.toContain('private-person-id');
   });
   it('exposes attached legal DOCX files only after organizer approval', async () => {
     const document = { targetId: 'legal-document-privacyPolicy-test', fileName: 'privacy.docx', url: 'https://api.example.test/media/public-file/SITE_ASSET/legal-document-privacyPolicy-test' };
