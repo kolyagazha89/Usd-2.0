@@ -13,6 +13,8 @@ export type VenueStageSnapshot={
  expiresAt:string;
  stage:unknown;
  registrations:unknown[];
+ /** Complete minimal local search directory; excludes contacts, credentials and history. */
+ participantDirectory?:unknown[];
  venuePolicy?:unknown;
  staffAccess?:SealedVenueStaff;
  syncAuthorization?:{token:string;expiresAt:string};
@@ -60,6 +62,7 @@ export function verifyVenueStagePackage(
   ||snapshot.purpose!=='USD_VENUE_STAGE_READONLY'
   ||typeof snapshot.stageId!=='string'||!snapshot.stageId
   ||!Array.isArray(snapshot.registrations)||snapshot.registrations.length>2500
+  ||(snapshot.participantDirectory!==undefined&&(!Array.isArray(snapshot.participantDirectory)||snapshot.participantDirectory.length>25000))
   ||integrity.algorithm!=='Ed25519'||!looksLikeSha(integrity.sha256)
   ||!looksLikeSha(integrity.publicKeyFingerprint)
   ||typeof integrity.signature!=='string'

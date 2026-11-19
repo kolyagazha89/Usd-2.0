@@ -34,6 +34,8 @@ export function postgresFullVenueAdapter(client){
    try{
     await client.query("SET LOCAL statement_timeout = '55000ms'");
     await client.query("SET LOCAL lock_timeout = '12000ms'");
+    let cachedParticipantFios=null;
+    let cachedCarPlates=null;
     const tx={
      async stage(stageId){
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[stageId]);
@@ -88,6 +90,26 @@ export function postgresFullVenueAdapter(client){
        'SELECT 1 FROM "StageClass" sc JOIN "Class" c ON c.id=sc."classId" WHERE sc."stageId"=$1 AND sc."classId"=$2 AND sc."isActive"=true AND c."isActive"=true LIMIT 1',
        [stageId,classId]);
       return rows.length>0;
+     },
+     async participantIdentityCandidates(person){
+      // Read fresh central profiles inside the SERIALIZABLE return transaction.
+      // Never use the stale offline signed roster for online duplicate decisions.
+      if(typeof person?.firstName!=='string'||typeof person?.lastName!=='string')
+       throw Error('VENUE DB: invalid person for duplicate review');
+      if(!cachedParticipantFios){
+       const result=await client.query('SELECT id,"firstName","lastName","middleName" FROM "Participant"');
+       cachedParticipantFios=result.rows;
+      }
+      return cachedParticipantFios;
+     },
+     async carPlateCandidates(car){
+      if(typeof car?.registrationNumber!=='string'||!car.registrationCountry)
+       return [];
+      if(!cachedCarPlates){
+       const result=await client.query('SELECT id,"registrationCountry","registrationNumber","participantId" FROM "Car"');
+       cachedCarPlates=result.rows;
+      }
+      return cachedCarPlates;
      },
      async participantEligible(participantId,stageId){
       const {rows}=await client.query(

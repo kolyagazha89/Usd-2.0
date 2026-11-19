@@ -268,3 +268,53 @@ test('expired setup resumes only a matching package imported while it was valid'
  const tampered=structuredClone(data);tampered.snapshot.stage.name='different';
  await assert.rejects(()=>importer.planInstalledVenueStageImport(tampered,publicPem,env,db,late));
 });
+
+test('signed directory includes unregistered profiles and cars without inventing competition registrations',async()=>{
+ const data=snapshot();
+ data.participantDirectory=[
+  {id:uuid.person,firstName:'Иван',lastName:'Иванов',middleName:null,city:'Тюмень',team:null,isPublic:true,
+   cars:[{id:uuid.car,participantId:uuid.person,brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'А123ВС55',color:null,isPublic:true,isActive:true}]},
+  {id:'ab84e950-8f7e-447b-87ab-18d92c36cad5',firstName:'Пётр',lastName:'Петров',middleName:null,city:'Омск',team:null,isPublic:false,
+   cars:[{id:'a1a29ae7-73ea-42e6-b12c-594c687f8564',participantId:'ab84e950-8f7e-447b-87ab-18d92c36cad5',brand:'Toyota',model:'Camry',registrationCountry:'RU',registrationNumber:'А111ВС72',color:null,isPublic:false,isActive:true}]},
+ ];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ assert.equal(plan.participantDirectory.length,2);
+ const {db,log}=mockDb();
+ await applyVenueStageImport(plan,db);
+ assert.equal(log.filter(x=>x.model==='participant').length,2);
+ assert.equal(log.filter(x=>x.model==='car').length,2);
+ assert.equal(log.filter(x=>x.model==='registration').length,2); // one create + one stage inspection link
+ assert.equal(log.find(x=>x.model==='participant'&&x.data?.id===data.participantDirectory[1].id).data.isPublic,false);
+ assert.equal(log.find(x=>x.model==='car'&&x.data?.id===data.participantDirectory[1].cars[0].id).data.isPublic,false);
+});
+test('signed directory rejects stale or duplicated participant IDs, foreign cars and personal contacts',()=>{
+ const data=snapshot(),known={id:uuid.person,firstName:'Иван',lastName:'Иванов',middleName:null,city:'Тюмень',team:null,isPublic:true,cars:[]};
+ data.participantDirectory=[known,known];
+ assert.throws(()=>planVenueStageImport(signed(data),publicPem,env,now),/повтор|дубликат|участник/i);
+ data.participantDirectory=[{...known,id:uuid.season,cars:[{id:uuid.car,participantId:uuid.person,brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'А123ВС55'}]}];
+ assert.throws(()=>planVenueStageImport(signed(data),publicPem,env,now),/автомобил|принадлеж/i);
+ data.participantDirectory=[{...known,phone:'+79990000000'}];
+ assert.throws(()=>planVenueStageImport(signed(data),publicPem,env,now),/пол|запрещ|личн/i);
+});
+test('append-only directory refresh requires local root, matching stage and preserves registrations/results',async()=>{
+ const data=snapshot();data.participantDirectory=[{
+  id:'ab84e950-8f7e-447b-87ab-18d92c36cad5',firstName:'Пётр',lastName:'Петров',
+  middleName:null,city:'Омск',team:null,isPublic:false,
+  cars:[{id:'a1a29ae7-73ea-42e6-b12c-594c687f8564',participantId:'ab84e950-8f7e-447b-87ab-18d92c36cad5',brand:'Toyota',model:'Camry',registrationCountry:'RU',registrationNumber:'А111ВС72',color:null,isPublic:false,isActive:true}],
+ }];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ assert.equal(typeof importer.applyVenueParticipantDirectory,'function');
+ const {tx,db,log}=mockDb();
+ tx.$queryRawUnsafe=async sql=>sql.includes('current_user')?[{name:'usd_venue_root',rolsuper:true}]:[{stageId:uuid.stage}];
+ tx.$executeRawUnsafe=async()=>1;
+ tx.stage.findUnique=async()=>({id:uuid.stage});
+ tx.auditLog.findFirst=async()=>({metadata:{sha256:'a'.repeat(64)}});
+ tx.car.findMany=async()=>[];
+ const refreshed=await importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage});
+ assert.equal(refreshed.addedParticipants,1);
+ assert.equal(refreshed.addedCars,1);
+ assert.equal(log.some(x=>['registration','result'].includes(x.model)),false);
+ const {db:untrusted,tx:tx2}=mockDb();
+ tx2.stage.findUnique=async()=>({id:uuid.stage});
+ await assert.rejects(()=>importer.applyVenueParticipantDirectory(plan,untrusted,{stageId:uuid.stage}),/root|установ|роль/i);
+});

@@ -127,6 +127,31 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
     ||!Number.isSafeInteger(dir.sortOrder))
    throw new Error('Порядок классов должен быть числом');
  }
+
+ const directoryPeople=new Map(),directoryCars=new Map();
+ if(snapshot.participantDirectory!==undefined){
+  if(!Array.isArray(snapshot.participantDirectory)||snapshot.participantDirectory.length>25000)
+   throw new Error('Некорректный размер справочника участников');
+  const participantFields=new Set(['id','firstName','lastName','middleName','city','team','isPublic','cars']);
+  const carFields=new Set(['id','participantId','brand','model','registrationCountry','registrationNumber','color','isPublic','isActive']);
+  for(const person of snapshot.participantDirectory){
+   if(!isObject(person)||Object.keys(person).some(k=>!participantFields.has(k))
+    ||!UUID.test(person.id??'')||directoryPeople.has(person.id)
+    ||typeof person.isPublic!=='boolean'||!String(person.firstName??'').trim()
+    ||!String(person.lastName??'').trim()||!Array.isArray(person.cars)||person.cars.length>250)
+    throw new Error('Лишние личные поля или повтор участника справочника');
+   directoryPeople.set(person.id,person);
+   for(const car of person.cars){
+    if(!isObject(car)||Object.keys(car).some(k=>!carFields.has(k))
+     ||!UUID.test(car.id??'')||directoryCars.has(car.id)||car.participantId!==person.id
+     ||!String(car.brand??'').trim()||!String(car.model??'').trim()
+     ||!String(car.registrationNumber??'').trim()||typeof car.isPublic!=='boolean'
+     ||typeof car.isActive!=='boolean')
+     throw new Error('Автомобиль принадлежит другому участнику или содержит запрещённые поля');
+    directoryCars.set(car.id,car);
+   }
+  }
+ }
  const people=new Map(),cars=new Map(),versions=new Map(),registrations=new Set(),
   numbers=new Set(),numberIds=new Set(),registeredClassIds=new Set(),resultIds=new Set(),
   stageInspections=new Map();
@@ -197,6 +222,7 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
   packageHash:signed.integrity.sha256,verifiedAt:new Date(now).toISOString(),
   snapshot,
   registrations:snapshot.registrations,
+  participantDirectory:snapshot.participantDirectory,
   summary:{stageId:verified.stageId,registrations:registrations.size,
    classes:classIds.size,results:resultCount},
  };
@@ -362,9 +388,20 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
    }});
   }
   const people=new Map(),cars=new Map(),inspectMap=new Map();
+  for(const person of plan.participantDirectory??[]){
+   people.set(person.id,person);
+   for(const car of person.cars)cars.set(car.id,car);
+  }
+
   for(const r of regs){
-   people.set(r.participant.id,r.participant);
-   cars.set(r.car.id,r.car);
+   const existingPerson=people.get(r.participant.id);
+   if(existingPerson&&[existingPerson.firstName,existingPerson.lastName].join('|')!==[r.participant.firstName,r.participant.lastName].join('|'))
+    throw new Error('Несовпадение исходного профиля регистрации и справочника');
+   const existingCar=cars.get(r.car.id);
+   if(existingCar&&existingCar.participantId!==r.participant.id)
+    throw new Error('Автомобиль регистрации принадлежит другому участнику');
+   if(!existingPerson)people.set(r.participant.id,r.participant);
+   if(!existingCar)cars.set(r.car.id,r.car);
    if(r.stageInspection)inspectMap.set(r.participant.id,r.stageInspection);
   }
   for(const person of [...people.values()].sort(sortById))
@@ -454,9 +491,106 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
  },{isolationLevel:'Serializable',timeout:120000});
 }
 
+
+/** Extend an already installed stage with centrally signed reference identities.
+ * Runs only in a short-lived local root importer, with judging paused.
+ * Never touches Registration, Result, the original signed baseline or journal.
+ * Every INSERT is into an existing central UUID, not a new local-generated ID.
+ */
+export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
+ if(!plan?.packageHash||!prisma?.$transaction||!Array.isArray(plan.participantDirectory)
+  ||plan.snapshot?.stageId!==stageId)
+  throw new Error('Нет проверенного справочника для этого этапа');
+ return prisma.$transaction(async tx=>{
+  await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
+  const role=await tx.$queryRawUnsafe('SELECT current_user AS name,rolsuper FROM pg_roles WHERE rolname=current_user');
+  if(role.length!==1||role[0].name!=='usd_venue_root'||role[0].rolsuper!==true)
+   throw new Error('Пополнение справочника разрешено только локальному root-установщику');
+  const installed=await tx.stage.findUnique({where:{id:stageId}});
+  if(!installed)throw new Error('Этот этап ещё не установлен');
+  const receipts=await tx.auditLog.findFirst({
+   where:{action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:stageId},
+   select:{metadata:true},
+  });
+  if(!/^[a-f0-9]{64}$/.test(receipts?.metadata?.sha256??''))
+   throw new Error('Нет исходной подписанной установки этапа');
+  const active=await tx.$queryRawUnsafe('SELECT stage_id AS "stageId" FROM venue_private.active_stage WHERE singleton=true');
+  if(active.length!==1||active[0].stageId!==stageId)
+   throw new Error('Нельзя обновить исторический или неактивный этап');
+  const already=await tx.auditLog.findFirst({
+   where:{action:'VENUE_PARTICIPANT_DIRECTORY_IMPORTED',entity:'Stage',entityId:stageId},
+   orderBy:{createdAt:'desc'},select:{metadata:true},
+  });
+  if(already?.metadata?.sha256===plan.packageHash)
+   return {addedParticipants:0,addedCars:0,replayed:true};
+  const lookalike={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
+  const normalizedPlate=car=>{
+   const value=String(car.registrationNumber).normalize('NFKC').toLocaleUpperCase('ru-RU')
+    .replace(/[\u200B-\u200D\uFEFF]/g,'').trim();
+   const letters=car.registrationCountry==='RU'
+    ?[...value].map(x=>lookalike[x]??x).join('').replace(/[|\s.\-_/\\]/g,'')
+    :value.replace(/\s+/g,' ');
+   return car.registrationCountry+':'+letters.replace(/[^\p{L}\p{N}]/gu,'');
+  };
+  const currentCars=await tx.car.findMany({select:{id:true,participantId:true,registrationNumber:true,registrationCountry:true}});
+  const sourceCarIds=new Set(plan.participantDirectory.flatMap(person=>person.cars.map(car=>car.id)));
+  const plates=new Map();
+  for(const car of currentCars){
+   const plate=normalizedPlate(car);
+   if(!plates.has(plate))plates.set(plate,new Set());
+   plates.get(plate).add(car.id);
+  }
+  let addedParticipants=0,addedCars=0;
+  // Identical plates on different centrally signed car IDs may be historical
+  // data; retain both identities. A new local-only car with an occupied plate
+  // needs manual review, never an automatic reassignment or overwrite.
+  for(const person of plan.participantDirectory){
+   for(const car of person.cars){
+    const plate=normalizedPlate(car);
+    const owners=plates.get(plate)??new Set();
+    if([...owners].some(id=>id!==car.id&&!sourceCarIds.has(id)))
+     throw new Error('MANUAL_REVIEW: госномер уже занят локальным автомобилем под другим ID');
+    owners.add(car.id);
+    plates.set(plate,owners);
+   }
+  }
+  await tx.$executeRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
+  for(const person of plan.participantDirectory){
+   const old=await tx.participant.findUnique({where:{id:person.id}});
+   if(!old){
+    await tx.participant.create({data:{
+     id:person.id,firstName:person.firstName,lastName:person.lastName,
+     middleName:person.middleName??null,city:person.city??null,
+     team:person.team??null,isPublic:person.isPublic===true,
+    }});
+    addedParticipants++;
+   }
+   for(const car of person.cars){
+    const prior=await tx.car.findUnique({where:{id:car.id}});
+    if(prior){
+     if(prior.participantId!==person.id)throw new Error('Автомобиль привязан к другому участнику');
+     continue;
+    }
+    await tx.car.create({data:{
+     id:car.id,participantId:person.id,brand:car.brand,model:car.model,
+     registrationCountry:car.registrationCountry,registrationNumber:car.registrationNumber,
+     color:car.color??null,isPublic:car.isPublic===true,isActive:car.isActive===true,
+    }});
+    addedCars++;
+   }
+  }
+  await tx.auditLog.create({data:{
+   action:'VENUE_PARTICIPANT_DIRECTORY_IMPORTED',entity:'Stage',entityId:stageId,
+   metadata:{sha256:plan.packageHash,participantCount:plan.participantDirectory.length,
+    addedParticipants,addedCars},
+  }});
+  return {addedParticipants,addedCars,replayed:false};
+ },{isolationLevel:'Serializable',timeout:120000});
+}
+
 async function main(){
  const [file,keyFile,mode,confirmedId]=process.argv.slice(2);
- if(!file||!keyFile||!['--dry-run','--apply','--check-installed'].includes(mode)
+ if(!file||!keyFile||!['--dry-run','--apply','--check-installed','--apply-directory'].includes(mode)
   ||(mode==='--apply'&&!confirmedId))
   throw new Error('Usage: import-stage.mjs STAGE.json PUBLIC_KEY.pem --dry-run OR --apply STAGE_UUID');
  if((await stat(file)).size>MAX_FILE)throw new Error('Пакет слишком большой');
@@ -476,6 +610,12 @@ async function main(){
  const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
  try{
   const plan=await planInstalledVenueStageImport(signed,key,process.env,prisma);
+  if(mode==='--apply-directory'){
+   const imported=await applyVenueParticipantDirectory(plan,prisma,{stageId:plan.snapshot.stageId});
+   process.stdout.write('USD VENUE PARTICIPANT DIRECTORY IMPORTED — EXISTING IDS PRESERVED\n');
+   process.stdout.write(JSON.stringify(imported)+'\n');
+   return;
+  }
   if(mode==='--check-installed'){
    process.stdout.write('USD VENUE PACKAGE VERIFIED — NO DATABASE WRITES\n');
    process.stdout.write(JSON.stringify(plan.summary)+'\n');

@@ -69,6 +69,8 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
     stageClassAllowed:async()=>true,
     participantEligible:async()=>true,
     resultAdmission:async()=>true,
+    participantIdentityCandidates:async()=>[...(working.get('Participant')?.values()??[])],
+    carPlateCandidates:async()=>[...(working.get('Car')?.values()??[])],
     numberOwner:async (_stage,number)=>[...(working.get('RegistrationNumber')?.values()??[])].find(r=>r.number===number)??null,
     write:async (table,op,row,before)=>{
      if(failAt&&Number(op.eventSequence)===failAt)throw Error('simulated db failure');
@@ -238,4 +240,55 @@ test('photo-free stage requires no media transfer despite having competition res
  assert.equal(report.mediaTransferRequired,false);
  assert.equal(report.mediaSynchronized,false);
  assert.equal(report.databaseSynchronized,true);
+});
+
+test('a new offline UUID with the same normalized FIO as a central account is MANUAL_REVIEW, never duplicated',async()=>{
+ const db=memoryDb({existing:{Participant:[{
+  id:'8b596264-15dd-46d8-92aa-c4e1c50c0205',
+  firstName:'  АННА ',lastName:' Тестовая ',middleName:null,
+ }]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,opts),/MANUAL_REVIEW.*DUPLICATE_PARTICIPANT_NAME/);
+ assert.equal(db.rows.get('Participant').size,1);
+ assert.equal(db.rows.get('Registration'),undefined);
+ assert.equal(db.rows.get('Result'),undefined);
+ assert.equal(db.receipt.size,0);
+});
+test('a newly created onsite entrant whose name matches a centrally created participant while WAN is down is not duplicated',async()=>{
+ const db=memoryDb({existing:{Participant:[{
+  id:'8b596264-15dd-46d8-92aa-c4e1c50c0205',
+  firstName:'Анна',lastName:'Тестовая',middleName:'  ',
+ }]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,{...opts,apply:false}),/MANUAL_REVIEW.*DUPLICATE_PARTICIPANT_NAME/);
+ assert.equal(db.rows.get('Participant').size,1);
+ assert.equal(db.receipt.size,0);
+});
+test('true namesakes are not merged; another spelling of the name with distinct middle names is safe to import',async()=>{
+ const db=memoryDb({existing:{Participant:[{
+  id:'8b596264-15dd-46d8-92aa-c4e1c50c0205',
+  firstName:'Анна',lastName:'Тестовая',middleName:'Мария',
+ }]}});
+ const changed=full();changed.events[0].payload.after.middleName='Павловна';
+ const report=await applyCompleteVenueJournal(changed,db,{...opts,apply:false});
+ assert.equal(report.readyEvents,9);
+ assert.equal(db.rows.get('Participant').size,1);
+});
+
+test('same Russian plate with Latin lookalikes and a misspelled FIO blocks duplicate car and preserves all results',async()=>{
+ const preexistingOwner='9b596264-15dd-46d8-92aa-c4e1c50c0205';
+ const preexistingCar='9b596264-15dd-46d8-92aa-c4e1c50c0206';
+ const db=memoryDb({existing:{
+  Participant:[{id:preexistingOwner,firstName:'Антон',lastName:'Тестов',middleName:null}],
+  Car:[{id:preexistingCar,participantId:preexistingOwner,brand:'Lada',model:'Vesta',
+   registrationCountry:'RU',registrationNumber:'А123АА181'}],
+ }});
+ const candidate=full();
+ candidate.events[0].payload.after.firstName='Андрей';
+ candidate.events[1].payload.after.registrationCountry='RU';
+ candidate.events[1].payload.after.registrationNumber='A123AA181';
+ await assert.rejects(()=>applyCompleteVenueJournal(candidate,db,opts),/MANUAL_REVIEW.*DUPLICATE_CAR_PLATE/);
+ assert.equal(db.rows.get('Participant').size,1);
+ assert.equal(db.rows.get('Car').size,1);
+ assert.equal(db.rows.get('Registration'),undefined);
+ assert.equal(db.rows.get('Result'),undefined);
+ assert.equal(db.receipt.size,0);
 });

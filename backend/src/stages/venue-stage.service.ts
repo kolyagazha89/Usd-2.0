@@ -77,6 +77,23 @@ export class VenueStageService {
   if(!data)throw new NotFoundException('Этап не найден или недоступен для офлайн-экспорта');
   if(data.registrations.length>2500)
    throw new ServiceUnavailableException('Этап слишком большой для переносимого пакета; нужен потоковый экспорт');
+  // Offline intake must search the SAME existing person/car UUIDs as Ubuntu.
+  // This is a deliberately minimal roster: no email, phone, birthday, tokens,
+  // archived aliases, credentials, user accounts or historical results.
+  // Exclude redirected duplicate-source profiles. Never silently truncate.
+  const participantDirectory=await this.prisma.participant.findMany({
+   where:{mergeAsSource:{is:null}},orderBy:[{lastName:'asc'},{firstName:'asc'},{id:'asc'}],
+   select:{
+    id:true,firstName:true,lastName:true,middleName:true,city:true,team:true,isPublic:true,
+    cars:{orderBy:{id:'asc'},select:{
+     id:true,participantId:true,brand:true,model:true,registrationCountry:true,
+     registrationNumber:true,color:true,isPublic:true,isActive:true,
+    }},
+   },
+  });
+  if(participantDirectory.length>25000)
+   throw new ServiceUnavailableException('Справочник участников превышает лимит офлайн-пакета; нужен пакетный экспорт');
+
   // Copy ONLY published, centrally approved public legal terms and regulation.
   // Missing approval deliberately leaves on-site intake unavailable.
   const settings=await this.prisma.siteSettings.findUnique({
@@ -149,6 +166,7 @@ export class VenueStageService {
    ...(staffAccess?{staffAccess}:{}),
    syncAuthorization:{token:syncToken,expiresAt:syncExpires.toISOString()},
    registrations:data.registrations,
+   participantDirectory,
   };
   let signed;
   try{signed=signVenueStageSnapshot(snapshot,signingKey)}
@@ -164,7 +182,7 @@ export class VenueStageService {
     userId:request.user.sub,action:'VENUE_STAGE_PACKAGE_EXPORTED',entity:'Stage',entityId:id,
     metadata:{sha256:signed.integrity.sha256,registrationCount:data.registrations.length,
      exportedAt:signed.snapshot.generatedAt,expiresAt:signed.snapshot.expiresAt,
-     automaticReturn:true,staffCount}, 
+     automaticReturn:true,staffCount,directoryCount:participantDirectory.length}, 
    }});
   });
   return withStaff?{signed,staffKey,staffCount}:signed;

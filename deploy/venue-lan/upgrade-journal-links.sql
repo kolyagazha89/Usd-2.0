@@ -130,8 +130,12 @@ CREATE TABLE IF NOT EXISTS venue_private.journal_coverage (
 -- A pre-existing journal may contain untracked link changes. The watermark
 -- is never zeroed on re-runs and prevents a falsely complete full import.
 INSERT INTO venue_private.journal_coverage(from_sequence)
-SELECT coalesce(max(sequence),0) FROM venue_private.operation_journal
+SELECT coalesce((SELECT max(sequence) FROM venue_private.operation_journal),0)
 WHERE NOT EXISTS (SELECT 1 FROM venue_private.journal_coverage);
+-- Fail closed when a historical installation has duplicate watermark rows.
+-- Repair only after an off-device database backup using repair-journal-coverage.sql.
+CREATE UNIQUE INDEX IF NOT EXISTS usd_venue_journal_coverage_singleton
+ ON venue_private.journal_coverage ((true));
 REVOKE ALL ON venue_private.journal_coverage FROM PUBLIC;
 GRANT SELECT ON venue_private.journal_coverage TO usd_venue;
 CREATE OR REPLACE FUNCTION venue_private.keep_single_stage() RETURNS TRIGGER

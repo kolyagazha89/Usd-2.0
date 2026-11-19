@@ -65,6 +65,12 @@ describe('Signed LAN stage export',()=>{
     numbers:[],classes:[],inspection:null,stageInspection:null,results:[],
    }],
   })},
+   participant:{findMany:jest.fn<() => Promise<any>>().mockResolvedValue([
+    {id:'person1',firstName:'Иван',lastName:'Иванов',middleName:null,city:'Омск',team:null,isPublic:true,
+     cars:[{id:'car1',participantId:'person1',brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'А001УР55',color:null,isPublic:true,isActive:true}]},
+    {id:'person2',firstName:'Пётр',lastName:'Петров',middleName:null,city:null,team:null,isPublic:false,
+     cars:[{id:'car2',participantId:'person2',brand:'Toyota',model:'Camry',registrationCountry:'RU',registrationNumber:'А222УР55',color:null,isPublic:false,isActive:true}]},
+   ])},
    venueSyncAuthorization:{create:jest.fn<() => Promise<any>>().mockResolvedValue({id:'grant1'})},
    auditLog:{create:jest.fn<() => Promise<any>>().mockResolvedValue({id:'log1'})},
    $transaction:async(fn:(tx:any)=>Promise<any>)=>fn(prisma),
@@ -85,6 +91,11 @@ describe('Signed LAN stage export',()=>{
     rulesPublished:{id:'rules-v2'},
    });
    expect(pkg.snapshot.syncAuthorization?.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+   expect(pkg.snapshot.participantDirectory).toHaveLength(2);
+   expect((pkg.snapshot.participantDirectory as any[])[1]).toMatchObject({id:'person2',cars:[{id:'car2'}]});
+   expect(prisma.participant.findMany).toHaveBeenCalledWith(expect.objectContaining({
+    where:{mergeAsSource:{is:null}},select:expect.objectContaining({id:true,lastName:true}),
+   }));
    expect(prisma.venueSyncAuthorization.create).toHaveBeenCalledWith(expect.objectContaining({
     data:expect.objectContaining({stageId,baselineSha256:pkg.integrity.sha256}),
    }));

@@ -121,6 +121,25 @@ jobs:
           docker compose -p usd-venue exec -T db \
             psql -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue \
             < install-journal.sql
+      - name: Regression - repair duplicate coverage and survive repeated next-stage upgrades
+        working-directory: deploy/venue-lan
+        run: |
+          set -euo pipefail
+          db() { docker compose -p usd-venue exec -T db psql -X -v ON_ERROR_STOP=1 -U usd_venue_root -d usd_venue "$@"; }
+          before=$(db -Atc 'SELECT count(*) FROM venue_private.operation_journal')
+          db -c 'DROP INDEX venue_private.usd_venue_journal_coverage_singleton;'
+          db -c 'INSERT INTO venue_private.journal_coverage(format_version,from_sequence) VALUES (2,0);'
+          test "$(db -Atc 'SELECT count(*) FROM venue_private.journal_coverage')" = 2
+          db < repair-journal-coverage.sql
+          for attempt in 1 2 3; do db < upgrade-journal-links.sql; done
+          test "$(db -Atc 'SELECT count(*) FROM venue_private.journal_coverage')" = 1
+          test "$(db -Atc 'SELECT from_sequence FROM venue_private.journal_coverage')" = 0
+          test "$(db -Atc 'SELECT count(*) FROM venue_private.operation_journal')" = "$before"
+          if db -c 'INSERT INTO venue_private.journal_coverage(format_version,from_sequence) VALUES (2,0);'; then
+            echo 'Duplicate coverage was incorrectly accepted' >&2
+            exit 1
+          fi
+          echo 'USD COVERAGE REPAIR AND REPEATED UPGRADE PASS'
       - name: Verify native active-stage SQL for legacy and retained databases
         working-directory: deploy/venue-lan
         run: |

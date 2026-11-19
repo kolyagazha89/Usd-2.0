@@ -273,5 +273,16 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotIn('prune',section)
         self.assertIn('Sync-VenueReturn',section)
 
+    def test_signed_participant_directory_refresh_keeps_competition_history(self):
+        source=(ROOT/"venue-directory.ps1").read_text(encoding="utf-8-sig")
+        for required in ("Import-VenueParticipantDirectory","--apply-directory",
+                         "pg_dump","pg_restore","Get-FileHash","LocalApplicationData",
+                         "Restore-VenueApi","VENUE_DB_ROOT_PASSWORD"):
+            self.assertIn(required,source)
+        self.assertLess(source.index("pg_dump"),source.index("--apply-directory"))
+        for forbidden in ("down -v","prune","rm -rf","TRUNCATE"):
+            self.assertNotIn(forbidden,source)
+        self.assertIn("-Action directory",(ROOT/"USD-Participants.cmd").read_text(encoding="utf-8"))
+
 if __name__=="__main__":
     unittest.main()

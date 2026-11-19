@@ -193,6 +193,9 @@ CREATE TABLE venue_private.journal_coverage (
   installed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 INSERT INTO venue_private.journal_coverage(from_sequence) VALUES (0);
+-- A single immutable coverage watermark is required for complete return exports.
+CREATE UNIQUE INDEX usd_venue_journal_coverage_singleton
+ ON venue_private.journal_coverage ((true));
 REVOKE ALL ON venue_private.journal_coverage FROM PUBLIC;
 GRANT SELECT ON venue_private.journal_coverage TO usd_venue;
 COMMIT;
