@@ -16,6 +16,18 @@ test('document listing does not claim files are unpublished before public settin
  assert.deepEqual(shown.files.map(file=>file.openPath),['/documents/privacyPolicy','/documents/cookiePolicy']);
 });
 
+test('untrusted public CMS download URLs are excluded without hiding approved HTML fallbacks',()=>{
+ const malformed={legalApproved:true,privacyText:'Published privacy',documents:{
+  privacyPolicy:{targetId:'legal-document-privacyPolicy-approved',url:'javascript:alert(1)'},
+ }};
+ const state=publicDocumentListState(malformed,{},false);
+ assert.equal(state.status,'published');
+ assert.deepEqual(state.files.map(x=>x.openPath),['/privacy']);
+ assert.deepEqual(publicDocumentListState({legalApproved:true,documents:{
+  privacyPolicy:{targetId:'legal-document-privacyPolicy-approved',url:'data:text/html,<script>bad</script>'},
+ }},{},false),{status:'empty',files:[]});
+});
+
 test('revoked documents remain hidden and approved standalone legal texts are still linked',()=>{
  assert.deepEqual(publicDocumentListState({legalApproved:false,documents:approved.documents},{},false),{status:'empty',files:[]});
  const fallback=publicDocumentListState({legalApproved:true,privacyText:'Утверждённая политика',consentText:'Согласие',termsText:'Условия'}, {},false);
