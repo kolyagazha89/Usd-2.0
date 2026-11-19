@@ -113,10 +113,10 @@ $priorPrivate=$PrivateDir;$PrivateDir=$keyTemp
 try{
  $wrong=Join-Path $keyTemp 'stored.key';$right=Join-Path $keyTemp 'replacement.key'
  [IO.File]::WriteAllText($wrong,('A'*43));[IO.File]::WriteAllText($right,('B'*43))
- $state=[pscustomobject]@{accessKey=$wrong};$script:keyChecks=0
+ $state=[pscustomobject]@{accessKey=$wrong;phase='CONFIGURED'};$script:keyChecks=0
  function Select-VenueFile {return $right}
- function Create-ExistingStaff([object]$State,[array]$Mounts,[switch]$CheckOnly){
-  if(!$CheckOnly){throw 'Staff preflight attempted database writes'}
+ function Create-ExistingStaff([object]$State,[array]$Mounts,[switch]$CheckOnly,[switch]$Preflight){
+  if(!$Preflight -or $CheckOnly){throw 'Fresh stage staff check must use DB-free preflight'}
   $script:keyChecks++
   if([IO.File]::ReadAllText($State.accessKey) -cne ('B'*43)){throw 'wrong stage key'}
  }
