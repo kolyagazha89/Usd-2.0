@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { renderUsdMailShell } from './mail-brand-layout';
 import { MailService } from './mail.service';
+import {CRITICAL_STAGE_LABELS, type CriticalStageKey} from '../stages/stage-critical-notice';
 
 type Notice = { eventKey: string; type: string; recipient: string; stageId: string; registrationId?: string; subject: string; heading: string; intro: string; details: string[]; href: string };
 
@@ -46,7 +47,9 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
   onModuleInit() {
     // Personal Yandex mailbox: only account verification/recovery email.
     // Do not run 15-minute reminder scans or auto-mail stage announcements.
-    if (process.env.MAIL_ACCOUNT_ONLY === 'true') return;
+    if (process.env.MAIL_ACCOUNT_ONLY === 'true' &&
+      !(manuallyApprovedCritical && process.env.MAIL_CRITICAL_STAGE_NOTICES_ENABLED === 'true'
+        && ['STAGE_CHANGED', 'STAGE_CANCELLED'].includes(notice.type))) return 'SKIPPED';
     // Run after boot and every 15 minutes. The database unique eventKey makes
     // multiple replicas safe; provider acceptance is never described as delivery.
     void this.processReminders();
@@ -118,7 +121,69 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     return { subject, text, html };
   }
 
-  private async dispatch(notice: Notice) {
+  /** An ADMIN can deliberately enable operational-only messages without re-enabling
+   * marketing / reminders on a personal Yandex mailbox. */
+  criticalStageMailReadiness(): { ready: boolean; reason: string } {
+    if (process.env.MAIL_CRITICAL_STAGE_NOTICES_ENABLED !== 'true') {
+      return { ready: false, reason: 'Для служебной рассылки включите MAIL_CRITICAL_STAGE_NOTICES_ENABLED=true на сервере API.' };
+    }
+    const channel = this.mail.getDeliveryStatus();
+    return { ready: channel.ready, reason: channel.ready ? 'Почтовый канал готов к отправке.' : 'Почтовый канал не готов. Проверьте настройки в разделе «Почта».' };
+  }
+
+  async sendCriticalStageNotice(
+    stage: any, changes: CriticalStageKey[], revision: number,
+    isStillCurrent: () => Promise<boolean>,
+  ): Promise<{total: number; accepted: number; failed: number; interrupted: boolean}> {
+    if (!this.criticalStageMailReadiness().ready) throw new BadRequestException('Служебная рассылка не настроена');
+    if (!changes.length || !['PUBLISHED', 'CANCELLED'].includes(stage.status)) {
+      throw new BadRequestException('Нет важных изменений для уведомления участников');
+    }
+    const registrations = await this.prisma.registration.findMany({
+      where: { stageId: stage.id, status: 'ACTIVE' },
+      include: { participant: { include: { user: true } } },
+    });
+    const recipients = new Map<string, { id: string; email: string; registrationId: string }>();
+    for (const registration of registrations as any[]) {
+      const user = registration.participant?.user;
+      if (user?.id && user.email && user.isActive && user.emailVerifiedAt && !recipients.has(user.id)) {
+        recipients.set(user.id, { id: user.id, email: user.email, registrationId: registration.id });
+      }
+    }
+    const cancelled = stage.status === 'CANCELLED';
+    const details = [
+      'Этап: ' + stage.name + ' · №' + stage.stageNumber,
+      'Изменилось: ' + changes.map(key => CRITICAL_STAGE_LABELS[key]).join(', '),
+      'Дата: ' + formatStageDate(stage),
+      'Начало: ' + (stage.startTimeMsk || '10:00') + ' МСК',
+      'Место: ' + [stage.city, stage.venue, stage.address].filter(Boolean).join(', '),
+    ];
+    const summary = { total: recipients.size, accepted: 0, failed: 0, interrupted: false };
+    for (const recipient of recipients.values()) {
+      // A concurrent edit invalidates the old revision. Do not keep sending
+      // travel information which is already stale.
+      if (!(await isStillCurrent())) { summary.interrupted = true; break; }
+      const status = await this.dispatch({
+        eventKey: 'stage-critical:' + stage.id + ':' + revision + ':' + recipient.id,
+        type: cancelled ? 'STAGE_CANCELLED' : 'STAGE_CHANGED',
+        recipient: recipient.email,
+        stageId: stage.id,
+        registrationId: recipient.registrationId,
+        subject: cancelled ? 'Важно: этап отменён — ' + stage.name : 'Важно: изменились условия этапа — ' + stage.name,
+        heading: cancelled ? 'Этап отменён' : 'Важное изменение по вашему этапу',
+        intro: cancelled
+          ? 'Организаторы отменили этап, на который вы зарегистрированы.'
+          : 'Изменились дата, время или место проведения этапа, на который вы зарегистрированы. Проверьте новые сведения.',
+        details,
+        href: this.frontendUrl + '/stages/' + encodeURIComponent(stage.id),
+      }, true);
+      if (status === 'PROVIDER_ACCEPTED') summary.accepted++;
+      else summary.failed++;
+    }
+    return summary;
+  }
+
+  private async dispatch(notice: Notice, manuallyApprovedCritical = false) {
     // Keep event-driven stage notifications out of a personal mailbox.
     // Real account messages use MailService directly; manual admin tests
     // remain available to validate the transport with one recipient.
@@ -139,11 +204,11 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
         log = await this.prisma.emailNotificationLog.findUnique({ where: { eventKey: notice.eventKey } });
       }
     }
-    if (!log) return;
-    if (log.status === 'PROVIDER_ACCEPTED' || log.status === 'DELIVERED') return;
-    if (log.status === 'FAILED' && (log.attempts >= 5 || log.updatedAt.getTime() > now.getTime() - 15 * 60 * 1000)) return;
+    if (!log) return 'FAILED';
+    if (log.status === 'PROVIDER_ACCEPTED' || log.status === 'DELIVERED') return 'PROVIDER_ACCEPTED';
+    if (log.status === 'FAILED' && (log.attempts >= 5 || log.updatedAt.getTime() > now.getTime() - 15 * 60 * 1000)) return 'FAILED';
     const staleSending = log.status === 'SENDING' && log.updatedAt.getTime() < now.getTime() - 10 * 60 * 1000;
-    if (log.status === 'SENDING' && !staleSending) return;
+    if (log.status === 'SENDING' && !staleSending) return 'SENDING';
     const claim = await this.prisma.emailNotificationLog.updateMany({
       where: {
         id: log.id,
@@ -152,7 +217,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       },
       data: { status: 'SENDING', lastError: null },
     });
-    if (claim.count !== 1) return;
+    if (claim.count !== 1) return 'SENDING';
     const logoUrl = await this.getLogoUrl().catch(() => null);
     const templates = await this.getEmailTemplates();
     const triggerHasTemplate = templates.some((item: any) => item?.trigger === notice.type);
@@ -160,7 +225,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     if (triggerHasTemplate && !template) {
       await this.prisma.emailNotificationLog.update({ where: { id: log.id }, data: { status: 'SKIPPED', lastError: null } });
       this.logger.log('Email notification skipped because its template is disabled: type=' + notice.type);
-      return;
+      return 'SKIPPED';
     }
     const rendered = this.render(notice, logoUrl, template);
     try {
@@ -169,6 +234,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
         where: { id: log.id },
         data: { status: 'PROVIDER_ACCEPTED', providerAcceptedAt: new Date(), attempts: { increment: 1 }, lastError: null },
       });
+      return 'PROVIDER_ACCEPTED';
     } catch (error) {
       const errorName = error instanceof Error ? error.name : 'UnknownError';
       await this.prisma.emailNotificationLog.update({
@@ -176,6 +242,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
         data: { status: 'FAILED', attempts: { increment: 1 }, lastError: errorName.slice(0, 120) },
       });
       this.logger.error('Email notification failed: type=' + notice.type + ', stage=' + notice.stageId + ', error=' + errorName);
+      return 'FAILED';
     }
   }
 
