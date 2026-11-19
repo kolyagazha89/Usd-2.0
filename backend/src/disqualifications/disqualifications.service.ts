@@ -394,6 +394,14 @@ export class DisqualificationsService {
   /** Self-service read-only sanctions. The owner ID comes only from the authenticated session. */
   async listActiveForOwnProfile(participantId?: string | null) {
     if (!participantId) return [];
+    if(process.env.USD_VENUE_LAN_MODE==='true'){
+      const stageId=process.env.VENUE_STAGE_ID??'';
+      const stage=await this.prisma.stage.findUnique({
+        where:{id:stageId},select:{id:true,seasonId:true},
+      });
+      if(!stage)throw new ServiceUnavailableException('Локальный этап не подтверждён');
+      return readSignedVenueDisqualifications(this.prisma,participantId,stage.id,stage.seasonId);
+    }
     return this.prisma.disqualification.findMany({
       where: { participantId, status: 'ACTIVE' },
       select: {
@@ -425,6 +433,8 @@ export class DisqualificationsService {
       );
     }
 
+    if(process.env.USD_VENUE_LAN_MODE==='true')
+      return readSignedVenueDisqualifications(this.prisma,participantId,stage.id,stage.seasonId);
     return this.prisma.disqualification.findMany({
       where: {
         participantId,
@@ -549,6 +559,11 @@ export class DisqualificationsService {
       );
     }
 
+    if(process.env.USD_VENUE_LAN_MODE==='true'){
+      const active=await readSignedVenueDisqualifications(this.prisma,
+        result.registration.participantId,result.registration.stageId,result.registration.stage.seasonId);
+      return active.length>0;
+    }
     const active =
       await this.prisma.disqualification.findMany({
         where: {
@@ -611,6 +626,9 @@ export class DisqualificationsService {
       );
     }
 
+    if(process.env.USD_VENUE_LAN_MODE==='true')
+      return readSignedVenueDisqualifications(this.prisma,
+        result.registration.participantId,result.registration.stageId,result.registration.stage.seasonId);
     return this.prisma.disqualification.findMany({
       where: {
         participantId:
