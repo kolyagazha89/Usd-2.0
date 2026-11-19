@@ -470,7 +470,15 @@ try{
       row.partnerFilters='hidden/published partner filtering without write';
      }
      if(role==='ADMIN'&&route==='/admin/components'){
-      await page.getByRole('button',{name:'Сабвуферы',exact:true}).click();
+      const categoryPicker=page.getByRole('combobox',{name:'Категория оборудования'});
+      if(width<=760){
+       assert.ok(await categoryPicker.isVisible(),'all equipment categories are available without horizontal scrolling on phones');
+       await categoryPicker.selectOption('SUBWOOFER');
+       assert.equal(await categoryPicker.inputValue(),'SUBWOOFER','selected mobile equipment category is explicit');
+      }else{
+       assert.equal(await categoryPicker.isVisible(),false,'desktop category tabs remain the main control');
+       await page.getByRole('button',{name:'Сабвуферы',exact:true}).click();
+      }
       const brands=page.locator('.catalog-two-column .panel').first().locator('.catalog-manage-row');
       assert.equal(await brands.count(),2,'component catalog includes enabled and disabled brands');
       const first=brands.first();
