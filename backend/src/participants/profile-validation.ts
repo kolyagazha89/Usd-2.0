@@ -44,7 +44,7 @@ export function isValidInternationalPhone(value: string | null | undefined): boo
   return national >= min && national <= max && !/^(\d)\1+$/.test(digits.slice(callingCode.length));
 }
 // A two-digit Russian region code is 01–99. For type-1 plates, МВД
-// Order 766 permits prefixing it with a digit 1–9 (e.g. 93 -> 193/323).
+// Order 766 permits prefixing it with a digit 1–9 (e.g. 93 -> 193; 23 -> 323).
 // Validate the structure, not a manually curated list of issued series:
 // that list quickly becomes obsolete and blocks legitimate car registrations.
 function isValidRussianRegionCode(region: string): boolean {
