@@ -72,7 +72,10 @@ function stageRefs(event,scope){
     ||!scope.versions.has(r.configurationVersionId)))
   reject('unlinked registration graph');
  if(table==='Participant'&&!scope.participants.has(r.id))
-  reject('participant without this stage registration');
+  reject('participant outside stage');
+ if(table==='Participant'&&event.payload.operation!=='INSERT'
+  &&!scope.registeredPeople.has(r.id)&&!scope.newPeople.has(r.id))
+  reject('unregistered central identity cannot be changed through a new car');
  if(table==='Car'&&(!scope.cars.has(r.id)||!scope.participants.has(r.participantId)))
   reject('car outside this stage');
  if(table==='CarConfiguration'&&(!scope.configurations.has(r.id)||!scope.cars.has(r.carId)))
@@ -99,17 +102,39 @@ function buildScope(snapshot,original){
   registrations:new Set(original.registrations??[]),
   participants:new Set(original.participants??[]),
   cars:new Set(original.cars??[]),
+  registeredPeople:new Set(original.participants??[]),
+  newPeople:new Set(),
   configurations:new Set(original.configurations??[]),
   versions:new Set(original.versions??[]),
   classes:new Set(original.classes??[]),
   amplifiers:new Set(original.amplifiers??[]),
   components:new Set(original.components??[]),
  };
+ // A visitor can leave after on-site profile+car creation but before the
+ // stage registration. Those signed INSERTs must not poison ALL score returns.
+ // A standalone Participant with no signed car is never stage-scoped.
+ const newCarOwners=new Set(snapshot.events.filter(e=>
+  e.payload.table==='Car'&&e.payload.operation==='INSERT')
+  .map(e=>e.payload.after?.participantId));
+ for(const event of snapshot.events){
+  const p=event.payload;
+  if(p.operation==='INSERT'&&p.table==='Participant'){
+   if(!newCarOwners.has(p.recordId))
+    reject('MANUAL_REVIEW: unpaired on-site participant without signed car');
+   scope.participants.add(p.recordId);
+   scope.newPeople.add(p.recordId);
+  }
+  if(p.operation==='INSERT'&&p.table==='Car'){
+   scope.cars.add(p.recordId);
+   scope.participants.add(p.after.participantId);
+  }
+ }
  for(const e of snapshot.events){
   const p=e.payload,r=p.after??p.before;
   if(p.table==='Registration'&&r?.stageId===scope.stageId){
    scope.registrations.add(r.id);
    scope.participants.add(r.participantId);
+   scope.registeredPeople.add(r.participantId);
    scope.cars.add(r.carId);
    scope.versions.add(r.configurationVersionId);
   }
