@@ -120,6 +120,25 @@ export class StagesController {
     return this.stagesService.create(body, request);
   }
 
+  /** Manual service notice is never sent merely because a stage was saved. */
+  @Roles('ADMIN')
+  @Get(':id/critical-notice')
+  @Header('Cache-Control', 'private, no-store, max-age=0')
+  criticalNoticeStatus(@Param('id') id: string) {
+    return this.stagesService.criticalNoticeStatus(id);
+  }
+
+  @Roles('ADMIN')
+  @Post(':id/critical-notice')
+  @Header('Cache-Control', 'private, no-store, max-age=0')
+  criticalNoticeSend(
+    @Param('id') id: string,
+    @Body() body: { revision?: number; confirmed?: boolean },
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.stagesService.sendCriticalNotice(id, body?.revision as number, body?.confirmed === true, request);
+  }
+
   @Roles('ADMIN')
   @Post(':id/results-publication')
   setResultsPublication(
