@@ -156,7 +156,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
       ['EQUIPMENT','Без оборудования',counts.equipment],
       ['CANCELLED','Отменено',counts.cancelled],
      ] as Array<[DayStatus,string,number]>).map(([id,title,count])=>
-      <button type="button" className={'event-day-metric '+(filter===id?'is-active':'')} aria-pressed={filter===id} key={id} onClick={()=>setFilter(id)}><span>{title}</span><strong>{loading?'—':count}</strong></button>)}
+      <button type="button" className={'event-day-metric '+(filter===id?'is-active':'')} aria-pressed={filter===id} key={id} onClick={()=>{setFilter(id);jumpToRoster()}}><span>{title}</span><strong>{loading?'—':count}</strong></button>)}
     </section>
     <section className="panel event-day-actions" aria-label="Быстрые действия этапа">
      <div><h3>Следующее действие</h3><p>Создавайте профиль на въезде, сканируйте QR, оформляйте допуск и передавайте участников на судейство.</p></div>
@@ -166,7 +166,7 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
       <button type="button" className="secondary-button compact event-day-more-toggle" aria-controls="event-day-extra-actions" aria-expanded={showExtraDayActions} onClick={()=>setShowExtraDayActions(v=>!v)}>{showExtraDayActions?'Скрыть действия':'Ещё действия'}</button>
       <div id="event-day-extra-actions" className={'event-day-extra-actions'+(showExtraDayActions?' is-open':'')}>
       {canSeeInspections&&<button type="button" className="secondary-button compact" onClick={()=>go(dayPath('/admin/inspections',stageId))}><ClipboardCheck size={15}/>Все инспекции</button>}
-      {(canSeeInspections||canSeeResults)&&<button type="button" className="secondary-button compact" aria-pressed={filter==='PASSED'} onClick={()=>{setSearch('');setFilter('PASSED')}}><Check size={15}/>Сформировать список допущенных · {counts.passed}</button>}
+      {(canSeeInspections||canSeeResults)&&<button type="button" className="secondary-button compact" aria-pressed={filter==='PASSED'} onClick={()=>{setSearch('');setFilter('PASSED');jumpToRoster()}}><Check size={15}/>Сформировать список допущенных · {counts.passed}</button>}
       {canSeeResults&&<button type="button" className="secondary-button compact" onClick={()=>go(judgingResultLink(stageId))}><Trophy size={15}/>Судейский протокол</button>}
       {canExportVenue&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/venue-server?stageId='+encodeURIComponent(stageId))}><HardDrive size={15}/>Подготовить офлайн-сервер: пакет, доступ судей и инструкция</button>}
       {canExportVenue&&<span className="event-day-venue-export-warning">Настоящий пакет и отдельный ключ для входа действующих судей скачиваются в разделе офлайн-сервера. Пакет действует до 72 часов.</span>}
