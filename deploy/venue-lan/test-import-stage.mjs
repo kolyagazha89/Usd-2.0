@@ -44,6 +44,7 @@ const snapshot=()=>({
    class:{id:uuid.cls,code:'L20',name:'Limited 2.0',unit:'DB',sortOrder:0,isActive:true,
     direction:{id:uuid.direction,name:'SPL',sortOrder:0,isActive:true}}}],
  },
+ disqualifications:[],
  venuePolicy:{
   legal:{legalApproved:true,legalVersion:'7',ipName:'Организатор USD',privacyText:'Опубликованная политика USD',
    consentText:'Опубликованное согласие USD',termsText:'Опубликованные условия USD',
@@ -98,6 +99,8 @@ test('reject signed but structurally dangerous package BEFORE any write',()=>{
  assert.throws(()=>planVenueStageImport(signed(mismatch),publicPem,env,now),/конфигурац/);
  const wrongClass=snapshot();wrongClass.stage.stageClasses[0].class.direction.id='WRONG';
  assert.throws(()=>planVenueStageImport(signed(wrongClass),publicPem,env,now),/UUID/);
+ const invalidBan=snapshot();invalidBan.disqualifications=[{id:uuid.person,scope:'FORMAT'}];
+ assert.throws(()=>planVenueStageImport(signed(invalidBan),publicPem,env,now),/дисквалификац|запрет/i);
  const brokenInspection=snapshot();brokenInspection.registrations[0].stageInspection.participantId=uuid.season;
  assert.throws(()=>planVenueStageImport(signed(brokenInspection),publicPem,env,now),/инспекц/);
 });
