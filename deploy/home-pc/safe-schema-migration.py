@@ -109,26 +109,62 @@ def check_additive_sql(sql: str) -> None:
             items = split_items(m.group(2))
             if not items:
                 raise ValueError("Empty table")
+            # Resolve column types before validating CHECK constraints.
+            # Only a new table may have a bounded numeric CHECK, and only
+            # on a newly declared integer column.
+            columns: dict[str, str] = {}
             for item in items:
                 column = re.fullmatch(
-                    rf"{IDENT}\s+{TYPE}(?:\s+NOT NULL)?(?:\s+DEFAULT\s+{DEFAULT})?",
-                    item, re.I
+                    rf"({IDENT})\s+({TYPE})(?:\s+PRIMARY KEY)?(?:\s+NOT NULL)?"
+                    rf"(?:\s+DEFAULT\s+(?:{DEFAULT}|NOW\(\)))?",
+                    item, re.I,
+                )
+                if column:
+                    name, column_type = column.group(1), column.group(2).upper()
+                    if name in columns:
+                        raise ValueError("Duplicate CREATE TABLE column")
+                    if re.search(r"\bDEFAULT\s+NOW\(\)", item, re.I) and not re.fullmatch(
+                        r"TIMESTAMPTZ(?:\([0-6]\))?|TIMESTAMP(?:\([0-6]\))?",
+                        column_type, re.I,
+                    ):
+                        raise ValueError("NOW default requires a new timestamp column")
+                    columns[name] = column_type
+            for item in items:
+                column = re.fullmatch(
+                    rf"({IDENT})\s+({TYPE})(?:\s+PRIMARY KEY)?(?:\s+NOT NULL)?"
+                    rf"(?:\s+DEFAULT\s+(?:{DEFAULT}|NOW\(\)))?",
+                    item, re.I,
                 )
                 primary = re.fullmatch(
                     rf"CONSTRAINT\s+{IDENT}\s+PRIMARY KEY\s*\(\s*{NAMES}\s*\)",
-                    item, re.I
+                    item, re.I,
                 )
-                # Constrained status enums on a BRAND NEW table are additive:
-                # they cannot modify historical rows or objects. Only literal
-                # safe ASCII values are allowed; no expressions or functions.
-                # An ALTER CHECK on an existing table remains forbidden.
+                # A constrained FK on the NEW table is additive even if its
+                # referenced parent table already exists. ALTERing an old
+                # table's constraints remains forbidden.
+                foreign = re.fullmatch(
+                    rf"CONSTRAINT\s+{IDENT}\s+FOREIGN KEY\s*\(\s*{NAMES}\s*\)"
+                    rf"\s+REFERENCES\s+{IDENT}\s*\(\s*{NAMES}\s*\)"
+                    rf"\s+ON DELETE\s+(?:CASCADE|RESTRICT|SET NULL|NO ACTION)"
+                    rf"\s+ON UPDATE\s+(?:CASCADE|RESTRICT|SET NULL|NO ACTION)",
+                    item, re.I,
+                )
+                # Literal-only status enum on a BRAND NEW table.
                 literal = r"'[A-Za-z0-9_ -]{1,64}'"
                 enum_check = re.fullmatch(
                     rf"CONSTRAINT\s+{IDENT}\s+CHECK\s*\(\s*{IDENT}\s+IN\s*"
                     rf"\(\s*{literal}(?:\s*,\s*{literal}){{1,31}}\s*\)\s*\)",
                     item, re.I,
                 )
-                if not (column or primary or enum_check):
+                nonnegative = re.fullmatch(
+                    rf"CONSTRAINT\s+{IDENT}\s+CHECK\s*\(\s*({IDENT})\s*>=\s*0\s*\)",
+                    item, re.I,
+                )
+                safe_nonnegative = (
+                    nonnegative is not None
+                    and columns.get(nonnegative.group(1)) in ("SMALLINT", "INTEGER", "BIGINT")
+                )
+                if not (column or primary or foreign or enum_check or safe_nonnegative):
                     raise ValueError("Unsafe CREATE TABLE definition")
     approved = 0
     for statement in statements:
@@ -155,12 +191,27 @@ def check_additive_sql(sql: str) -> None:
             continue
         m = re.fullmatch(
             rf"ALTER TABLE\s+({IDENT})\s+ADD COLUMN\s+{IDENT}\s+{TYPE}(?:\s+NULL)?",
-            statement, re.I
+            statement, re.I,
         )
-        # Nullable new columns only, never NOT NULL/DEFAULT/rewrite existing rows.
+        # General policy: only one nullable column on an existing table.
         if m and m.group(1) not in created:
             approved += 1
             continue
+        m = re.fullmatch(rf"ALTER TABLE\s+({IDENT})\s+(.+)", statement, re.I | re.S)
+        if m and m.group(1) == '"Stage"':
+            # Precisely reviewed, immutable Nov 19 migration. Static defaults
+            # preserve the existing Stage rows (no UPDATE, DELETE, DROP or
+            # dynamic expression); no other default/backfill is authorized.
+            reviewed_stage_columns = (
+                'ADD COLUMN "criticalNoticeBaseline" JSONB',
+                'ADD COLUMN "criticalNoticeRevision" INTEGER NOT NULL DEFAULT 0',
+                "ADD COLUMN \"criticalNoticeState\" VARCHAR(16) NOT NULL DEFAULT 'IDLE'",
+                'ADD COLUMN "criticalNoticeSentAt" TIMESTAMPTZ(3)',
+            )
+            additions = tuple(" ".join(item.split()) for item in split_items(m.group(2)))
+            if additions == reviewed_stage_columns:
+                approved += 1
+                continue
         raise ValueError("Unsafe or unsupported SQL statement in automatic migration")
     if approved != len(statements):
         raise ValueError("SQL migration validation incomplete")
