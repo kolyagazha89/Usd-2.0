@@ -141,6 +141,26 @@ export class VenueReturnReviewService {
    try{decisions=helper.validateVenueReviewDecisions(review.conflicts,body.decisions)}
    catch{throw new BadRequestException('Некорректный выбор профилей или не указана причина')}
    if(!decisions.length)throw new BadRequestException('Нет конфликтов для решения');
+   // A car is not safely reused merely because its plate matches. Its
+   // central owner must also be the participant chosen for this return.
+   const linkedPeople=new Map<string,string>();
+   for(const decision of decisions){
+    if(decision.table==='Participant'&&decision.action==='LINK'&&decision.targetId)
+     linkedPeople.set(decision.sourceId,decision.targetId);
+   }
+   const cases=review.conflicts as Array<{
+    key:string;source:{participantId?:string};
+    candidates:Array<{id:string;participantId?:string}>;
+   }>;
+   for(const decision of decisions){
+    if(decision.table!=='Car'||decision.action!=='LINK')continue;
+    const matching=cases.find(c=>c.key===decision.key);
+    const target=matching?.candidates.find(c=>c.id===decision.targetId);
+    const sourceOwner=matching?.source.participantId;
+    if(!target?.participantId||!sourceOwner
+     ||target.participantId!==(linkedPeople.get(sourceOwner)??sourceOwner))
+     throw new BadRequestException('Автомобиль принадлежит другому профилю. Сначала выберите правильного владельца.');
+   }
    const status=decisions.some((x:any)=>x.action==='DEFER')?'DEFERRED':'APPROVED';
    const result=await tx.venueReturnReview.updateMany({
     where:{id,version:body.version,status:{in:['PENDING','DEFERRED']}},
