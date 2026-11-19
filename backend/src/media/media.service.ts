@@ -374,7 +374,7 @@ export class MediaService {
       });
       const version = publicationVersion(settings?.legal);
       const car = await this.prisma.car.findFirst({
-        where: { id: targetId, isPublic: true, participant: { isPublic: true } },
+        where: { id: targetId, isActive: true, isPublic: true, participant: { isPublic: true } },
         select: { participant: { select: {
           isPublic: true, publicationConsent: true, publicationConsentAt: true, publicationConsentVersion: true, publicationRestrictions: true,
         } } },

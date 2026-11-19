@@ -1283,7 +1283,7 @@ export class ParticipantsService {
     if (!['active', 'hidden'].includes(visibility)) {
       throw new BadRequestException('Некорректная категория автомобилей');
     }
-    if (visibility === 'hidden' && (user.role !== 'ADMIN' || user.customRoleId)) {
+    if (visibility === 'hidden' && user.role !== 'ADMIN') {
       throw new ForbiddenException('Скрытые автомобили доступны только администратору');
     }
 

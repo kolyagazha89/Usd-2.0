@@ -66,6 +66,9 @@ describe('MediaService media library', () => {
     });
     await expect(service.getPublicMediaFile(MediaTargetType.CAR_PHOTO, 'car'))
       .rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.car.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({id:'car',isActive:true,isPublic:true}),
+    }));
     expect(prisma.mediaUpload.findFirst).not.toHaveBeenCalled();
   });
 

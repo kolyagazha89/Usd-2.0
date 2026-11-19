@@ -100,7 +100,7 @@ export class InspectionsService {
     if (vehicleInspection) return redactArchivedResult(vehicleInspection);
     const shared = await this.prisma.participantStageInspection.findUnique({ where: { id }, include: participantStageInspectionInclude });
     if (!shared) throw new NotFoundException('Проверка не найдена');
-    return { ...shared, registrations: shared.registrations.map(redactArchivedRegistration) };
+    return { ...shared, registrations: (shared.registrations ?? []).map(redactArchivedRegistration) };
   }
 
   /** Resolve a scanned permanent USD ID only inside the staff inspection module.
@@ -138,7 +138,7 @@ export class InspectionsService {
       :original;
     if(!resolved)throw new NotFoundException('Профиль USD ID не найден');
     const {mergeAsSource:_alias,...participant}=resolved;
-    return { ...participant, registrations: participant.registrations.map(redactArchivedRegistration) };
+    return { ...participant, registrations: (participant.registrations ?? []).map(redactArchivedRegistration) };
   }
 
   async findByRegistration(registrationId: string) {
@@ -148,7 +148,7 @@ export class InspectionsService {
     });
     if (!registration) throw new NotFoundException('Регистрация не найдена');
     if (registration.inspection) return redactArchivedResult(registration.inspection);
-    if (registration.stageInspection) return { ...registration.stageInspection, registrations: registration.stageInspection.registrations.map(redactArchivedRegistration) };
+    if (registration.stageInspection) return { ...registration.stageInspection, registrations: (registration.stageInspection.registrations ?? []).map(redactArchivedRegistration) };
     throw new NotFoundException('Инспекция автомобиля на этом этапе не найдена');
   }
 
