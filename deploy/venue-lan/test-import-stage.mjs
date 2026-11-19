@@ -371,3 +371,15 @@ test('RED: startup refusal produces safe, PII-free reason codes for clock, histo
  assert.equal(importer.classifyVenueImportFailure(new Error('Адрес локальной базы данных недопустим')),'LOCAL_DATABASE_CONFIG');
  assert.equal(importer.classifyVenueImportFailure(new Error('SQL error: password=SECRET, Иванов, /local-private')),'UNCLASSIFIED');
 });
+
+test('RED: an unexpired but DIFFERENT signed stage packet cannot pass installed receipt verification',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const fake={stage:{findUnique:async()=>({id:uuid.stage})},auditLog:{findFirst:async()=>({metadata:{sha256:'0'.repeat(64)}})}};
+ await assert.rejects(()=>importer.assertInstalledVenueStageReceipt(plan,fake),/исходн|receipt|хеш|пакет/i);
+ const noReceipt={...fake,auditLog:{findFirst:async()=>null}};
+ await assert.rejects(()=>importer.assertInstalledVenueStageReceipt(plan,noReceipt),/исходн|receipt|хеш|пакет/i);
+ const matches={...fake,auditLog:{findFirst:async()=>({metadata:{sha256:plan.packageHash}})}};
+ assert.equal((await importer.assertInstalledVenueStageReceipt(plan,matches)).packageHash,plan.packageHash);
+ const gone={...matches,stage:{findUnique:async()=>null}};
+ await assert.rejects(()=>importer.assertInstalledVenueStageReceipt(plan,gone),/этап|установ/i);
+});
