@@ -2150,3 +2150,207 @@ body .app-shell .main .content :is(.usd-admin-search-clear,.usd-admin-car-row-ac
     transition:none;
   }
 }
+
+
+/* Staff event-day workspace: mobile-first operational priority.
+ * Scan/registration/search stay accessible; optional statistics no longer
+ * consume the entire first screen or push participant cards off-screen. */
+body .app-shell .main .event-ops-page .event-ops-workflow-context-actions{
+ display:flex;
+ align-items:stretch;
+ flex-wrap:wrap;
+ gap:7px;
+ min-width:0;
+}
+body .app-shell .main .event-ops-page .event-ops-workflow-context-actions>button{
+ flex:1 1 150px;
+ min-width:0;
+ min-height:44px;
+ white-space:normal;
+ padding:9px 10px;
+}
+body .app-shell .main .event-ops-page .event-ops-list-jump{
+ border-color:#b4203a;
+ color:#a31f34;
+ font-weight:800;
+}
+body .app-shell .main .event-ops-page .event-ops-metrics-drawer{
+ box-sizing:border-box;
+ max-width:100%;
+ min-width:0;
+ margin:9px 0 11px;
+ border:1px solid #e0e4eb;
+ border-radius:13px;
+ background:#fff;
+ box-shadow:0 5px 17px rgba(17,20,26,.025);
+}
+body .app-shell .main .event-ops-page .event-ops-metrics-drawer>summary{
+ position:relative;
+ display:flex;
+ align-items:center;
+ min-height:46px;
+ padding:10px 35px 10px 13px;
+ box-sizing:border-box;
+ cursor:pointer;
+ list-style:none;
+ font-size:13px;
+ font-weight:750;
+ color:#424d5e;
+ overflow-wrap:anywhere;
+}
+body .app-shell .main .event-ops-page .event-ops-metrics-drawer>summary::-webkit-details-marker{display:none}
+body .app-shell .main .event-ops-page .event-ops-metrics-drawer>summary::after{
+ content:'⌄';
+ position:absolute;
+ right:13px;
+ top:50%;
+ transform:translateY(-50%);
+ font-size:20px;
+ line-height:1;
+ color:#636d7b;
+}
+body .app-shell .main .event-ops-page .event-ops-metrics-drawer[open]>summary::after{content:'⌃'}
+body .app-shell .main .event-ops-page .event-ops-metrics-drawer>summary:focus-visible{
+ outline:3px solid #b4203a;
+ outline-offset:3px;
+ border-radius:12px;
+}
+body .app-shell .main .event-ops-page .event-ops-metrics-drawer :is(.inspection-summary,.event-ops-inspection-progress,.event-ops-metrics,.judging-summary){
+ margin:0 11px 11px;
+ max-width:calc(100% - 22px);
+ min-width:0;
+}
+body .app-shell .main .event-ops-page .event-ops-metrics-drawer .event-ops-inspection-metrics{
+ grid-template-columns:repeat(4,minmax(0,1fr));
+}
+body .app-shell .main .event-ops-page .event-ops-main-actions{
+ display:flex;
+ flex-wrap:wrap;
+ align-items:center;
+ gap:8px;
+ width:100%;
+ min-width:0;
+ margin:7px 0 8px;
+}
+body .app-shell .main .event-ops-page .event-ops-main-actions button{
+ min-height:44px;
+ flex:1 1 185px;
+}
+body .app-shell .main .event-ops-page .event-ops-results,
+body .app-shell .main .event-ops-page .judging-results{
+ scroll-margin-top:calc(80px + env(safe-area-inset-top,0px));
+}
+body .app-shell .main .event-ops-page .event-ops-qr-action{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ gap:7px;
+ min-height:44px;
+ white-space:normal;
+}
+body .app-shell .main .event-ops-page .event-ops-clear{
+ flex:0 0 auto!important;
+ min-width:44px!important;
+ min-height:44px;
+ padding:8px 9px;
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ white-space:nowrap;
+ overflow-wrap:normal;
+ word-break:normal;
+ writing-mode:horizontal-tb!important;
+ box-sizing:border-box;
+}
+body .app-shell .main .event-ops-page .event-ops-clear-mark{display:none}
+body .app-shell .main .event-ops-page .event-ops-toolbar .search-box{
+ min-width:0;
+ max-width:100%;
+ width:100%;
+ display:grid!important;
+ grid-template-columns:24px minmax(0,1fr);
+ align-items:center;
+ gap:8px;
+ padding:3px 8px!important;
+ box-sizing:border-box;
+}
+body .app-shell .main .event-ops-page .event-ops-toolbar .search-box:has(.event-ops-clear){
+ grid-template-columns:24px minmax(0,1fr) 44px;
+}
+body .app-shell .main .event-ops-page .event-ops-toolbar .search-box>svg{
+ width:20px;
+ max-width:100%;
+}
+body .app-shell .main .event-ops-page .event-ops-toolbar .search-box>input{
+ display:block;
+ flex:none;
+ width:100%;
+ min-width:0!important;
+ max-width:100%;
+ box-sizing:border-box;
+}
+body .app-shell .main .event-ops-page .event-ops-search{
+ display:flex;
+ gap:8px;
+ flex-wrap:wrap;
+ align-items:center;
+ min-width:0;
+}
+body .app-shell .main .event-ops-page .event-ops-search>svg{flex:0 0 20px}
+body .app-shell .main .event-ops-page .event-ops-search>input{
+ flex:1 1 140px;
+ width:auto;
+ min-width:0!important;
+ max-width:100%;
+}
+body .app-shell .main .event-ops-page .event-ops-search>span[role="status"]{
+ flex:0 0 auto;
+}
+@media(max-width:760px){
+ body .app-shell .main .content .event-ops-page .event-ops-clear{
+  width:44px!important;
+  max-width:44px;
+  padding:0!important;
+  border-radius:10px;
+  flex:0 0 44px!important;
+ }
+ body .app-shell .main .event-ops-page .event-ops-clear-label{display:none}
+ body .app-shell .main .event-ops-page .event-ops-clear-mark{
+  display:inline;
+  font-size:27px!important;
+  font-weight:500;
+  line-height:1;
+ }
+ body .app-shell .main .event-ops-page .event-ops-search>input{flex:1 1 90px}
+ body .app-shell .main .event-ops-page .event-ops-search>span[role="status"]{
+  flex:1 1 100%;
+  text-align:right;
+  white-space:nowrap;
+  padding:0 3px 4px;
+ }
+ body .app-shell .main .event-ops-page .event-ops-metrics-drawer .event-ops-inspection-metrics{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ body .app-shell .main .event-ops-page .event-ops-metrics-drawer .inspection-stat{
+  min-height:63px;
+  padding:10px;
+ }
+ body .app-shell .main .event-ops-page .event-ops-metrics-drawer .inspection-stat strong{font-size:24px}
+ body .app-shell .main .event-ops-page .event-ops-main-actions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+ }
+ body .app-shell .main .event-ops-page .event-ops-main-actions button{
+  min-width:0;
+  width:100%;
+  white-space:normal;
+  overflow-wrap:normal;
+  font-size:12px;
+ }
+ body .app-shell .main .event-ops-page .event-ops-workflow-context-actions>button{flex:1 1 125px}
+ body .app-shell .main .event-ops-page .event-ops-metrics-drawer>summary{font-size:12px}
+}
+@media(max-width:380px){
+ body .app-shell .main .event-ops-page .event-ops-main-actions{grid-template-columns:minmax(0,1fr)}
+}
