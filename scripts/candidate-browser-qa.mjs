@@ -511,6 +511,21 @@ try{
       await desk.locator('.event-day-person').first().waitFor({state:'visible'});
       assert.equal(await desk.locator('.event-day-person').count(),1,'one active registration renders without scrolling table');
       if(width<=760){
+       assert.equal(await desk.locator('.event-day-overview').isVisible(),false,'duplicate mobile status cards are hidden');
+       assert.equal(await desk.locator('.event-day-filter-count:visible').count(),6,'six mobile roster filters show live counts');
+       const jump=desk.getByRole('button',{name:/К списку участников/});
+       await jump.waitFor({state:'visible'});
+       await jump.click();
+       const mobileSearch=desk.getByRole('searchbox',{name:'Поиск участника в день соревнований'});
+       await mobileSearch.fill('несуществующий номер');
+       const clear=desk.getByRole('button',{name:'Очистить поиск'});
+       const clearSize=await clear.boundingBox();
+       assert.ok(clearSize&&clearSize.width>=43&&clearSize.height>=43,'search clear is a 44px accessible target');
+       await clear.click();
+       assert.equal(await mobileSearch.inputValue(),'','one tap restores the full roster');
+       row.eventDayMobile='no duplicate metrics, counted filters, roster jump and 44px search clear';
+      }
+      if(width<=760){
        const extra=desk.getByRole('button',{name:'Ещё действия',exact:true});
        await extra.waitFor({state:'visible'});
        assert.equal(await extra.getAttribute('aria-expanded'),'false');
