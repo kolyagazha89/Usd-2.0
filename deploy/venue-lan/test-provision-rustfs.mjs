@@ -148,7 +148,7 @@ test('waits for the actual RustFS readiness endpoint before authenticating durin
    readinessChecks++;
    return mockResponse(readinessChecks<36?503:200,{ready:readinessChecks>=36});
   }
-  if(url.endsWith('/')&&init.method==='GET')rootChecks++;
+  if(url.endsWith('/')&&init.method==='GET'&&init.headers.Authorization.includes('Credential=venue-root-example/'))rootChecks++;
   return fetcher(url,init);
  };
  const result=await provisionVenueMedia(cfg,{
