@@ -35,6 +35,11 @@ function Repair-VenueCoverageIfNeeded {
   if($running){Invoke-Compose @('stop','api') 'pause judging during journal repair';$stopped=$true}
   Invoke-Compose @('exec','-T','db','pg_dump','--format=custom','-U','usd_venue_root','-d','usd_venue','--file',$remote) 'create venue database backup'
   Invoke-Compose @('exec','-T','db','pg_restore','--list',$remote) 'verify venue database backup archive'
+  $originalHash=@(& docker @(Get-VenueComposeArguments) exec -T db sha256sum $remote)
+  Assert-Exit 'checksum source venue database backup'
+  $sourceSha=@($originalHash|Where-Object {$_ -match '^[a-f0-9]{64}\\s+'})
+  if($sourceSha.Count -ne 1){throw 'Нет подтверждённой SHA256 копии внутри PostgreSQL'}
+  $expectedSha=([string]$sourceSha[0]).Substring(0,64).ToUpperInvariant()
   $ids=@(& docker @(Get-VenueComposeArguments) ps -q db)
   Assert-Exit 'identify venue database for backup copy'
   $ids=@($ids|Where-Object {$_ -match '^[a-f0-9]{12,64}$'})
@@ -45,6 +50,7 @@ function Repair-VenueCoverageIfNeeded {
   }
   $hash=(Get-FileHash -LiteralPath $filename -Algorithm SHA256).Hash
   if($hash -notmatch '^[A-F0-9]{64}$'){throw 'Не удалось проверить SHA256 резервной копии'}
+  if($hash -cne $expectedSha){throw 'backup checksum differs: копия Windows отличается от проверенной копии PostgreSQL'}
   Write-Host ('USD VENUE BACKUP: '+$filename)
   Write-Host ('USD VENUE BACKUP SHA256: '+$hash)
   Get-Content -LiteralPath $sql -Raw -Encoding UTF8 |
