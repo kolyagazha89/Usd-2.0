@@ -345,6 +345,17 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('Initialize-VenueMediaVolume',install)
         self.assertLess(install.index('Initialize-VenueMediaVolume'),install.index("Invoke-Compose @('up','-d','db','rustfs')"))
 
+    def test_rustfs_first_boot_waits_for_storage_readiness_without_online_update_checks(self):
+        media=(ROOT/'provision-rustfs.mjs').read_text(encoding='utf-8')
+        compose=(ROOT/'compose.yaml').read_text(encoding='utf-8')
+        self.assertIn("ENDPOINT+'/health/ready'",media)
+        self.assertIn("startupTimeoutMs=210000",media)
+        self.assertIn("await sleep(Math.min(1000,waitMs))",media)
+        self.assertIn("RUSTFS_HEALTH_ENDPOINT_ENABLE: \"true\"",compose)
+        self.assertIn("RUSTFS_STARTUP_READINESS_MAX_WAIT_SECS: \"180\"",compose)
+        self.assertIn("RUSTFS_CHECK_UPDATE: \"false\"",compose)
+        self.assertIn("RUSTFS_REGION: \"us-east-1\"",compose)
+
     def test_windows_rustfs_provision_failure_shows_safe_step_without_dumping_credentials(self):
         control=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
         media=(ROOT/'provision-rustfs.mjs').read_text(encoding='utf-8')

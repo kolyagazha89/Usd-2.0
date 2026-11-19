@@ -95,6 +95,7 @@ const mockResponse=(status,body='')=>({status,ok:status>=200&&status<300,
 function resumedRustfsFetcher({userPolicy='usd-venue-media-only',policy=venueMediaPolicy(),userPresent=true,bucketPresent=true}={}){
  const writes=[];
  const fetcher=async(url,init)=>{
+  if(url.endsWith('/health/ready'))return mockResponse(200,{ready:true});
   const isRoot=init.headers.Authorization.includes('Credential=venue-root-example/');
   if(init.method==='PUT'){writes.push(url);return mockResponse(200)}
   if(url.endsWith('/rustfs/admin/v3/user-info?accessKey='+cfg.VENUE_S3_APP_ACCESS))
@@ -138,6 +139,36 @@ test('never reuse broader stored IAM policy and never mutate conflicting identit
   await assert.rejects(()=>provisionVenueMedia(cfg,{fetcher,endpoint}),/USD VENUE MEDIA FAILED AT inspect-(policy|user)/);
   assert.equal(writes.length,0);
  }
+});
+test('waits for the actual RustFS readiness endpoint before authenticating during slow first boot',async()=>{
+ const {fetcher}=resumedRustfsFetcher();
+ let readinessChecks=0,rootChecks=0;
+ const slowFirstBoot=async(url,init)=>{
+  if(url.endsWith('/health/ready')){
+   readinessChecks++;
+   return mockResponse(readinessChecks<36?503:200,{ready:readinessChecks>=36});
+  }
+  if(url.endsWith('/')&&init.method==='GET'&&init.headers.Authorization.includes('Credential=venue-root-example/'))rootChecks++;
+  return fetcher(url,init);
+ };
+ const result=await provisionVenueMedia(cfg,{
+  fetcher:slowFirstBoot,endpoint,sleep:async()=>{},startupTimeoutMs:180000,
+ });
+ assert.deepEqual(result,{bucket:'usd-venue-media',restricted:true});
+ assert.equal(readinessChecks,36,'installer must wait through RustFS startup instead of racing the first boot');
+ assert.equal(rootChecks,1,'root authentication starts only after RustFS reports ready');
+});
+test('readiness timeout reports the last HTTP status without leaking the response body',async()=>{
+ const fetcher=async url=>url.endsWith('/health/ready')
+  ?mockResponse(503,'private readiness details and credentials')
+  :mockResponse(200);
+ await assert.rejects(()=>provisionVenueMedia(cfg,{
+  fetcher,endpoint,sleep:async()=>{},startupTimeoutMs:1,
+ }),error=>{
+  assert.match(error.message,/FAILED AT root-readiness \[HTTP 503\]/);
+  assert.doesNotMatch(error.message,/private readiness details|credentials|root-secret|VENUE_S3/);
+  return true;
+ });
 });
 test('root auth or failed IAM write reports step and HTTP code without printing secrets',async()=>{
  const unauthorized=async()=>mockResponse(403);

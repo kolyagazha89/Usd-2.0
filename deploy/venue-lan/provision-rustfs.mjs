@@ -77,7 +77,7 @@ function validateConfig(env,endpoint){
   ||env.VENUE_S3_APP_SECRET===env.VENUE_S3_ROOT_SECRET)
   throw new Error('Root и приложение должны иметь разные ключи RustFS');
 }
-async function call(fetcher,opts,{method,path,query={},body='',accessKey,secretKey}){
+async function call(fetcher,opts,{method,path,query={},body='',accessKey,secretKey,timeoutMs=10000}){
  const request=signRustfsRequest({
   method,endpoint:opts.endpoint,path,query,body,accessKey,secretKey,now:opts.now,
  });
@@ -85,9 +85,15 @@ async function call(fetcher,opts,{method,path,query={},body='',accessKey,secretK
   method,
   headers:{...request.headers,...(body?{'Content-Type':'application/json'}:{})},
   ...(body?{body}:{}),
-  signal:AbortSignal.timeout(10000),
+  signal:AbortSignal.timeout(timeoutMs),
  });
  return response;
+}
+function safeNetworkFailure(error){
+ const code=error?.cause?.code??error?.code;
+ if(typeof code==='string'&&/^[A-Z0-9_]{2,48}$/.test(code))return 'NETWORK '+code;
+ if(error?.name==='TimeoutError'||error?.name==='AbortError')return 'NETWORK TIMEOUT';
+ return 'NETWORK UNAVAILABLE';
 }
 async function okResponse(response,context){
  if(response.ok)return;
@@ -128,6 +134,8 @@ function existingUserPolicy(user){
 }
 export async function provisionVenueMedia(env,{
  fetcher=fetch,endpoint=ENDPOINT,now=new Date(),
+ sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms)),
+ startupTimeoutMs=210000,
 }={}){
  validateConfig(env,endpoint);
  let phase='root-readiness';
@@ -135,20 +143,43 @@ export async function provisionVenueMedia(env,{
  const opts={endpoint,now};
  const root={accessKey:env.VENUE_S3_ROOT_ACCESS,secretKey:env.VENUE_S3_ROOT_SECRET};
  const app={accessKey:env.VENUE_S3_APP_ACCESS,secretKey:env.VENUE_S3_APP_SECRET};
- // Wait only for a READ-ONLY, authenticated readiness response. Never retry
- // after the first write: a partial IAM creation needs operator review.
- let ready=false;
- for(let i=0;i<30;i++){
+ // RustFS may need up to 120 seconds to initialize its single-node storage
+ // on a cold Windows Docker Desktop volume. Wait for its documented readiness
+ // endpoint before the first authenticated request or any IAM mutation.
+ // Some older builds route /health/ready through S3 auth; 401/403/404 fall
+ // back to a signed root probe, never treated as a successful readiness signal.
+ let ready=false,lastFailure='NO_RESPONSE';
+ const deadline=Date.now()+Math.max(0,startupTimeoutMs);
+ while(!ready&&Date.now()<=deadline){
   try{
-   const ping=await call(fetcher,opts,{method:'GET',path:'/',...root});
-   if(ping.ok){ready=true;break}
-   if(ping.status===401||ping.status===403)throw new Error('Root credentials rejected (HTTP '+ping.status+')');
+   const remaining=Math.max(1,deadline-Date.now());
+   const probe=await fetcher(ENDPOINT+'/health/ready',{
+    method:'GET',signal:AbortSignal.timeout(Math.min(5000,remaining)),
+   });
+   const probeStatus=probe.status;
+   await probe.body?.cancel();
+   if(probeStatus===200||[401,403,404].includes(probeStatus)){
+    const ping=await call(fetcher,opts,{
+     method:'GET',path:'/',...root,timeoutMs:Math.min(5000,Math.max(1,deadline-Date.now())),
+    });
+    const pingStatus=ping.status;
+    await ping.body?.cancel();
+    if(ping.ok){ready=true;break}
+    if(pingStatus===401||pingStatus===403)
+     throw new Error('Root credentials rejected (HTTP '+pingStatus+')');
+    lastFailure='HTTP '+pingStatus;
+   }else{
+    lastFailure='HTTP '+probeStatus;
+   }
   }catch(error){
    if(error instanceof Error&&error.message.startsWith('Root credentials rejected'))throw error;
+   lastFailure=safeNetworkFailure(error);
   }
-  if(i<29)await new Promise(resolve=>setTimeout(resolve,1000));
+  const waitMs=deadline-Date.now();
+  if(waitMs<=0)break;
+  await sleep(Math.min(1000,waitMs));
  }
- if(!ready)throw new Error('Локальный RustFS недоступен');
+ if(!ready)throw new Error('RustFS readiness timeout ('+lastFailure+')');
  // Existing IAM user/policy MUST NOT be changed, including after a partial
  // previous install: explicitly require operator recovery instead.
  phase='inspect-user';
@@ -223,7 +254,7 @@ export async function provisionVenueMedia(env,{
  return {bucket:BUCKET,restricted:true};
  }catch(error){
   // Exact safe operation and HTTP status, never raw HTTP bodies, URLs or keys.
-  const code=error instanceof Error?error.message.match(/HTTP [1-5][0-9]{2}/)?.[0]:null;
+  const code=error instanceof Error?error.message.match(/HTTP [1-5][0-9]{2}|NETWORK [A-Z0-9_]+/)?.[0]:null;
   throw new Error('USD VENUE MEDIA FAILED AT '+phase+(code?' ['+code+']':''));
  }
 }
