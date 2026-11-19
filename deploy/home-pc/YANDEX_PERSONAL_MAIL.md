@@ -68,6 +68,8 @@ SMTP_PASSWORD=ВСТАВИТЬ_НА_UBUNTU_ПАРОЛЬ_ПРИЛОЖЕНИЯ
 SMTP_EGRESS_ALLOWED=true
 # Personal mailbox: account auth only; stage notices go through PUSH.
 MAIL_ACCOUNT_ONLY=true
+# Optional ADMIN-confirmed service notices ONLY after verifying bulk service-mail limits:
+USD_CRITICAL_STAGE_MAIL_ENABLED=false
 ```
 
 `SMTP_PASSWORD` заменить на секрет из Яндекса в редакторе. Не вставлять его

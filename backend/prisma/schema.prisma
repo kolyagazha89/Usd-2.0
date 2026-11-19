@@ -425,6 +425,11 @@ model Stage {
   resultsPublishedAt    DateTime?          @db.Timestamptz(3)
   isDeleted            Boolean            @default(false)
   rulesSnapshot        Json?
+  // Manual, ADMIN-approved service mail for changed date/time/venue/cancellation.
+  criticalNoticeBaseline Json?
+  criticalNoticeRevision Int @default(0)
+  criticalNoticeState String @default("IDLE") @db.VarChar(16)
+  criticalNoticeSentAt DateTime? @db.Timestamptz(3)
   legacyId             String?            @unique
   createdAt            DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime           @updatedAt @db.Timestamptz(3)

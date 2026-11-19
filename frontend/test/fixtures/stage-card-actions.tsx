@@ -41,9 +41,22 @@ export async function runStageCardActions(){
  assert.match(document.querySelector('[role="alert"]')!.textContent!,/Изменение недоступно/);
  assert.ok(button('Открыть регистрацию'));
  assert.equal(row().getAttribute('tabindex'),'0','stage rows are reachable from the keyboard');
+ state.__criticalPending=true;
  await act(async()=>row().dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true})));await flush();
  assert.match(location.search,/view=stage-11/);
  assert.ok(button('Афиша'));assert.ok(button('Опубликовать результаты'));
+ assert.ok(button('Уведомить участников'),'manual service-mail action is in the stage card');
+ assert.equal(button('Уведомить участников').hasAttribute('disabled'),false,'critical change enables the action');
+ const beforeNotify=state.__stageCalls.length;
+ await click(button('Уведомить участников'));
+ assert.equal(state.__stageCalls.length,beforeNotify,'mail requires confirmation');
+ assert.match(document.querySelector('.stage-critical-details')?.textContent??'',/адрес площадки/);
+ await click(button('Подтвердить отправку 1 участникам'));
+ assert.deepEqual(state.__stageCalls.at(-1),{
+  method:'POST',path:'/stages/stage-11/critical-notice',body:{revision:4,confirmed:true},
+ });
+ assert.equal(button('Уведомить участников').hasAttribute('disabled'),true,'button is disabled after successful send');
+
  assert.ok(button('Отменить этап'));assert.ok(button('Удалить навсегда'));
  assert.equal(button('Удалить'),undefined,'cancellation must not masquerade as deletion');
  const before=state.__stageCalls.length;
