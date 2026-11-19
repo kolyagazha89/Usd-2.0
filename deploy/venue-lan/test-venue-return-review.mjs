@@ -32,3 +32,14 @@ test('review refuses unsigned-looking IDs, duplicate local identities and omitte
  const conflicts=collectVenueReturnConflicts(snap,{participants:[{id:existing,firstName:'Алёна',lastName:'Иванёва'}]});
  assert.throws(()=>validateVenueReviewDecisions(conflicts,[]),/all conflicts/);
 });
+
+test('wrong offline FIO still offers the central owner via matching car plate',()=>{
+ const changed=structuredClone(snap);
+ changed.events[0].payload.after.firstName='Ошибочное';
+ const rows=collectVenueReturnConflicts(changed,{
+  participants:[{id:existing,firstName:'Алёна',lastName:'Иванёва'}],
+  cars:[{id:existing,participantId:existing,registrationCountry:'RU',registrationNumber:'А123ВС181',brand:'Lada',model:'Vesta'}],
+ });
+ const participantCase=rows.find(x=>x.table==='Participant');
+ assert.equal(participantCase.candidates[0].id,existing);
+});

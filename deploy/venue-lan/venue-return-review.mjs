@@ -27,6 +27,21 @@ export function canonicalVehiclePlate(car){
  }
  return country+':'+value.replace(/[^\p{L}\p{N}]/gu,'');
 }
+/** A misspelled offline FIO may still be the owner of a matching central car.
+ * Treat the owner as a CANDIDATE, never as proof of identity. */
+export function participantReviewCandidates(person,centralPeople,centralCars,offlineCars=[]){
+ const ownerIds=new Set();
+ for(const car of offlineCars){
+  const plate=canonicalVehiclePlate(car);
+  if(!plate)continue;
+  for(const centralCar of centralCars){
+   if(centralCar.participantId&&canonicalVehiclePlate(centralCar)===plate)
+    ownerIds.add(centralCar.participantId);
+  }
+ }
+ return centralPeople.filter(candidate=>candidate.id!==person.id
+  &&(participantNamesNeedReview(person,candidate)||ownerIds.has(candidate.id)));
+}
 const label=p=>[p.lastName,p.firstName,p.middleName].map(clean).filter(Boolean).join(' ');
 export function collectVenueReturnConflicts(snapshot,{participants=[],cars=[]}={}){
  if(!snapshot||!UUID.test(snapshot.stageId??'')||!SHA.test(snapshot.journalEndHash??'')
@@ -34,15 +49,24 @@ export function collectVenueReturnConflicts(snapshot,{participants=[],cars=[]}={
   ||!Array.isArray(participants)||!Array.isArray(cars))
   throw Error('UNTRUSTED VENUE REVIEW');
  const conflicts=[],seen=new Set(),newPeople=[],newCars=[];
+ const offlineCarsByOwner=new Map();
+ for(const item of snapshot.events){
+  const p=item?.payload;
+  if(p?.table==='Car'&&p?.operation==='INSERT'&&p.after?.participantId){
+   const old=offlineCarsByOwner.get(p.after.participantId)??[];
+   old.push(p.after);offlineCarsByOwner.set(p.after.participantId,old);
+  }
+ }
  for(const event of snapshot.events){
   const p=event?.payload,row=p?.after;
   if(p?.operation!=='INSERT'||!['Participant','Car'].includes(p?.table))continue;
   if(!row||row.id!==p.recordId||!UUID.test(row.id)||seen.has(conflictKey(p.table,row.id)))
    throw Error('UNTRUSTED VENUE REVIEW RECORD');
   const key=conflictKey(p.table,row.id);seen.add(key);
-  const candidates=(p.table==='Participant'?participants:cars).filter(target=>
-    target.id!==row.id&&(p.table==='Participant'?participantNamesNeedReview(row,target):
-     canonicalVehiclePlate(row)!==''&&canonicalVehiclePlate(row)===canonicalVehiclePlate(target)));
+  const candidates=p.table==='Participant'
+   ?participantReviewCandidates(row,participants,cars,offlineCarsByOwner.get(row.id)??[])
+   :cars.filter(target=>target.id!==row.id&&canonicalVehiclePlate(row)!==''
+      &&canonicalVehiclePlate(row)===canonicalVehiclePlate(target));
   // Two new offline identities with same data cannot be resolved against a
   // pre-existing central ID safely. Refuse pending separate identity audit.
   const local=(p.table==='Participant'?newPeople:newCars);

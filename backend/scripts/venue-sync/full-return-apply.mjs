@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {FULL_RETURN_COVERAGE_TABLES} from './venue-return-package.mjs';
-import {canonicalVehiclePlate,participantNamesNeedReview,venueResolutionHash,conflictKey} from './venue-return-review.mjs';
+import {canonicalVehiclePlate,participantNamesNeedReview,participantReviewCandidates,venueResolutionHash,conflictKey} from './venue-return-review.mjs';
 /**
  * Atomic, explicit operator-approved import of the whole signed LAN journal.
  * This intentionally does NOT apply stage publication, disqualifications,
@@ -293,6 +293,14 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
   let readyEvents=0;
   const newOfflinePeople=[],newOfflineCars=[];
   const linkedPeople=new Map(),linkedCars=new Map(),approvedKeys=new Set();
+  const signedCarsByOwner=new Map();
+  for(const signedEvent of snapshot.events){
+   if(signedEvent.payload.table==='Car'&&signedEvent.payload.operation==='INSERT'){
+    const car=signedEvent.payload.after;
+    const rows=signedCarsByOwner.get(car.participantId)??[];
+    rows.push(car);signedCarsByOwner.set(car.participantId,rows);
+   }
+  }
   for(const event of snapshot.events){
    const p=event.payload,table=p.table;
    if(p.operation!=='INSERT'
@@ -311,8 +319,10 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
      const matches=await tx.participantIdentityCandidates(after);
      if(!Array.isArray(matches))
       reject('MANUAL_REVIEW: central identity lookup unavailable');
-     const candidates=matches.filter(candidate=>candidate.id!==after.id
-      &&participantNamesNeedReview(after,candidate));
+     const offlineCars=signedCarsByOwner.get(after.id)??[];
+     const centralCars=offlineCars.length&&typeof tx.carPlateCandidates==='function'
+      ?await tx.carPlateCandidates(offlineCars[0]):[];
+     const candidates=participantReviewCandidates(after,matches,centralCars,offlineCars);
      if(newOfflinePeople.some(candidate=>candidate.id!==after.id&&participantNamesNeedReview(after,candidate)))
       reject('MANUAL_REVIEW: duplicate profiles within signed journal');
      const choice=reviewApproval(resolutions,'Participant',after.id,candidates,apply,reviewId,approvedBy);

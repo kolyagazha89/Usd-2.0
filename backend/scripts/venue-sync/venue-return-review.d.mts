@@ -15,6 +15,7 @@ export type Resolution={
 export declare function conflictKey(table:string,id:string):string;
 export declare function participantNamesNeedReview(a:unknown,b:unknown):boolean;
 export declare function canonicalVehiclePlate(car:unknown):string;
+export declare function participantReviewCandidates(person:unknown,people:any[],cars:any[],offlineCars?:unknown[]):any[];
 export declare function collectVenueReturnConflicts(
  snapshot:unknown,central:{participants?:unknown[];cars?:unknown[]}):ReviewConflict[];
 export declare function validateVenueReviewDecisions(
