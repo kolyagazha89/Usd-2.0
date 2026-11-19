@@ -7,7 +7,7 @@ describe('venue API is a subset of production administration',()=>{
    ['InspectionsController','PATCH','/inspections/uuid'],
    ['ResultsController','POST','/results'],
    ['ResultsController','GET','/results/venue-live'],
-   ['ParticipantsController','POST','/participants'],
+   ['ParticipantsController','GET','/participants/lookup'],
    ['CarsController','PATCH','/cars/uuid'],
    ['ConfigurationsController','POST','/configurations'],
    ['DisqualificationsController','GET','/disqualifications'],
