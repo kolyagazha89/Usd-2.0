@@ -386,7 +386,11 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
     legal:policy.legal,
     contacts:{...(current?.contacts??{}),email:policy.contactEmail},
     registration:{...(current?.registration??{}),
-     enabled:true,rulesDocument:{published:policy.rulesPublished}},
+     enabled:true,rulesDocument:{published:policy.rulesPublished},
+     ...(Array.isArray(plan.snapshot.disqualifications)?{
+      venueDisqualificationSnapshot:{stageId:stage.id,
+       generatedAt:plan.snapshot.generatedAt,records:plan.snapshot.disqualifications},
+     }:{})},
    };
    if(current){
     await tx.siteSettings.update({where:{id:'default'},data:update});
