@@ -1098,8 +1098,12 @@ try{
       assert.equal(await nav.locator('.event-ops-workflow-step').count(),3,'three stage-scoped desks');
        assert.equal(await nav.getByRole('button',{name:'Все участники и допуски'}).count(),1,'stage desk offers return to unified roster');
       assert.equal(await nav.locator('[aria-current="page"]').getAttribute('aria-label'),'Судейство');
-      await page.locator('.judging-summary-card').first().waitFor();
+      // The judging KPIs are intentionally collapsed until an operator requests them.
+      const judgingMetrics=page.locator('details.event-ops-metrics-drawer');
+      assert.equal(await judgingMetrics.getAttribute('open'),null,'judging metrics stay compact by default');
       assert.equal(await page.locator('.judging-summary-card').count(),4,'four judge KPIs');
+      await judgingMetrics.locator('summary').click();
+      await page.locator('.judging-summary-card').first().waitFor({state:'visible'});
       assert.match(await page.locator('.judging-context').innerText(),/1 допущены/);
       if(route.includes('entry=1')){
        const wizard=page.locator('.judging-entry-wizard');
