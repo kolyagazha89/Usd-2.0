@@ -104,3 +104,15 @@ test('real LAN stage export is ADMIN-only, sealed and must use the single offici
  assert.match(staff,/createCipheriv\('aes-256-gcm'/);
  assert.match(staff,/staffAccess/);
 });
+
+test('every status counter agrees with its filter, including cancelled configuration drafts',()=>{
+ const allRows=[...rows,{
+  id:'r6',participantId:'p5',status:'CANCELLED',participantNumber:17,
+  configurationSnapshot:{configurationPending:true},
+ }];
+ const totals=eventDayCounts(allRows);
+ const expected={ALL:totals.active,PENDING:totals.pending,PASSED:totals.passed,FAILED:totals.failed,EQUIPMENT:totals.equipment,CANCELLED:totals.cancelled};
+ for(const [filter,count]of Object.entries(expected)){
+  assert.equal(filterEventDayRows(allRows,'',filter).length,count,filter+' count must match the corresponding roster');
+ }
+});
