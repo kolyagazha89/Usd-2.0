@@ -84,3 +84,15 @@ test('catalog filters offer reset and do not destroy user data',async()=>{
  assert.match(code,/setLifecycleFilter\('ALL'\)/);
  assert.match(code,/setModelBrand\(''\)/);
 });
+
+test('mobile catalog category picker exposes all categories without a horizontal swipe',async()=>{
+ const code=await source('admin/CatalogPage.tsx');
+ const css=await source('admin/admin-shell-layout.css');
+ assert.match(code,/className="catalog-category-mobile"/);
+ assert.match(code,/aria-label="Категория оборудования"/);
+ assert.match(code,/onChange=\{e=>selectCategory\(e\.target\.value as CatalogCategory\)\}/);
+ assert.match(code,/onClick=\{\(\)=>selectCategory\(x\.value\)\}/);
+ assert.match(css,/\.catalog-category-mobile\s*\{display:none\}/);
+ assert.match(css,/\.catalog-category-panel \.catalog-category-tabs \{\s*display:none!important/);
+ assert.match(css,/\.catalog-category-panel \.catalog-category-mobile \{\s*display:grid!important/);
+});
