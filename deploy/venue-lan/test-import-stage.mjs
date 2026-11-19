@@ -122,6 +122,20 @@ function mockDb(){
  const db={$transaction:async(callback,opts)=>{assert.equal(opts.isolationLevel,'Serializable');return callback(tx)}};
  return {tx,db,log};
 }
+test('apply must not reorder signed stage classes and invalidate its checksum on replay',async()=>{
+ const data=snapshot();
+ const extra=structuredClone(data.stage.stageClasses[0]);
+ extra.id='a1111111-1111-4111-8111-111111111111';
+ extra.classId='a2222222-2222-4222-8222-222222222222';
+ extra.class.id=extra.classId;extra.class.code='CI_SECOND';extra.class.name='Extra';
+ data.stage.stageClasses.push(extra);
+ const packageObject=signed(data),original=JSON.stringify(packageObject.snapshot);
+ const plan=planVenueStageImport(packageObject,publicPem,env,now);
+ await applyVenueStageImport(plan,mockDb().db);
+ assert.equal(JSON.stringify(packageObject.snapshot),original,'signed class order is immutable');
+ assert.equal(planVenueStageImport(packageObject,publicPem,env,now).summary.classes,2);
+});
+
 test('full signed historical roster uses bounded bulk inserts, not one Prisma query per profile and car',async()=>{
  const data=snapshot();
  data.participantDirectory=Array.from({length:750},(_,index)=>{
