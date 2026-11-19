@@ -42,8 +42,10 @@ function UsersPage({PageFrame,ErrorPanel,LoadingPage,EntityForm,EntityDetailModa
   catch(e){setError(e instanceof Error?e.message:'Ошибка изменения статуса')}
   finally{setRoleSaving(false)}
  };
- const proposedValue=(u:any,kind:'system'|'custom')=>
-  pendingRoleChange?.userId===u.id&&pendingRoleChange.kind===kind?pendingRoleChange.value:kind==='system'?u.role:u.customRoleId??'';
+ const proposedValue=(u:any,kind:'system'|'custom')=>{
+  if(pendingRoleChange&&pendingRoleChange.userId===u.id&&pendingRoleChange.kind===kind)return pendingRoleChange.value;
+  return kind==='system'?u.role:u.customRoleId??'';
+ };
  const proposeRole=(u:any,kind:'system'|'custom',value:string)=>{
   if(roleSaving)return;
   const saved=kind==='system'?u.role:u.customRoleId??'';
@@ -80,7 +82,7 @@ function UsersPage({PageFrame,ErrorPanel,LoadingPage,EntityForm,EntityDetailModa
   <select className="inline-select" aria-label={'Системная роль '+u.email} value={proposedValue(u,'system')} disabled={roleSaving} onChange={e=>proposeRole(u,'system',e.target.value)}><option value="ADMIN">Администратор</option><option value="PARTICIPANT">Участник</option></select>
   <select className="inline-select" aria-label={'Пользовательская роль '+u.email} value={proposedValue(u,'custom')} disabled={roleSaving} onChange={e=>proposeRole(u,'custom',e.target.value)}><option value="">Без пользовательской роли</option>{availableRoles.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select>
   {u.customRole&&<small>Дополнительная роль: {u.customRole.name}</small>}
-  {pendingRoleChange?.userId===u.id&&<div className="user-role-confirmation" role="group" aria-label={'Изменение роли пользователя '+u.email}>
+  {pendingRoleChange&&pendingRoleChange.userId===u.id&&<div className="user-role-confirmation" role="group" aria-label={'Изменение роли пользователя '+u.email}>
    <p>{pendingRoleChange.kind==='system'
     ?pendingRoleChange.value==='ADMIN'?'Администратор получит полный доступ к системе USD.':'Административные права будут отозваны.'
     :'Пользовательские права доступа будут изменены.'}</p>
