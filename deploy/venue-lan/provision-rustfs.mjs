@@ -94,10 +94,44 @@ async function okResponse(response,context){
  // Never echo the response: an error might contain a URL, credentials or PII.
  throw new Error('RustFS не подтвердил операцию: '+context+' (HTTP '+response.status+')');
 }
+// RustFS 1.0.4 may return an IAM document directly or wrapped/stringified.
+// Never accept a pre-existing policy whose effective grants we cannot compare.
+function canonicalPolicy(value){
+ if(typeof value==='string'){
+  try{return canonicalPolicy(JSON.parse(value))}catch{return null}
+ }
+ if(!value||typeof value!=='object'||Array.isArray(value))return null;
+ if(value.Version==='2012-10-17'&&Array.isArray(value.Statement)){
+  const stable=item=>Array.isArray(item)?item.map(stable):
+   item&&typeof item==='object'?Object.fromEntries(Object.entries(item).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>[k,stable(v)])):item;
+  return JSON.stringify(stable(value));
+ }
+ for(const name of ['policy','Policy','policyInfo','policy_info','data']){
+  if(Object.hasOwn(value,name)){
+   const found=canonicalPolicy(value[name]);
+   if(found)return found;
+  }
+ }
+ return null;
+}
+async function readSafeJson(response){
+ try{return JSON.parse(await response.text())}catch{return null}
+}
+function existingUserPolicy(user){
+ const policy=user?.policyName??user?.policy_name??user?.policy??'';
+ const status=String(user?.status??user?.accountStatus??'').toLowerCase();
+ if(!['enabled','on','1'].includes(status))throw new Error('Existing RustFS user status not verified');
+ if(typeof policy!=='string'||(policy&&policy!==POLICY_NAME)){
+  throw new Error('Existing RustFS user has unexpected policy');
+ }
+ return policy;
+}
 export async function provisionVenueMedia(env,{
  fetcher=fetch,endpoint=ENDPOINT,now=new Date(),
 }={}){
  validateConfig(env,endpoint);
+ let phase='root-readiness';
+ try{
  const opts={endpoint,now};
  const root={accessKey:env.VENUE_S3_ROOT_ACCESS,secretKey:env.VENUE_S3_ROOT_SECRET};
  const app={accessKey:env.VENUE_S3_APP_ACCESS,secretKey:env.VENUE_S3_APP_SECRET};
@@ -108,43 +142,68 @@ export async function provisionVenueMedia(env,{
   try{
    const ping=await call(fetcher,opts,{method:'GET',path:'/',...root});
    if(ping.ok){ready=true;break}
-  }catch{}
+   if(ping.status===401||ping.status===403)throw new Error('Root credentials rejected (HTTP '+ping.status+')');
+  }catch(error){
+   if(error instanceof Error&&error.message.startsWith('Root credentials rejected'))throw error;
+  }
   if(i<29)await new Promise(resolve=>setTimeout(resolve,1000));
  }
  if(!ready)throw new Error('Локальный RustFS недоступен');
  // Existing IAM user/policy MUST NOT be changed, including after a partial
  // previous install: explicitly require operator recovery instead.
+ phase='inspect-user';
  const user=await call(fetcher,opts,{
   method:'GET',path:'/rustfs/admin/v3/user-info',
   query:{accessKey:app.accessKey},...root,
  });
- if(user.status!==404)throw new Error('Сервисный пользователь RustFS уже существует или не проверен (HTTP '+user.status+')');
+ if(![200,404].includes(user.status))throw new Error('IAM user probe failed (HTTP '+user.status+')');
+ const currentUserPolicy=user.status===200?existingUserPolicy(await readSafeJson(user)):null;
+ phase='inspect-policy';
  const policy=await call(fetcher,opts,{
   method:'GET',path:'/rustfs/admin/v3/info-canned-policy',
   query:{name:POLICY_NAME},...root,
  });
- if(policy.status!==404)throw new Error('Политика RustFS уже существует или не проверена (HTTP '+policy.status+')');
+ if(![200,404].includes(policy.status))throw new Error('IAM policy probe failed (HTTP '+policy.status+')');
+ if(policy.status===200&&canonicalPolicy(await readSafeJson(policy))!==canonicalPolicy(venueMediaPolicy())){
+  throw new Error('Existing IAM policy is not the exact venue-only policy');
+ }
+ phase='inspect-bucket';
  const bucket=await call(fetcher,opts,{method:'HEAD',path:'/'+BUCKET,...root});
- if(bucket.status!==404)throw new Error('Bucket RustFS уже существует или не проверен (HTTP '+bucket.status+')');
-
- await okResponse(await call(fetcher,opts,{method:'PUT',path:'/'+BUCKET,...root}),'создание bucket');
- await okResponse(await call(fetcher,opts,{
-  method:'PUT',path:'/rustfs/admin/v3/add-canned-policy',
-  query:{name:POLICY_NAME},body:JSON.stringify(venueMediaPolicy()),...root,
- }),'создание ограниченной политики');
- await okResponse(await call(fetcher,opts,{
-  method:'PUT',path:'/rustfs/admin/v3/add-user',query:{accessKey:app.accessKey},
-  body:JSON.stringify({secretKey:app.secretKey,status:'enabled'}),...root,
- }),'создание сервисного пользователя');
- await okResponse(await call(fetcher,opts,{
-  method:'PUT',path:'/rustfs/admin/v3/set-user-or-group-policy',
-  query:{policyName:POLICY_NAME,userOrGroup:app.accessKey,isGroup:'false'},...root,
- }),'назначение ограниченной политики');
+ if(![200,404].includes(bucket.status))throw new Error('Bucket probe failed (HTTP '+bucket.status+')');
+ // Only create missing objects. An interrupted install may have saved 1-3
+ // objects before the IAM association. Never replace a user, policy or bucket.
+ if(bucket.status===404){
+  phase='create-bucket';
+  await okResponse(await call(fetcher,opts,{method:'PUT',path:'/'+BUCKET,...root}),'создание bucket');
+ }
+ if(policy.status===404){
+  phase='create-policy';
+  await okResponse(await call(fetcher,opts,{
+   method:'PUT',path:'/rustfs/admin/v3/add-canned-policy',
+   query:{name:POLICY_NAME},body:JSON.stringify(venueMediaPolicy()),...root,
+  }),'создание ограниченной политики');
+ }
+ if(user.status===404){
+  phase='create-user';
+  await okResponse(await call(fetcher,opts,{
+   method:'PUT',path:'/rustfs/admin/v3/add-user',query:{accessKey:app.accessKey},
+   body:JSON.stringify({secretKey:app.secretKey,status:'enabled'}),...root,
+  }),'создание сервисного пользователя');
+ }
+ if(currentUserPolicy!==POLICY_NAME){
+  phase='attach-policy';
+  await okResponse(await call(fetcher,opts,{
+   method:'PUT',path:'/rustfs/admin/v3/set-user-or-group-policy',
+   query:{policyName:POLICY_NAME,userOrGroup:app.accessKey,isGroup:'false'},...root,
+  }),'назначение ограниченной политики');
+ }
+ phase='verify-bucket';
  const verify=await call(fetcher,opts,{method:'GET',path:'/'+BUCKET,...app});
  await okResponse(verify,'проверка доступа к bucket');
  // RustFS may return HTTP 200 for a filtered bucket listing. Check the
  // administrator boundary directly instead of treating a 200 on "/" as
  // proof of global bucket access.
+ phase='verify-IAM-isolation';
  const adminProbe=await call(fetcher,opts,{
   method:'GET',path:'/rustfs/admin/v3/list-users',...app,
  });
@@ -162,6 +221,11 @@ export async function provisionVenueMedia(env,{
   throw new Error('RustFS не подтвердил ограничения на перечисление buckets');
  }
  return {bucket:BUCKET,restricted:true};
+ }catch(error){
+  // Exact safe operation and HTTP status, never raw HTTP bodies, URLs or keys.
+  const code=error instanceof Error?error.message.match(/HTTP [1-5][0-9]{2}/)?.[0]:null;
+  throw new Error('USD VENUE MEDIA FAILED AT '+phase+(code?' ['+code+']':''));
+ }
 }
 async function main(){
  // This CLI must not be copied to public Ubuntu or invoked outside LAN mode.
@@ -181,13 +245,13 @@ async function main(){
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  main().catch(error=>{
   console.error('USD VENUE MEDIA BLOCKED: check private Docker network, empty bucket and fresh restricted credentials');
-  if(process.env.USD_VENUE_CI_DIAG==='true'){
+  if(process.env.USD_VENUE_CI_DIAG==='true'||process.env.USD_VENUE_INSTALL_DIAG==='true'){
    const message=error instanceof Error?error.message:'Unknown';
    let safe=message;
    for(const value of [process.env.VENUE_S3_ROOT_SECRET,process.env.VENUE_S3_APP_SECRET]){
     if(value)safe=safe.replaceAll(value,'[REDACTED]');
    }
-   console.error('USD VENUE MEDIA CI DIAG: '+safe);
+   console.error('USD VENUE MEDIA INSTALL DIAG: '+safe);
   }
   process.exitCode=1;
  });
