@@ -284,5 +284,13 @@ class VenueLauncherContracts(unittest.TestCase):
             self.assertNotIn(forbidden,source)
         self.assertIn("-Action directory",(ROOT/"USD-Participants.cmd").read_text(encoding="utf-8"))
 
+    def test_fresh_stage_signature_preflight_requires_no_database_or_existing_receipt(self):
+        source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        confirm=source[source.index('function Confirm-SignedStage'):source.index('function Install-Local')]
+        self.assertIn("if($State.phase -eq 'CONFIGURED')",confirm)
+        self.assertIn("'--dry-run'",confirm)
+        self.assertIn("'--check-installed'",confirm)
+        self.assertLess(confirm.index("'--dry-run'"),confirm.index("'--check-installed'"))
+
 if __name__=="__main__":
     unittest.main()
