@@ -12,6 +12,8 @@ test('event-day mobile roster is reachable directly without changing stage or fi
  assert.match(code,/document\.activeElement as HTMLElement\|null\)\?\.blur/);
  assert.match(code,/const filterCounts:Record<DayStatus,number>=\{ALL:counts\.active,PENDING:counts\.pending,PASSED:counts\.passed,FAILED:counts\.failed,EQUIPMENT:counts\.equipment,CANCELLED:counts\.cancelled\}/);
  assert.match(code,/const filteredTotal=filterCounts\[filter\]/);
+ assert.match(code,/onClick=\{\(\)=>\{setFilter\(id\);jumpToRoster\(\)\}\}/);
+ assert.match(code,/setFilter\('PASSED'\);jumpToRoster\(\)/);
 });
 
 test('six mobile status filters retain counts while the duplicate metric wall is hidden',async()=>{
