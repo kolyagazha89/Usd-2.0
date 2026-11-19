@@ -276,7 +276,11 @@ export class StagesService {
     const changedFields = criticalStageChanges(baseline, current);
     const recipients = changedFields.length && stage.criticalNoticeState !== 'IDLE'
       ? await this.criticalNoticeRecipients(id) : 0;
-    const pending = stage.criticalNoticeState === 'PENDING'
+    // Recover a process killed during an SMTP batch without losing the button.
+    // Per-recipient unique event keys still protect previously accepted emails.
+    const staleSending = stage.criticalNoticeState === 'SENDING'
+      && stage.updatedAt.getTime() < Date.now() - 30 * 60 * 1000;
+    const pending = (stage.criticalNoticeState === 'PENDING' || staleSending)
       && ['PUBLISHED', 'CANCELLED'].includes(stage.status)
       && changedFields.length > 0 && recipients > 0;
     const transport = this.emailNotifications?.criticalStageMailReadiness() ?? { ready: false, reason: 'Почтовый сервис не подключён' };
@@ -286,7 +290,7 @@ export class StagesService {
       changedFields,
       changedLabels: changedFields.map(key => CRITICAL_STAGE_LABELS[key]),
       recipients,
-      sending: stage.criticalNoticeState === 'SENDING',
+      sending: stage.criticalNoticeState === 'SENDING' && !staleSending,
       mailReady: transport.ready,
       mailNote: transport.reason,
       lastSentAt: stage.criticalNoticeSentAt,
@@ -307,8 +311,10 @@ export class StagesService {
       throw new ServiceUnavailableException(preview.mailNote || 'Рассылка служебных писем не настроена');
     }
     const claimed = await this.prisma.stage.updateMany({
-      where: { id, criticalNoticeRevision: revision, criticalNoticeState: 'PENDING', isDeleted: false },
-      data: { criticalNoticeState: 'SENDING' },
+      where: { id, criticalNoticeRevision: revision, isDeleted: false,
+        OR: [{ criticalNoticeState: 'PENDING' },
+          { criticalNoticeState: 'SENDING', updatedAt: { lt: new Date(Date.now() - 30 * 60 * 1000) } }] },
+      data: { criticalNoticeState: 'SENDING', updatedAt: new Date() },
     });
     if (claimed.count !== 1) throw new ConflictException('Рассылка уже выполняется или данные этапа изменились');
     let completed = false;
@@ -327,7 +333,7 @@ export class StagesService {
           return state?.criticalNoticeRevision === revision && state.criticalNoticeState === 'SENDING';
         });
       completed = summary.total > 0 && summary.accepted === summary.total && !summary.interrupted;
-      await this.prisma.stage.updateMany({
+      const settled = await this.prisma.stage.updateMany({
         where: { id, criticalNoticeRevision: revision, criticalNoticeState: 'SENDING' },
         data: completed ? {
           criticalNoticeState: 'IDLE',
@@ -335,6 +341,9 @@ export class StagesService {
           criticalNoticeSentAt: new Date(),
         } : { criticalNoticeState: 'PENDING' },
       });
+      // A newer stage edit invalidates this revision even if all earlier
+      // provider requests were accepted. Never report the old version as done.
+      if (settled.count !== 1) completed = false;
       await this.audit.log({
         userId: request.user.sub,
         action: completed ? 'STAGE_CRITICAL_NOTICE_ACCEPTED' : 'STAGE_CRITICAL_NOTICE_PARTIAL',
