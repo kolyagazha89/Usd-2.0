@@ -593,6 +593,18 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
  },{isolationLevel:'Serializable',timeout:120000});
 }
 
+/** Fixed allowlist only: no SQL text, file paths, names, tokens or private
+ * package fields are ever copied into installer stdout. */
+export function classifyVenueImportFailure(error){
+ const reason=typeof error?.message==='string'?error.message:'';
+ if(/Пакет просрочен или время ноутбука неверно/.test(reason))return 'PACKAGE_EXPIRED_OR_CLOCK';
+ if(/Повтор или повреждение участника справочника|Лишние личные поля или повтор участника справочника|Автомобиль принадлежит другому участнику или содержит запрещённые поля|Повтор или повреждение автомобиля справочника/.test(reason))return 'SIGNED_DIRECTORY_INVALID';
+ if(/Цифровая подпись не подтверждена|Доверенный отпечаток ключа подписи не совпадает|Контрольная сумма пакета не совпадает|Нужен открытый ключ Ed25519/.test(reason))return 'SIGNATURE_OR_TRUST';
+ if(/Адрес локальной базы данных недопустим|Импорт в публичную или постороннюю базу запрещён/.test(reason))return 'LOCAL_DATABASE_CONFIG';
+ if(/UUID этапа не совпадает|этапа не совпадает с закреплённым|Импорт разрешён только на локальной площадке/.test(reason))return 'STAGE_SCOPE';
+ if(/Этап уже импортирован из другого пакета|исходной подписанной установки|пакета не совпадает/.test(reason))return 'INSTALLED_PACKAGE_MISMATCH';
+ return 'UNCLASSIFIED';
+}
 async function main(){
  const [file,keyFile,mode,confirmedId]=process.argv.slice(2);
  if(!file||!keyFile||!['--dry-run','--apply','--check-installed','--apply-directory'].includes(mode)
@@ -633,9 +645,10 @@ async function main(){
  }finally{await prisma.$disconnect()}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- main().catch(()=>{
-  // No private stage payload, file paths, SQL errors or credentials in stdout.
-  console.error('USD VENUE IMPORT REFUSED: validate signature, local DB, source and stage scope');
+ main().catch(error=>{
+  // Fixed diagnostic codes only. Never echo the underlying error string:
+  // it could contain credentials, a file path, SQL or participant metadata.
+  console.error('USD VENUE IMPORT REFUSED: '+classifyVenueImportFailure(error));
   process.exitCode=1;
  });
 }

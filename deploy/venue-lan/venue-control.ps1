@@ -429,9 +429,13 @@ function Confirm-SignedStage([object]$State) {
   '--volume',($State.publicKey+':/app/venue-signing-public.pem:ro'),
   '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'),
   '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'))
+ # A newly configured stage has NO installed database or signed receipt yet.
+ # Verify its signature, scope and expiry without ever connecting to DB.
+ # Only a resumed stage may rely on an exact historical installed receipt.
+ $verificationMode=$(if($State.phase -eq 'CONFIGURED'){'--dry-run'}else{'--check-installed'})
  Invoke-Compose (@('run','--rm','--no-deps')+$mounts+
   @('--entrypoint','node','api','/app/import-stage.mjs',
-  '/app/venue-stage.json','/app/venue-signing-public.pem','--check-installed')) 'verify stage signature or exact installed receipt'
+  '/app/venue-stage.json','/app/venue-signing-public.pem',$verificationMode)) 'verify stage signature or exact installed receipt'
  Confirm-VenueStaffKey $State $mounts
  return $mounts
 }
