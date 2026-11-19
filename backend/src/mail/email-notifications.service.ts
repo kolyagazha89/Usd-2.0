@@ -47,9 +47,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
   onModuleInit() {
     // Personal Yandex mailbox: only account verification/recovery email.
     // Do not run 15-minute reminder scans or auto-mail stage announcements.
-    if (process.env.MAIL_ACCOUNT_ONLY === 'true' &&
-      !(manuallyApprovedCritical && process.env.MAIL_CRITICAL_STAGE_NOTICES_ENABLED === 'true'
-        && ['STAGE_CHANGED', 'STAGE_CANCELLED'].includes(notice.type))) return 'SKIPPED';
+    if (process.env.MAIL_ACCOUNT_ONLY === 'true') return;
     // Run after boot and every 15 minutes. The database unique eventKey makes
     // multiple replicas safe; provider acceptance is never described as delivery.
     void this.processReminders();
@@ -187,7 +185,9 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
     // Keep event-driven stage notifications out of a personal mailbox.
     // Real account messages use MailService directly; manual admin tests
     // remain available to validate the transport with one recipient.
-    if (process.env.MAIL_ACCOUNT_ONLY === 'true') return;
+    if (process.env.MAIL_ACCOUNT_ONLY === 'true' &&
+      !(manuallyApprovedCritical && process.env.MAIL_CRITICAL_STAGE_NOTICES_ENABLED === 'true'
+        && ['STAGE_CHANGED', 'STAGE_CANCELLED'].includes(notice.type))) return 'SKIPPED';
     const now = new Date();
     let log = await this.prisma.emailNotificationLog.findUnique({ where: { eventKey: notice.eventKey } });
     if (!log) {
