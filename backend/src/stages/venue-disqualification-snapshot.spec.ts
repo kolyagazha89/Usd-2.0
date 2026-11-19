@@ -16,7 +16,7 @@ describe('signed offline disciplinary admission',()=>{
    {id:'a510f672-79f7-44eb-8173-2a8ff94b1c0e',participantId,scope:'FORMAT',seasonId:null,stageId:null},
    {id:'b510f672-79f7-44eb-8173-2a8ff94b1c0e',participantId,scope:'SEASON',seasonId,stageId:null},
    {id:'a610f672-79f7-44eb-8173-2a8ff94b1c0e',participantId,scope:'STAGE',seasonId:null,stageId},
-   {id:'b610f672-79f7-44eb-8173-2a8ff94b1c0e',other,scope:'FORMAT',seasonId:null,stageId:null},
+   {id:'b610f672-79f7-44eb-8173-2a8ff94b1c0e',participantId:other,scope:'FORMAT',seasonId:null,stageId:null},
   ];
   const result=await readSignedVenueDisqualifications(make(rows),participantId,stageId,seasonId);
   expect(result.map(x=>x.scope)).toEqual(['FORMAT','SEASON','STAGE']);
