@@ -135,7 +135,7 @@ function existingUserPolicy(user){
 export async function provisionVenueMedia(env,{
  fetcher=fetch,endpoint=ENDPOINT,now=new Date(),
  sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms)),
- startupTimeoutMs=180000,
+ startupTimeoutMs=210000,
 }={}){
  validateConfig(env,endpoint);
  let phase='root-readiness';
