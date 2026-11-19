@@ -1222,7 +1222,32 @@ model VenueSyncAuthorization {
   acceptedAt         DateTime? @db.Timestamptz(3)
   createdAt          DateTime @default(now()) @db.Timestamptz(3)
   stage              Stage    @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  reviews            VenueReturnReview[]
   @@index([stageId, expiresAt])
+}
+
+/** Only verified signed journal metadata and sanitized conflict candidates.
+ * No plaintext signed package, credential, secret or participant phone. */
+model VenueReturnReview {
+  id                 String   @id @default(uuid())
+  authorizationId    String
+  stageId            String
+  journalEndHash     String   @db.VarChar(64)
+  journalContentHash       String   @db.VarChar(64)
+  status             String   @default("PENDING") @db.VarChar(16)
+  conflicts          Json
+  decisions          Json?
+  version            Int      @default(0)
+  reviewedByUserId   String?
+  reviewedAt         DateTime? @db.Timestamptz(3)
+  appliedAt          DateTime? @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+  authorization      VenueSyncAuthorization @relation(fields:[authorizationId],references:[id],onDelete:Restrict)
+
+  @@unique([authorizationId,journalEndHash])
+  @@index([stageId,createdAt])
+  @@index([status,createdAt])
 }
 
 /** Only the public X.509 root CA from the venue laptop, never its private key. */

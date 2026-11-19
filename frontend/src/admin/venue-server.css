@@ -35,3 +35,30 @@
 .venue-server-cert-codes>div{display:grid;justify-items:center;gap:8px;padding:12px;background:#f6f7fa;border:1px solid #ccd4e0;border-radius:10px;font-size:15px;font-weight:750}
 .venue-server-cert-codes svg{max-width:100%;height:auto}
 .venue-server-cert-valid{color:#166239;font-weight:750}
+
+.venue-return-review-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.venue-return-review-heading h3{margin:0 0 8px}
+.venue-return-review-list{display:grid;gap:8px;margin-top:14px}
+.venue-return-review-item{display:flex;justify-content:space-between;gap:10px;align-items:center;
+ width:100%;padding:12px;text-align:left;border:1px solid #bfc9d6;border-radius:10px;
+ color:#172235;background:#f7f8fa;cursor:pointer}
+.venue-return-review-item strong,.venue-return-review-item small{display:block}
+.venue-return-review-item small{margin-top:6px;color:#526174}
+.venue-return-pagination{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.venue-return-review-detail{margin-top:18px;border-top:1px solid #ccd4e0;padding-top:18px}
+.venue-return-review-warning{display:flex;gap:10px;align-items:start;background:#fff7e4;border:1px solid #d0a864;
+ padding:12px;border-radius:8px;margin:16px 0}
+.venue-return-review-warning svg{flex-shrink:0}
+.venue-return-review-warning p{margin:0;font-size:15px}
+.venue-return-conflict{padding:15px 0;border-bottom:1px solid #dce1e7}
+.venue-return-conflict h4{margin:0 0 12px}
+.venue-return-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.venue-return-comparison>div{display:grid;gap:6px;padding:12px;border:1px solid #d8dfe7;border-radius:8px}
+.venue-return-comparison small{color:#56637a}
+.venue-return-comparison code{font-size:12px;overflow-wrap:anywhere;white-space:normal}
+.venue-return-choice{display:grid;gap:6px;margin:12px 0;font-weight:600}
+.venue-return-choice select,.venue-return-choice textarea{display:block;width:100%;font:inherit;color:#172235;
+ background:#fff;border:1px solid #aebccd;border-radius:8px;padding:10px;min-height:46px}
+.venue-return-submit{margin-top:14px}
+@media(max-width:600px){.venue-return-comparison{grid-template-columns:1fr}
+.venue-return-review-item{align-items:flex-start;flex-direction:column}}

@@ -63,7 +63,7 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
    const adapter={
     stage:async()=>({id:ids.stage,status:'PUBLISHED',isDeleted:false,
      resultsPublishedAt:published?'2026-11-11':null}),
-    listReceipts:async()=>[...receipts.values()],
+    listReceipts:async()=>[...receipts.values()].filter(x=>x.action==='VENUE_FULL_EVENT_IMPORTED'),
     getRow:async (table,id)=>structuredClone(working.get(table)?.get(id)??null),
     canonical:async (_table,row)=>structuredClone(row),
     stageClassAllowed:async()=>true,
@@ -80,6 +80,7 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
      else if(op.kind==='UPDATE')dest.set(row.id,structuredClone(row));
      else if(op.kind==='DELETE')dest.delete(before.id);
     },
+    auditResolution:async record=>{receipts.set('decision:'+record.sourceId,record)},
     receipt:async record=>{receipts.set(record.eventHash,record)},
     linkedIds:async()=>({participants:new Set(),cars:new Set(),configurations:new Set(),versions:new Set()}),
   };
@@ -107,6 +108,42 @@ test('full disconnected entrant -> car -> configuration -> number -> inspection 
  const retry=await applyCompleteVenueJournal(full(),db,opts);
  assert.equal(retry.alreadyApplied,true);
  assert.equal(db.receipt.size,9);
+});
+test('signed on-site profile and car left unregistered at gate do not poison the entire return',async()=>{
+ const db=memoryDb();
+ const report=await applyCompleteVenueJournal(packet([
+  event(1,'Participant','INSERT',participant),
+  event(2,'Car','INSERT',car),
+ ]),db,opts);
+ assert.equal(report.appliedEvents,2);
+ assert.equal(db.rows.get('Participant').get(ids.participant).id,ids.participant);
+ assert.equal(db.rows.get('Car').get(ids.car).participantId,ids.participant);
+ assert.equal(db.receipt.size,2);
+});
+test('new car for an existing central profile is returned even before its stage registration',async()=>{
+ const db=memoryDb({existing:{Participant:[participant]}});
+ const report=await applyCompleteVenueJournal(packet([
+  event(1,'Car','INSERT',car),
+ ]),db,opts);
+ assert.equal(report.appliedEvents,1);
+ assert.equal(db.rows.get('Car').get(ids.car).participantId,ids.participant);
+ assert.equal(db.receipt.size,1);
+});
+test('adding a car alone never authorizes changes to an unregistered central identity',async()=>{
+ const db=memoryDb({existing:{Participant:[participant]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(packet([
+  event(1,'Car','INSERT',car),
+  event(2,'Participant','UPDATE',{...participant,firstName:'Подмена'},participant),
+ ]),db,opts),/unregistered central identity|outside this stage/i);
+ assert.equal(db.receipt.size,0);
+ assert.equal(db.rows.get('Participant').get(ids.participant).firstName,'Анна');
+});
+test('a stray unpaired participant INSERT cannot escape the stage-scoped journal',async()=>{
+ const db=memoryDb();
+ await assert.rejects(()=>applyCompleteVenueJournal(packet([
+  event(1,'Participant','INSERT',participant),
+ ]),db,opts),/unpaired|car/i);
+ assert.equal(db.receipt.size,0);
 });
 test('dry-run checks whole history and leaves no rows or receipts',async()=>{
  const db=memoryDb();
@@ -285,10 +322,99 @@ test('same Russian plate with Latin lookalikes and a misspelled FIO blocks dupli
  candidate.events[0].payload.after.firstName='Андрей';
  candidate.events[1].payload.after.registrationCountry='RU';
  candidate.events[1].payload.after.registrationNumber='A123AA181';
- await assert.rejects(()=>applyCompleteVenueJournal(candidate,db,opts),/MANUAL_REVIEW.*DUPLICATE_CAR_PLATE/);
+ await assert.rejects(()=>applyCompleteVenueJournal(candidate,db,opts),/MANUAL_REVIEW.*DUPLICATE_(CAR_PLATE|PARTICIPANT_BY_PLATE)/);
  assert.equal(db.rows.get('Participant').size,1);
  assert.equal(db.rows.get('Car').size,1);
  assert.equal(db.rows.get('Registration'),undefined);
  assert.equal(db.rows.get('Result'),undefined);
  assert.equal(db.receipt.size,0);
+});
+
+const centralPerson='8b596264-15dd-46d8-92aa-c4e1c50c0205';
+const centralCar='8b596264-15dd-46d8-92aa-c4e1c50c0206';
+const reviewer='8b596264-15dd-46d8-92aa-c4e1c50c0207';
+const reviewId='8b596264-15dd-46d8-92aa-c4e1c50c0208';
+const approved=decisions=>({
+ ...opts,reviewId,approvedBy:reviewer,
+ resolutions:Object.fromEntries(Object.entries(decisions).map(([key,value])=>{
+  const [table,sourceId]=key.split(':');
+  return [key,{...value,key,table,sourceId}];
+ })),
+});
+const personDecision=(action,targetId=null)=>({action,targetId,candidateIds:[centralPerson],reason:'Проверил документы и историю выступлений'});
+const carDecision=(action,targetId=null)=>({action,targetId,candidateIds:[centralCar],reason:'Проверил госномер и владельца автомобиля'});
+
+test('admin LINK preserves central profile UUID and links all new registrations and results',async()=>{
+ const central={...participant,id:centralPerson,firstName:'  АННА  ',lastName:'Тестовая',middleName:null};
+ const db=memoryDb({existing:{Participant:[central]}});
+ const approvedOptions=approved({['Participant:'+ids.participant]:personDecision('LINK',centralPerson)});
+ const applied=await applyCompleteVenueJournal(full(),db,approvedOptions);
+ assert.equal(applied.databaseSynchronized,true);
+ assert.equal(db.rows.get('Participant').size,1);
+ assert.equal(db.rows.get('Car').get(ids.car).participantId,centralPerson);
+ assert.equal(db.rows.get('Registration').get(ids.reg).participantId,centralPerson);
+ assert.equal(db.rows.get('Result').get(ids.result).value,'153.200');
+ assert.equal(db.receipt.size,10,'all original receipts plus audited link');
+ const replay=await applyCompleteVenueJournal(full(),db,approvedOptions);
+ assert.equal(replay.alreadyApplied,true);
+ assert.equal(db.rows.get('Participant').size,1);
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,approved({['Participant:'+ids.participant]:personDecision('NEW')})),/resolution|decision|CONFLICT/i);
+});
+
+test('admin LINK may reuse central matching car only when it belongs to selected participant',async()=>{
+ const existingPerson={...participant,id:centralPerson};
+ const existingCar={...car,id:centralCar,participantId:centralPerson,registrationCountry:'RU',registrationNumber:'А123АА181'};
+ const signed=full();signed.events[1].payload.after.registrationCountry='RU';
+ signed.events[1].payload.after.registrationNumber='A123AA181';
+ const db=memoryDb({existing:{Participant:[existingPerson],Car:[existingCar]}});
+ const decisions={
+  ['Participant:'+ids.participant]:personDecision('LINK',centralPerson),
+  ['Car:'+ids.car]:carDecision('LINK',centralCar),
+ };
+ const report=await applyCompleteVenueJournal(signed,db,approved(decisions));
+ assert.equal(report.appliedEvents,9);
+ assert.equal(db.rows.get('Car').size,1);
+ assert.equal(db.rows.get('CarConfiguration').get(ids.config).carId,centralCar);
+ assert.equal(db.rows.get('Registration').get(ids.reg).carId,centralCar);
+ assert.equal(db.rows.get('Result').get(ids.result).value,'153.200');
+ assert.equal((await applyCompleteVenueJournal(signed,db,approved(decisions))).alreadyApplied,true);
+});
+
+test('distinct namesakes require explicit NEW with reason and exact candidate set',async()=>{
+ const central={...participant,id:centralPerson};
+ const db=memoryDb({existing:{Participant:[central]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,opts),/DUPLICATE_PARTICIPANT_NAME/);
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,approved({
+  ['Participant:'+ids.participant]:{...personDecision('NEW'),reason:'нет'}
+ })),/reason|CONFLICT/i);
+ const outcome=await applyCompleteVenueJournal(full(),db,approved({
+  ['Participant:'+ids.participant]:personDecision('NEW'),
+ }));
+ assert.equal(outcome.appliedEvents,9);
+ assert.equal(db.rows.get('Participant').size,2);
+ assert.equal(db.rows.get('Registration').get(ids.reg).participantId,ids.participant);
+ assert.equal(db.receipt.size,10);
+});
+
+test('DEFER never mutates a journal and cannot be bypassed by mismatched candidates',async()=>{
+ const db=memoryDb({existing:{Participant:[{...participant,id:centralPerson}]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,approved({
+  ['Participant:'+ids.participant]:personDecision('DEFER'),
+ })),/MANUAL_REVIEW|DEFER/i);
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,approved({
+  ['Participant:'+ids.participant]:{...personDecision('LINK',centralPerson),candidateIds:[]},
+ })),/candidate|review|CONFLICT/i);
+ assert.equal(db.rows.get('Registration'),undefined);
+ assert.equal(db.receipt.size,0);
+});
+
+test('central disqualification on a linked profile still blocks entire return',async()=>{
+ const db=memoryDb({existing:{Participant:[{...participant,id:centralPerson}]}});
+ const original=db.transaction;
+ db.transaction=(cb,options)=>original(async tx=>{tx.participantEligible=async id=>id!==centralPerson;return cb(tx)},options);
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,approved({
+  ['Participant:'+ids.participant]:personDecision('LINK',centralPerson),
+ })),/DISQUALIFIED/);
+ assert.equal(db.receipt.size,0);
+ assert.equal(db.rows.get('Car'),undefined);
 });

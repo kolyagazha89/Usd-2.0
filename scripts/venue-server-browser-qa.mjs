@@ -41,6 +41,11 @@ try{
  for(const width of [320,390,768,1440]){
   const context=await browser.newContext({viewport:{width,height:1000},reducedMotion:'reduce',serviceWorkers:'block'});
   let mode='ready',role='ADMIN',setupCalls=0;
+  const reviewId='8b596264-15dd-46d8-92aa-c4e1c50c0208';
+  const sourceId='e510f672-79f7-44eb-8173-2a8ff94b1c0e';
+  const targetId='8b596264-15dd-46d8-92aa-c4e1c50c0205';
+  const reviewKey='Participant:'+sourceId;
+  let reviewStatus='PENDING',submittedReview=null;
   const errors=[];
   await context.route('**/*',async route=>{
    const url=new URL(route.request().url());
@@ -54,7 +59,13 @@ try{
     setupCalls++;
     if(mode==='error')return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Сервер временно недоступен'})});
     data=mode==='missing'?{...setup,signing:{ready:false,publicKeyPem:null,fingerprint:null}}:setup;
-   }else if(url.pathname==='/stages/venue/certificate')data=certificate;
+   }else if(url.pathname==='/stages/venue/returns')data={items:mode==='review'?[{id:reviewId,stageId:'c510f672-79f7-44eb-8173-2a8ff94b1c0e',status:reviewStatus,journalEndHash:'a'.repeat(64),version:0,createdAt:new Date().toISOString(),conflictCount:1}]:[],page:1,pageSize:20,total:mode==='review'?1:0};
+   else if(url.pathname==='/stages/venue/returns/'+reviewId&&route.request().method()==='GET')data={id:reviewId,stageId:'c510f672-79f7-44eb-8173-2a8ff94b1c0e',status:reviewStatus,journalEndHash:'a'.repeat(64),version:0,createdAt:new Date().toISOString(),conflicts:[{key:reviewKey,table:'Participant',sourceId,source:{id:sourceId,name:'Иванов Иван'},candidates:[{id:targetId,name:'Иванов Иван',city:'Тюмень'}]}]};
+   else if(url.pathname==='/stages/venue/returns/'+reviewId+'/decisions'&&route.request().method()==='POST'){
+    submittedReview=JSON.parse(route.request().postData()||'{}');
+    reviewStatus='APPROVED';data={status:reviewStatus};
+   }
+   else if(url.pathname==='/stages/venue/certificate')data=certificate;
    else if(url.pathname==='/stages/venue/certificate/install')return route.fulfill({status:200,contentType:'text/html',body:venueCertificatePage(certificate.sha256,new Date(certificate.notAfter))});
    else if(url.pathname.startsWith('/stages/venue/certificate/download/')){
     const format=url.pathname.endsWith('/cer')?'cer':'crt';
@@ -71,6 +82,8 @@ try{
   await page.goto(base+'/admin/venue-server?stageId=one');
   await page.getByRole('heading',{name:'Офлайн-сервер',exact:true}).waitFor();
   const main=page.locator('.venue-server-page');
+  await main.getByRole('heading',{name:'Возврат данных · Конфликты',exact:true}).waitFor();
+  await main.getByText('Новых конфликтов пока нет.',{exact:false}).waitFor();
   await main.getByRole('button',{name:'Скопировать ссылку для MAX',exact:true}).waitFor();
   const installLink=main.getByRole('link',{name:'Открыть страницу установки',exact:true});
   assert.equal(new URL(await installLink.getAttribute('href')).searchParams.get('sha256'),certificate.sha256);
@@ -110,6 +123,20 @@ try{
   await main.getByRole('button',{name:'Скачать ключ судей (.key)',exact:true}).click();
   assert.equal((await readFile(await (await downloaded).path(),'utf8')).trim(),'D'.repeat(43));
   checks++;
+  if(width===390){
+   mode='review';await page.reload();
+   await main.locator('.venue-return-review-item').waitFor();
+   await main.locator('.venue-return-review-item').click();
+   await main.getByRole('combobox',{name:'Решение по '+reviewKey}).selectOption('LINK:'+targetId);
+   await main.getByRole('textbox',{name:'Основание решения'}).fill('Проверил госномер и историю выступлений');
+   await main.getByRole('button',{name:'Сохранить решения с аудитом'}).click();
+   await main.getByText('Решение сохранено с аудитом.',{exact:false}).waitFor();
+   assert.equal(submittedReview?.version,0);
+   assert.deepEqual(submittedReview?.decisions?.map(d=>({key:d.key,action:d.action,targetId:d.targetId})),
+    [{key:reviewKey,action:'LINK',targetId}]);checks++;
+   mode='ready';await page.reload();
+   await main.getByText('Подготовка файла настоящего этапа',{exact:true}).click();
+  }
   mode='tamper';await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).click();
   await main.getByRole('alert').filter({hasText:'не прошёл проверку'}).waitFor();checks++;
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);

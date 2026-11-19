@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react';
+import VenueReturnReviews from './VenueReturnReviews';
 import {AlertTriangle,BookOpen,Download,ExternalLink,RefreshCw,WifiOff} from 'lucide-react';
 import {apiGet,apiPost,listData,venueCertificateDownloadUrl,venueCertificateInstallUrl,type User} from '../api';
 import {QRCodeSVG} from 'qrcode.react';
@@ -72,6 +73,7 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
   {user.role!=='ADMIN'?<section className="panel" role="alert">Этот раздел доступен только администратору USD.</section>:<>
    <section className="panel venue-server-intro"><WifiOff size={30} aria-hidden="true"/><div><h2>{localMode?'Вы на локальном сервере':'Подготовьте ноутбук до выезда'}</h2><p>Первую установку выполните дома с интернетом. На площадке понадобится ноутбук и Wi-Fi-роутер. Все судьи подключаются к одной сети.</p></div></section>
    <div className="venue-server-status" role="status"><AlertTriangle size={22} aria-hidden="true"/><div><strong>Перед настоящим этапом проверьте ноутбук</strong><p>Для настоящего этапа кнопка «USD — Онлайн» автоматически переносит данные и ждёт подтверждения Ubuntu. Перед первым использованием обязательно проведите проверку на ноутбуке и двух телефонах без интернета.</p></div></div>
+   {!localMode&&<VenueReturnReviews/>}
    <section className="panel venue-server-step" aria-labelledby="venue-download-title"><span className="venue-server-number" aria-hidden="true">1</span><div className="venue-server-step-body"><h2 id="venue-download-title">Скачайте программу и инструкцию</h2>
     <p>На ноутбуке с Windows 10 или 11 скачайте архив. Щёлкните по нему правой кнопкой → <strong>«Извлечь всё»</strong>. Откройте извлечённую папку <strong>USD-Offline-Windows</strong>.</p>
     <div className="venue-server-actions"><a className="primary-button" href="/downloads/USD-Offline-Windows.zip" download><Download size={20}/>Скачать для Windows</a><a className="secondary-button" href="/downloads/USD-Offline-Guide.html" download><BookOpen size={19}/>Скачать инструкцию</a><a className="venue-server-text-link" href="/downloads/USD-Offline-Guide.html" target="_blank" rel="noopener noreferrer">Открыть инструкцию <ExternalLink size={15}/></a></div>

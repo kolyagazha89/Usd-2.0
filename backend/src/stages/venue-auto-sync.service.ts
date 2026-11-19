@@ -5,12 +5,14 @@ import {
 import {PrismaService} from '../prisma/prisma.service';
 import {finalizeVenueStage} from '../scripts/finalize-venue-return';
 import pg from 'pg';
+import {createHash} from 'node:crypto';
+import {VenueReturnReviewService} from './venue-return-review.service';
 
 /** Device authentication uses a per-stage ADMIN-signed capability; no central
  * database credentials or user session are copied to the offline laptop. */
 @Injectable()
 export class VenueAutoSyncService {
- constructor(private readonly prisma:PrismaService){}
+ constructor(private readonly prisma:PrismaService,private readonly reviews:VenueReturnReviewService){}
  async accept(header:string|undefined,input:unknown){
   if(process.env.USD_VENUE_LAN_MODE==='true')throw new ForbiddenException('Недопустимо на площадке');
   const match=/^Venue ([A-Za-z0-9_-]{43})$/.exec(header??'');
@@ -51,6 +53,11 @@ export class VenueAutoSyncService {
    data:{venueFingerprint:trusted.fingerprint,venuePublicKeyPem:body.publicKeyPem},
   });
   if(pin.count!==1)throw new UnauthorizedException('Устройство отвязано');
+  // This digest binds approvals to immutable journal events, not randomized
+  // AES-GCM envelopes. Re-export/re-encryption preserves the reviewed identity.
+  // Another stage/device/event stream cannot borrow these decisions.
+  const journalContentHash=createHash('sha256').update(JSON.stringify(snapshot.events)).digest('hex');
+  const approval=await this.reviews.matched(grant.id,snapshot.journalEndHash,journalContentHash);
   const client=new pg.Client({connectionString:url,application_name:'usd_venue_return'});
   let report:any;
   try{
@@ -60,12 +67,18 @@ export class VenueAutoSyncService {
    report=await applyCompleteVenueJournal(snapshot,postgresFullVenueAdapter(client),{
     apply:true,stageId:body.stageId,baselineSha256:trusted.baselineSha256,
     operator:'VENUE_AUTO:'+grant.id,
+    ...approval,
    });
   }catch(error){
-   if(error instanceof Error&&/DUPLICATE_CAR_PLATE/.test(error.message))
-    throw new ConflictException('MANUAL_REVIEW: найден возможный дубль автомобиля по госномеру. Проверьте онлайн-профиль в ADMIN. Локальный пакет и все результаты сохранены.');
-   if(error instanceof Error&&/DUPLICATE_PARTICIPANT_NAME/.test(error.message))
-    throw new ConflictException('MANUAL_REVIEW: найдено возможное совпадение ФИО с онлайн-профилем. Проверьте и разрешите дубль через ADMIN. Локальные регистрации и результаты сохранены.');
+   if(error instanceof Error&&/MANUAL_REVIEW|DUPLICATE_CAR_PLATE|DUPLICATE_PARTICIPANT_NAME/.test(error.message)){
+    const conflicts=await this.reviews.preview(snapshot);
+    if(conflicts.length){
+     const pending=await this.reviews.pending(grant.id,body.stageId as string,
+      snapshot.journalEndHash,journalContentHash,conflicts);
+     throw new ConflictException('MANUAL_REVIEW: требуется решение ADMIN на основном сервере. Заявка '+pending.id+'. Все локальные результаты и пакет сохранены.');
+    }
+    throw new ConflictException('MANUAL_REVIEW: неподдерживаемый конфликт. Локальный пакет сохранён; автоматический возврат запрещён.');
+   }
    if(error instanceof Error&&/CONFLICT|central changed|number.*owner/i.test(error.message))
     throw new ConflictException('Конфликт центральных данных. Все локальные результаты сохранены.');
    throw new ServiceUnavailableException('Безопасный импорт не завершён; повторите попытку');
@@ -81,6 +94,7 @@ export class VenueAutoSyncService {
    const derived=await finalizeVenueStage(body.stageId,url);
    if(!derived.recalculated&&derived.resultCount!==0)throw new Error('Not finalized');
   }catch{throw new ServiceUnavailableException('База сохранена, пересчёт не подтверждён; повторите синхронизацию')}
+  if(approval.reviewId)await this.reviews.applied(approval.reviewId);
   await this.prisma.venueSyncAuthorization.update({
    where:{id:grant.id},data:{lastJournalHash:report.journalEndHash,acceptedAt:new Date()},
   });
