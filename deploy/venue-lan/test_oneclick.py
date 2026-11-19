@@ -284,5 +284,49 @@ class VenueLauncherContracts(unittest.TestCase):
             self.assertNotIn(forbidden,source)
         self.assertIn("-Action directory",(ROOT/"USD-Participants.cmd").read_text(encoding="utf-8"))
 
+    def test_fresh_stage_signature_preflight_requires_no_database_or_existing_receipt(self):
+        source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        confirm=source[source.index('function Confirm-SignedStage'):source.index('function Install-Local')]
+        self.assertIn("'IMPORTED'",confirm)
+        self.assertIn("[array]::IndexOf",confirm)
+        self.assertIn("$preImport",confirm)
+        self.assertIn("'--dry-run'",confirm)
+        self.assertIn("'--check-installed'",confirm)
+        self.assertLess(confirm.index("'--dry-run'"),confirm.index("'--check-installed'"))
+
+    def test_fresh_stage_staff_preflight_never_opens_postgres(self):
+        windows=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
+        source=(ROOT/'provision-existing-staff.mjs').read_text(encoding='utf-8')
+        self.assertIn("'--preflight'",windows)
+        self.assertIn("function Confirm-VenueStaffKey",windows)
+        self.assertIn("[array]::IndexOf",windows)
+        self.assertIn("'IMPORTED'",windows)
+        self.assertIn("-Preflight",windows)
+        self.assertIn("extra[0]==='--preflight'",source)
+        self.assertLess(source.index("if(extra[0]==='--preflight')"),source.index("const require=createRequire"))
+        self.assertIn("planVenueStageImport",source)
+        self.assertIn("decryptExistingVenueStaff",source)
+
+    def test_recovery_backups_match_container_sha_before_any_database_repair_or_directory_write(self):
+        for name in ("venue-coverage.ps1", "venue-directory.ps1"):
+            source=(ROOT/name).read_text(encoding="utf-8-sig")
+            self.assertIn("sha256sum",source,name)
+            self.assertIn("Get-FileHash",source,name)
+            self.assertIn("backup checksum differs",source,name)
+            self.assertLess(source.index("sha256sum"),source.index("Get-FileHash"),name)
+            self.assertNotIn("down -v",source,name)
+        coverage=(ROOT/"venue-coverage.ps1").read_text(encoding="utf-8-sig")
+        directory=(ROOT/"venue-directory.ps1").read_text(encoding="utf-8-sig")
+        self.assertLess(coverage.index("backup checksum differs"),coverage.index("Get-Content -LiteralPath $sql"))
+        self.assertLess(directory.index("backup checksum differs"),directory.index("'--apply-directory'"))
+
+    def test_resume_accepts_only_the_original_installed_signed_receipt(self):
+        node=(ROOT/'import-stage.mjs').read_text(encoding='utf-8')
+        staff=(ROOT/'provision-existing-staff.mjs').read_text(encoding='utf-8')
+        self.assertIn("assertInstalledVenueStageReceipt",node)
+        self.assertIn("if(mode==='--check-installed')",node)
+        self.assertIn("assertInstalledVenueStageReceipt",staff)
+        self.assertIn("if(extra[0]==='--check')",staff)
+
 if __name__=="__main__":
     unittest.main()

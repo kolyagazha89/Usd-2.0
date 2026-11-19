@@ -318,3 +318,68 @@ test('append-only directory refresh requires local root, matching stage and pres
  tx2.stage.findUnique=async()=>({id:uuid.stage});
  await assert.rejects(()=>importer.applyVenueParticipantDirectory(plan,untrusted,{stageId:uuid.stage}),/root|установ|роль/i);
 });
+
+test('RED: signed full historical directory accepts imported car without plate without creating a new ID',async()=>{
+ const p=snapshot();
+ const personId='ab84e950-8f7e-447b-87ab-18d92c36cad5';
+ const carId='a1a29ae7-73ea-42e6-b12c-594c687f8564';
+ p.participantDirectory=[{id:personId,firstName:'Пётр',lastName:'Петров',middleName:null,
+  city:null,team:null,isPublic:false,
+  cars:[{id:carId,participantId:personId,brand:'Lada',model:'',registrationCountry:'RU',
+   registrationNumber:'',color:null,isPublic:false,isActive:false}]}];
+ const plan=planVenueStageImport(signed(p),publicPem,env,now);
+ const {db,log}=mockDb();
+ await applyVenueStageImport(plan,db);
+ assert.equal(log.find(x=>x.model==='participant'&&x.data.id===personId).data.isPublic,false);
+ const imported=log.find(x=>x.model==='car'&&x.data.id===carId).data;
+ assert.equal(imported.registrationNumber,'');
+ assert.equal(imported.participantId,personId);
+ assert.equal(imported.isActive,false);
+});
+test('RED: signed historical roster can retain an incomplete display name without inventing a second USD ID',()=>{
+ const p=snapshot(),id='ab84e950-8f7e-447b-87ab-18d92c36cad5';
+ p.participantDirectory=[{id,firstName:'',lastName:'Исторический',middleName:null,
+  city:null,team:null,isPublic:false,cars:[]}];
+ assert.equal(planVenueStageImport(signed(p),publicPem,env,now).participantDirectory[0].id,id);
+});
+test('RED: new signed roster with blank vehicle plates cannot collide with existing blank plates on device',async()=>{
+ const p=snapshot();
+ const id='ab84e950-8f7e-447b-87ab-18d92c36cad5';
+ const carId='a1a29ae7-73ea-42e6-b12c-594c687f8564';
+ p.participantDirectory=[{id,firstName:'Пётр',lastName:'Петров',middleName:null,
+  city:null,team:null,isPublic:false,
+  cars:[{id:carId,participantId:id,brand:'Lada',model:'',registrationCountry:'RU',
+   registrationNumber:'',color:null,isPublic:false,isActive:false}]}];
+ const plan=planVenueStageImport(signed(p),publicPem,env,now);
+ const {db,tx}=mockDb();
+ tx.$queryRawUnsafe=async sql=>sql.includes('current_user')?[{name:'usd_venue_root',rolsuper:true}]:[{stageId:uuid.stage}];
+ tx.$executeRawUnsafe=async()=>1;
+ tx.stage.findUnique=async()=>({id:uuid.stage});
+ tx.auditLog.findFirst=async()=>({metadata:{sha256:'a'.repeat(64)}});
+ tx.car.findMany=async()=>[
+  {id:'d1a29ae7-73ea-42e6-b12c-594c687f8564',participantId:uuid.person,registrationCountry:'RU',registrationNumber:''},
+  {id:'d1a29ae7-73ea-42e6-b12c-594c687f8565',participantId:uuid.person,registrationCountry:'RU',registrationNumber:'  '},
+ ];
+ const done=await importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage});
+ assert.equal(done.addedCars,1);
+});
+
+test('RED: startup refusal produces safe, PII-free reason codes for clock, historical roster, trust and database',()=>{
+ assert.equal(importer.classifyVenueImportFailure(new Error('Пакет просрочен или время ноутбука неверно')),'PACKAGE_EXPIRED_OR_CLOCK');
+ assert.equal(importer.classifyVenueImportFailure(new Error('Повтор или повреждение участника справочника')),'SIGNED_DIRECTORY_INVALID');
+ assert.equal(importer.classifyVenueImportFailure(new Error('Доверенный отпечаток ключа подписи не совпадает с пакетом')),'SIGNATURE_OR_TRUST');
+ assert.equal(importer.classifyVenueImportFailure(new Error('Адрес локальной базы данных недопустим')),'LOCAL_DATABASE_CONFIG');
+ assert.equal(importer.classifyVenueImportFailure(new Error('SQL error: password=SECRET, Иванов, /local-private')),'UNCLASSIFIED');
+});
+
+test('RED: an unexpired but DIFFERENT signed stage packet cannot pass installed receipt verification',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const fake={stage:{findUnique:async()=>({id:uuid.stage})},auditLog:{findFirst:async()=>({metadata:{sha256:'0'.repeat(64)}})}};
+ await assert.rejects(()=>importer.assertInstalledVenueStageReceipt(plan,fake),/исходн|receipt|хеш|пакет/i);
+ const noReceipt={...fake,auditLog:{findFirst:async()=>null}};
+ await assert.rejects(()=>importer.assertInstalledVenueStageReceipt(plan,noReceipt),/исходн|receipt|хеш|пакет/i);
+ const matches={...fake,auditLog:{findFirst:async()=>({metadata:{sha256:plan.packageHash}})}};
+ assert.equal((await importer.assertInstalledVenueStageReceipt(plan,matches)).packageHash,plan.packageHash);
+ const gone={...matches,stage:{findUnique:async()=>null}};
+ await assert.rejects(()=>importer.assertInstalledVenueStageReceipt(plan,gone),/этап|установ/i);
+});

@@ -9,7 +9,7 @@ import {readFile,stat} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {assertVenueImportEnvironment,assertVenueDatabaseRole,planInstalledVenueStageImport} from './import-stage.mjs';
+import {assertVenueImportEnvironment,assertVenueDatabaseRole,planVenueStageImport,planInstalledVenueStageImport,assertInstalledVenueStageReceipt} from './import-stage.mjs';
 import {VENUE_JUDGE_PERMISSIONS} from './venue-judge-permissions.mjs';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -177,21 +177,39 @@ export async function applyExistingVenueStaff(staff,stageId,prisma,{shared=false
  },{isolationLevel:'Serializable',timeout:30000});
 }
 
+/** A new venue has no DB yet; validate the same signed stage and sealed
+ * existing staff identities with zero DB access. */
+export function preflightExistingVenueStaff(signed,key,stageId,validatePackage){
+ const plan=validatePackage();
+ if(plan?.summary?.stageId!==stageId||!signed?.snapshot?.staffAccess
+  ||signed.snapshot.stageId!==stageId)
+  throw new Error('Пакет не предназначен для входа сотрудников этого этапа');
+ const staff=decryptExistingVenueStaff(signed.snapshot.staffAccess,key,stageId);
+ return {stageId,staffCount:staff.length};
+}
 async function main(){
  const [file,keyFile,secretFile,...extra]=process.argv.slice(2);
- if(!file||!keyFile||!secretFile||extra.length>1||(extra.length===1&&extra[0]!=='--check'))
+ if(!file||!keyFile||!secretFile||extra.length>1||(extra.length===1&&!['--check','--preflight'].includes(extra[0])))
   throw new Error('Usage: provision-existing-staff.mjs STAGE.json PUBLIC.pem ACCESS.key');
  if((await stat(file)).size>12*1024*1024+262144||(await stat(secretFile)).size>512)
   throw new Error('Некорректный размер пакета сотрудников');
  const [raw,pem,key]=await Promise.all([readFile(file,'utf8'),readFile(keyFile,'utf8'),readFile(secretFile,'utf8')]);
  const signed=JSON.parse(raw),stageId=process.env.VENUE_STAGE_ID;
  assertVenueImportEnvironment(process.env,stageId);
+ if(extra[0]==='--preflight'){
+  const result=preflightExistingVenueStaff(signed,key.trim(),stageId,
+   ()=>planVenueStageImport(signed,pem,process.env));
+  process.stdout.write('USD STAFF PREFLIGHT VERIFIED — NO DATABASE CONNECTION\n');
+  process.stdout.write(JSON.stringify(result)+'\n');
+  return;
+ }
  const require=createRequire(import.meta.url);
  const {PrismaPg}=require('@prisma/adapter-pg');
  const {PrismaClient}=require('/app/dist/generated/prisma/client.js');
  const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
  try{
   const verified=await planInstalledVenueStageImport(signed,pem,process.env,prisma);
+  await assertInstalledVenueStageReceipt(verified,prisma);
   if(verified.summary.stageId!==stageId||!signed.snapshot.staffAccess)
    throw new Error('Пакет не предназначен для входа сотрудников');
   const staff=decryptExistingVenueStaff(signed.snapshot.staffAccess,key.trim(),stageId);

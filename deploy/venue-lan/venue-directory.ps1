@@ -45,6 +45,11 @@ function Import-VenueParticipantDirectory {
   if($wasRunning){Invoke-Compose @('stop','api') 'pause judging during directory update';$paused=$true}
   Invoke-Compose @('exec','-T','db','pg_dump','-U','usd_venue_root','-d','usd_venue','--format=custom','--file',$dump) 'backup LAN database'
   Invoke-Compose @('exec','-T','db','pg_restore','--list',$dump) 'verify LAN backup'
+  $originalHash=@(& docker @(Get-VenueComposeArguments) exec -T db sha256sum $dump)
+  Assert-Exit 'checksum source venue database backup'
+  $sourceSha=@($originalHash|Where-Object {$_ -match '^[a-f0-9]{64}\s+'})
+  if($sourceSha.Count -ne 1){throw 'Нет подтверждённой SHA256 копии внутри PostgreSQL'}
+  $expectedSha=([string]$sourceSha[0]).Substring(0,64).ToUpperInvariant()
   $ids=@(& docker @(Get-VenueComposeArguments) ps -q db)
   Assert-Exit 'identify LAN db container'
   $ids=@($ids | Where-Object {$_ -match '^[a-f0-9]{12,64}$'})
@@ -53,8 +58,9 @@ function Import-VenueParticipantDirectory {
   if(!(Test-Path -LiteralPath $backup -PathType Leaf) -or (Get-Item -LiteralPath $backup).Length -lt 1024){
    throw 'Резервная копия отсутствует. Импорт не начат.'
   }
-  if((Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash -notmatch '^[A-F0-9]{64}$'){
-   throw 'Резервная копия не прошла контрольную сумму'
+  $copiedHash=(Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash
+  if($copiedHash -cne $expectedSha){
+   throw 'backup checksum differs: копия Windows отличается от проверенной копии PostgreSQL'
   }
   Write-Host ('USD VENUE BACKUP: '+$backup)
   $env:VENUE_DB_PASSWORD=$cfg['VENUE_DB_ROOT_PASSWORD']

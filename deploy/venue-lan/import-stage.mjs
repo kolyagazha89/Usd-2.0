@@ -137,15 +137,15 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
   for(const person of snapshot.participantDirectory){
    if(!isObject(person)||Object.keys(person).some(k=>!participantFields.has(k))
     ||!UUID.test(person.id??'')||directoryPeople.has(person.id)
-    ||typeof person.isPublic!=='boolean'||!String(person.firstName??'').trim()
-    ||!String(person.lastName??'').trim()||!Array.isArray(person.cars)||person.cars.length>250)
+    ||typeof person.isPublic!=='boolean'||typeof person.firstName!=='string'
+    ||typeof person.lastName!=='string'||!Array.isArray(person.cars)||person.cars.length>250)
     throw new Error('Лишние личные поля или повтор участника справочника');
    directoryPeople.set(person.id,person);
    for(const car of person.cars){
     if(!isObject(car)||Object.keys(car).some(k=>!carFields.has(k))
      ||!UUID.test(car.id??'')||directoryCars.has(car.id)||car.participantId!==person.id
-     ||!String(car.brand??'').trim()||!String(car.model??'').trim()
-     ||!String(car.registrationNumber??'').trim()||typeof car.isPublic!=='boolean'
+     ||typeof car.brand!=='string'||typeof car.model!=='string'
+     ||typeof car.registrationNumber!=='string'||typeof car.isPublic!=='boolean'
      ||typeof car.isActive!=='boolean')
      throw new Error('Автомобиль принадлежит другому участнику или содержит запрещённые поля');
     directoryCars.set(car.id,car);
@@ -246,6 +246,24 @@ export async function planInstalledVenueStageImport(signed,pem,env,prisma,now=Da
    ||imported>expires||imported<Date.parse(signed.snapshot.generatedAt)-300000)throw error;
   return planVenueStageImport(signed,pem,env,imported);
  }
+}
+/** A resumable stage is bound to its exact original signed package, not
+ * just a valid signature from a trusted central signer. */
+export async function assertInstalledVenueStageReceipt(plan,prisma){
+ if(!plan?.packageHash||!plan?.snapshot?.stageId||!prisma?.stage||!prisma?.auditLog)
+  throw new Error('Нет подтверждённого исходного пакета этапа');
+ const stageId=plan.snapshot.stageId;
+ const [stage,receipt]=await Promise.all([
+  prisma.stage.findUnique({where:{id:stageId},select:{id:true}}),
+  prisma.auditLog.findFirst({
+   where:{action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:stageId},
+   select:{metadata:true},
+  }),
+ ]);
+ if(!stage)throw new Error('Исходный этап не установлен в локальной базе');
+ if(receipt?.metadata?.sha256!==plan.packageHash)
+  throw new Error('Исходный пакет установленного этапа не совпадает с подписанным файлом');
+ return plan;
 }
 function validateInspection(inspection){
  assertUuid(inspection.id,'инспекция');
@@ -525,6 +543,9 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
    return {addedParticipants:0,addedCars:0,replayed:true};
   const lookalike={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
   const normalizedPlate=car=>{
+   // Old centrally signed cars may legitimately have no plate assigned yet.
+   // Empty identifiers are never evidence that two cars are identical.
+   if(!String(car.registrationNumber??'').trim())return '';
    const value=String(car.registrationNumber).normalize('NFKC').toLocaleUpperCase('ru-RU')
     .replace(/[\u200B-\u200D\uFEFF]/g,'').trim();
    const letters=car.registrationCountry==='RU'
@@ -537,6 +558,7 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
   const plates=new Map();
   for(const car of currentCars){
    const plate=normalizedPlate(car);
+   if(!plate)continue;
    if(!plates.has(plate))plates.set(plate,new Set());
    plates.get(plate).add(car.id);
   }
@@ -547,6 +569,7 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
   for(const person of plan.participantDirectory){
    for(const car of person.cars){
     const plate=normalizedPlate(car);
+    if(!plate)continue;
     const owners=plates.get(plate)??new Set();
     if([...owners].some(id=>id!==car.id&&!sourceCarIds.has(id)))
      throw new Error('MANUAL_REVIEW: госномер уже занят локальным автомобилем под другим ID');
@@ -588,6 +611,18 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
  },{isolationLevel:'Serializable',timeout:120000});
 }
 
+/** Fixed allowlist only: no SQL text, file paths, names, tokens or private
+ * package fields are ever copied into installer stdout. */
+export function classifyVenueImportFailure(error){
+ const reason=typeof error?.message==='string'?error.message:'';
+ if(/Пакет просрочен или время ноутбука неверно/.test(reason))return 'PACKAGE_EXPIRED_OR_CLOCK';
+ if(/Повтор или повреждение участника справочника|Лишние личные поля или повтор участника справочника|Автомобиль принадлежит другому участнику или содержит запрещённые поля|Повтор или повреждение автомобиля справочника/.test(reason))return 'SIGNED_DIRECTORY_INVALID';
+ if(/Цифровая подпись не подтверждена|Доверенный отпечаток ключа подписи не совпадает|Контрольная сумма пакета не совпадает|Нужен открытый ключ Ed25519/.test(reason))return 'SIGNATURE_OR_TRUST';
+ if(/Адрес локальной базы данных недопустим|Импорт в публичную или постороннюю базу запрещён/.test(reason))return 'LOCAL_DATABASE_CONFIG';
+ if(/UUID этапа не совпадает|этапа не совпадает с закреплённым|Импорт разрешён только на локальной площадке/.test(reason))return 'STAGE_SCOPE';
+ if(/Этап уже импортирован из другого пакета|исходной подписанной установки|пакета не совпадает/.test(reason))return 'INSTALLED_PACKAGE_MISMATCH';
+ return 'UNCLASSIFIED';
+}
 async function main(){
  const [file,keyFile,mode,confirmedId]=process.argv.slice(2);
  if(!file||!keyFile||!['--dry-run','--apply','--check-installed','--apply-directory'].includes(mode)
@@ -617,6 +652,7 @@ async function main(){
    return;
   }
   if(mode==='--check-installed'){
+   await assertInstalledVenueStageReceipt(plan,prisma);
    process.stdout.write('USD VENUE PACKAGE VERIFIED — NO DATABASE WRITES\n');
    process.stdout.write(JSON.stringify(plan.summary)+'\n');
    return;
@@ -628,9 +664,10 @@ async function main(){
  }finally{await prisma.$disconnect()}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- main().catch(()=>{
-  // No private stage payload, file paths, SQL errors or credentials in stdout.
-  console.error('USD VENUE IMPORT REFUSED: validate signature, local DB, source and stage scope');
+ main().catch(error=>{
+  // Fixed diagnostic codes only. Never echo the underlying error string:
+  // it could contain credentials, a file path, SQL or participant metadata.
+  console.error('USD VENUE IMPORT REFUSED: '+classifyVenueImportFailure(error));
   process.exitCode=1;
  });
 }

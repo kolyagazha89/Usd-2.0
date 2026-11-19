@@ -429,9 +429,11 @@ function Confirm-SignedStage([object]$State) {
   '--volume',($State.publicKey+':/app/venue-signing-public.pem:ro'),
   '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'),
   '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'))
+ $preImport=[array]::IndexOf($Phases,[string]$State.phase) -lt [array]::IndexOf($Phases,'IMPORTED')
+ $verificationMode=$(if($preImport){'--dry-run'}else{'--check-installed'})
  Invoke-Compose (@('run','--rm','--no-deps')+$mounts+
   @('--entrypoint','node','api','/app/import-stage.mjs',
-  '/app/venue-stage.json','/app/venue-signing-public.pem','--check-installed')) 'verify stage signature or exact installed receipt'
+  '/app/venue-stage.json','/app/venue-signing-public.pem',$verificationMode)) 'verify stage signature or exact installed receipt'
  Confirm-VenueStaffKey $State $mounts
  return $mounts
 }
