@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { renderUsdMailShell } from './mail-brand-layout';
 import { MailService } from './mail.service';
-import {CRITICAL_STAGE_LABELS, type CriticalStageKey} from '../stages/stage-critical-notice';
+import {CRITICAL_STAGE_LABELS, criticalStageSnapshot, type CriticalStageKey, type CriticalStageSnapshot} from '../stages/stage-critical-notice';
 
 type Notice = { eventKey: string; type: string; recipient: string; stageId: string; registrationId?: string; subject: string; heading: string; intro: string; details: string[]; href: string };
 
@@ -131,7 +131,7 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
 
   async sendCriticalStageNotice(
     stage: any, changes: CriticalStageKey[], revision: number,
-    isStillCurrent: () => Promise<boolean>,
+    isStillCurrent: () => Promise<boolean>, previous?: CriticalStageSnapshot,
   ): Promise<{total: number; accepted: number; failed: number; interrupted: boolean}> {
     if (!this.criticalStageMailReadiness().ready) throw new BadRequestException('Служебная рассылка не настроена');
     if (!changes.length || !['PUBLISHED', 'CANCELLED'].includes(stage.status)) {
@@ -149,9 +149,18 @@ export class EmailNotificationsService implements OnModuleInit, OnModuleDestroy 
       }
     }
     const cancelled = stage.status === 'CANCELLED';
+    const current = criticalStageSnapshot(stage);
+    const changedDescriptions = previous ? changes.filter(key => key !== 'cancelled').map(key => {
+      const oldValue = key === 'date' && previous.date
+        ? new Date(previous.date + 'T12:00:00Z').toLocaleDateString('ru-RU', {timeZone:'UTC'}) : String(previous[key] || 'не указано');
+      const newValue = key === 'date' && current.date
+        ? new Date(current.date + 'T12:00:00Z').toLocaleDateString('ru-RU', {timeZone:'UTC'}) : String(current[key] || 'не указано');
+      return CRITICAL_STAGE_LABELS[key] + ': было «' + oldValue + '», стало «' + newValue + '»';
+    }) : [];
     const details = [
       'Этап: ' + stage.name + ' · №' + stage.stageNumber,
       'Изменилось: ' + changes.map(key => CRITICAL_STAGE_LABELS[key]).join(', '),
+      ...changedDescriptions,
       'Дата: ' + formatStageDate(stage),
       'Начало: ' + (stage.startTimeMsk || '10:00') + ' МСК',
       'Место: ' + [stage.city, stage.venue, stage.address].filter(Boolean).join(', '),
