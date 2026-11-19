@@ -36,6 +36,9 @@
 .event-day-search:focus-within {border-color:#aa2c3d;box-shadow:0 0 0 3px #a1233612}
 .event-day-search input {flex:1;min-width:0;padding:12px 0;min-height:44px;font-size:16px;border:0!important;outline:0!important;background:transparent!important;color:#1c1e23}
 .event-day-search button {flex-shrink:0}
+.event-day-list-jump {display:none}
+.event-day-filter-count {display:none}
+.event-day-roster {scroll-margin-top:calc(90px + env(safe-area-inset-top,0px))}
 .event-day-filter-tabs {display:flex;gap:8px;overflow-x:auto;max-width:100%;padding:0 0 13px;scrollbar-width:thin}
 .event-day-filter-tabs button {min-height:44px;white-space:normal;min-width:0;flex-shrink:0;overflow-wrap:anywhere}
 .event-day-filter-tabs button.active {background:#a52233!important;border-color:#a52233!important;color:#fff!important}
