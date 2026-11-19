@@ -162,10 +162,12 @@ export async function provisionVenueMedia(env,{
     const ping=await call(fetcher,opts,{
      method:'GET',path:'/',...root,timeoutMs:Math.min(5000,Math.max(1,deadline-Date.now())),
     });
-    if(ping.ok){await ping.body?.cancel();ready=true;break}
-    if(ping.status===401||ping.status===403)
-     throw new Error('Root credentials rejected (HTTP '+ping.status+')');
-    lastFailure='HTTP '+ping.status;
+    const pingStatus=ping.status;
+    await ping.body?.cancel();
+    if(ping.ok){ready=true;break}
+    if(pingStatus===401||pingStatus===403)
+     throw new Error('Root credentials rejected (HTTP '+pingStatus+')');
+    lastFailure='HTTP '+pingStatus;
    }else{
     lastFailure='HTTP '+probeStatus;
    }
