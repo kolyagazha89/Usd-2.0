@@ -93,7 +93,7 @@ if(args[0]==="ps"){
  $env:USD_TEST_GATEWAY_PROJECT='usd-venue-foreign'
  $conflict=$false
  try{Assert-NoOtherVenueGatewayRunning}catch{
-  if($_.Exception.Message -notmatch 'другой этап'){throw}
+  if($_.Exception.Message -notmatch 'другой.*этап'){throw}
   $conflict=$true
  }
  if(!$conflict){throw 'Foreign USD gateway was missed by native Docker labels inspection'}
@@ -101,7 +101,7 @@ if(args[0]==="ps"){
  $env:USD_TEST_RUSTFS_PROJECT='usd-venue-foreign'
  $conflict=$false
  try{Assert-NoOtherVenueGatewayRunning}catch{
-  if($_.Exception.Message -notmatch 'другой этап'){throw}
+  if($_.Exception.Message -notmatch 'другой.*этап'){throw}
   $conflict=$true
  }
  if(!$conflict){throw 'Foreign USD RustFS was missed by native Docker labels inspection'}
