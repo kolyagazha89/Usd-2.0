@@ -3,10 +3,12 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CompetitionRecalculationService } from './competition-recalculation.service';
+import {readSignedVenueBanSnapshot,readSignedVenueDisqualifications} from '../stages/venue-disqualification-snapshot';
 import { Prisma } from '../generated/prisma/client';
 
 type DisqualificationScope =
@@ -252,6 +254,39 @@ export class DisqualificationsService {
     seasonId?: string;
     search?: string;
   }) {
+    if(process.env.USD_VENUE_LAN_MODE==='true'){
+      const stage=await this.prisma.stage.findUnique({
+        where:{id:process.env.VENUE_STAGE_ID??''},
+        select:{id:true,seasonId:true,stageNumber:true,name:true,city:true,
+          season:{select:{id:true,name:true,year:true}}},
+      });
+      if(!stage)throw new ServiceUnavailableException('Локальный этап не подтверждён');
+      const signed=await readSignedVenueBanSnapshot(this.prisma,stage.id,stage.seasonId);
+      const ids=[...new Set(signed.map(entry=>entry.participantId))];
+      const people=ids.length?await this.prisma.participant.findMany({
+        where:{id:{in:ids}},
+        select:{id:true,firstName:true,lastName:true,middleName:true,team:true},
+      }):[];
+      const byId=new Map(people.map(person=>[person.id,person]));
+      const query=filters?.search?.trim().toLocaleLowerCase('ru-RU')??'';
+      return signed.filter(entry=>
+        (!filters?.participantId||entry.participantId===filters.participantId)
+        &&(!filters?.scope||entry.scope===filters.scope)
+        &&(!filters?.status||filters.status==='ACTIVE')
+        &&(!filters?.stageId||entry.stageId===filters.stageId)
+        &&(!filters?.seasonId||entry.seasonId===filters.seasonId)
+        &&(!query||[byId.get(entry.participantId)?.firstName,
+          byId.get(entry.participantId)?.lastName,byId.get(entry.participantId)?.middleName]
+          .filter(Boolean).join(' ').toLocaleLowerCase('ru-RU').includes(query))
+      ).map(entry=>({
+        ...entry,status:'ACTIVE' as const,
+        reason:'Подписанный запрет USD. Подробности на основном сервере.',
+        participant:byId.get(entry.participantId)??null,
+        stage:entry.scope==='STAGE'?stage:null,
+        season:entry.scope==='SEASON'?stage.season:null,
+        issuedByUser:null,
+      }));
+    }
     const search = filters?.search?.trim();
 
     return this.prisma.disqualification.findMany({
