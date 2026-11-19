@@ -69,6 +69,7 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
     stageClassAllowed:async()=>true,
     participantEligible:async()=>true,
     resultAdmission:async()=>true,
+    participantIdentityCandidates:async()=>[...(working.get('Participant')?.values()??[])],
     numberOwner:async (_stage,number)=>[...(working.get('RegistrationNumber')?.values()??[])].find(r=>r.number===number)??null,
     write:async (table,op,row,before)=>{
      if(failAt&&Number(op.eventSequence)===failAt)throw Error('simulated db failure');
@@ -238,4 +239,47 @@ test('photo-free stage requires no media transfer despite having competition res
  assert.equal(report.mediaTransferRequired,false);
  assert.equal(report.mediaSynchronized,false);
  assert.equal(report.databaseSynchronized,true);
+});
+
+test('a new offline UUID with the same normalized FIO as a central account is MANUAL_REVIEW, never duplicated',async()=>{
+ const db=memoryDb({existing:{Participant:[{
+  id:'8b596264-15dd-46d8-92aa-c4e1c50c0205',
+  firstName:'  АННА ',lastName:' Тестовая ',middleName:null,
+ }]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,opts),/MANUAL_REVIEW.*DUPLICATE_PARTICIPANT_NAME/);
+ assert.equal(db.rows.get('Participant').size,1);
+ assert.equal(db.rows.get('Registration'),undefined);
+ assert.equal(db.rows.get('Result'),undefined);
+ assert.equal(db.receipt.size,0);
+});
+test('a newly created onsite entrant whose name matches a centrally created participant while WAN is down is not duplicated',async()=>{
+ const db=memoryDb({existing:{Participant:[{
+  id:'8b596264-15dd-46d8-92aa-c4e1c50c0205',
+  firstName:'Анна',lastName:'Тестовая',middleName:'  ',
+ }]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,{...opts,apply:false}),/MANUAL_REVIEW.*DUPLICATE_PARTICIPANT_NAME/);
+ assert.equal(db.rows.get('Participant').size,1);
+ assert.equal(db.receipt.size,0);
+});
+test('true namesakes are not merged; another spelling of the name with distinct middle names is safe to import',async()=>{
+ const db=memoryDb({existing:{Participant:[{
+  id:'8b596264-15dd-46d8-92aa-c4e1c50c0205',
+  firstName:'Анна',lastName:'Тестовая',middleName:'Мария',
+ }]}});
+ const changed=full();changed.events[0].payload.after.middleName='Павловна';
+ const report=await applyCompleteVenueJournal(changed,db,{...opts,apply:false});
+ assert.equal(report.readyEvents,9);
+ assert.equal(db.rows.get('Participant').size,1);
+});
+test('distinct new offline UUIDs with the same name in one return are blocked without partial inserts',async()=>{
+ const p=full();
+ p.events.splice(1,0,event(2,'Participant','INSERT',{
+  id:'9b596264-15dd-46d8-92aa-c4e1c50c0205',firstName:'Анна',lastName:'Тестовая',phone:null,photoUrl:null,
+ }));
+ // Sequence and hash must be valid before an identity safety check is relevant.
+ p.events=p.events.map((e,i)=>({...e,sequence:i+1,previousHash:h(i),hash:h(i+1),payload:{...e.payload,sequence:i+1}}));
+ p.journalEndHash=h(p.events.length);p.eventCount=p.events.length;
+ const db=memoryDb();
+ await assert.rejects(()=>applyCompleteVenueJournal(p,db,opts),/MANUAL_REVIEW.*DUPLICATE_PARTICIPANT_NAME/);
+ assert.equal(db.rows.size,0);
 });
