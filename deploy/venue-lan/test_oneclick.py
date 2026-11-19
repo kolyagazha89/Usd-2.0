@@ -35,7 +35,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertRegex(source,r"function\s+Ensure-DockerReady")
     def test_single_complete_windows_installer_is_not_duplicated(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
-        self.assertLess(len(source.encode("utf-8")),45000,"Duplicated PowerShell source must not ship")
+        self.assertLess(len(source.encode("utf-8")),45500,"Duplicated PowerShell source must not ship")
         for func in ("Assert-VenueReleaseImages","New-InitialState","Confirm-SignedStage",
                      "Install-Local","Start-Local","Test-VenueApiReady","Return-Online"):
             self.assertEqual(len(re.findall(r"(?m)^function\s+"+re.escape(func)+r"\b",source)),1,func)
@@ -327,6 +327,44 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("if(mode==='--check-installed')",node)
         self.assertIn("assertInstalledVenueStageReceipt",staff)
         self.assertIn("if(extra[0]==='--check')",staff)
+
+
+    def test_windows_first_boot_fixes_only_its_own_rustfs_volume_before_start(self):
+        lifecycle=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
+        control=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        self.assertIn('function Initialize-VenueMediaVolume',lifecycle)
+        section=lifecycle[lifecycle.index('function Initialize-VenueMediaVolume'):lifecycle.index('function Get-VenueKitFiles')]
+        self.assertIn("com.docker.compose.project",section)
+        self.assertIn("'--network','none'",section)
+        self.assertIn("'--user','0:0'",section)
+        self.assertIn('10001:10001',section)
+        self.assertIn('venue_media',section)
+        self.assertNotIn("'down'",section)
+        self.assertNotIn("'--volumes'",section)
+        install=control[control.index('function Install-Local'):control.index('function Start-Local')]
+        self.assertIn('Initialize-VenueMediaVolume',install)
+        self.assertLess(install.index('Initialize-VenueMediaVolume'),install.index("Invoke-Compose @('up','-d','db','rustfs')"))
+
+    def test_windows_rustfs_provision_failure_shows_safe_step_without_dumping_credentials(self):
+        control=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        media=(ROOT/'provision-rustfs.mjs').read_text(encoding='utf-8')
+        self.assertIn('USD_VENUE_INSTALL_DIAG',control)
+        self.assertIn('USD_VENUE_INSTALL_DIAG',media)
+        self.assertIn('USD VENUE MEDIA FAILED AT',media)
+        self.assertNotIn("console.error(error)",media)
+
+
+    def test_new_windows_install_refuses_running_stage_before_binding_rustfs_ports(self):
+        control=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        stage=control[control.index('function Install-Local'):control.index('function Start-Local')]
+        self.assertIn("Set-VenueStep 'check-other-stage-ports'",stage)
+        self.assertIn('Assert-NoOtherVenueGatewayRunning',stage)
+        self.assertLess(stage.index('Assert-NoOtherVenueGatewayRunning'),stage.index('Initialize-VenueMediaVolume'))
+        self.assertLess(stage.index('Assert-NoOtherVenueGatewayRunning'),stage.index("Invoke-Compose @('up','-d','db','rustfs')"))
+        season=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
+        guard=season[season.index('function Assert-NoOtherVenueGatewayRunning'):season.index('function Test-VerifiedVenueAck')]
+        self.assertIn("@('gateway','rustfs')",guard)
+        self.assertIn('com.docker.compose.project',guard)
 
 if __name__=="__main__":
     unittest.main()

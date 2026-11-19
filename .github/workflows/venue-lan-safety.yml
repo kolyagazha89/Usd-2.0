@@ -41,6 +41,8 @@ jobs:
       - name: Confirm PostgreSQL Alpine has required dump, restore and SHA256 utilities
         run: |
           docker run --rm --entrypoint sh postgres:18-alpine -c 'command -v pg_dump && command -v pg_restore && command -v sha256sum'
+      - name: Exercise actual Docker Compose create, RustFS volume ownership and idempotent replay
+        run: bash deploy/venue-lan/test-compose-media-bootstrap.sh
       - name: Rehearse no-secret venue compose preflight
         working-directory: deploy/venue-lan
         run: |

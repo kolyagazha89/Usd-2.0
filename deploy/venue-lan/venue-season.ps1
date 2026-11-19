@@ -34,17 +34,20 @@ function Get-VenueHome {
 }
 function Assert-NoOtherVenueGatewayRunning {
  $expected=Get-VenueProject
- $containers=@(& docker ps --filter 'label=com.docker.compose.service=gateway' --format '{{.ID}}')
- Assert-Exit 'inspect other local USD stages'
- foreach($id in $containers){
-  if([string]$id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный ID шлюза'}
-  $labels=Read-VenueDockerLabels 'container' ([string]$id)
-  if([string]$labels.'com.docker.compose.service' -cne 'gateway'){
-   throw 'У шлюза Docker неверная метка службы'
-  }
-  $project=[string]$labels.'com.docker.compose.project'
-  if($project -like 'usd-venue*' -and $project -cne $expected){
-   throw ('Уже работает другой этап '+$project+'. Остановите его через «USD — Онлайн», не смешивайте подключения судей.')
+ # A stopped gateway may leave the previous stage's RustFS binding port 19000.
+ foreach($service in @('gateway','rustfs')){
+  $containers=@(& docker ps --filter ('label=com.docker.compose.service='+$service) --format '{{.ID}}')
+  Assert-Exit 'inspect other local USD stages'
+  foreach($id in $containers){
+   if([string]$id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный ID локального сервиса'}
+   $labels=Read-VenueDockerLabels 'container' ([string]$id)
+   if([string]$labels.'com.docker.compose.service' -cne $service){
+    throw 'У сервиса Docker неверная метка'
+   }
+   $project=[string]$labels.'com.docker.compose.project'
+   if($project -like 'usd-venue*' -and $project -cne $expected){
+    throw ('Уже запущен другой офлайн-этап '+$project+'. Остановите его через USD — Онлайн; данные остаются на ноутбуке.')
+   }
   }
  }
 }
@@ -63,6 +66,32 @@ function Test-VerifiedVenueAck([string]$StageId){
  $ack=Get-Content -LiteralPath $ackPath -Raw -Encoding UTF8 | ConvertFrom-Json
  return ($ack.accepted -eq $true -and [string]$ack.stageId -ceq $StageId -and
   [string]$ack.journalEndHash -ceq [string]$hash[0])
+}
+# Docker Desktop named volumes may be root-owned; RustFS runs as uid 10001.
+# Only touch the top directory of this one owned venue media volume.
+function Initialize-VenueMediaVolume {
+ $project=Get-VenueProject
+ if($project -cnotmatch '^usd-venue-[0-9a-f]{32}$'){
+  throw 'Неизвестный проект площадки. Права RustFS не изменены.'
+ }
+ $volume=$project+'_venue_media'
+ Invoke-Compose @('stop','rustfs') 'stop this stage RustFS before volume permissions'
+ Invoke-Compose @('create','--no-recreate','rustfs') 'prepare own media volume'
+ $rows=@(& docker volume inspect --format '{{json .Labels}}' $volume 2>$null)
+ Assert-Exit 'inspect owned media volume'
+ if($rows.Count -ne 1){throw 'Docker не подтвердил единственный том RustFS'}
+ try{$labels=ConvertFrom-Json -InputObject ([string]$rows[0]) -ErrorAction Stop}
+ catch{throw 'Не удалось проверить метки тома RustFS'}
+ if($null -eq $labels -or
+    [string]$labels.'com.docker.compose.project' -cne $project -or
+    [string]$labels.'com.docker.compose.volume' -cne 'venue_media'){
+  throw 'Том RustFS не принадлежит выбранному этапу. Данные не изменены.'
+ }
+ # Reuse cached PostgreSQL Alpine shell; no network, deletion or extra image.
+ $fix='set -eu; test $(stat -c %u:%g /data) = 10001:10001 || chown 10001:10001 /data; test $(stat -c %u:%g /data) = 10001:10001'
+ Invoke-Docker @('run','--rm','--network','none','--user','0:0',
+  '--mount',('type=volume,source='+$volume+',target=/data'),
+  '--entrypoint','sh','postgres:18-alpine','-ec',$fix) 'prepare isolated RustFS volume for uid 10001'
 }
 function Get-VenueKitFiles {
  return @(

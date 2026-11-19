@@ -27,6 +27,42 @@ try{
  if($_.Exception.Message -eq 'Tampered project was accepted'){throw}
 }
 $script:MockState.project=$project
+# Actual PowerShell 5.1 media boot logic, using a mocked Docker daemon.
+$script:MediaCalls=New-Object System.Collections.ArrayList
+$script:MediaVolumeLabels=@{
+ 'com.docker.compose.project'=$project
+ 'com.docker.compose.volume'='venue_media'
+}
+function Invoke-Compose([string[]]$Arguments,[string]$Purpose) {
+ $null=$script:MediaCalls.Add(('compose '+($Arguments -join ' ')))
+}
+function Invoke-Docker([string[]]$Arguments,[string]$Purpose) {
+ $null=$script:MediaCalls.Add(('docker '+($Arguments -join ' ')))
+ if(($Arguments -join ' ') -notmatch '--network none --user 0:0'){
+  throw 'Media permissions helper was not isolated'
+ }
+}
+function docker {
+ $global:LASTEXITCODE=0
+ return ($script:MediaVolumeLabels|ConvertTo-Json -Compress)
+}
+Initialize-VenueMediaVolume
+$calls=($script:MediaCalls -join [Environment]::NewLine)
+if($calls -notmatch 'create --no-recreate rustfs' -or $calls -match 'create [^\r\n]*--no-deps'){throw 'Unsupported Compose create flags in media bootstrap'}
+if($calls -notmatch '--mount type=volume,source=usd-venue-[a-f0-9]{32}_venue_media,target=/data'){
+ throw 'Media helper targeted wrong Docker volume'
+}
+if($calls -match 'down|--volumes|prune'){throw 'Media helper tried destructive cleanup'}
+$script:MediaCalls.Clear()
+$script:MediaVolumeLabels['com.docker.compose.project']='other-project'
+try{
+ Initialize-VenueMediaVolume
+ throw 'Foreign volume was accepted'
+}catch{
+ if($_.Exception.Message -eq 'Foreign volume was accepted'){throw}
+}
+if(($script:MediaCalls -join ' ') -match '^docker run'){throw 'Foreign volume received a write'}
+$script:MediaVolumeLabels['com.docker.compose.project']=$project
 $temp=Join-Path ([IO.Path]::GetTempPath()) ('usd-venue-season-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temp | Out-Null
 $oldPrivate=$PrivateDir
