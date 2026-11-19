@@ -349,7 +349,7 @@ class VenueLauncherContracts(unittest.TestCase):
         media=(ROOT/'provision-rustfs.mjs').read_text(encoding='utf-8')
         compose=(ROOT/'compose.yaml').read_text(encoding='utf-8')
         self.assertIn("ENDPOINT+'/health/ready'",media)
-        self.assertIn("startupTimeoutMs=180000",media)
+        self.assertIn("startupTimeoutMs=210000",media)
         self.assertIn("await sleep(Math.min(1000,waitMs))",media)
         self.assertIn("RUSTFS_HEALTH_ENDPOINT_ENABLE: \"true\"",compose)
         self.assertIn("RUSTFS_STARTUP_READINESS_MAX_WAIT_SECS: \"180\"",compose)
