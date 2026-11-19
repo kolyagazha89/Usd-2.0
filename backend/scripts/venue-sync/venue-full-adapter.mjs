@@ -64,7 +64,7 @@ export function postgresFullVenueAdapter(client){
      },
      async listReceipts(stageId){
       const {rows}=await client.query(
-       "SELECT action,metadata->>'eventHash' AS \"eventHash\",(metadata->>'sequence')::bigint AS sequence,metadata->>'baselineSha256' AS \"baselineSha256\",metadata->>'journalEndHash' AS \"journalEndHash\" FROM \"AuditLog\" WHERE action='VENUE_FULL_EVENT_IMPORTED' AND metadata->>'stageId'=$1",[stageId]);
+       "SELECT action,metadata->>'eventHash' AS \"eventHash\",(metadata->>'sequence')::bigint AS sequence,metadata->>'baselineSha256' AS \"baselineSha256\",metadata->>'journalEndHash' AS \"journalEndHash\",metadata->>'resolutionHash' AS \"resolutionHash\" FROM \"AuditLog\" WHERE action='VENUE_FULL_EVENT_IMPORTED' AND metadata->>'stageId'=$1",[stageId]);
       return rows.map(r=>({...r,sequence:Number(r.sequence)}));
      },
      async getRow(table,id){
@@ -170,11 +170,19 @@ export function postgresFullVenueAdapter(client){
        if(rowCount!==1)throw Error('VENUE DB: deleted row disappeared');
       }else throw Error('VENUE DB: invalid operation');
      },
+     async auditResolution(decision){
+      const {stageId,journalEndHash,reviewId,approvedBy,table,sourceId,
+       action,targetId,reason,resolutionHash}=decision;
+      await client.query(
+       'INSERT INTO "AuditLog" (id,"userId",action,entity,"entityId",metadata,"createdAt") VALUES (gen_random_uuid(),$1,$2,$3,$4,$5::jsonb,now())',
+       [approvedBy,'VENUE_RETURN_IDENTITY_RESOLVED',table,sourceId,
+        JSON.stringify({stageId,journalEndHash,reviewId,sourceId,action,targetId,reason,resolutionHash})]);
+     },
      async receipt(event){
       const {stageId,eventHash,sequence,journalEndHash,
-       baselineSha256,entity,entityId,operator,action}=event;
+       baselineSha256,entity,entityId,operator,action,resolutionHash}=event;
       if(action!=='VENUE_FULL_EVENT_IMPORTED')throw Error('VENUE DB: unknown receipt');
-      const metadata={stageId,eventHash,sequence,journalEndHash,baselineSha256,operator};
+      const metadata={stageId,eventHash,sequence,journalEndHash,baselineSha256,operator,resolutionHash};
       await client.query(
        'INSERT INTO "AuditLog" (id,action,entity,"entityId",metadata,"createdAt") VALUES (gen_random_uuid(),$1,$2,$3,$4::jsonb,now())',
        [action,entity,entityId,JSON.stringify(metadata)]);
