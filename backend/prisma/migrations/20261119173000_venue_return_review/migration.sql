@@ -15,16 +15,16 @@ CREATE TABLE "VenueReturnReview" (
  "appliedAt" TIMESTAMPTZ(3),
  "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT NOW(),
  "updatedAt" TIMESTAMPTZ(3) NOT NULL DEFAULT NOW(),
- CONSTRAINT "VenueReturnReview_authorization_fkey"
+ CONSTRAINT "VenueReturnReview_authorizationId_fkey"
  FOREIGN KEY ("authorizationId") REFERENCES "VenueSyncAuthorization"("id")
  ON DELETE RESTRICT ON UPDATE CASCADE,
  CONSTRAINT "VenueReturnReview_status_check"
  CHECK ("status" IN ('PENDING','DEFERRED','APPROVED','APPLIED')),
  CONSTRAINT "VenueReturnReview_version_check" CHECK ("version" >= 0)
 );
-CREATE UNIQUE INDEX "VenueReturnReview_authorization_journal_unique"
+CREATE UNIQUE INDEX "VenueReturnReview_authorizationId_journalEndHash_key"
  ON "VenueReturnReview"("authorizationId","journalEndHash");
-CREATE INDEX "VenueReturnReview_stage_created_idx"
+CREATE INDEX "VenueReturnReview_stageId_createdAt_idx"
  ON "VenueReturnReview"("stageId","createdAt");
-CREATE INDEX "VenueReturnReview_status_created_idx"
+CREATE INDEX "VenueReturnReview_status_createdAt_idx"
  ON "VenueReturnReview"("status","createdAt");
