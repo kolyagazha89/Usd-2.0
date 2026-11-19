@@ -109,6 +109,24 @@ test('full disconnected entrant -> car -> configuration -> number -> inspection 
  assert.equal(retry.alreadyApplied,true);
  assert.equal(db.receipt.size,9);
 });
+test('signed on-site profile and car left unregistered at gate do not poison the entire return',async()=>{
+ const db=memoryDb();
+ const report=await applyCompleteVenueJournal(packet([
+  event(1,'Participant','INSERT',participant),
+  event(2,'Car','INSERT',car),
+ ]),db,opts);
+ assert.equal(report.appliedEvents,2);
+ assert.equal(db.rows.get('Participant').get(ids.participant).id,ids.participant);
+ assert.equal(db.rows.get('Car').get(ids.car).participantId,ids.participant);
+ assert.equal(db.receipt.size,2);
+});
+test('a stray unpaired participant INSERT cannot escape the stage-scoped journal',async()=>{
+ const db=memoryDb();
+ await assert.rejects(()=>applyCompleteVenueJournal(packet([
+  event(1,'Participant','INSERT',participant),
+ ]),db,opts),/unpaired|car/i);
+ assert.equal(db.receipt.size,0);
+});
 test('dry-run checks whole history and leaves no rows or receipts',async()=>{
  const db=memoryDb();
  const report=await applyCompleteVenueJournal(full(),db,{...opts,apply:false});
