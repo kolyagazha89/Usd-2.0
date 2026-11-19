@@ -430,7 +430,8 @@ function Confirm-SignedStage([object]$State) {
   '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'),
   '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'))
  # First run: signed-only; resume: DB receipt.
- $verificationMode=$(if($State.phase -eq 'CONFIGURED'){'--dry-run'}else{'--check-installed'})
+ $preImport=[array]::IndexOf($Phases,[string]$State.phase) -lt [array]::IndexOf($Phases,'IMPORTED')
+ $verificationMode=$(if($preImport){'--dry-run'}else{'--check-installed'})
  Invoke-Compose (@('run','--rm','--no-deps')+$mounts+
   @('--entrypoint','node','api','/app/import-stage.mjs',
   '/app/venue-stage.json','/app/venue-signing-public.pem',$verificationMode)) 'verify stage signature or exact installed receipt'

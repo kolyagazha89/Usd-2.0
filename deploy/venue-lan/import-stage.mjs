@@ -247,6 +247,24 @@ export async function planInstalledVenueStageImport(signed,pem,env,prisma,now=Da
   return planVenueStageImport(signed,pem,env,imported);
  }
 }
+/** A resumable stage is bound to its exact original signed package, not
+ * just a valid signature from a trusted central signer. */
+export async function assertInstalledVenueStageReceipt(plan,prisma){
+ if(!plan?.packageHash||!plan?.snapshot?.stageId||!prisma?.stage||!prisma?.auditLog)
+  throw new Error('Нет подтверждённого исходного пакета этапа');
+ const stageId=plan.snapshot.stageId;
+ const [stage,receipt]=await Promise.all([
+  prisma.stage.findUnique({where:{id:stageId},select:{id:true}}),
+  prisma.auditLog.findFirst({
+   where:{action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:stageId},
+   select:{metadata:true},
+  }),
+ ]);
+ if(!stage)throw new Error('Исходный этап не установлен в локальной базе');
+ if(receipt?.metadata?.sha256!==plan.packageHash)
+  throw new Error('Исходный пакет установленного этапа не совпадает с подписанным файлом');
+ return plan;
+}
 function validateInspection(inspection){
  assertUuid(inspection.id,'инспекция');
  if(!['PASSED','FAILED'].includes(inspection.status))
@@ -634,6 +652,7 @@ async function main(){
    return;
   }
   if(mode==='--check-installed'){
+   await assertInstalledVenueStageReceipt(plan,prisma);
    process.stdout.write('USD VENUE PACKAGE VERIFIED — NO DATABASE WRITES\n');
    process.stdout.write(JSON.stringify(plan.summary)+'\n');
    return;

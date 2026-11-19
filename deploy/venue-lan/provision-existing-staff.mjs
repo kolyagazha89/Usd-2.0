@@ -9,7 +9,7 @@ import {readFile,stat} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {assertVenueImportEnvironment,assertVenueDatabaseRole,planVenueStageImport,planInstalledVenueStageImport} from './import-stage.mjs';
+import {assertVenueImportEnvironment,assertVenueDatabaseRole,planVenueStageImport,planInstalledVenueStageImport,assertInstalledVenueStageReceipt} from './import-stage.mjs';
 import {VENUE_JUDGE_PERMISSIONS} from './venue-judge-permissions.mjs';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -209,6 +209,7 @@ async function main(){
  const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
  try{
   const verified=await planInstalledVenueStageImport(signed,pem,process.env,prisma);
+  await assertInstalledVenueStageReceipt(verified,prisma);
   if(verified.summary.stageId!==stageId||!signed.snapshot.staffAccess)
    throw new Error('Пакет не предназначен для входа сотрудников');
   const staff=decryptExistingVenueStaff(signed.snapshot.staffAccess,key.trim(),stageId);

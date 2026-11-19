@@ -255,7 +255,7 @@ function Restore-VenueStack {
  Invoke-Compose @('start') 'restore all previously installed services after cancelled stage switch'
 }
 function Confirm-VenueStaffKey([object]$State,[array]$Mounts){
- $isFresh=$State.phase -eq 'CONFIGURED'
+ $isFresh=[array]::IndexOf($Phases,[string]$State.phase) -lt [array]::IndexOf($Phases,'IMPORTED')
  try{
   if($isFresh){Create-ExistingStaff $State $Mounts -Preflight}
   else{Create-ExistingStaff $State $Mounts -CheckOnly}
