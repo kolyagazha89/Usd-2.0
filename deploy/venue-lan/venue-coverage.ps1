@@ -1,4 +1,4 @@
-# Windows self-recovery for historical duplicate journal coverage metadata.
+﻿# Windows self-recovery for historical duplicate journal coverage metadata.
 # Stop judging only during a one-time verified PostgreSQL backup and repair.
 function Repair-VenueCoverageIfNeeded {
  $table=@(& docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c "SELECT to_regclass('venue_private.journal_coverage');")
