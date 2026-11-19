@@ -16,9 +16,9 @@ export function criticalStageSnapshot(stage: Record<string, any>): CriticalStage
   return {
     date: Number.isFinite(calendarDate.getTime()) ? calendarDate.toISOString().slice(0, 10) : '',
     startTimeMsk: String(stage.startTimeMsk ?? '10:00').trim() || '10:00',
-    city: String(stage.city ?? '').trim().replace(/\\s+/g, ' '),
-    venue: String(stage.venue ?? '').trim().replace(/\\s+/g, ' '),
-    address: String(stage.address ?? '').trim().replace(/\\s+/g, ' '),
+    city: String(stage.city ?? '').trim().replace(/\s+/g, ' '),
+    venue: String(stage.venue ?? '').trim().replace(/\s+/g, ' '),
+    address: String(stage.address ?? '').trim().replace(/\s+/g, ' '),
     cancelled: stage.status === 'CANCELLED',
   };
 }
