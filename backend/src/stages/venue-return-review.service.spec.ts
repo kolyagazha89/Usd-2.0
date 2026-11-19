@@ -113,4 +113,32 @@ describe('ADMIN offline return conflict review',()=>{
   await expect(service.matched(reviewer,original.journalEndHash,'f'.repeat(64)))
    .rejects.toThrow(ConflictException);
  });
+ it('rejects a car LINK to a different central owner even when plate matches',async()=>{
+  const {service,tx}=setup();
+  const otherCar='8b596264-15dd-46d8-92aa-c4e1c50c0220';
+  const carSource='e510f672-79f7-44eb-8173-2a8ff94b1c22';
+  const caseKey='Car:'+carSource;
+  tx.venueReturnReview.findUnique.mockResolvedValueOnce({
+   ...original,conflicts:[{
+    key:caseKey,table:'Car',sourceId:carSource,
+    source:{id:carSource,participantId:source,plate:'А123ВС181'},
+    candidates:[{id:otherCar,participantId:target,plate:'А123ВС181'}],
+   }],
+  } as any);
+  await expect(service.decide(reviewId,{version:0,decisions:[{
+   key:caseKey,action:'LINK',targetId:otherCar,
+   reason:'Сверил номер, но владелец не совпадает',
+  }]} as any,admins)).rejects.toThrow(BadRequestException);
+  expect(tx.venueReturnReview.updateMany).not.toHaveBeenCalled();
+ });
+ it('keeps a pending review tied to the same signed journal content hash',async()=>{
+  const {service,prisma}=setup();
+  const same=await service.pending(reviewer,original.stageId,
+   original.journalEndHash,original.journalContentHash,[conflict]);
+  expect(same.status).toBe('PENDING');
+  await expect(service.pending(reviewer,original.stageId,original.journalEndHash,
+   'e'.repeat(64),[conflict])).rejects.toThrow(ConflictException);
+  expect(prisma.venueReturnReview.create).not.toHaveBeenCalled();
+ });
+
 });
