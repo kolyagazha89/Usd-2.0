@@ -12,7 +12,7 @@ import {visiblePartners} from './partner-model';
 import {publicEntityPhotoSource} from './photo-source';
 import {publicContactLinks} from './public-contacts-model';
 import PublicDocumentReader from './PublicDocumentReader';
-import {publicDocumentLinks} from './public-document-links';
+import {publicDocumentListState} from './public-document-links';
 
 function PersonCard({person:p}:{person:any}){return <Link className="u-person-card p-person-card" to={'/participants/'+encodeURIComponent(p.id)}><Photo kind="participant" src={publicEntityPhotoSource('PARTICIPANT_PHOTO',p,getPublicEntityPhotoUrl)} alt={personName(p)} className="p-person-photo"/><div><small>{p.city||'USD / УЧАСТНИК'}</small><h2>{personName(p)}</h2><p>{p.team||'Участник USD'}</p></div><ArrowUpRight size={20} aria-hidden/></Link>}
 function CarCard({car:c}:{car:any}){return <Link to={'/cars/'+encodeURIComponent(c.id)} className="p-car-card u-panel usd-car-card-approved"><Photo kind="car" src={publicEntityPhotoSource('CAR_PHOTO',c,getPublicEntityPhotoUrl)} alt={carName(c)} className="p-car-photo" fallback={<CarFront size={76} strokeWidth={1}/>}/><div><Eyebrow>АВТОМОБИЛЬ USD</Eyebrow><h3>{carName(c)}</h3><p>{[c.color,c.registrationCountry].filter(Boolean).join(' · ')}</p><span>Посмотреть систему ↗</span></div></Link>}
@@ -26,7 +26,7 @@ function PublicEntry({entry:r}:{entry:any}){
 
 export const communityRoutes=['participants','teams','cars','news','partners','documents','contacts','about'];
 export function communityTitle(route:string){return ({participants:'Люди, которые делают громче.',teams:'Одна команда. Общая частота.',cars:'Система с характером.',news:'В ритме чемпионата.',partners:'Сильнее вместе.',documents:'Всё важное — под рукой.',contacts:'На связи со звуком.',about:'Громче, чем просто звук.'} as Record<string,string>)[route]||'Страница не найдена'}
-export default function PublicCommunity({path,settings}:{path:string;settings:any}){
+export default function PublicCommunity({path,settings,loadingSettings=false}:{path:string;settings:any;loadingSettings?:boolean}){
  const segments=path.split('?')[0].split('/').filter(Boolean),kind=segments[0];let id='';try{id=decodeURIComponent(segments[1]??'')}catch{/* invalid share link */}
  const [people,P]=useState<any[]>([]),[entity,E]=useState<any>(null),[loading,L]=useState(()=>['participants','cars'].includes(kind)),[error,F]=useState(''),[query,Q]=useState(''),[retry,R]=useState(0),[limit,M]=useState(24);
  useEffect(()=>{M(24);Q('');E(null);P([]);F('');if(!['participants','cars'].includes(kind))return;let active=true;L(true);const url=kind==='cars'&&id?'/cars/'+encodeURIComponent(id):kind==='participants'&&id?'/participants/'+encodeURIComponent(id):'/participants';apiGet<any>(url).then(r=>{if(!active)return;if((kind==='participants'||kind==='cars')&&id)E(r?.data??r);else P(listData(r))}).catch(e=>{if(active&&!(id&&['participants','cars'].includes(kind)&&(e as {status?:number})?.status===404))F('Проверьте соединение и попробуйте ещё раз.')}).finally(()=>{if(active)L(false)});return()=>{active=false}},[kind,id,retry]);
@@ -42,11 +42,12 @@ export default function PublicCommunity({path,settings}:{path:string;settings:an
  if(kind==='partners'){const partners=visiblePartners(settings.partners);return <>{partners.length?<PartnerShowcase partners={partners}/>:<EmptyState title="Открыты к сотрудничеству">Информация о партнёрах появится после публикации организаторами.</EmptyState>}<div className="p-section"><Button to="/contacts">Обсудить партнёрство</Button></div></>}
  if(kind==='documents'&&id)return <PublicDocumentReader documentKey={id} document={settings.legal?.documents?.[id]}/>;
  if(kind==='documents'){
-  const files=publicDocumentLinks(settings.legal,settings.registration)
-    .filter(document=>safeHref(document.downloadUrl));
+  const {status,files}=publicDocumentListState(settings?.legal,settings?.registration,loadingSettings);
   return <>
     <div className="p-document-intro u-panel"><FileText size={40} strokeWidth={1}/><div><h2>Правила перед стартом</h2><p>Читай документы прямо на сайте. Исходники Word доступны для скачивания.</p></div><Button to="/rules" quiet>Читать регламент</Button></div>
-    {files.length?<div className="u-document-list">{files.map(document=>
+    {status==='loading'?<p role="status">Загружаем список документов…</p>
+      :status==='error'?<div className="p-error" role="alert"><p>Не удалось получить список документов. Проверьте соединение и повторите попытку.</p><a className="u-btn u-quiet" href="/documents">Повторить</a></div>
+      :status==='published'?<div className="u-document-list">{files.map(document=>
       <Link key={document.key} to={document.openPath} className="u-document">
         <FileText size={28}/><div><h3>{document.label}</h3><p>{document.description}</p><small>Читать на сайте</small></div><ArrowUpRight size={22}/>
       </Link>)}</div>

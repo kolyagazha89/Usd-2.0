@@ -20,7 +20,7 @@ export const PUBLIC_DOCUMENT_DESCRIPTIONS: Record<string, string> = {
   officialProtocolConsent: 'Публикация ФИО и официальных спортивных результатов',
 };
 type DocumentRef = { targetId?: string; url?: string };
-type LegalSettings = { legalApproved?: boolean; documents?: Record<string, DocumentRef> };
+type LegalSettings = { legalApproved?: boolean; documents?: Record<string, DocumentRef>; privacyText?: string; consentText?: string; termsText?: string };
 type RegistrationSettings = { rulesDocument?: { published?: {url?: string} | null } };
 export type PublicDocumentLink = { key: string; label: string; description: string; openPath: string; downloadUrl: string };
 export function publicDocumentLinks(legal: LegalSettings | undefined, registration: RegistrationSettings | undefined): PublicDocumentLink[] {
@@ -36,4 +36,34 @@ export function publicDocumentLinks(legal: LegalSettings | undefined, registrati
       openPath:'/documents/' + encodeURIComponent(key), downloadUrl:doc.url});
   }
   return links;
+}
+
+/** Do not confuse missing CMS data during the initial fetch with unpublished files.
+ * The approved HTML versions remain accessible if the Word attachments are absent.
+ * This never lists a document from an unapproved legal configuration.
+ */
+export function publicDocumentListState(legal:LegalSettings|undefined,registration:RegistrationSettings|undefined,loading:boolean):
+ {status:'loading'|'error'|'published'|'empty';files:PublicDocumentLink[]} {
+ if(!legal)return {status:loading?'loading':'error',files:[]};
+ // Do not reintroduce unsafe CMS download metadata; the old list filtered
+ // untrusted URLs before showing cards. The reader itself stays internal.
+ const safeDownload=(url:string)=>{
+  if(url.startsWith('/')&&!url.startsWith('//')&&!url.includes('\\'))return true;
+  try{return ['http:','https:'].includes(new URL(url).protocol)}catch{return false}
+ };
+ const files=publicDocumentLinks(legal,registration).filter(file=>safeDownload(file.downloadUrl));
+ if(files.length)return {status:'published',files};
+ if(legal.legalApproved===true){
+  const fallback=[
+   ['privacyText','privacyPolicy','/privacy'],
+   ['consentText','personalDataConsent','/consent'],
+   ['termsText','termsOfUse','/terms'],
+  ] as const;
+  const html=fallback.filter(([textKey])=>Boolean(legal[textKey]?.trim())).map(([,key,openPath])=>({
+   key,label:LEGAL_DOCUMENT_LABELS[key],description:PUBLIC_DOCUMENT_DESCRIPTIONS[key],
+   openPath,downloadUrl:'',
+  }));
+  if(html.length)return {status:'published',files:html};
+ }
+ return {status:'empty',files:[]};
 }
