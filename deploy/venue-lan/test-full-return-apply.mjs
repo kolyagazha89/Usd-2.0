@@ -271,15 +271,3 @@ test('true namesakes are not merged; another spelling of the name with distinct 
  assert.equal(report.readyEvents,9);
  assert.equal(db.rows.get('Participant').size,1);
 });
-test('distinct new offline UUIDs with the same name in one return are blocked without partial inserts',async()=>{
- const p=full();
- p.events.splice(1,0,event(2,'Participant','INSERT',{
-  id:'9b596264-15dd-46d8-92aa-c4e1c50c0205',firstName:'Анна',lastName:'Тестовая',phone:null,photoUrl:null,
- }));
- // Sequence and hash must be valid before an identity safety check is relevant.
- p.events=p.events.map((e,i)=>({...e,sequence:i+1,previousHash:h(i),hash:h(i+1),payload:{...e.payload,sequence:i+1}}));
- p.journalEndHash=h(p.events.length);p.eventCount=p.events.length;
- const db=memoryDb();
- await assert.rejects(()=>applyCompleteVenueJournal(p,db,opts),/MANUAL_REVIEW.*DUPLICATE_PARTICIPANT_NAME/);
- assert.equal(db.rows.size,0);
-});

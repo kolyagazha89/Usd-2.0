@@ -89,6 +89,16 @@ export function postgresFullVenueAdapter(client){
        [stageId,classId]);
       return rows.length>0;
      },
+     async participantIdentityCandidates(person){
+      // Read fresh central profiles inside the SERIALIZABLE return transaction.
+      // Never use the stale offline signed roster for online duplicate decisions.
+      if(typeof person?.firstName!=='string'||typeof person?.lastName!=='string')
+       throw Error('VENUE DB: invalid person for duplicate review');
+      const {rows}=await client.query(
+       'SELECT id,"firstName","lastName","middleName" FROM "Participant"'
+      );
+      return rows;
+     },
      async participantEligible(participantId,stageId){
       const {rows}=await client.query(
        'SELECT 1 FROM "Disqualification" d JOIN "Stage" s ON s.id=$2 WHERE d."participantId"=$1 AND d.status=$3 AND (d.scope=$4 OR (d.scope=$5 AND d."seasonId"=s."seasonId") OR (d.scope=$6 AND d."stageId"=$2)) LIMIT 1',

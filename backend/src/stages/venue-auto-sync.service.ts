@@ -62,6 +62,8 @@ export class VenueAutoSyncService {
     operator:'VENUE_AUTO:'+grant.id,
    });
   }catch(error){
+   if(error instanceof Error&&/DUPLICATE_PARTICIPANT_NAME/.test(error.message))
+    throw new ConflictException('MANUAL_REVIEW: найдено возможное совпадение ФИО с онлайн-профилем. Проверьте и разрешите дубль через ADMIN. Локальные регистрации и результаты сохранены.');
    if(error instanceof Error&&/CONFLICT|central changed|number.*owner/i.test(error.message))
     throw new ConflictException('Конфликт центральных данных. Все локальные результаты сохранены.');
    throw new ServiceUnavailableException('Безопасный импорт не завершён; повторите попытку');
