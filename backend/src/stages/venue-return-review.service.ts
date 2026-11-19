@@ -33,14 +33,14 @@ export class VenueReturnReviewService {
   ]);
   return module.collectVenueReturnConflicts(snapshot,{participants,cars});
  }
- async pending(grantId:string,stageId:string,journalEndHash:string,envelopeHash:string,conflicts:any[]){
+ async pending(grantId:string,stageId:string,journalEndHash:string,journalContentHash:string,conflicts:any[]){
   if(!uuid.test(grantId)||!uuid.test(stageId)||!sha.test(journalEndHash)
-   ||!sha.test(envelopeHash)||!Array.isArray(conflicts)||!conflicts.length
+   ||!sha.test(journalContentHash)||!Array.isArray(conflicts)||!conflicts.length
    ||conflicts.length>2500)throw new BadRequestException('Неверный конфликт офлайн-журнала');
   const key={authorizationId_journalEndHash:{authorizationId:grantId,journalEndHash}};
   const existing=await this.prisma.venueReturnReview.findUnique({where:key});
   if(existing){
-   if(existing.stageId!==stageId||existing.envelopeHash!==envelopeHash)
+   if(existing.stageId!==stageId||existing.journalContentHash!==journalContentHash)
     throw new ConflictException('Другой пакет с тем же журналом. Требуется ручная проверка.');
    const changed=JSON.stringify(existing.conflicts)!==JSON.stringify(conflicts);
    if(changed&&existing.status!=='APPLIED'){
@@ -56,24 +56,24 @@ export class VenueReturnReviewService {
   }
   try{
    const created=await this.prisma.venueReturnReview.create({data:{
-    authorizationId:grantId,stageId,journalEndHash,envelopeHash,conflicts,
+    authorizationId:grantId,stageId,journalEndHash,journalContentHash,conflicts,
     status:'PENDING',
    }});
    return {id:created.id,status:'PENDING'};
   }catch{
    // Unique race: never assume a concurrent request supplied the same ciphertext.
    const current=await this.prisma.venueReturnReview.findUnique({where:key});
-   if(!current||current.envelopeHash!==envelopeHash||current.stageId!==stageId)
+   if(!current||current.journalContentHash!==journalContentHash||current.stageId!==stageId)
     throw new ConflictException('Пакет не совпадает с ожидающим рассмотрения');
    return {id:current.id,status:current.status};
   }
  }
- async matched(grantId:string,journalEndHash:string,envelopeHash:string){
+ async matched(grantId:string,journalEndHash:string,journalContentHash:string){
   const found=await this.prisma.venueReturnReview.findUnique({
    where:{authorizationId_journalEndHash:{authorizationId:grantId,journalEndHash}},
   });
   if(!found)return {reviewId:null,approvedBy:null,resolutions:{}};
-  if(found.envelopeHash!==envelopeHash)
+  if(found.journalContentHash!==journalContentHash)
    throw new ConflictException('Подписанный пакет отличается от проверенного');
   if(found.status!=='APPROVED'&&found.status!=='APPLIED')
    throw new ConflictException('MANUAL_REVIEW: решение администратора ещё не принято. Заявка '+found.id);
@@ -116,7 +116,7 @@ export class VenueReturnReviewService {
   this.admin(request);
   if(!uuid.test(id))throw new BadRequestException('Некорректная заявка');
   const item=await this.prisma.venueReturnReview.findUnique({where:{id},
-   select:{id:true,stageId:true,status:true,journalEndHash:true,envelopeHash:true,version:true,
+   select:{id:true,stageId:true,status:true,journalEndHash:true,journalContentHash:true,version:true,
     conflicts:true,decisions:true,reviewedByUserId:true,reviewedAt:true,appliedAt:true,createdAt:true},
   });
   if(!item)throw new NotFoundException('Заявка не найдена');

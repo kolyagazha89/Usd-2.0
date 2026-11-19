@@ -298,7 +298,13 @@ const centralPerson='8b596264-15dd-46d8-92aa-c4e1c50c0205';
 const centralCar='8b596264-15dd-46d8-92aa-c4e1c50c0206';
 const reviewer='8b596264-15dd-46d8-92aa-c4e1c50c0207';
 const reviewId='8b596264-15dd-46d8-92aa-c4e1c50c0208';
-const approved=(decisions)=>({...opts,reviewId,approvedBy:reviewer,resolutions:decisions});
+const approved=decisions=>({
+ ...opts,reviewId,approvedBy:reviewer,
+ resolutions:Object.fromEntries(Object.entries(decisions).map(([key,value])=>{
+  const [table,sourceId]=key.split(':');
+  return [key,{...value,key,table,sourceId}];
+ })),
+});
 const personDecision=(action,targetId=null)=>({action,targetId,candidateIds:[centralPerson],reason:'Проверил документы и историю выступлений'});
 const carDecision=(action,targetId=null)=>({action,targetId,candidateIds:[centralCar],reason:'Проверил госномер и владельца автомобиля'});
 

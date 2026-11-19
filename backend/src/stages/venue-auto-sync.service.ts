@@ -53,10 +53,11 @@ export class VenueAutoSyncService {
    data:{venueFingerprint:trusted.fingerprint,venuePublicKeyPem:body.publicKeyPem},
   });
   if(pin.count!==1)throw new UnauthorizedException('Устройство отвязано');
-  // An approved review belongs to the exact encrypted, signed upload. A
-  // different device/journal cannot borrow ADMIN's previous decisions.
-  const envelopeHash=createHash('sha256').update(JSON.stringify(body.envelope)).digest('hex');
-  const approval=await this.reviews.matched(grant.id,snapshot.journalEndHash,envelopeHash);
+  // This digest binds approvals to immutable journal events, not randomized
+  // AES-GCM envelopes. Re-export/re-encryption preserves the reviewed identity.
+  // Another stage/device/event stream cannot borrow these decisions.
+  const journalContentHash=createHash('sha256').update(JSON.stringify(snapshot.events)).digest('hex');
+  const approval=await this.reviews.matched(grant.id,snapshot.journalEndHash,journalContentHash);
   const client=new pg.Client({connectionString:url,application_name:'usd_venue_return'});
   let report:any;
   try{
@@ -73,7 +74,7 @@ export class VenueAutoSyncService {
     const conflicts=await this.reviews.preview(snapshot);
     if(conflicts.length){
      const pending=await this.reviews.pending(grant.id,body.stageId as string,
-      snapshot.journalEndHash,envelopeHash,conflicts);
+      snapshot.journalEndHash,journalContentHash,conflicts);
      throw new ConflictException('MANUAL_REVIEW: требуется решение ADMIN на основном сервере. Заявка '+pending.id+'. Все локальные результаты и пакет сохранены.');
     }
     throw new ConflictException('MANUAL_REVIEW: неподдерживаемый конфликт. Локальный пакет сохранён; автоматический возврат запрещён.');

@@ -5,7 +5,7 @@ CREATE TABLE "VenueReturnReview" (
  "authorizationId" TEXT NOT NULL,
  "stageId" TEXT NOT NULL,
  "journalEndHash" VARCHAR(64) NOT NULL,
- "envelopeHash" VARCHAR(64) NOT NULL,
+ "journalContentHash" VARCHAR(64) NOT NULL,
  "status" VARCHAR(16) NOT NULL DEFAULT 'PENDING',
  "conflicts" JSONB NOT NULL,
  "decisions" JSONB,

@@ -1228,7 +1228,7 @@ model VenueReturnReview {
   authorizationId    String
   stageId            String
   journalEndHash     String   @db.VarChar(64)
-  envelopeHash       String   @db.VarChar(64)
+  journalContentHash       String   @db.VarChar(64)
   status             String   @default("PENDING") @db.VarChar(16)
   conflicts          Json
   decisions          Json?

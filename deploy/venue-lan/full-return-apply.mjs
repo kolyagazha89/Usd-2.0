@@ -195,7 +195,7 @@ function reviewApproval(resolutions,table,sourceId,candidates,apply,reviewId,app
   if(decision)reject('MANUAL_REVIEW: stale ADMIN decision without central conflict '+key);
   return null;
  }
- if(!decision)reject('MANUAL_REVIEW: unresolved '+table+' central match '+sourceId);
+ if(!decision)reject('MANUAL_REVIEW: '+(table==='Participant'?'DUPLICATE_PARTICIPANT_NAME':'DUPLICATE_CAR_PLATE')+' '+sourceId);
  if(decision.key!==key||decision.table!==table||decision.sourceId!==sourceId
   ||!['LINK','NEW','DEFER'].includes(decision.action)
   ||!Array.isArray(decision.candidateIds)||JSON.stringify([...decision.candidateIds].sort())!==JSON.stringify(ids)
