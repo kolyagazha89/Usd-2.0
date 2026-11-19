@@ -39,6 +39,8 @@ services:
       # Fail closed if an old .env still contains Gmail/Resend settings.
       MAIL_PROVIDER: smtp
       MAIL_ACCOUNT_ONLY: "true"
+      # Manual ADMIN confirmation only: no scheduled stage/promotional mail.
+      MAIL_CRITICAL_STAGE_NOTICES_ENABLED: ${USD_CRITICAL_STAGE_MAIL_ENABLED:-false}
       CORS_ORIGINS: ${USD_FRONTEND_ALLOWED_ORIGINS:-https://app.usd-russia.ru}
       CSRF_TRUSTED_ORIGINS: ${USD_FRONTEND_ALLOWED_ORIGINS:-https://app.usd-russia.ru}
       TRUST_PROXY_HOPS: "1"
