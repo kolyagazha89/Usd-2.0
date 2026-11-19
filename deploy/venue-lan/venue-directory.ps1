@@ -47,7 +47,7 @@ function Import-VenueParticipantDirectory {
   Invoke-Compose @('exec','-T','db','pg_restore','--list',$dump) 'verify LAN backup'
   $originalHash=@(& docker @(Get-VenueComposeArguments) exec -T db sha256sum $dump)
   Assert-Exit 'checksum source venue database backup'
-  $sourceSha=@($originalHash|Where-Object {$_ -match '^[a-f0-9]{64}\\s+'})
+  $sourceSha=@($originalHash|Where-Object {$_ -match '^[a-f0-9]{64}\s+'})
   if($sourceSha.Count -ne 1){throw 'Нет подтверждённой SHA256 копии внутри PostgreSQL'}
   $expectedSha=([string]$sourceSha[0]).Substring(0,64).ToUpperInvariant()
   $ids=@(& docker @(Get-VenueComposeArguments) ps -q db)
