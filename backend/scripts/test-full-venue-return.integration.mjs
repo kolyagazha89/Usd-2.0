@@ -81,6 +81,25 @@ test.before(async()=>{
 });
 test.after(async()=>await client.end());
 
+test('PG18: same FIO created centrally during WAN outage blocks duplicate offline profile atomically',async()=>{
+ const centralId=uid(88);
+ await query('INSERT INTO "Participant"(id,"firstName","lastName",city) VALUES ($1,$2,$3,$4)',
+  [centralId,'  НОВЫЙ  ','Участник','Омск']);
+ try{
+  const adapter=postgresFullVenueAdapter(client);
+  await assert.rejects(
+   ()=>applyCompleteVenueJournal(changes,adapter,{...opts,apply:false}),
+   /MANUAL_REVIEW.*DUPLICATE_PARTICIPANT_NAME/
+  );
+  assert.equal(await read('Participant',participant),null,'offline UUID not imported');
+  assert.equal(await read('Registration',registration),null,'registration not partially imported');
+  assert.equal(await read('Result',result),null,'score not partially imported');
+  assert.notEqual(await read('Participant',centralId),null,'central participant preserved');
+ }finally{
+  await query('DELETE FROM "Participant" WHERE id=$1',[centralId]);
+ }
+});
+
 test('PG18: full offline entrants, configs, number, inspection and result write atomically',async()=>{
  const adapter=postgresFullVenueAdapter(client);
  const preview=await applyCompleteVenueJournal(changes,adapter,{...opts,apply:false});
