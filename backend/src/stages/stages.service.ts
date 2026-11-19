@@ -202,7 +202,7 @@ export class StagesService {
       isDeleted: false,
       criticalNoticeBaseline: null as any,
       criticalNoticeState: 'IDLE',
-      ...(existing ? { criticalNoticeRevision: { increment: 1 } } : {}),
+      ...(existing ? { criticalNoticeRevision: existing.criticalNoticeRevision + 1 } : {}),
     };
     data.criticalNoticeBaseline = criticalStageSnapshot(data) as any;
 
