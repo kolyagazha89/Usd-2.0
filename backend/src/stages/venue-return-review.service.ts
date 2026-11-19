@@ -46,7 +46,7 @@ export class VenueReturnReviewService {
    if(changed&&existing.status!=='APPLIED'){
     const update=await this.prisma.venueReturnReview.updateMany({
      where:{id:existing.id,version:existing.version,status:{in:['PENDING','DEFERRED','APPROVED']}},
-     data:{conflicts,decisions:null,status:'PENDING',reviewedByUserId:null,reviewedAt:null,
+     data:{conflicts,decisions:[],status:'PENDING',reviewedByUserId:null,reviewedAt:null,
       version:{increment:1}},
     });
     if(update.count!==1)throw new ConflictException('Заявка изменена другим администратором');

@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {FULL_RETURN_COVERAGE_TABLES} from './venue-return-package.mjs';
+import {canonicalVehiclePlate,participantNamesNeedReview,venueResolutionHash,conflictKey} from './venue-return-review.mjs';
 /**
  * Atomic, explicit operator-approved import of the whole signed LAN journal.
  * This intentionally does NOT apply stage publication, disqualifications,
@@ -43,33 +44,6 @@ export const RETURN_COLUMNS=Object.freeze(Object.fromEntries(
 const NO_USER_LINKS=new Set(['checkedByUserId','createdByUserId','verifiedByUserId','consentCapturedByUserId']);
 const CASCADE_PROTECTED=new Set(['Participant','Car','CarConfiguration','CarConfigurationVersion']);
 const same=(left,right)=>JSON.stringify(left)===JSON.stringify(right);
-
-function canonicalVehiclePlate(car){
- if(!car?.registrationCountry||!car?.registrationNumber)return '';
- const country=String(car.registrationCountry);
- let value=String(car.registrationNumber).normalize('NFKC')
-  .replace(/[\u200B-\u200D\uFEFF]/g,'').trim().toLocaleUpperCase('ru-RU');
- if(country==='RU'){
-  const russian={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',
-   P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
-  value=[...value].map(char=>russian[char]??char).join('');
- }
- return country+':'+value.replace(/[^\p{L}\p{N}]/gu,'');
-}
-function canonicalFioPart(value){
- return String(value??'').normalize('NFKC').replace(/\s+/gu,' ').trim()
-  .toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
-}
-export function participantNamesNeedReview(candidate,existing){
- const last=canonicalFioPart(candidate?.lastName),first=canonicalFioPart(candidate?.firstName);
- if(!last||!first||last!==canonicalFioPart(existing?.lastName)
-  ||first!==canonicalFioPart(existing?.firstName))return false;
- const candidateMiddle=canonicalFioPart(candidate?.middleName),
-  existingMiddle=canonicalFioPart(existing?.middleName);
- // A missing patronymic is not evidence of a distinct person.
- // Distinct complete patronymics identify separate people, not a safe auto-merge.
- return !candidateMiddle||!existingMiddle||candidateMiddle===existingMiddle;
-}
 
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const reject=reason=>{throw new Error('USD VENUE FULL RETURN CONFLICT: '+reason)};
@@ -205,10 +179,54 @@ function validateSnapshot(snapshot,options){
   &&snapshot.eventCount!==undefined)reject('incomplete journal');
 }
 
+function remapRow(table,row,people,cars){
+ if(!row)return row;
+ const result={...row};
+ if(['Car','Registration','ParticipantStageInspection'].includes(table)&&result.participantId)
+  result.participantId=people.get(result.participantId)??result.participantId;
+ if(['Registration','CarConfiguration'].includes(table)&&result.carId)
+  result.carId=cars.get(result.carId)??result.carId;
+ return result;
+}
+function reviewApproval(resolutions,table,sourceId,candidates,apply,reviewId,approvedBy){
+ const key=conflictKey(table,sourceId),decision=resolutions[key]??null;
+ const ids=candidates.map(x=>x.id).sort();
+ if(!ids.length){
+  if(decision)reject('MANUAL_REVIEW: stale ADMIN decision without central conflict '+key);
+  return null;
+ }
+ if(!decision)reject('MANUAL_REVIEW: unresolved '+table+' central match '+sourceId);
+ if(decision.key!==key||decision.table!==table||decision.sourceId!==sourceId
+  ||!['LINK','NEW','DEFER'].includes(decision.action)
+  ||!Array.isArray(decision.candidateIds)||JSON.stringify([...decision.candidateIds].sort())!==JSON.stringify(ids)
+  ||typeof decision.reason!=='string'||decision.reason.length<10||decision.reason.length>600)
+  reject('MANUAL_REVIEW: stale, altered or incomplete resolution '+key);
+ if(decision.action==='DEFER')reject('MANUAL_REVIEW: deferred '+key);
+ if(decision.action==='NEW'){
+  if(decision.targetId!==null||decision.reason.length<12)
+   reject('MANUAL_REVIEW: NEW requires verified namesake declaration '+key);
+ }else if(!UUID.test(decision.targetId??'')||!ids.includes(decision.targetId))
+  reject('MANUAL_REVIEW: selected target is not a verified candidate '+key);
+ if(apply&&(!UUID.test(reviewId??'')||!UUID.test(approvedBy??'')))
+  reject('MANUAL_REVIEW: audited ADMIN approval required');
+ return decision;
+}
+
 /** Exact, all-or-none import. Dry-run does not write receipts or domain rows. */
 export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
  validateSnapshot(snapshot,options);
- const {stageId,baselineSha256,apply=false,operator=''}=options;
+ const {stageId,baselineSha256,apply=false,operator='',resolutions={},reviewId=null,approvedBy=null}=options;
+ if(!resolutions||typeof resolutions!=='object'||Array.isArray(resolutions)
+  ||Object.keys(resolutions).length>2500)
+  reject('MANUAL_REVIEW: invalid approved decisions');
+ const resolutionHash=venueResolutionHash(Object.values(resolutions));
+ if(resolutionHash&&apply&&(!UUID.test(reviewId??'')||!UUID.test(approvedBy??'')))
+  reject('MANUAL_REVIEW: missing authenticated ADMIN approval');
+ const allowedIds=new Set(snapshot.events.filter(e=>e.payload.operation==='INSERT'
+  &&['Participant','Car'].includes(e.payload.table))
+  .map(e=>conflictKey(e.payload.table,e.payload.recordId)));
+ if(Object.keys(resolutions).some(key=>!allowedIds.has(key)))
+  reject('MANUAL_REVIEW: forged decision for unrelated event');
  if(apply&&(typeof operator!=='string'||operator.trim().length<3||operator.length>120))
   reject('operator confirmation required');
  return adapter.transaction(async tx=>{
@@ -219,6 +237,8 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
   const list=previous.filter(r=>r.action==='VENUE_FULL_EVENT_IMPORTED');
   if(list.length){
    if(list.length!==snapshot.events.length
+     ||resolutionHash&&list.some(r=>r.resolutionHash!==resolutionHash)
+     ||!resolutionHash&&list.some(r=>r.resolutionHash)
      ||snapshot.events.some(e=>!list.some(r=>r.eventHash===e.hash
        &&r.sequence===e.sequence&&r.baselineSha256===baselineSha256
        &&r.journalEndHash===snapshot.journalEndHash)))
@@ -228,18 +248,32 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
    // Inspect FINAL states (not intermediate UPDATEs), with one exception:
    // rank and best flags are derived centrally and may legitimately change.
    const finalStates=new Map();
+   const replayPeople=new Map(),replayCars=new Map();
+   for(const decision of Object.values(resolutions)){
+    if(decision.action==='LINK')
+     (decision.table==='Participant'?replayPeople:replayCars).set(decision.sourceId,decision.targetId);
+   }
    for(const event of snapshot.events){
     const p=event.payload;
     finalStates.set(p.table+':'+p.recordId,{table:p.table,id:p.recordId,after:p.after});
    }
    for(const {table,id,after} of finalStates.values()){
+    const linked=(table==='Participant'?replayPeople:replayCars).get(id);
+    if(linked){
+     const target=await tx.getRow(table,linked);
+     if(target===null)reject('CENTRAL_CHANGED: approved target disappeared '+table);
+     if(table==='Car'&&replayPeople.has(after?.participantId)
+       &&target.participantId!==replayPeople.get(after.participantId))
+      reject('CENTRAL_CHANGED: approved car ownership changed');
+     continue;
+    }
     const actual=await tx.getRow(table,id);
     if(after===null){
      if(actual!==null)reject('CENTRAL_CHANGED: deleted signed row restored '+table);
      continue;
     }
     if(actual===null)reject('CENTRAL_CHANGED: signed row disappeared '+table);
-    const signed=await tx.canonical(table,normalize(table,after));
+    const signed=await tx.canonical(table,remapRow(table,normalize(table,after),replayPeople,replayCars));
     const current=await tx.canonical(table,actual);
     if(table==='Result'){
      for(const k of ['place','isBest','updatedAt']){
@@ -258,11 +292,17 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
   for(const e of snapshot.events)stageRefs(e,scope);
   let readyEvents=0;
   const newOfflinePeople=[],newOfflineCars=[];
+  const linkedPeople=new Map(),linkedCars=new Map(),approvedKeys=new Set();
   for(const event of snapshot.events){
    const p=event.payload,table=p.table;
-   const before=p.before&&normalize(table,p.before);
-   const after=p.after&&normalize(table,p.after);
+   if(p.operation!=='INSERT'
+    &&((table==='Participant'&&linkedPeople.has(p.recordId))
+      ||(table==='Car'&&linkedCars.has(p.recordId))))
+    reject('MANUAL_REVIEW: cannot overwrite linked central identity');
+   const before=remapRow(table,p.before&&normalize(table,p.before),linkedPeople,linkedCars);
+   const after=remapRow(table,p.after&&normalize(table,p.after),linkedPeople,linkedCars);
    const actual=await tx.getRow(table,p.recordId);
+   let skipLinkedInsert=false;
    if(p.operation==='INSERT'){
     if(actual!==null)reject('duplicate central ID '+table+' '+p.recordId);
     if(table==='Participant'){
@@ -271,9 +311,15 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
      const matches=await tx.participantIdentityCandidates(after);
      if(!Array.isArray(matches))
       reject('MANUAL_REVIEW: central identity lookup unavailable');
-     if(matches.some(candidate=>candidate.id!==after.id&&participantNamesNeedReview(after,candidate))
-       ||newOfflinePeople.some(candidate=>candidate.id!==after.id&&participantNamesNeedReview(after,candidate)))
-      reject('MANUAL_REVIEW: DUPLICATE_PARTICIPANT_NAME');
+     const candidates=matches.filter(candidate=>candidate.id!==after.id
+      &&participantNamesNeedReview(after,candidate));
+     if(newOfflinePeople.some(candidate=>candidate.id!==after.id&&participantNamesNeedReview(after,candidate)))
+      reject('MANUAL_REVIEW: duplicate profiles within signed journal');
+     const choice=reviewApproval(resolutions,'Participant',after.id,candidates,apply,reviewId,approvedBy);
+     if(choice){
+      approvedKeys.add(choice.key);
+      if(choice.action==='LINK'){linkedPeople.set(after.id,choice.targetId);skipLinkedInsert=true;}
+     }
      newOfflinePeople.push(after);
     }
     if(table==='Car'){
@@ -283,9 +329,22 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
      if(!Array.isArray(matches))
       reject('MANUAL_REVIEW: central plate lookup unavailable');
      const plate=canonicalVehiclePlate(after);
-     if(plate&&(matches.some(existing=>existing.id!==after.id&&canonicalVehiclePlate(existing)===plate)
-       ||newOfflineCars.some(existing=>existing.id!==after.id&&canonicalVehiclePlate(existing)===plate)))
-      reject('MANUAL_REVIEW: DUPLICATE_CAR_PLATE');
+     const candidates=matches.filter(existing=>existing.id!==after.id
+      &&plate&&canonicalVehiclePlate(existing)===plate);
+     if(newOfflineCars.some(existing=>existing.id!==after.id&&plate
+       &&canonicalVehiclePlate(existing)===plate))
+      reject('MANUAL_REVIEW: duplicate cars within signed journal');
+     const choice=reviewApproval(resolutions,'Car',after.id,candidates,apply,reviewId,approvedBy);
+     if(choice){
+      approvedKeys.add(choice.key);
+      if(choice.action==='LINK'){
+       const target=candidates.find(x=>x.id===choice.targetId);
+       const linkedOwner=linkedPeople.get(after.participantId)??after.participantId;
+       if(target.participantId!==linkedOwner)
+        reject('MANUAL_REVIEW: existing car belongs to another participant');
+       linkedCars.set(after.id,choice.targetId);skipLinkedInsert=true;
+      }
+     }
      newOfflineCars.push(after);
     }
    }else{
@@ -308,16 +367,27 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
     if(number&&number.id!==p.recordId)reject('номер занят: '+after.number);
    }
    // Dry-run exercises actual FK/UNIQUE checks before rolling back atomically.
-   await tx.write(table,{kind:p.operation,eventSequence:event.sequence},after,before);
+   if(!skipLinkedInsert)
+    await tx.write(table,{kind:p.operation,eventSequence:event.sequence},after,before);
+   const choice=resolutions[conflictKey(table,p.recordId)];
+   if(choice&&apply){
+    if(typeof tx.auditResolution!=='function')
+     reject('MANUAL_REVIEW: missing transactional approval audit');
+    await tx.auditResolution({stageId,journalEndHash:snapshot.journalEndHash,
+     reviewId,approvedBy,table,sourceId:p.recordId,action:choice.action,
+     targetId:choice.targetId,reason:choice.reason,resolutionHash});
+   }
    if(apply){
     await tx.receipt({
      action:'VENUE_FULL_EVENT_IMPORTED',stageId,eventHash:event.hash,
      sequence:event.sequence,journalEndHash:snapshot.journalEndHash,
-     baselineSha256,entity:table,entityId:p.recordId,operator,
+     baselineSha256,entity:table,entityId:p.recordId,operator,resolutionHash,
     });
    }
    readyEvents++;
   }
+  if(approvedKeys.size!==Object.keys(resolutions).length)
+   reject('MANUAL_REVIEW: unused or stale approvals');
   return {stageId,databaseSynchronized:Boolean(apply),
    alreadyApplied:false,appliedEvents:apply?readyEvents:0,
    readyEvents:apply?0:readyEvents,totalEvents:snapshot.events.length,
