@@ -55,6 +55,10 @@ function sealStaff(staff,stageId){
 
 const api='http://api:3000';
 
+function stableFixtureUuid(kind,index=0){
+ const hex=createHash('sha256').update('usd-venue-e2e:'+kind+':'+index).digest('hex');
+ return hex.slice(0,8)+'-'+hex.slice(8,12)+'-4'+hex.slice(13,16)+'-8'+hex.slice(17,20)+'-'+hex.slice(20,32);
+}
 function syntheticSignedStage(staffAccess,mutate=()=>{}){
  const now=Date.now();
  const snapshot={
@@ -109,29 +113,29 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
  // 19-class catalogue and more than one currently registered entrant. The
  // old one-entrant CI fixture missed Windows transaction saturation.
  snapshot.participantDirectory.push(...Array.from({length:750},(_,index)=>{
-  const participantId=randomUUID();
+  const participantId=stableFixtureUuid('historical-person',index);
   return {id:participantId,firstName:'Из архива',lastName:'Профиль '+index,
    middleName:null,city:null,team:null,isPublic:false,
-   cars:[{id:randomUUID(),participantId,brand:'Lada',model:'',
+   cars:[{id:stableFixtureUuid('historical-car',index),participantId,brand:'Lada',model:'',
     registrationCountry:'RU',registrationNumber:'',color:null,isPublic:false,isActive:false}]};
  }));
  for(let i=1;i<19;i++){
-  const classId=randomUUID();
+  const classId=stableFixtureUuid('extra-class',i);
   snapshot.stage.stageClasses.push({
-   id:randomUUID(),stageId:ID.stage,classId,sortOrder:i,
+   id:stableFixtureUuid('extra-stage-class',i),stageId:ID.stage,classId,sortOrder:i,
    isActive:true,participantLimit:null,customName:null,description:null,settings:null,
    class:{id:classId,code:'CI_EXTRA_'+i,name:'CI class '+i,unit:'DB',
     sortOrder:i,isActive:true,direction:{id:ID.direction,name:'SPL',sortOrder:0,isActive:true}},
   });
  }
  const second=structuredClone(snapshot.registrations[0]);
- second.id=randomUUID();second.participantId=randomUUID();second.carId=randomUUID();
- second.configurationVersionId=randomUUID();second.participantNumber=7;
+ second.id=stableFixtureUuid('second-registration');second.participantId=stableFixtureUuid('second-person');second.carId=stableFixtureUuid('second-car');
+ second.configurationVersionId=stableFixtureUuid('second-version');second.participantNumber=7;
  second.participant.id=second.participantId;second.participant.firstName='Второй';
  second.car.id=second.carId;second.car.participantId=second.participantId;
  second.car.registrationNumber='А124ВС55';
- second.numbers[0].id=randomUUID();second.numbers[0].number=7;
- second.classes[0].id=randomUUID();second.classes[0].numberId=second.numbers[0].id;
+ second.numbers[0].id=stableFixtureUuid('second-number');second.numbers[0].number=7;
+ second.classes[0].id=stableFixtureUuid('second-registration-class');second.classes[0].numberId=second.numbers[0].id;
  second.inspection=null;second.stageInspection=null;
  snapshot.registrations.push(second);
  mutate(snapshot);
