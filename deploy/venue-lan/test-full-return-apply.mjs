@@ -129,6 +129,15 @@ test('new car for an existing central profile is returned even before its stage 
  assert.equal(db.rows.get('Car').get(ids.car).participantId,ids.participant);
  assert.equal(db.receipt.size,1);
 });
+test('adding a car alone never authorizes changes to an unregistered central identity',async()=>{
+ const db=memoryDb({existing:{Participant:[participant]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(packet([
+  event(1,'Car','INSERT',car),
+  event(2,'Participant','UPDATE',{...participant,firstName:'Подмена'},participant),
+ ]),db,opts),/unregistered central identity|outside this stage/i);
+ assert.equal(db.receipt.size,0);
+ assert.equal(db.rows.get('Participant').get(ids.participant).firstName,'Анна');
+});
 test('a stray unpaired participant INSERT cannot escape the stage-scoped journal',async()=>{
  const db=memoryDb();
  await assert.rejects(()=>applyCompleteVenueJournal(packet([
