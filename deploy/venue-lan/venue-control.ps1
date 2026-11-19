@@ -473,19 +473,25 @@ function Install-Local {
    Set-VenueStep 'download-missing-runtime-images'
    Invoke-Compose @('pull') 'download missing runtime images'
   }
+  if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){
+   Set-VenueStep 'prepare-media-volume'
+   Initialize-VenueMediaVolume
+  }
   Set-VenueStep 'start-storage'
   Invoke-Compose @('up','-d','db','rustfs') 'start storage'
   if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){
   $env:VENUE_S3_ROOT_ACCESS=$cfg['VENUE_S3_ROOT_ACCESS']
   $env:VENUE_S3_ROOT_SECRET=$cfg['VENUE_S3_ROOT_SECRET']
+  $env:USD_VENUE_INSTALL_DIAG='true'
   try{
    Invoke-Compose @('run','--rm','--no-deps',
-    '-e','VENUE_S3_ROOT_ACCESS','-e','VENUE_S3_ROOT_SECRET',
+    '-e','VENUE_S3_ROOT_ACCESS','-e','VENUE_S3_ROOT_SECRET','-e','USD_VENUE_INSTALL_DIAG',
     '--volume',((Join-Path $Root 'provision-rustfs.mjs')+':/app/provision-rustfs.mjs:ro'),
     '--entrypoint','node','api','/app/provision-rustfs.mjs') 'setup RustFS IAM'
   }finally{
    Remove-Item Env:\VENUE_S3_ROOT_ACCESS -ErrorAction SilentlyContinue
    Remove-Item Env:\VENUE_S3_ROOT_SECRET -ErrorAction SilentlyContinue
+   Remove-Item Env:\USD_VENUE_INSTALL_DIAG -ErrorAction SilentlyContinue
   }
   }
   Set-SetupPhase $state 'STORAGE_READY'
