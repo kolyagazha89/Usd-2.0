@@ -26,7 +26,7 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
  const {snapshot,integrity}=packageValue;
  fields(packageValue,['snapshot','integrity'],'контейнер');
  fields(integrity,['algorithm','sha256','signature','publicKeyFingerprint'],'подпись');
- fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy','syncAuthorization','staffAccess'],'снимок');
+ fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy','syncAuthorization','staffAccess','participantDirectory'],'снимок');
  if(snapshot.format!==1||snapshot.purpose!=='USD_VENUE_STAGE_READONLY'
   ||!uuid(snapshot.stageId)||integrity.algorithm!=='Ed25519'
   ||typeof integrity.signature!=='string'||!/^[A-Za-z0-9_-]{64,180}$/.test(integrity.signature)
@@ -99,6 +99,32 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
   throw new Error('Состав этапа неверен');
  if(!Array.isArray(snapshot.registrations)||snapshot.registrations.length>2500)
   throw new Error('Превышен лимит участников');
+
+ // The optional directory is a signed search-only snapshot. Never allow login
+ // credentials, email, phone, birth date, account links or unrelated records.
+ if(snapshot.participantDirectory!==undefined){
+  if(!Array.isArray(snapshot.participantDirectory)||snapshot.participantDirectory.length>25000)
+   throw new Error('Некорректный размер справочника участников');
+  const people=new Set(),cars=new Set();
+  for(const person of snapshot.participantDirectory){
+   fields(person,['id','firstName','lastName','middleName','city','team','isPublic','cars'],'участник справочника');
+   if(!uuid(person.id)||people.has(person.id)||!String(person.firstName??'').trim()
+    ||!String(person.lastName??'').trim()||typeof person.isPublic!=='boolean'
+    ||!Array.isArray(person.cars)||person.cars.length>250)
+    throw new Error('Повтор или повреждение участника справочника');
+   people.add(person.id);
+   for(const car of person.cars){
+    fields(car,['id','participantId','brand','model','registrationCountry','registrationNumber',
+     'color','isPublic','isActive'],'автомобиль справочника');
+    if(!uuid(car.id)||cars.has(car.id)||car.participantId!==person.id
+     ||!String(car.brand??'').trim()||!String(car.model??'').trim()
+     ||!String(car.registrationNumber??'').trim()||typeof car.isPublic!=='boolean'
+     ||typeof car.isActive!=='boolean')
+     throw new Error('Повтор или повреждение автомобиля справочника');
+    cars.add(car.id);
+   }
+  }
+ }
  const classIds=new Set();
  for(const row of stage.stageClasses){
   fields(row,['id','stageId','classId','sortOrder','isActive','participantLimit',
