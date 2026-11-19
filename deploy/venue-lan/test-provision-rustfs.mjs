@@ -165,7 +165,7 @@ test('readiness timeout reports the last HTTP status without leaking the respons
  await assert.rejects(()=>provisionVenueMedia(cfg,{
   fetcher,endpoint,sleep:async()=>{},startupTimeoutMs:1,
  }),error=>{
-  assert.match(error.message,/FAILED AT root-readiness \\[HTTP 503\\]/);
+  assert.match(error.message,/FAILED AT root-readiness \[HTTP 503\]/);
   assert.doesNotMatch(error.message,/private readiness details|credentials|root-secret|VENUE_S3/);
   return true;
  });
