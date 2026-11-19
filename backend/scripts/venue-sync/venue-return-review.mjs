@@ -116,6 +116,23 @@ export function validateVenueReviewDecisions(conflicts,decisions){
    candidateIds:conflict.candidates.map(c=>c.id).sort(),reason};
  }).sort((a,b)=>a.key.localeCompare(b.key));
 }
+/** Audit rows contain a normalized decision plus derived identity metadata.
+ * Revalidating them as raw POST bodies rejects every legitimate approval.
+ * Strip only known derived fields, then compare the canonical reconstructed
+ * decision EXACTLY to the stored one: changed candidate IDs or extra fields
+ * must fail closed before any central journal mutation.
+ */
+export function validateStoredVenueReviewDecisions(conflicts,stored){
+ if(!Array.isArray(stored))throw Error('VENUE REVIEW: missing approved decisions');
+ const approved=validateVenueReviewDecisions(conflicts,stored.map(row=>{
+  if(!row||typeof row!=='object'||Array.isArray(row))
+   throw Error('VENUE REVIEW: malformed approved decision');
+  return {key:row.key,action:row.action,targetId:row.targetId,reason:row.reason};
+ }));
+ if(JSON.stringify(approved)!==JSON.stringify(stored))
+  throw Error('VENUE REVIEW: approved identity metadata was altered');
+ return approved;
+}
 export function venueResolutionHash(decisions){
  if(!Array.isArray(decisions)||!decisions.length)return null;
  return createHash('sha256').update(JSON.stringify([...decisions].sort((a,b)=>a.key.localeCompare(b.key)))).digest('hex');
