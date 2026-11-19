@@ -353,5 +353,18 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('USD VENUE MEDIA FAILED AT',media)
         self.assertNotIn("console.error(error)",media)
 
+
+    def test_new_windows_install_refuses_running_stage_before_binding_rustfs_ports(self):
+        control=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        stage=control[control.index('function Install-Local'):control.index('function Start-Local')]
+        self.assertIn("Set-VenueStep 'check-other-stage-ports'",stage)
+        self.assertIn('Assert-NoOtherVenueGatewayRunning',stage)
+        self.assertLess(stage.index('Assert-NoOtherVenueGatewayRunning'),stage.index('Initialize-VenueMediaVolume'))
+        self.assertLess(stage.index('Assert-NoOtherVenueGatewayRunning'),stage.index("Invoke-Compose @('up','-d','db','rustfs')"))
+        season=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
+        guard=season[season.index('function Assert-NoOtherVenueGatewayRunning'):season.index('function Test-VerifiedVenueAck')]
+        self.assertIn("@('gateway','rustfs')",guard)
+        self.assertIn('com.docker.compose.project',guard)
+
 if __name__=="__main__":
     unittest.main()
