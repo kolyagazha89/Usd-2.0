@@ -8,7 +8,7 @@ test('member garage keeps active vehicles prominent and archives collapsed below
  const app=await source('App.tsx');
  const garage=await source('participant/ParticipantGarage.tsx');
  assert.match(app,/<ParticipantGarage /);
- assert.match(garage,/cars\.map\(/);
+ assert.match(garage,/activeCars\.map\(/);
  assert.match(garage,/Скрытые автомобили/);
  assert.match(garage,/aria-expanded=\{hiddenOpen\}/);
  assert.match(garage,/hiddenOpen&&/);
