@@ -314,6 +314,16 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
   if(stage.resultsPublishedAt)reject('central results are published');
   const original=await tx.linkedIds(stageId);
   const scope=buildScope(snapshot,original);
+  // A new car for an unregistered competitor must have an existing central
+  // owner or a signed Participant INSERT, never a fabricated orphan identity.
+  for(const event of snapshot.events){
+   const p=event.payload;
+   if(p.table!=='Car'||p.operation!=='INSERT')continue;
+   const owner=p.after.participantId;
+   if(scope.newPeople.has(owner)||scope.registeredPeople.has(owner))continue;
+   if(!await tx.getRow('Participant',owner))
+    reject('MANUAL_REVIEW: unregistered car owner is missing centrally');
+  }
   for(const e of snapshot.events)stageRefs(e,scope);
   let readyEvents=0;
   const newOfflinePeople=[],newOfflineCars=[];
