@@ -134,7 +134,7 @@ describe('StagesService rules snapshots', () => {
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'STAGE_RESULTS_PUBLISHED', entityId: 'stage-1' }));
   });
 
-  it('notifies participants once when the direct remove action cancels an active stage', async () => {
+  it('marks cancellation pending without automatically emailing the entrants', async () => {
     const stage = {
       id: 'stage-1', seasonId: 'season-1', status: 'PUBLISHED', registrationOpen: true,
       isDeleted: false, name: 'Этап 1', date: new Date('2026-11-10T10:00:00Z'),
@@ -142,8 +142,13 @@ describe('StagesService rules snapshots', () => {
     const updated = { ...stage, status: 'CANCELLED', registrationOpen: false };
     prisma.stage.findFirst.mockResolvedValue(stage);
     prisma.stage.update.mockResolvedValue(updated);
+    prisma.registration.count.mockResolvedValue(2);
 
     await service.remove('stage-1', request);
+    expect(prisma.stage.update).toHaveBeenCalledWith(expect.objectContaining({
+      data:expect.objectContaining({criticalNoticeState:'PENDING',
+        criticalNoticeBaseline:expect.objectContaining({cancelled:false})}),
+    }));
     expect(emailNotifications.stageChanged).not.toHaveBeenCalled();
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'STAGE_CANCELLED', entityId: 'stage-1' }));
   });
