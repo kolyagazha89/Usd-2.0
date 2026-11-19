@@ -75,12 +75,13 @@ test('first provisioning creates private bucket, policy and app account with res
  assert.ok(!JSON.stringify(requests).includes(cfg.VENUE_S3_APP_SECRET)||
   requests.some(x=>x.init.body?.includes(cfg.VENUE_S3_APP_SECRET)));
 });
-test('existing app user or policy cannot be silently overwritten by installer',async()=>{
+test('unknown existing IAM user cannot be overwritten and reports safe inspection stage',async()=>{
  const fetcher=async(url,init)=>{
+  if(init.method==='PUT')throw new Error('Unexpected mutation of existing IAM');
   if(url.includes('user-info?'))return {status:200,ok:true,text:async()=>JSON.stringify({accessKey:cfg.VENUE_S3_APP_ACCESS})};
   return {status:200,ok:true,text:async()=>''};
  };
- await assert.rejects(()=>provisionVenueMedia(cfg,{fetcher,endpoint}),/существ|уже/i);
+ await assert.rejects(()=>provisionVenueMedia(cfg,{fetcher,endpoint}),/USD VENUE MEDIA FAILED AT inspect-user/);
 });
 test('provisioning refuses root/app reuse and external storage target',async()=>{
  await assert.rejects(()=>provisionVenueMedia({...cfg,VENUE_S3_APP_ACCESS:cfg.VENUE_S3_ROOT_ACCESS},
