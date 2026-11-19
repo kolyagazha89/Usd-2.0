@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCipheriv,randomBytes,createHash} from 'node:crypto';
-import {decryptExistingVenueStaff,applyExistingVenueStaff} from './provision-existing-staff.mjs';
+import {decryptExistingVenueStaff,applyExistingVenueStaff,preflightExistingVenueStaff} from './provision-existing-staff.mjs';
 
 const stage='c510f672-79f7-44eb-8173-2a8ff94b1c0e';
 const hash='$2b$12$'+'A'.repeat(53);
@@ -125,4 +125,16 @@ test('next-stage roster may refresh staff while old competition records remain',
  },opts);
  await applyExistingVenueStaff(changed,stage,prisma,{shared:true});
  assert.equal(rows.get(users[0].id).passwordHash,changed[0].passwordHash);
+});
+
+test('fresh stage staff preflight decrypts and validates the correct key WITHOUT connecting to PostgreSQL',()=>{
+ const {key,sealed}=wrap();
+ const signed={snapshot:{stageId:stage,staffAccess:sealed}};
+ const fakePlan=()=>({summary:{stageId:stage}});
+ const ready=preflightExistingVenueStaff(signed,key,stage,fakePlan);
+ assert.equal(ready.staffCount,2);
+ assert.equal(ready.stageId,stage);
+ assert.throws(()=>preflightExistingVenueStaff(signed,randomBytes(32).toString('base64url'),stage,fakePlan),/шифр|ключ|доступ/i);
+ assert.throws(()=>preflightExistingVenueStaff(signed,key,
+  'e510f672-79f7-44eb-8173-2a8ff94b1c0e',fakePlan),/пакет|этап/i);
 });
