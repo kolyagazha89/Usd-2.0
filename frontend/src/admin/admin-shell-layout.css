@@ -2382,3 +2382,34 @@ body .app-shell .main .event-ops-page .event-ops-search>span[role="status"]{
 @media(max-width:380px){
  body .app-shell .main .event-ops-page .event-ops-main-actions{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Shared ADMIN list controls: consistent table sort, paging and keyboard focus. */
+body .app-shell .main .content .usd-universal-sort{display:inline-flex;align-items:center;gap:7px;min-width:0;font-size:12px;color:#515d6d;font-weight:750}
+body .app-shell .main .content .usd-universal-sort select{min-height:44px;max-width:min(230px,50vw);font-size:13px}
+body .app-shell .main .content .usd-universal-sort-direction{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;border:1px solid #d5dce6;border-radius:10px;background:#fff;color:#29364a;font-size:20px;font-weight:800;cursor:pointer}
+body .app-shell .main .content .usd-universal-sort-direction:disabled{opacity:.4;cursor:default}
+body .app-shell .main .content .usd-universal-sort-button{display:inline-flex;align-items:center;gap:6px;width:100%;min-height:36px;padding:0;background:transparent;border:0;color:inherit;text-align:left;font:inherit;font-weight:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+body .app-shell .main .content .usd-universal-sort-button span{font-size:15px}
+body .app-shell .main .content :is(.usd-universal-sort-button,.usd-universal-sort-direction):focus-visible{outline:3px solid #b4203a;outline-offset:2px}
+body .app-shell .main .content .usd-universal-pagination{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 18px;padding:12px 15px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid #e3e7ee;background:#fff;box-sizing:border-box;color:#526074;font-size:12px}
+body .app-shell .main .content .usd-universal-page-size{display:flex;align-items:center;gap:8px;font-weight:750}
+body .app-shell .main .content .usd-universal-page-size select{min-width:70px;min-height:44px}
+body .app-shell .main .content .usd-universal-pagination nav{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+body .app-shell .main .content .usd-universal-pagination nav button{min-width:44px;min-height:44px;padding:8px 10px}
+@media(max-width:760px){
+ /* Participants and cars already have specialised mobile cards. Only the other
+  * generic ResourcePage lists opt into the shared card rendering. */
+ body .app-shell .main .content .panel.table-wrap.usd-universal-table-wrap[data-resource]:not([data-resource="/admin/participants"]){overflow:visible!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+ body .app-shell .main .content .panel.usd-universal-table-wrap[data-resource]:not([data-resource="/admin/participants"]) .usd-universal-table{display:block!important;width:100%!important;min-width:0!important;border:0!important;background:transparent}
+ body .app-shell .main .content .panel.usd-universal-table-wrap[data-resource]:not([data-resource="/admin/participants"]) .usd-universal-table thead{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%);white-space:nowrap}
+ body .app-shell .main .content .panel.usd-universal-table-wrap[data-resource]:not([data-resource="/admin/participants"]) .usd-universal-table tbody{display:grid!important;grid-template-columns:minmax(0,1fr);gap:10px;min-width:0}
+ body .app-shell .main .content .panel.usd-universal-table-wrap[data-resource]:not([data-resource="/admin/participants"]) .usd-universal-table tbody tr{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 13px;min-width:0;width:100%;margin:0;padding:13px!important;border:1px solid #dee4eb!important;border-left:3px solid #b52a41!important;border-radius:13px;background:#fff!important;box-sizing:border-box}
+ body .app-shell .main .content .panel.usd-universal-table-wrap[data-resource]:not([data-resource="/admin/participants"]) .usd-universal-table tbody td{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px;min-width:0!important;width:100%!important;max-width:100%!important;padding:0!important;border:0!important;white-space:normal!important;overflow:visible!important;overflow-wrap:anywhere;text-overflow:clip;background:transparent!important;font-size:13px;line-height:1.4}
+ body .app-shell .main .content .panel.usd-universal-table-wrap[data-resource]:not([data-resource="/admin/participants"]) .usd-universal-table tbody td::before{content:attr(data-label);color:#677286;font-size:10px;line-height:1.2;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+ body .app-shell .main .content .panel.usd-universal-table-wrap[data-resource]:not([data-resource="/admin/participants"]) .usd-universal-table tbody td:first-child{grid-column:1/-1;font-size:15px;font-weight:800}
+ body .app-shell .main .content .panel.usd-universal-table-wrap[data-resource]:not([data-resource="/admin/participants"]) .usd-universal-table tbody td.row-actions{display:flex!important;flex-direction:row!important;align-items:center!important;flex-wrap:wrap;grid-column:1/-1;padding-top:10px!important;border-top:1px solid #e4e8ef!important}
+ body .app-shell .main .content .panel.usd-universal-table-wrap[data-resource]:not([data-resource="/admin/participants"]) .usd-universal-table tbody td.row-actions::before{content:none}
+ body .app-shell .main .content .usd-universal-sort{flex:1 1 170px;justify-content:space-between}
+ body .app-shell .main .content .usd-universal-pagination{margin-top:10px;border:1px solid #e3e7ee;border-radius:12px}
+ body .app-shell .main .content .usd-universal-pagination nav{width:100%;justify-content:space-between}
+}
