@@ -573,9 +573,6 @@ export class RegistrationsService {
       configurationVersionId,
     } = body;
     const source = body.source ?? 'PRE_REGISTRATION';
-    // Public online registration windows do not apply to authorized gate intake.
-    // Verify permission server-side; the client-controlled source is not a privilege.
-    if (source === 'ON_SITE') await this.requireGateCreationAccess(request);
     let consentLegalVersion: string | null = null;
     let consentProtocolVersion: string | null = null;
     let registrationPrivacyConsentAt: Date | null = null;
@@ -749,6 +746,10 @@ export class RegistrationsService {
         'Недопустимый источник регистрации',
       );
     }
+
+    // Public online registration windows do not apply to on-site intake. Only
+    // trusted gate staff may use ON_SITE, and rights are enforced before writes.
+    if (source === 'ON_SITE') await this.requireGateCreationAccess(request);
 
     const registration = await this.prisma.$transaction(
       async (tx) => {
