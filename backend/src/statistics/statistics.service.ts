@@ -6,6 +6,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import {configurationStillPending} from '../registrations/pending-configuration';
+import { redactInactiveCar } from '../participants/car-visibility';
 
 type ResultRow = {
   id: string;
@@ -37,6 +38,7 @@ type ResultRow = {
       id: string;
       brand: string;
       model: string;
+      isActive: boolean;
       registrationNumber: string;
       registrationCountry: string;
       color: string | null;
@@ -117,6 +119,7 @@ export class StatisticsService {
             registrationCountry: true,
             color: true,
             photoUrl: true,
+            isActive: true,
           },
         },
         stage: {
@@ -421,7 +424,7 @@ export class StatisticsService {
           season: result.registration.stage.season,
         },
         class: result.registrationClass.class,
-        car: result.registration.car,
+        car: redactInactiveCar(result.registration.car),
         participantNumber: result.registration.participantNumber,
       })),
     };
@@ -683,6 +686,7 @@ export class StatisticsService {
               brand: true,
               model: true,
               registrationNumber: true,
+              isActive: true,
             },
           },
           classes: {
@@ -717,7 +721,7 @@ export class StatisticsService {
         registration: {
           participantNumber: registration.participantNumber,
           participant: registration.participant,
-          car: registration.car,
+          car: redactInactiveCar(registration.car),
         },
       }] : [];
     });
@@ -797,7 +801,7 @@ export class StatisticsService {
             registrationId: registration.id,
             participantNumber: registration.participantNumber,
             participant: registration.participant,
-            car: registration.car,
+            car: redactInactiveCar(registration.car),
           }))
           .sort((a,b) => a.participantNumber-b.participantNumber),
         registrationClasses: (() => {
@@ -846,7 +850,7 @@ export class StatisticsService {
             registrationId: registration.id,
             participantNumber: registration.participantNumber,
             participant: registration.participant,
-            car: registration.car,
+            car: redactInactiveCar(registration.car),
           }))
           .sort((a, b) => a.participantNumber - b.participantNumber),
         appearances: eligibleResults.length,
@@ -878,7 +882,7 @@ export class StatisticsService {
                 participant: result.registration.participant,
                 participantNumber: result.registration.participantNumber,
                 teamAtInspection: result.registration.teamNameAtInspection ?? null,
-                car: result.registration.car,
+                car: redactInactiveCar(result.registration.car),
               })),
             bestResult: item.bestResult
               ? {
@@ -886,7 +890,7 @@ export class StatisticsService {
                   unit: item.bestResult.unit,
                   participant:
                     item.bestResult.registration.participant,
-                  car: item.bestResult.registration.car,
+                  car: redactInactiveCar(item.bestResult.registration.car),
                 }
               : null,
           })),
@@ -983,7 +987,7 @@ export class StatisticsService {
               value: bestResult.value.toString(),
               unit: bestResult.unit,
               participant: bestResult.registration.participant,
-              car: bestResult.registration.car,
+              car: redactInactiveCar(bestResult.registration.car),
               stage: bestResult.registration.stage,
             }
           : null,
@@ -994,7 +998,7 @@ export class StatisticsService {
         unit: result.unit,
         place: result.place,
         participant: result.registration.participant,
-        car: result.registration.car,
+        car: redactInactiveCar(result.registration.car),
         stage: result.registration.stage,
       })),
     };
