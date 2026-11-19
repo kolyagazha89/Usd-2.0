@@ -33,3 +33,7 @@ body .app-shell .main .content .stage-card-actions p {margin:12px 0 0}
 @media(max-width:700px){
  body .app-shell .main .content .table-wrap[data-resource="/stages"] .row-actions {min-width:0}
 }
+
+.stage-card-actions .stage-critical-details {font-size:13px;line-height:1.55;margin-top:12px;overflow-wrap:anywhere}
+.stage-card-actions .stage-critical-details strong {font-weight:700}
+.stage-card-actions button:disabled {cursor:not-allowed;opacity:.5}
