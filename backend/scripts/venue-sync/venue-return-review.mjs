@@ -129,8 +129,17 @@ export function validateStoredVenueReviewDecisions(conflicts,stored){
    throw Error('VENUE REVIEW: malformed approved decision');
   return {key:row.key,action:row.action,targetId:row.targetId,reason:row.reason};
  }));
- if(JSON.stringify(approved)!==JSON.stringify(stored))
-  throw Error('VENUE REVIEW: approved identity metadata was altered');
+ const keys=['key','table','sourceId','action','targetId','candidateIds','reason'];
+ for(const row of stored){
+  const expected=approved.find(x=>x.key===row.key);
+  if(!expected||Object.keys(row).length!==keys.length
+   ||keys.some(key=>!Object.hasOwn(row,key))
+   ||keys.some(key=>key==='candidateIds'
+    ?!Array.isArray(row.candidateIds)
+      ||JSON.stringify(row.candidateIds)!==JSON.stringify(expected.candidateIds)
+    :row[key]!==expected[key]))
+   throw Error('VENUE REVIEW: approved identity metadata was altered');
+ }
  return approved;
 }
 export function venueResolutionHash(decisions){
