@@ -100,6 +100,26 @@ test('PG18: same FIO created centrally during WAN outage blocks duplicate offlin
  }
 });
 
+test('PG18: a central car with the same plate but different owner forces manual review',async()=>{
+ const personId=uid(89),vehicleId=uid(90);
+ await query('INSERT INTO "Participant"(id,"firstName","lastName") VALUES ($1,$2,$3)',
+  [personId,'Иван','Совсемдругой']);
+ await query('INSERT INTO "Car"(id,"participantId",brand,model,"registrationNumber") VALUES ($1,$2,$3,$4,$5)',
+  [vehicleId,personId,'Lada','Vesta','A123AA181']);
+ try{
+  await assert.rejects(
+   ()=>applyCompleteVenueJournal(changes,postgresFullVenueAdapter(client),{...opts,apply:false}),
+   /MANUAL_REVIEW.*DUPLICATE_CAR_PLATE/
+  );
+  assert.equal(await read('Participant',participant),null);
+  assert.equal(await read('Car',car),null);
+  assert.equal(await read('Result',result),null);
+ }finally{
+  await query('DELETE FROM "Car" WHERE id=$1',[vehicleId]);
+  await query('DELETE FROM "Participant" WHERE id=$1',[personId]);
+ }
+});
+
 test('PG18: full offline entrants, configs, number, inspection and result write atomically',async()=>{
  const adapter=postgresFullVenueAdapter(client);
  const preview=await applyCompleteVenueJournal(changes,adapter,{...opts,apply:false});
