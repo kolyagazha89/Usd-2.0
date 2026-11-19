@@ -565,7 +565,7 @@ try{
       await failed.getByLabel('Причина отказа в допуске').fill('Проверка не пройдена');
       assert.equal(await failed.getByRole('button',{name:'Подтвердить отказ'}).isEnabled(),true);
       await failed.getByRole('button',{name:'Отмена'}).click();
-      await desk.getByRole('button',{name:'Допущено'}).first().click();
+      await desk.getByRole('button',{name:/^Допущено(?: · \d+)?$/}).first().click();
       await desk.getByText('По текущему фильтру участники не найдены').waitFor({state:'visible'});
       assert.equal(await desk.locator('.event-day-person').count(),0,'no pending registration may enter the admitted-only final list');
       await desk.getByRole('button',{name:'Сбросить поиск и статус'}).click();
