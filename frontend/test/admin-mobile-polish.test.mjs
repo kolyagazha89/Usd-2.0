@@ -102,4 +102,9 @@ test('mobile competition operations put the selected stage above compact filters
  assert.match(css,/\.event-ops-page \.stage-picker\s*\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
  assert.match(css,/\.event-ops-page \.stage-picker>label\s*\{[^}]*grid-row:1/);
  assert.match(css,/\.event-ops-page \.stage-picker>\.usd-filter-drawer\s*\{[^}]*grid-row:2/);
+ for(const file of ['RegistrationsPage.tsx','InspectionsPage.tsx','ResultsPage.tsx']){
+  const code=await source('admin/'+file);
+  const picker=code.slice(code.indexOf('className="toolbar stage-picker'));
+  assert.ok(picker.indexOf('<label>Этап')>=0&&picker.indexOf('<label>Этап')<picker.indexOf('<CollapsibleFilters'),file+' must put the stage before optional filters in DOM order');
+ }
 });
