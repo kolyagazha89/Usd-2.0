@@ -32,6 +32,23 @@ describe('StagesService public visibility', () => {
     }));
   });
 
+  it('does not expose critical notice baseline, revision or state on public stage routes', async () => {
+    const stage={id:'stage-1',name:'USD',status:'PUBLISHED',isDeleted:false,
+      criticalNoticeBaseline:{address:'Старый приватный адрес'},
+      criticalNoticeRevision:4,criticalNoticeState:'PENDING',criticalNoticeSentAt:new Date(),
+      rulesSnapshot:{revisionId:'rules1'}};
+    prisma.stage.findMany.mockResolvedValue([stage]);
+    prisma.stage.findFirst.mockResolvedValue(stage);
+    const listed=await service.findPublished();
+    const single=await service.findPublishedOne('stage-1');
+    for(const value of [listed[0],single]) {
+      expect(value).not.toHaveProperty('criticalNoticeBaseline');
+      expect(value).not.toHaveProperty('criticalNoticeRevision');
+      expect(value).not.toHaveProperty('criticalNoticeState');
+      expect(value).not.toHaveProperty('criticalNoticeSentAt');
+    }
+  });
+
   it('does not return unpublished or deleted stages by public ID', async () => {
     prisma.stage.findFirst.mockResolvedValue(null);
 
