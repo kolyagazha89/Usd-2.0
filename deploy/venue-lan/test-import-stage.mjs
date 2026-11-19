@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createHash,generateKeyPairSync,sign} from 'node:crypto';
+import {createHash,generateKeyPairSync,sign,randomUUID} from 'node:crypto';
 import {planVenueStageImport,applyVenueStageImport} from './import-stage.mjs';
 import * as importer from './import-stage.mjs';
 
@@ -121,6 +121,27 @@ function mockDb(){
  const db={$transaction:async(callback,opts)=>{assert.equal(opts.isolationLevel,'Serializable');return callback(tx)}};
  return {tx,db,log};
 }
+test('full signed historical roster uses bounded bulk inserts, not one Prisma query per profile and car',async()=>{
+ const data=snapshot();
+ data.participantDirectory=Array.from({length:750},(_,index)=>{
+  const id=randomUUID();
+  return {id,firstName:'Исторический',lastName:'Профиль '+index,middleName:null,
+   city:null,team:null,isPublic:false,
+   cars:[{id:randomUUID(),participantId:id,brand:'Lada',model:'',registrationCountry:'RU',
+    registrationNumber:'',color:null,isPublic:false,isActive:false}]};
+ });
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {db,tx}=mockDb();
+ const bulkCalls=[];
+ tx.participant.createMany=async args=>{bulkCalls.push({model:'participant',rows:args.data.length});return {count:args.data.length}};
+ tx.car.createMany=async args=>{bulkCalls.push({model:'car',rows:args.data.length});return {count:args.data.length}};
+ await applyVenueStageImport(plan,db);
+ assert.equal(bulkCalls.filter(c=>c.model==='participant').reduce((n,c)=>n+c.rows,0),751);
+ assert.equal(bulkCalls.filter(c=>c.model==='car').reduce((n,c)=>n+c.rows,0),751);
+ assert.ok(bulkCalls.every(c=>c.rows<=250),'bounded batches avoid oversized PostgreSQL bind payloads');
+ assert.ok(bulkCalls.length<=8,'initial import must scale to the entire signed directory');
+});
+
 test('fresh stage with approved intake cannot install without an explicit signed ban list',async()=>{
  const data=snapshot();delete data.disqualifications;
  const plan=planVenueStageImport(signed(data),publicPem,env,now);
