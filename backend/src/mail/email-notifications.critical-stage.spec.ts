@@ -55,6 +55,15 @@ describe('ADMIN-approved critical stage email',()=>{
    data:expect.objectContaining({eventKey:'stage-critical:stage-1:3:u1',type:'STAGE_CHANGED',registrationId:'r1'}),
   }));
  });
+ it('does not resend a message previously accepted for the same recipient and revision',async()=>{
+  prisma.emailNotificationLog.findUnique.mockResolvedValue({
+   id:'accepted',status:'PROVIDER_ACCEPTED',attempts:1,updatedAt:new Date(),
+  });
+  const summary=await service.sendCriticalStageNotice(stage,['address'],3,async()=>true);
+  expect(summary).toMatchObject({total:1,accepted:1,failed:0});
+  expect(mail.sendNotificationEmail).not.toHaveBeenCalled();
+  expect(prisma.emailNotificationLog.create).not.toHaveBeenCalled();
+ });
  it('aborts queued recipients when a stage was edited concurrently',async()=>{
   const summary=await service.sendCriticalStageNotice(stage,['venue'],3,async()=>false);
   expect(summary).toEqual({total:1,accepted:0,failed:0,interrupted:true});
