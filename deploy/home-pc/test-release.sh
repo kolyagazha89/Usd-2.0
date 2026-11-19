@@ -469,6 +469,29 @@ for drift in USD_TEST_RUNTIME_API_DB_MISMATCH USD_TEST_RUNTIME_DB_PASSWORD_MISMA
   grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
   [[ ! -s "$USD_TEST_LOG" ]]
 done
+# Regression: the old API still runs the prerelease origin while the next
+# approved image must atomically cut over to the primary site. A read-only
+# preflight must accept ONLY this exact staged origin change, preserving the
+# existing live DB and all backup/restore checks.
+printf 'USD_PUBLIC_FRONTEND_ORIGIN=https://usd-russia.ru\nUSD_FRONTEND_ALLOWED_ORIGINS=https://app.usd-russia.ru,https://usd-russia.ru\n' >> "$ROOT/.env"
+bash deploy/home-pc/release-approved.sh "$NEW" --preflight-only > "$WORK/staged-apex-cutover.log" 2>&1 || {
+  echo "Reviewed apex origin cutover could not rehearse against the old API" >&2
+  grep -E 'Unsafe deployment environment|configuration does not match|rehearsal failed' "$WORK/staged-apex-cutover.log" >&2 || true
+  exit 1
+}
+grep -q 'backup, independent download and isolated restore verified' "$WORK/staged-apex-cutover.log"
+grep -q "^USD_IMAGE_TAG=$OLD$" "$ROOT/.env"
+# No partial origin mismatch, external API DB, or changed PostgreSQL password
+# may be excused by the staged-cutover exception.
+for drift in USD_TEST_RUNTIME_DOMAIN_MISMATCH USD_TEST_RUNTIME_API_DB_MISMATCH USD_TEST_RUNTIME_DB_PASSWORD_MISMATCH; do
+  if env "$drift=1" bash deploy/home-pc/release-approved.sh "$NEW" --preflight-only > "$WORK/cutover-reject-$drift.log" 2>&1; then
+    echo "Reviewed cutover weakened runtime mismatch refusal: $drift" >&2
+    exit 1
+  fi
+  grep -q 'Running API/DB configuration does not match approved prerelease backup target' "$WORK/cutover-reject-$drift.log"
+done
+sed -i '/^USD_PUBLIC_FRONTEND_ORIGIN=/d; /^USD_FRONTEND_ALLOWED_ORIGINS=/d' "$ROOT/.env"
+echo 'CI mocked release: exact staged primary-domain transition approved; other drift blocked'
 # Do not update a broken baseline: an unhealthy old API/frontend cannot be
 # assumed to be a safe rollback target.
 export USD_TEST_FAIL_BASELINE_READINESS=1
