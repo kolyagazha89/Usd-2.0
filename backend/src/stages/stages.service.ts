@@ -32,7 +32,9 @@ export class StagesService {
       orderBy: [{ date: 'desc' }, { stageNumber: 'asc' }],
       include: { season: true },
     });
-    return stages.map(({ rulesSnapshot: _rulesSnapshot, ...stage }: any) => stage);
+    return stages.map(({ rulesSnapshot: _rulesSnapshot, criticalNoticeBaseline: _noticeBaseline,
+      criticalNoticeRevision: _noticeRevision, criticalNoticeState: _noticeState,
+      criticalNoticeSentAt: _noticeSentAt, ...stage }: any) => stage);
   }
 
   async findPublishedOne(id: string) {
@@ -48,7 +50,9 @@ export class StagesService {
       },
     });
     if (!stage) throw new NotFoundException('Этап не найден или не опубликован');
-    return stage;
+    const { criticalNoticeBaseline: _noticeBaseline, criticalNoticeRevision: _noticeRevision,
+      criticalNoticeState: _noticeState, criticalNoticeSentAt: _noticeSentAt, ...publicStage } = stage;
+    return publicStage;
   }
 
   async setResultsPublication(
