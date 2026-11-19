@@ -17,7 +17,7 @@ describe('participant confirmation of final 2026 configuration',()=>{
  });
  it('only offers owner cars with actual imported results at the 2026 final',async()=>{
   await service.final2026Configurations(request);
-  expect(db.registration.findMany.mock.calls[0][0].where).toMatchObject({source:'IMPORT',participant:{user:{id:'owner'}},car:{participant:{user:{id:'owner'}}},stage:{season:{year:2026},stageNumber:12,isDeleted:false},results:{some:{isHistorical:true}},configurationSnapshot:{path:['legacyImport'],equals:true}});
+  expect(db.registration.findMany.mock.calls[0][0].where).toMatchObject({source:'IMPORT',participant:{user:{id:'owner'}},car:{isActive:true,participant:{user:{id:'owner'}}},stage:{season:{year:2026},stageNumber:12,isDeleted:false},results:{some:{isHistorical:true}},configurationSnapshot:{path:['legacyImport'],equals:true}});
  });
  it('refuses anonymous requests',async()=>{await expect(service.final2026Configurations({})).rejects.toThrow(ForbiddenException);await expect(service.confirmFinal2026Configuration({},'reg',dto)).rejects.toThrow(ForbiddenException)});
  it('refuses another participant or a non-final registration before writing',async()=>{db.registration.findFirst.mockResolvedValue(null);await expect(service.confirmFinal2026Configuration(request,'other',dto)).rejects.toThrow(NotFoundException);expect(db.carConfigurationVersion.create).not.toHaveBeenCalled()});
