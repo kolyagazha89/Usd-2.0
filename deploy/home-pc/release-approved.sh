@@ -386,13 +386,26 @@ try:
             or allowed_origins not in (prerelease, prerelease + "," + primary)
             or (public_origin == primary and allowed_origins != prerelease + "," + primary)):
         raise ValueError("unapproved public-domain cutover origins")
+    # During the single reviewed app -> apex cutover, the existing healthy
+    # API necessarily still has the exact old prerelease origins. Demanding
+    # the NEW Compose origin values from the OLD container makes a safe,
+    # backed-up upgrade impossible. No other drift is permitted: PostgreSQL,
+    # authentication, API endpoints and all three old origin values remain
+    # checked, and the new target is still the allowlisted app+apex pair.
+    staged_primary_cutover = (
+        public_origin == primary
+        and allowed_origins == prerelease + "," + primary
+        and all(api.get(key) == prerelease for key in (
+            "FRONTEND_URL", "CORS_ORIGINS", "CSRF_TRUSTED_ORIGINS"
+        ))
+    )
     api_checks = {
         "DATABASE_URL": expected["DATABASE_URL"],
         "NODE_ENV": "production",
         "AUTH_COOKIE_SECURE": "true",
-        "FRONTEND_URL": expected.get("USD_PUBLIC_FRONTEND_ORIGIN", "https://app.usd-russia.ru"),
-        "CORS_ORIGINS": expected.get("USD_FRONTEND_ALLOWED_ORIGINS", "https://app.usd-russia.ru"),
-        "CSRF_TRUSTED_ORIGINS": expected.get("USD_FRONTEND_ALLOWED_ORIGINS", "https://app.usd-russia.ru"),
+        "FRONTEND_URL": prerelease if staged_primary_cutover else public_origin,
+        "CORS_ORIGINS": prerelease if staged_primary_cutover else allowed_origins,
+        "CSRF_TRUSTED_ORIGINS": prerelease if staged_primary_cutover else allowed_origins,
         "API_PUBLIC_URL": "https://api.usd-russia.ru",
         "PUBLIC_API_URL": "https://api.usd-russia.ru",
     }
