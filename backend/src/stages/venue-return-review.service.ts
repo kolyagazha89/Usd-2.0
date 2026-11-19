@@ -23,7 +23,7 @@ export class VenueReturnReviewService {
  async preview(snapshot:any){
   const module=await import('../../scripts/venue-sync/venue-return-review.mjs');
   const [participants,cars]=await Promise.all([
-   this.prisma.participant.findMany({select:{
+   this.prisma.participant.findMany({where:{mergeAsSource:{is:null}},select:{
     id:true,firstName:true,lastName:true,middleName:true,city:true,
    }}),
    this.prisma.car.findMany({select:{

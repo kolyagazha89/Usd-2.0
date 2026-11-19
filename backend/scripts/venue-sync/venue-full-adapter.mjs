@@ -97,7 +97,9 @@ export function postgresFullVenueAdapter(client){
       if(typeof person?.firstName!=='string'||typeof person?.lastName!=='string')
        throw Error('VENUE DB: invalid person for duplicate review');
       if(!cachedParticipantFios){
-       const result=await client.query('SELECT id,"firstName","lastName","middleName" FROM "Participant"');
+       const result=await client.query(
+        'SELECT p.id,p."firstName",p."lastName",p."middleName" FROM "Participant" p LEFT JOIN "ParticipantMergeRedirect" m ON m."sourceId"=p.id WHERE m."sourceId" IS NULL'
+       );
        cachedParticipantFios=result.rows;
       }
       return cachedParticipantFios;
