@@ -26,7 +26,7 @@
 .event-day-actions p {max-width:540px;margin:0;color:#686e79;font-size:13px;line-height:1.5}
 .event-day-action-buttons {display:flex;gap:9px;flex-wrap:wrap;align-items:center}
 .event-day-action-buttons button {min-height:42px;white-space:normal;text-align:left}
-.event-day-page .event-day-roster {min-width:0;padding:22px 24px}
+.event-day-page .event-day-roster {min-width:0;padding:22px 24px;scroll-margin-top:calc(90px + env(safe-area-inset-top,0px))}
 .event-day-roster-head {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .event-day-roster-head h3 {font-size:clamp(21px,2vw,26px);line-height:1.2;letter-spacing:-.02em;color:#22242a;margin:6px 0}
 .event-day-roster-head p {font-size:13px;color:#626a76;margin:0}
@@ -36,6 +36,9 @@
 .event-day-search:focus-within {border-color:#aa2c3d;box-shadow:0 0 0 3px #a1233612}
 .event-day-search input {flex:1;min-width:0;padding:12px 0;min-height:44px;font-size:16px;border:0!important;outline:0!important;background:transparent!important;color:#1c1e23}
 .event-day-search button {flex-shrink:0}
+.event-day-list-jump {display:none}
+.event-day-filter-count {display:none}
+.event-day-roster {scroll-margin-top:calc(90px + env(safe-area-inset-top,0px))}
 .event-day-filter-tabs {display:flex;gap:8px;overflow-x:auto;max-width:100%;padding:0 0 13px;scrollbar-width:thin}
 .event-day-filter-tabs button {min-height:44px;white-space:normal;min-width:0;flex-shrink:0;overflow-wrap:anywhere}
 .event-day-filter-tabs button.active {background:#a52233!important;border-color:#a52233!important;color:#fff!important}

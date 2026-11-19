@@ -1888,8 +1888,12 @@ body .app-shell .main .content .event-day-extra-actions {display:contents}
   body .app-shell .main .content .event-day-page .event-day-stage-context {
     padding:8px 2px;font-size:12px;
   }
-  body .app-shell .main .content .event-day-page .event-day-overview {
-    grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:6px 0 11px;
+  /* The six status cards duplicate the six roster filters on a phone.
+   * Keep counts and filtering in the roster itself, with no extra scroll wall. */
+  body .app-shell .main .content .event-day-page .event-day-overview {display:none!important}
+  body .app-shell .main .content .event-day-page .event-day-list-jump {
+    display:inline-flex;align-items:center;justify-content:center;
+    margin-left:auto;min-height:44px;padding:8px 12px;font-size:12px;
   }
   body .app-shell .main .content .event-day-page .event-day-metric {
     min-height:74px;gap:4px;padding:8px!important;justify-content:center;border-radius:10px;
@@ -1901,7 +1905,7 @@ body .app-shell .main .content .event-day-extra-actions {display:contents}
   body .app-shell .main .content .event-day-page .event-day-actions {
     display:block;padding:12px;margin-bottom:11px;
   }
-  body .app-shell .main .content .event-day-page .event-day-actions h3 {margin:0 0 8px;font-size:17px}
+  body .app-shell .main .content .event-day-page .event-day-actions h3 {display:none}
   body .app-shell .main .content .event-day-page .event-day-actions p {display:none}
   body .app-shell .main .content .event-day-page .event-day-action-buttons {
     display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
@@ -1924,10 +1928,29 @@ body .app-shell .main .content .event-day-extra-actions {display:contents}
     width:100%;min-height:44px;padding:8px 10px;font-size:12px;
     white-space:normal;justify-content:flex-start;text-align:left;
   }
-  body .app-shell .main .content .event-day-page .event-day-roster {padding:12px}
+  body .app-shell .main .content .event-day-page .event-day-roster {padding:12px;scroll-margin-top:calc(90px + env(safe-area-inset-top,0px))}
+  body .app-shell .main .content .event-day-page .event-day-roster-head p {display:none}
+  body .app-shell .main .content .event-day-page .event-day-search {margin:12px 0 10px}
+  body .app-shell .main .content .event-day-page .event-day-search-clear {
+    flex:0 0 44px!important;width:44px!important;min-width:44px!important;
+    height:44px!important;min-height:44px!important;max-height:44px!important;box-sizing:border-box;
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:0!important;white-space:nowrap;
+  }
+  body .app-shell .main .content .event-day-page .event-day-search-clear span {display:none}
   body .app-shell .main .content .event-day-page .event-day-filter-tabs {gap:6px}
   body .app-shell .main .content .event-day-page .event-day-filter-tabs button {
-    min-height:44px;padding-inline:5px;font-size:12px;
+    min-height:44px;padding-inline:7px;font-size:12px;gap:5px;
+    justify-content:space-between;text-align:left;
+  }
+  body .app-shell .main .content .event-day-page .event-day-filter-count {
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:22px;min-height:22px;padding:2px 5px;
+    border-radius:7px;background:#f0f1f5;color:#394151;
+    font-variant-numeric:tabular-nums;font-size:12px;font-weight:800;
+  }
+  body .app-shell .main .content .event-day-page .event-day-filter-tabs button.active .event-day-filter-count {
+    background:#fff;color:#8f1c30;
   }
   /* Participants and cars: no sideways scrolling, details remain accessible.
    * Buttons and entity links preserve existing click handlers. */
