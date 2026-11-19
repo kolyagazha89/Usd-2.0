@@ -530,6 +530,21 @@ try{
       await desk.locator('.event-day-person').first().waitFor({state:'visible'});
       assert.equal(await desk.locator('.event-day-person').count(),1,'one active registration renders without scrolling table');
       if(width<=760){
+       assert.equal(await desk.locator('.event-day-overview').isVisible(),false,'duplicate mobile status cards are hidden');
+       assert.equal(await desk.locator('.event-day-filter-count:visible').count(),6,'six mobile roster filters show live counts');
+       const jump=desk.getByRole('button',{name:/К списку участников/});
+       await jump.waitFor({state:'visible'});
+       await jump.click();
+       const mobileSearch=desk.getByRole('searchbox',{name:'Поиск участника в день соревнований'});
+       await mobileSearch.fill('несуществующий номер');
+       const clear=desk.getByRole('button',{name:'Очистить поиск'});
+       const clearSize=await clear.boundingBox();
+       assert.ok(clearSize&&clearSize.width>=43&&clearSize.height>=43,`search clear is a 44px accessible target: ${JSON.stringify(clearSize)}`);
+       await clear.click();
+       assert.equal(await mobileSearch.inputValue(),'','one tap restores the full roster');
+       row.eventDayMobile='no duplicate metrics, counted filters, roster jump and 44px search clear';
+      }
+      if(width<=760){
        const extra=desk.getByRole('button',{name:'Ещё действия',exact:true});
        await extra.waitFor({state:'visible'});
        assert.equal(await extra.getAttribute('aria-expanded'),'false');
@@ -550,7 +565,9 @@ try{
       await failed.getByLabel('Причина отказа в допуске').fill('Проверка не пройдена');
       assert.equal(await failed.getByRole('button',{name:'Подтвердить отказ'}).isEnabled(),true);
       await failed.getByRole('button',{name:'Отмена'}).click();
-      await desk.getByRole('button',{name:'Допущено'}).first().click();
+      const admittedFilter=desk.getByRole('group',{name:'Статус допуска'}).getByRole('button',{name:/^Допущены · \d+$/});
+      await admittedFilter.click();
+      assert.equal(await admittedFilter.getAttribute('aria-pressed'),'true','admission filter is selected, not a duplicate metric card');
       await desk.getByText('По текущему фильтру участники не найдены').waitFor({state:'visible'});
       assert.equal(await desk.locator('.event-day-person').count(),0,'no pending registration may enter the admitted-only final list');
       await desk.getByRole('button',{name:'Сбросить поиск и статус'}).click();
@@ -560,7 +577,19 @@ try{
       await desk.getByRole('search').getByRole('searchbox',{name:'Поиск участника в день соревнований'}).fill('№8');
       await desk.locator('.event-day-person').first().waitFor({state:'detached'});
       assert.equal(await desk.locator('.event-day-person').count(),0,'exact number search does not match another number');
-      row.eventDay='integrated registration roster, admission, reason-required failure, final list, number search';
+      // Keyboard shortcuts are a fast-path for desktop operators; Escape clears
+      // the query, and typing '/' in an input must remain ordinary text input.
+      await desk.getByRole('button',{name:'Сбросить поиск и статус'}).click();
+      await page.keyboard.press('/');
+      const shortcutSearch=desk.getByRole('searchbox',{name:'Поиск участника в день соревнований'});
+      assert.equal(await shortcutSearch.evaluate(el=>el===document.activeElement),true,'/ focuses roster search from a non-editor');
+      await shortcutSearch.fill('№8');
+      await page.keyboard.press('Escape');
+      assert.equal(await shortcutSearch.inputValue(),'','Escape clears the active roster lookup');
+      await shortcutSearch.fill('/');
+      assert.equal(await shortcutSearch.inputValue(),'/','slash typed inside input does not trigger the global shortcut');
+      await shortcutSearch.fill('');
+      row.eventDay='integrated roster, admission, reason-required failure, counted final list, number search and keyboard shortcuts';
      }
      if(role==='ADMIN'&&route==='/admin/stages/new'){
       const form=page.locator('.entity-form-journey');
