@@ -3,6 +3,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { redactArchivedRegistration } from '../participants/car-visibility';
 
 @Injectable()
 export class HistoryService {
@@ -50,6 +51,7 @@ export class HistoryService {
         photoUrl: true,
         isPublic: true,
         cars: {
+          where: { isActive: true },
           orderBy: { createdAt: 'asc' },
           select: {
             id: true,
@@ -105,6 +107,7 @@ export class HistoryService {
             ...(role === 'ADMIN' ? { registrationNumber: true } : {}),
             color: true,
             photoUrl: true,
+            isActive: true,
           },
         },
         classes: {
@@ -230,7 +233,7 @@ export class HistoryService {
     return {
       participant,
       cars: participant.cars,
-      registrations,
+      registrations: registrations.map(redactArchivedRegistration),
       records,
       currentRecords,
       statistics: {

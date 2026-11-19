@@ -1303,6 +1303,26 @@ body .app-shell .main .content .usd-admin-cars-list :is(.toolbar,.panel,.table-w
   color:#242b36!important;
   border-color:#dde2e9!important;
 }
+
+body .app-shell .main .content .usd-admin-car-visibility-tabs {
+  display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;
+}
+body .app-shell .main .content .usd-admin-car-visibility-tabs button {
+  min-height:44px;flex:0 1 auto;padding:10px 16px;
+  border:1px solid #d4dbe5;background:#fff;color:#303945;
+}
+body .app-shell .main .content .usd-admin-car-visibility-tabs button[aria-pressed="true"] {
+  border-color:#8f1c30;background:#8f1c30;color:#fff;font-weight:700;
+}
+body .app-shell .main .content .usd-admin-car-archive-hint {
+  color:#5e6877;font-size:13px;line-height:1.5;margin:0 0 12px;
+}
+@media(max-width:480px) {
+  body .app-shell .main .content .usd-admin-car-visibility-tabs button {
+    flex:1 1 calc(50% - 4px);min-width:0;padding-inline:6px;font-size:13px;
+  }
+}
+
 body .app-shell .main .content .usd-admin-cars-list .toolbar {
   display:flex;
   gap:12px;

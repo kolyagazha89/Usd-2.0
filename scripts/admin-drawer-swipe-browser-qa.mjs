@@ -21,7 +21,25 @@ try{
   const initial=await page.evaluate(()=>({url:location.href,history:history.length,overflow:document.body.style.overflow}));
   const session=await context.newCDPSession(page);
   const swipe=async(x,y,endX,endY)=>{await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});for(let i=1;i<=5;i++)await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+(endX-x)*i/5,y:y+(endY-y)*i/5}]});await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await page.waitForTimeout(150)};
-  await swipe(4,350,165,355);
+  // The cars screen now has archive tabs above its horizontally scrollable
+  // roster. Pick a non-interactive screen edge so this test exercises the
+  // drawer gesture, not the correctly protected sideways table scroll.
+  const openY=await page.evaluate(()=>{
+    const scrollable=(element)=>{
+      for(let node=element;node;node=node.parentElement){
+        const style=getComputedStyle(node);
+        if(node.scrollWidth>node.clientWidth+1&&/(auto|scroll)/.test(style.overflowX))return true;
+      }
+      return false;
+    };
+    for(const y of [160,210,270,350,490]){
+      const target=document.elementFromPoint(4,y);
+      if(target&&!target.closest('button,a,input,textarea,select,[role="dialog"]')&&!scrollable(target))return y;
+    }
+    return null;
+  });
+  assert.ok(openY!==null,'a free screen edge exists for the drawer swipe');
+  await swipe(4,openY,165,openY+5);
   if(width<=800){
    await page.locator('.sidebar.open').waitFor();assert.equal(await page.locator('.menu-button').getAttribute('aria-expanded'),'true');assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden');
    await page.screenshot({path:path.join(out,'open-'+width+'.png'),fullPage:false});

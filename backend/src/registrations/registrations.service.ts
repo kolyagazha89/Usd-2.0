@@ -16,6 +16,7 @@ import { EmailNotificationsService } from '../mail/email-notifications.service';
 import { isValidRegistrationPlate } from '../participants/profile-validation';
 import { normalizePlateNumber,canonicalPlateIdentity,plateAdvisoryKey } from '../participants/plate-identity';
 import { configurationStillPending } from './pending-configuration';
+import { redactArchivedRegistration } from '../participants/car-visibility';
 import { MAX_REGISTRATION_CLASS_IDS,planRegistrationClassNumbers } from './registration-class-numbering';
 import type { CreateOnSiteProfileDto, CreateOnSiteCarDto } from './dto/create-registration.dto';
 
@@ -236,7 +237,7 @@ export class RegistrationsService {
         { participantNumber: 'asc' },
       ],
       include: this.registrationInclude,
-    });
+    }).then(rows => rows.map(redactArchivedRegistration));
   }
 
   // ==========================================
@@ -257,7 +258,7 @@ export class RegistrationsService {
         { participantNumber: 'asc' },
       ],
       include: this.registrationInclude,
-    });
+    }).then(rows => rows.map(redactArchivedRegistration));
   }
 
   async findOne(id: string) {
@@ -275,7 +276,7 @@ export class RegistrationsService {
       );
     }
 
-    return registration;
+    return redactArchivedRegistration(registration);
   }
 
     private async requireGateCreationAccess(request: AuthenticatedRequest): Promise<void> {

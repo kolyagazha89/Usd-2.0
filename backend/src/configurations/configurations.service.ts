@@ -43,7 +43,8 @@ export class ConfigurationsService {
     return {
       source: 'IMPORT', status: { not: 'CANCELLED' },
       participant: { user: { id: userId } },
-      car: { participant: { user: { id: userId } } },
+      // A retired imported car is not a pending task in the member garage.
+      car: { isActive: true, participant: { user: { id: userId } } },
       stage: { season: { year: 2026 }, stageNumber: 12, isDeleted: false,
         date: { gte: new Date('2026-09-12T00:00:00Z'), lt: new Date('2026-09-13T00:00:00Z') } },
       results: { some: { isHistorical: true } },
@@ -109,6 +110,7 @@ export class ConfigurationsService {
       select: {
         id: true,
         participantId: true,
+        isActive: true,
       },
     });
 
@@ -121,6 +123,7 @@ export class ConfigurationsService {
     if (user?.role === 'ADMIN') {
       return car;
     }
+    if (car.isActive === false) throw new NotFoundException('Car not found');
 
     const userId = user?.sub;
 
@@ -164,6 +167,7 @@ export class ConfigurationsService {
           car: {
             select: {
               id: true,
+              isActive: true,
             },
           },
         },
@@ -185,7 +189,9 @@ export class ConfigurationsService {
     const configuration =
       await this.getConfigurationOrThrow(configurationId);
 
-    if (!request.personalAccountAccess && (request.user?.role === 'ADMIN' || Boolean(request.user?.customRoleId))) {
+    if (!request.personalAccountAccess && request.user?.role === 'ADMIN') return configuration;
+    if (!request.personalAccountAccess && request.user?.customRoleId) {
+      if (configuration.car?.isActive === false) throw new NotFoundException('Configuration not found');
       return configuration;
     }
 
@@ -282,6 +288,10 @@ export class ConfigurationsService {
   ) {
     if (request.personalAccountAccess || (request.user?.role !== 'ADMIN' && !request.user?.customRoleId)) {
       await this.requireCarAccess(request, carId);
+    } else if (request.user?.role !== 'ADMIN') {
+      // Staff may inspect active competition cars, never the hidden archive.
+      const car = await this.prisma.car.findUnique({ where: { id: carId }, select: { isActive: true } });
+      if (!car || car.isActive === false) throw new NotFoundException('Car not found');
     }
 
     return this.prisma.carConfiguration.findMany({

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { redactArchivedResult } from '../participants/car-visibility';
 import { RecordsService } from '../records/records.service';
 import { ResultsRankingService } from './results-ranking.service';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
@@ -161,6 +162,7 @@ export class ResultsService {
             color: true,
             photoUrl: true,
             isPublic: true,
+            isActive: true,
           },
         },
       },
@@ -421,7 +423,7 @@ export class ResultsService {
       throw new NotFoundException('Результат не найден');
     }
 
-    return result;
+    return redactArchivedResult(result);
   }
 
   async findByRegistration(registrationId: string) {
@@ -577,7 +579,7 @@ export class ResultsService {
         { place: 'asc' },
         { createdAt: 'asc' },
       ],
-    });
+    }).then(results => results.map(redactArchivedResult));
   }
 
   async create(
