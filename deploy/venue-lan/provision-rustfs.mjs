@@ -156,16 +156,18 @@ export async function provisionVenueMedia(env,{
    const probe=await fetcher(ENDPOINT+'/health/ready',{
     method:'GET',signal:AbortSignal.timeout(Math.min(5000,remaining)),
    });
-   if(probe.status===200||[401,403,404].includes(probe.status)){
+   const probeStatus=probe.status;
+   await probe.body?.cancel();
+   if(probeStatus===200||[401,403,404].includes(probeStatus)){
     const ping=await call(fetcher,opts,{
      method:'GET',path:'/',...root,timeoutMs:Math.min(5000,Math.max(1,deadline-Date.now())),
     });
-    if(ping.ok){ready=true;break}
+    if(ping.ok){await ping.body?.cancel();ready=true;break}
     if(ping.status===401||ping.status===403)
      throw new Error('Root credentials rejected (HTTP '+ping.status+')');
     lastFailure='HTTP '+ping.status;
    }else{
-    lastFailure='HTTP '+probe.status;
+    lastFailure='HTTP '+probeStatus;
    }
   }catch(error){
    if(error instanceof Error&&error.message.startsWith('Root credentials rejected'))throw error;
