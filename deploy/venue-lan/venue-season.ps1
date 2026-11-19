@@ -73,7 +73,7 @@ function Get-VenueKitFiles {
   'initdb/010-venue-api-role.sh','INSTRUCTION.html',
   'import-stage.mjs','verify-stage-package.mjs','provision-rustfs.mjs',
   'venue-judge-permissions.mjs','provision-existing-staff.mjs',
-  'install-journal.sql','upgrade-journal-links.sql',
+  'install-journal.sql','upgrade-journal-links.sql','repair-journal-coverage.sql',
   'export-venue-return.mjs','venue-return-package.mjs','verify-venue-return.mjs',
   'preview-venue-reconciliation.mjs','preview-venue-reconciliation-cli.mjs'
  )
