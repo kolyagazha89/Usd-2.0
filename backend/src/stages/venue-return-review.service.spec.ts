@@ -114,6 +114,16 @@ describe('ADMIN offline return conflict review',()=>{
   await expect(service.matched(reviewer,original.journalEndHash,'f'.repeat(64)))
    .rejects.toThrow(ConflictException);
  });
+ it('rejects a stored ADMIN approval whose candidate IDs were changed',async()=>{
+  const {service,prisma}=setup();
+  prisma.venueReturnReview.findUnique.mockResolvedValueOnce({
+   ...original,status:'APPROVED',reviewedByUserId:reviewer,
+   decisions:[{...decision('LINK',target),table:'Participant',sourceId:source,
+    candidateIds:[source]}],
+  } as any);
+  await expect(service.matched(reviewer,original.journalEndHash,original.journalContentHash))
+   .rejects.toThrow(/metadata was altered/);
+ });
  it('rejects a car LINK to a different central owner even when plate matches',async()=>{
   const {service,tx}=setup();
   const otherCar='8b596264-15dd-46d8-92aa-c4e1c50c0220';
