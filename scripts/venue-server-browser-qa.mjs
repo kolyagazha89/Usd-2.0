@@ -54,7 +54,8 @@ try{
     setupCalls++;
     if(mode==='error')return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Сервер временно недоступен'})});
     data=mode==='missing'?{...setup,signing:{ready:false,publicKeyPem:null,fingerprint:null}}:setup;
-   }else if(url.pathname==='/stages/venue/certificate')data=certificate;
+   }else if(url.pathname==='/stages/venue/returns')data={items:[],page:1,pageSize:20,total:0};
+   else if(url.pathname==='/stages/venue/certificate')data=certificate;
    else if(url.pathname==='/stages/venue/certificate/install')return route.fulfill({status:200,contentType:'text/html',body:venueCertificatePage(certificate.sha256,new Date(certificate.notAfter))});
    else if(url.pathname.startsWith('/stages/venue/certificate/download/')){
     const format=url.pathname.endsWith('/cer')?'cer':'crt';
@@ -71,6 +72,8 @@ try{
   await page.goto(base+'/admin/venue-server?stageId=one');
   await page.getByRole('heading',{name:'Офлайн-сервер',exact:true}).waitFor();
   const main=page.locator('.venue-server-page');
+  await main.getByRole('heading',{name:'Возврат данных · Конфликты',exact:true}).waitFor();
+  await main.getByText('Новых конфликтов пока нет.',{exact:false}).waitFor();
   await main.getByRole('button',{name:'Скопировать ссылку для MAX',exact:true}).waitFor();
   const installLink=main.getByRole('link',{name:'Открыть страницу установки',exact:true});
   assert.equal(new URL(await installLink.getAttribute('href')).searchParams.get('sha256'),certificate.sha256);
