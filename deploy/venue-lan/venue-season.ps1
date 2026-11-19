@@ -76,7 +76,7 @@ function Initialize-VenueMediaVolume {
  }
  $volume=$project+'_venue_media'
  Invoke-Compose @('stop','rustfs') 'stop this stage RustFS before volume permissions'
- Invoke-Compose @('create','--no-recreate','--no-deps','rustfs') 'prepare own media volume'
+ Invoke-Compose @('create','--no-recreate','rustfs') 'prepare own media volume'
  $rows=@(& docker volume inspect --format '{{json .Labels}}' $volume 2>$null)
  Assert-Exit 'inspect owned media volume'
  if($rows.Count -ne 1){throw 'Docker не подтвердил единственный том RustFS'}
