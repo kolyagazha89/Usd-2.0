@@ -99,9 +99,6 @@ test('reject signed but structurally dangerous package BEFORE any write',()=>{
  assert.throws(()=>planVenueStageImport(signed(mismatch),publicPem,env,now),/конфигурац/);
  const wrongClass=snapshot();wrongClass.stage.stageClasses[0].class.direction.id='WRONG';
  assert.throws(()=>planVenueStageImport(signed(wrongClass),publicPem,env,now),/UUID/);
- const absentBanList=snapshot();delete absentBanList.disqualifications;
- assert.throws(()=>planVenueStageImport(signed(absentBanList),publicPem,env,now),
-  /дисквалификац|запрет/i);
  const invalidBan=snapshot();invalidBan.disqualifications=[{id:uuid.person,scope:'FORMAT'}];
  assert.throws(()=>planVenueStageImport(signed(invalidBan),publicPem,env,now),/дисквалификац|запрет/i);
  const brokenInspection=snapshot();brokenInspection.registrations[0].stageInspection.participantId=uuid.season;
@@ -124,6 +121,13 @@ function mockDb(){
  const db={$transaction:async(callback,opts)=>{assert.equal(opts.isolationLevel,'Serializable');return callback(tx)}};
  return {tx,db,log};
 }
+test('fresh stage with approved intake cannot install without an explicit signed ban list',async()=>{
+ const data=snapshot();delete data.disqualifications;
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {db,log}=mockDb();
+ await assert.rejects(()=>applyVenueStageImport(plan,db),/дисквалификац|запрет/i);
+ assert.equal(log.length,0);
+});
 test('transactionally inserts the signed one-stage roster in FK order and logs a digest only',async()=>{
  const plan=planVenueStageImport(signed(),publicPem,env,now);
  const {db,log}=mockDb();
