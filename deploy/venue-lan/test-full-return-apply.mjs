@@ -63,7 +63,7 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
    const adapter={
     stage:async()=>({id:ids.stage,status:'PUBLISHED',isDeleted:false,
      resultsPublishedAt:published?'2026-11-11':null}),
-    listReceipts:async()=>[...receipts.values()],
+    listReceipts:async()=>[...receipts.values()].filter(x=>x.action==='VENUE_FULL_EVENT_IMPORTED'),
     getRow:async (table,id)=>structuredClone(working.get(table)?.get(id)??null),
     canonical:async (_table,row)=>structuredClone(row),
     stageClassAllowed:async()=>true,
