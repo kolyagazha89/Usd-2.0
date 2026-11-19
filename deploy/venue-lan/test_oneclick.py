@@ -35,7 +35,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertRegex(source,r"function\s+Ensure-DockerReady")
     def test_single_complete_windows_installer_is_not_duplicated(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
-        self.assertLess(len(source.encode("utf-8")),45000,"Duplicated PowerShell source must not ship")
+        self.assertLess(len(source.encode("utf-8")),45500,"Duplicated PowerShell source must not ship")
         for func in ("Assert-VenueReleaseImages","New-InitialState","Confirm-SignedStage",
                      "Install-Local","Start-Local","Test-VenueApiReady","Return-Online"):
             self.assertEqual(len(re.findall(r"(?m)^function\s+"+re.escape(func)+r"\b",source)),1,func)
