@@ -33,7 +33,26 @@ test('upgrade journals amplifier links without falsely backdating completeness',
  const upgrade=await source('./upgrade-journal-links.sql');
  assert.match(upgrade,/CREATE OR REPLACE FUNCTION venue_private\.capture_change/);
  assert.match(upgrade,/CREATE TRIGGER usd_venue_caramplifiercomponent_journal/);
- assert.match(upgrade,/coalesce\(max\(sequence\),0\)/);
+ assert.match(upgrade,/SELECT coalesce\(\(SELECT max\(sequence\) FROM venue_private\.operation_journal\),0\)\s+WHERE NOT EXISTS/);
+ assert.doesNotMatch(upgrade,/FROM venue_private\.operation_journal\s+WHERE NOT EXISTS/);
  assert.match(upgrade,/WHERE NOT EXISTS \(SELECT 1 FROM venue_private\.journal_coverage\)/);
  assert.doesNotMatch(upgrade,/TRUNCATE|DROP TABLE|DELETE FROM venue_private\.operation_journal/);
+});
+
+test('coverage watermark stays unique after stage switches and duplicate repair is fail-closed',async()=>{
+ const [initial,upgrade,repair]=await Promise.all([
+  source('./install-journal.sql'),
+  source('./upgrade-journal-links.sql'),
+  source('./repair-journal-coverage.sql'),
+ ]);
+ for(const sql of [initial,upgrade,repair]){
+  assert.match(sql,/CREATE UNIQUE INDEX(?: IF NOT EXISTS)? usd_venue_journal_coverage_singleton/);
+  assert.match(sql,/ON venue_private\.journal_coverage \(\(true\)\)/);
+ }
+ assert.match(repair,/current_user <> 'usd_venue_root'/);
+ assert.match(repair,/current_database\(\) <> 'usd_venue'/);
+ assert.match(repair,/LOCK TABLE venue_private\.journal_coverage IN ACCESS EXCLUSIVE MODE/);
+ assert.match(repair,/format_version <> 2 OR from_sequence <> 0/);
+ assert.match(repair,/ORDER BY installed_at, ctid/);
+ assert.doesNotMatch(repair,/(?:DELETE|TRUNCATE|UPDATE)\s+(?:FROM\s+)?venue_private\.operation_journal/);
 });
