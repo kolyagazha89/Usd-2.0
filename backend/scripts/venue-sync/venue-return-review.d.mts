@@ -20,5 +20,7 @@ export declare function collectVenueReturnConflicts(
  snapshot:unknown,central:{participants?:unknown[];cars?:unknown[]}):ReviewConflict[];
 export declare function validateVenueReviewDecisions(
  conflicts:unknown,decisions:unknown):Resolution[];
+export declare function validateStoredVenueReviewDecisions(
+ conflicts:unknown,decisions:unknown):Resolution[];
 export declare function venueResolutionHash(decisions:unknown[]):string|null;
 export declare function venueResolutionMap(decisions:Resolution[]):Record<string,Resolution>;
