@@ -22,8 +22,8 @@ const valid=(record:any,stageId:string,seasonId:string)=>{
  if(record.scope==='STAGE')return record.stageId===stageId&&record.seasonId===null;
  return false;
 };
-export async function readSignedVenueDisqualifications(
- tx:any,participantId:string,stageId:string,seasonId:string,
+export async function readSignedVenueBanSnapshot(
+ tx:any,stageId:string,seasonId:string,
 ):Promise<SignedVenueDisqualification[]>{
  const setting=await tx.siteSettings.findUnique({
   where:{id:'default'},select:{registration:true},
@@ -42,5 +42,11 @@ export async function readSignedVenueDisqualifications(
   if(!valid(record,stageId,seasonId)||ids.has(record.id))throw refuse();
   ids.add(record.id);
  }
- return entry.records.filter((record:SignedVenueDisqualification)=>record.participantId===participantId);
+ return entry.records as SignedVenueDisqualification[];
+}
+export async function readSignedVenueDisqualifications(
+ tx:any,participantId:string,stageId:string,seasonId:string,
+):Promise<SignedVenueDisqualification[]>{
+ const records=await readSignedVenueBanSnapshot(tx,stageId,seasonId);
+ return records.filter(record=>record.participantId===participantId);
 }
