@@ -99,6 +99,9 @@ test('reject signed but structurally dangerous package BEFORE any write',()=>{
  assert.throws(()=>planVenueStageImport(signed(mismatch),publicPem,env,now),/конфигурац/);
  const wrongClass=snapshot();wrongClass.stage.stageClasses[0].class.direction.id='WRONG';
  assert.throws(()=>planVenueStageImport(signed(wrongClass),publicPem,env,now),/UUID/);
+ const absentBanList=snapshot();delete absentBanList.disqualifications;
+ assert.throws(()=>planVenueStageImport(signed(absentBanList),publicPem,env,now),
+  /дисквалификац|запрет/i);
  const invalidBan=snapshot();invalidBan.disqualifications=[{id:uuid.person,scope:'FORMAT'}];
  assert.throws(()=>planVenueStageImport(signed(invalidBan),publicPem,env,now),/дисквалификац|запрет/i);
  const brokenInspection=snapshot();brokenInspection.registrations[0].stageInspection.participantId=uuid.season;
