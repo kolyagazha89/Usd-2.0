@@ -55,4 +55,6 @@ test('resource and car tables share accessible pagination and mobile card contra
  assert.match(layout,/\.usd-universal-table/);
  assert.match(layout,/content:attr\(data-label\)/);
  assert.match(layout,/env\(safe-area-inset-bottom/);
+ assert.match(layout,/thea[d] \.usd-universal-sort-button\{visibility:hidden!important\}/,'clipped header buttons must not steal keyboard focus on mobile');
+ assert.match(resource,/aria-sort=\{activeSort===c.key/);
 });

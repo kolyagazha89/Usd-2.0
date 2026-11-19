@@ -2413,3 +2413,9 @@ body .app-shell .main .content .usd-universal-pagination nav button{min-width:44
  body .app-shell .main .content .usd-universal-pagination{margin-top:10px;border:1px solid #e3e7ee;border-radius:12px}
  body .app-shell .main .content .usd-universal-pagination nav{width:100%;justify-content:space-between}
 }
+
+/* On mobile the table heading is visually replaced by the explicit sort picker.
+ * Do not leave an invisible keyboard-focusable sorting button behind. */
+@media(max-width:760px){
+ body .app-shell .main .content .usd-universal-table-wrap .usd-universal-table thead .usd-universal-sort-button{visibility:hidden!important}
+}
