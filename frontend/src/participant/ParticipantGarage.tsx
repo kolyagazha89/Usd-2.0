@@ -20,7 +20,7 @@ type Props = {
   cars: GarageCar[];
   setCars: Dispatch<SetStateAction<GarageCar[]>>;
   go: (path: string) => void;
-  photoPlaceholder?: string;
+  photoPlaceholder?: string | null;
 };
 
 const carName = (car: GarageCar) => [car.brand, car.model].filter(Boolean).join(' ');
@@ -99,7 +99,7 @@ export default function ParticipantGarage({cars, setCars, go, photoPlaceholder}:
               onClick={() => go('/participant/car?carId='+encodeURIComponent(c.id))}
               onKeyDown={e => {if(e.target===e.currentTarget&&(e.key==='Enter'||e.key===' ')){e.preventDefault();go('/participant/car?carId='+encodeURIComponent(c.id));}}}>
               <div className="participant-car-icon">
-                <PublicPhoto src={c.photoUrl} placeholderSrc={photoPlaceholder} alt={carName(c)} className="member-list-car-photo" fallback={<CarFront size={22}/>}/>
+                <PublicPhoto src={c.photoUrl??undefined} placeholderSrc={photoPlaceholder} alt={carName(c)} className="member-list-car-photo" fallback={<CarFront size={22}/>}/>
               </div>
               <div className="participant-car-details">
                 <h3>{carName(c)}</h3>
