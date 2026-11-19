@@ -44,6 +44,18 @@ const NO_USER_LINKS=new Set(['checkedByUserId','createdByUserId','verifiedByUser
 const CASCADE_PROTECTED=new Set(['Participant','Car','CarConfiguration','CarConfigurationVersion']);
 const same=(left,right)=>JSON.stringify(left)===JSON.stringify(right);
 
+function canonicalVehiclePlate(car){
+ if(!car?.registrationCountry||!car?.registrationNumber)return '';
+ const country=String(car.registrationCountry);
+ let value=String(car.registrationNumber).normalize('NFKC')
+  .replace(/[\u200B-\u200D\uFEFF]/g,'').trim().toLocaleUpperCase('ru-RU');
+ if(country==='RU'){
+  const russian={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',
+   P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
+  value=[...value].map(char=>russian[char]??char).join('');
+ }
+ return country+':'+value.replace(/[^\p{L}\p{N}]/gu,'');
+}
 function canonicalFioPart(value){
  return String(value??'').normalize('NFKC').replace(/\s+/gu,' ').trim()
   .toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
@@ -245,7 +257,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
   const scope=buildScope(snapshot,original);
   for(const e of snapshot.events)stageRefs(e,scope);
   let readyEvents=0;
-  const newOfflinePeople=[];
+  const newOfflinePeople=[],newOfflineCars=[];
   for(const event of snapshot.events){
    const p=event.payload,table=p.table;
    const before=p.before&&normalize(table,p.before);
@@ -263,6 +275,18 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
        ||newOfflinePeople.some(candidate=>candidate.id!==after.id&&participantNamesNeedReview(after,candidate)))
       reject('MANUAL_REVIEW: DUPLICATE_PARTICIPANT_NAME');
      newOfflinePeople.push(after);
+    }
+    if(table==='Car'){
+     if(typeof tx.carPlateCandidates!=='function')
+      reject('MANUAL_REVIEW: central plate lookup unavailable');
+     const matches=await tx.carPlateCandidates(after);
+     if(!Array.isArray(matches))
+      reject('MANUAL_REVIEW: central plate lookup unavailable');
+     const plate=canonicalVehiclePlate(after);
+     if(plate&&(matches.some(existing=>existing.id!==after.id&&canonicalVehiclePlate(existing)===plate)
+       ||newOfflineCars.some(existing=>existing.id!==after.id&&canonicalVehiclePlate(existing)===plate)))
+      reject('MANUAL_REVIEW: DUPLICATE_CAR_PLATE');
+     newOfflineCars.push(after);
     }
    }else{
     if(actual===null)reject('missing central row '+table+' '+p.recordId);

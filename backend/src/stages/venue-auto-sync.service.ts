@@ -62,6 +62,8 @@ export class VenueAutoSyncService {
     operator:'VENUE_AUTO:'+grant.id,
    });
   }catch(error){
+   if(error instanceof Error&&/DUPLICATE_CAR_PLATE/.test(error.message))
+    throw new ConflictException('MANUAL_REVIEW: найден возможный дубль автомобиля по госномеру. Проверьте онлайн-профиль в ADMIN. Локальный пакет и все результаты сохранены.');
    if(error instanceof Error&&/DUPLICATE_PARTICIPANT_NAME/.test(error.message))
     throw new ConflictException('MANUAL_REVIEW: найдено возможное совпадение ФИО с онлайн-профилем. Проверьте и разрешите дубль через ADMIN. Локальные регистрации и результаты сохранены.');
    if(error instanceof Error&&/CONFLICT|central changed|number.*owner/i.test(error.message))
