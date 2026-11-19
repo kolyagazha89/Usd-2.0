@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, Pa
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import {VenueAutoSyncService} from './venue-auto-sync.service';
+import {VenueReturnReviewService} from './venue-return-review.service';
 import { StagesService } from './stages.service';
 import { VenueStageService } from './venue-stage.service';
 import { VenueCertificateService } from './venue-certificate.service';
@@ -13,6 +14,7 @@ export class StagesController {
   constructor(private readonly stagesService: StagesService,
  private readonly venueStageService: VenueStageService,
  private readonly venueAutoSyncService: VenueAutoSyncService,
+ private readonly venueReturnReviewService: VenueReturnReviewService,
  private readonly venueCertificateService: VenueCertificateService) {}
 
   @Roles('ADMIN')
@@ -39,6 +41,29 @@ export class StagesController {
   @Header('Cache-Control','no-store')
   venueSync(@Headers('authorization') token:string|undefined,@Body() body:unknown){
    return this.venueAutoSyncService.accept(token,body);
+  }
+
+  /** A central-only ADMIN queue. No encrypted journal or laptop credentials
+   * are exposed by these read endpoints. */
+  @Roles('ADMIN')
+  @Get('venue/returns')
+  @Header('Cache-Control','private, no-store')
+  venueReturnReviews(@Req() request:AuthenticatedRequest,@Query('page') page?:string){
+    return this.venueReturnReviewService.list(request,page);
+  }
+
+  @Roles('ADMIN')
+  @Get('venue/returns/:id')
+  @Header('Cache-Control','private, no-store')
+  venueReturnReview(@Param('id') id:string,@Req() request:AuthenticatedRequest){
+    return this.venueReturnReviewService.one(id,request);
+  }
+
+  @Roles('ADMIN')
+  @Post('venue/returns/:id/decisions')
+  @Header('Cache-Control','private, no-store')
+  venueReturnDecide(@Param('id') id:string,@Body() body:unknown,@Req() request:AuthenticatedRequest){
+    return this.venueReturnReviewService.decide(id,body as any,request);
   }
 
   @Roles('ADMIN')
