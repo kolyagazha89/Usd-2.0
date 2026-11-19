@@ -38,6 +38,9 @@ jobs:
           docker rm usd-caddy-contract
           chmod +x /tmp/usd-caddy
           CADDY_BIN=/tmp/usd-caddy python3 -m unittest discover -s deploy/venue-lan -p 'test_gateway_runtime.py' -v
+      - name: Confirm PostgreSQL Alpine has required dump, restore and SHA256 utilities
+        run: |
+          docker run --rm --entrypoint sh postgres:18-alpine -c 'command -v pg_dump && command -v pg_restore && command -v sha256sum'
       - name: Rehearse no-secret venue compose preflight
         working-directory: deploy/venue-lan
         run: |
