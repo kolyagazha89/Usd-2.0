@@ -287,11 +287,22 @@ export async function assertVenueDatabaseRole(tx){
 /** One SQL transaction, one stage, empty local domain. Never upsert source
  * history and never replace an existing venue snapshot or local judge edits.
  */
-export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
+export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress=()=>{}}={}){
  if(!plan?.snapshot?.stage||!plan?.packageHash||!prisma?.$transaction)
   throw new Error('Некорректный проверенный план импорта');
  const stage=plan.snapshot.stage,regs=plan.registrations;
- return prisma.$transaction(async tx=>{
+ let failurePhase='DB_PRECHECK';
+ const progress=phase=>{failurePhase=phase;onProgress(phase)};
+ const batchSize=250;
+ const insertBatches=async(model,rows,tx)=>{
+  for(let offset=0;offset<rows.length;offset+=batchSize){
+   // Every item passed signature and UUID validation. No skipDuplicates:
+   // concurrent identities and dirty volumes remain a hard failure.
+   await tx[model].createMany({data:rows.slice(offset,offset+batchSize)});
+  }
+ };
+ try{
+ return await prisma.$transaction(async tx=>{
   // Static SQL, no input interpolation. Serialize repeated apply attempts.
   await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
   if(shared){
@@ -339,6 +350,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
    'registration','registrationNumber','registrationClass','result','inspection','participantStageInspection'];
   const counts=await Promise.all(domain.map(table=>tx[table].count()));
   if(!shared&&counts.some(x=>x!==0))throw new Error('Локальная база не пуста: импорт запрещён без ручной ревизии');
+  progress('STAGE_CATALOG');
   await createShared('season',{id:stage.season.id,name:stage.season.name,
    year:stage.season.year,status:stage.season.status??'DRAFT'});
   const directions=new Map(),classes=[];
@@ -362,13 +374,14 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
    resultsPublishedAt:maybeDate(stage.resultsPublishedAt,'публикация результатов'),
    rulesSnapshot:maybeJSON(stage.rulesSnapshot),
   }});
-  for(const sc of stage.stageClasses.sort(sortById))
+  for(const sc of [...stage.stageClasses].sort(sortById))
    await tx.stageClass.create({data:{
     id:sc.id,stageId:stage.id,classId:sc.classId,sortOrder:sc.sortOrder,
     isActive:sc.isActive,participantLimit:sc.participantLimit??null,
     customName:sc.customName??null,description:sc.description??null,
     settings:maybeJSON(sc.settings),
    }});
+  progress('SIGNED_POLICY');
   if(plan.snapshot.venuePolicy){
    const policy=plan.snapshot.venuePolicy;
    // The official Prisma migrations seed SiteSettings/default with component
@@ -430,18 +443,25 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
    if(!existingCar)cars.set(r.car.id,r.car);
    if(r.stageInspection)inspectMap.set(r.participant.id,r.stageInspection);
   }
-  for(const person of [...people.values()].sort(sortById))
-   await createShared('participant',{
-    id:person.id,firstName:person.firstName,lastName:person.lastName,
-    middleName:person.middleName??null,city:person.city??null,team:person.team??null,
-    isPublic:person.isPublic===true,
-   });
-  for(const car of [...cars.values()].sort(sortById))
-   await createShared('car',{
-    id:car.id,participantId:car.participantId,brand:car.brand,model:car.model,
-    registrationCountry:car.registrationCountry,registrationNumber:car.registrationNumber,
-    color:car.color??null,isPublic:car.isPublic===true,isActive:car.isActive===true,
-   });
+  const participantRows=[...people.values()].sort(sortById).map(person=>({
+   id:person.id,firstName:person.firstName,lastName:person.lastName,
+   middleName:person.middleName??null,city:person.city??null,team:person.team??null,
+   isPublic:person.isPublic===true,
+  }));
+  progress('PARTICIPANTS');
+  if(shared){
+   for(const data of participantRows)await createShared('participant',data);
+  }else await insertBatches('participant',participantRows,tx);
+  const carRows=[...cars.values()].sort(sortById).map(car=>({
+   id:car.id,participantId:car.participantId,brand:car.brand,model:car.model,
+   registrationCountry:car.registrationCountry,registrationNumber:car.registrationNumber,
+   color:car.color??null,isPublic:car.isPublic===true,isActive:car.isActive===true,
+  }));
+  progress('CARS');
+  if(shared){
+   for(const data of carRows)await createShared('car',data);
+  }else await insertBatches('car',carRows,tx);
+  progress('REGISTRATIONS');
   for(const r of regs){
    // A local FK placeholder, NOT a claim that the full historical equipment
    // graph was exported. Registration.configurationSnapshot is authoritative.
@@ -481,6 +501,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
     notes:r.inspection.notes??null,
    }});
   }
+  progress('INSPECTIONS_RESULTS');
   for(const ins of [...inspectMap.values()].sort(sortById))
    await tx.participantStageInspection.create({data:{
     id:ins.id,participantId:ins.participantId,stageId:ins.stageId,
@@ -504,6 +525,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
      isBest:score.isBest===true,verificationStatus:score.verificationStatus,
     }});
   }
+  progress('RECEIPT');
   await tx.auditLog.create({data:{
    action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:stage.id,
    metadata:{sha256:plan.packageHash,registrationCount:regs.length,
@@ -515,6 +537,14 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
   }
   return {...plan.summary,sha256:plan.packageHash};
  },{isolationLevel:'Serializable',timeout:120000});
+ }catch(error){
+  // Only predefined phase names travel into the Windows error dialog.
+  // Keep original exception for tests; never print SQL, PII or credentials.
+  if(error&&typeof error==='object'){
+   try{error.venueImportPhase=failurePhase}catch{}
+  }
+  throw error;
+ }
 }
 
 
@@ -629,6 +659,12 @@ export function classifyVenueImportFailure(error){
  if(/Адрес локальной базы данных недопустим|Импорт в публичную или постороннюю базу запрещён/.test(reason))return 'LOCAL_DATABASE_CONFIG';
  if(/UUID этапа не совпадает|этапа не совпадает с закреплённым|Импорт разрешён только на локальной площадке/.test(reason))return 'STAGE_SCOPE';
  if(/Этап уже импортирован из другого пакета|исходной подписанной установки|пакета не совпадает/.test(reason))return 'INSTALLED_PACKAGE_MISMATCH';
+ const phase=['DB_PRECHECK','STAGE_CATALOG','SIGNED_POLICY','PARTICIPANTS','CARS','REGISTRATIONS','INSPECTIONS_RESULTS','RECEIPT']
+  .includes(error?.venueImportPhase)?error.venueImportPhase:null;
+ const prismaCode=typeof error?.code==='string'&&/^P(?:10[012]|20(?:00|02|03|04|11|22|24|25|28|34))$/.test(error.code)
+  ?error.code:null;
+ if(prismaCode)return 'DATABASE_'+prismaCode+(phase?'_'+phase:'');
+ if(phase)return 'DATABASE_'+phase;
  return 'UNCLASSIFIED';
 }
 async function main(){
@@ -666,7 +702,10 @@ async function main(){
    return;
   }
   if(confirmedId!==plan.summary.stageId)throw new Error('UUID не совпадает с этапом');
-  const result=await applyVenueStageImport(plan,prisma,{shared:process.env.VENUE_SHARED_IMPORT==='true'});
+  const result=await applyVenueStageImport(plan,prisma,{
+   shared:process.env.VENUE_SHARED_IMPORT==='true',
+   onProgress:phase=>process.stderr.write('USD VENUE IMPORT PHASE: '+phase+'\n'),
+  });
   process.stdout.write('USD VENUE STAGE IMPORTED INTO ISOLATED LOCAL DB\n');
   process.stdout.write(JSON.stringify(result)+'\n');
  }finally{await prisma.$disconnect()}

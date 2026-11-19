@@ -5,6 +5,10 @@
  */
 import {strict as assert} from 'node:assert';
 import {createHash,createCipheriv,randomBytes,randomUUID,generateKeyPairSync,sign} from 'node:crypto';
+import {mkdtemp,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {execFileSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 import {planVenueStageImport,applyVenueStageImport,planInstalledVenueStageImport} from './import-stage.mjs';
 import {planVenueStaff,provisionVenueStaff} from './provision-staff.mjs';
@@ -51,6 +55,10 @@ function sealStaff(staff,stageId){
 
 const api='http://api:3000';
 
+function stableFixtureUuid(kind,index=0){
+ const hex=createHash('sha256').update('usd-venue-e2e:'+kind+':'+index).digest('hex');
+ return hex.slice(0,8)+'-'+hex.slice(8,12)+'-4'+hex.slice(13,16)+'-8'+hex.slice(17,20)+'-'+hex.slice(20,32);
+}
 function syntheticSignedStage(staffAccess,mutate=()=>{}){
  const now=Date.now();
  const snapshot={
@@ -101,6 +109,35 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
    stageInspection:null,results:[],
   }],
  };
+ // Mirror production exports: every historical profile/car plus the complete
+ // 19-class catalogue and more than one currently registered entrant. The
+ // old one-entrant CI fixture missed Windows transaction saturation.
+ snapshot.participantDirectory.push(...Array.from({length:750},(_,index)=>{
+  const participantId=stableFixtureUuid('historical-person',index);
+  return {id:participantId,firstName:'Из архива',lastName:'Профиль '+index,
+   middleName:null,city:null,team:null,isPublic:false,
+   cars:[{id:stableFixtureUuid('historical-car',index),participantId,brand:'Lada',model:'',
+    registrationCountry:'RU',registrationNumber:'',color:null,isPublic:false,isActive:false}]};
+ }));
+ for(let i=1;i<19;i++){
+  const classId=stableFixtureUuid('extra-class',i);
+  snapshot.stage.stageClasses.push({
+   id:stableFixtureUuid('extra-stage-class',i),stageId:ID.stage,classId,sortOrder:i,
+   isActive:true,participantLimit:null,customName:null,description:null,settings:null,
+   class:{id:classId,code:'CI_EXTRA_'+i,name:'CI class '+i,unit:'DB',
+    sortOrder:i,isActive:true,direction:{id:ID.direction,name:'SPL',sortOrder:0,isActive:true}},
+  });
+ }
+ const second=structuredClone(snapshot.registrations[0]);
+ second.id=stableFixtureUuid('second-registration');second.participantId=stableFixtureUuid('second-person');second.carId=stableFixtureUuid('second-car');
+ second.configurationVersionId=stableFixtureUuid('second-version');second.participantNumber=7;
+ second.participant.id=second.participantId;second.participant.firstName='Второй';
+ second.car.id=second.carId;second.car.participantId=second.participantId;
+ second.car.registrationNumber='А124ВС55';
+ second.numbers[0].id=stableFixtureUuid('second-number');second.numbers[0].number=7;
+ second.classes[0].id=stableFixtureUuid('second-registration-class');second.classes[0].numberId=second.numbers[0].id;
+ second.inspection=null;second.stageInspection=null;
+ snapshot.registrations.push(second);
  mutate(snapshot);
  const {privateKey,publicKey}=generateKeyPairSync('ed25519');
  const bytes=Buffer.from(JSON.stringify(snapshot));
@@ -141,8 +178,23 @@ async function seed(){
  try{
   const privileges=await client.$queryRawUnsafe('SELECT rolsuper FROM pg_roles WHERE rolname=current_user');
   assert.equal(privileges[0].rolsuper,false,'API DB principal must never be superuser');
+  // Exercise the EXACT Windows launcher child CLI, not just the imported
+  // function that CI previously called. A tiny mock-only import hid failures.
+  const temporary=await mkdtemp(join(tmpdir(),'usd-venue-ci-stage-'));
+  try{
+   const pkg=join(temporary,'stage.json'),pem=join(temporary,'public.pem');
+   await writeFile(pkg,JSON.stringify(signed.container),{mode:0o600});
+   await writeFile(pem,signed.publicPem,{mode:0o600});
+   const stdout=execFileSync(process.execPath,[
+    '/app/import-stage.mjs',pkg,pem,'--apply',ID.stage,
+   ],{env:process.env,encoding:'utf8',stdio:['ignore','pipe','pipe']});
+   assert.match(stdout,/USD VENUE STAGE IMPORTED INTO ISOLATED LOCAL DB/);
+  }finally{await rm(temporary,{recursive:true,force:true})}
   const imported=await applyVenueStageImport(plan,client);
-  assert.equal(imported.registrations,1);
+  assert.equal(imported.replayed,true,'CLI committed the signed stage; module replay must be read-only');
+  assert.equal(imported.registrations,2);
+  assert.equal(imported.classes,19);
+  assert.equal(await client.participant.count(),753,'all signed historical identities must import');
   const season=await client.season.findUnique({where:{id:ID.season}});
   assert.equal(season.status,'ACTIVE','The venue must permit on-site registration into active season');
   const settings=await client.siteSettings.findUnique({where:{id:'default'}});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createHash,generateKeyPairSync,sign} from 'node:crypto';
+import {createHash,generateKeyPairSync,sign,randomUUID} from 'node:crypto';
 import {planVenueStageImport,applyVenueStageImport} from './import-stage.mjs';
 import * as importer from './import-stage.mjs';
 
@@ -113,6 +113,7 @@ function mockDb(){
    count:async()=>0,
    findUnique:async()=>null,
    create:async value=>{log.push({model:name,data:value.data});return {id:value.data?.id??uuid.version}},
+   createMany:async value=>{for(const item of value.data)log.push({model:name,data:item});return {count:value.data.length}},
    update:async value=>{log.push({model:name,update:value.data});return {}},
   };
  }
@@ -121,6 +122,41 @@ function mockDb(){
  const db={$transaction:async(callback,opts)=>{assert.equal(opts.isolationLevel,'Serializable');return callback(tx)}};
  return {tx,db,log};
 }
+test('apply must not reorder signed stage classes and invalidate its checksum on replay',async()=>{
+ const data=snapshot();
+ const extra=structuredClone(data.stage.stageClasses[0]);
+ extra.id='a1111111-1111-4111-8111-111111111111';
+ extra.classId='a2222222-2222-4222-8222-222222222222';
+ extra.class.id=extra.classId;extra.class.code='CI_SECOND';extra.class.name='Extra';
+ data.stage.stageClasses.push(extra);
+ const packageObject=signed(data),original=JSON.stringify(packageObject.snapshot);
+ const plan=planVenueStageImport(packageObject,publicPem,env,now);
+ await applyVenueStageImport(plan,mockDb().db);
+ assert.equal(JSON.stringify(packageObject.snapshot),original,'signed class order is immutable');
+ assert.equal(planVenueStageImport(packageObject,publicPem,env,now).summary.classes,2);
+});
+
+test('full signed historical roster uses bounded bulk inserts, not one Prisma query per profile and car',async()=>{
+ const data=snapshot();
+ data.participantDirectory=Array.from({length:750},(_,index)=>{
+  const id=randomUUID();
+  return {id,firstName:'Исторический',lastName:'Профиль '+index,middleName:null,
+   city:null,team:null,isPublic:false,
+   cars:[{id:randomUUID(),participantId:id,brand:'Lada',model:'',registrationCountry:'RU',
+    registrationNumber:'',color:null,isPublic:false,isActive:false}]};
+ });
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {db,tx}=mockDb();
+ const bulkCalls=[];
+ tx.participant.createMany=async args=>{bulkCalls.push({model:'participant',rows:args.data.length});return {count:args.data.length}};
+ tx.car.createMany=async args=>{bulkCalls.push({model:'car',rows:args.data.length});return {count:args.data.length}};
+ await applyVenueStageImport(plan,db);
+ assert.equal(bulkCalls.filter(c=>c.model==='participant').reduce((n,c)=>n+c.rows,0),751);
+ assert.equal(bulkCalls.filter(c=>c.model==='car').reduce((n,c)=>n+c.rows,0),751);
+ assert.ok(bulkCalls.every(c=>c.rows<=250),'bounded batches avoid oversized PostgreSQL bind payloads');
+ assert.ok(bulkCalls.length<=8,'initial import must scale to the entire signed directory');
+});
+
 test('fresh stage with approved intake cannot install without an explicit signed ban list',async()=>{
  const data=snapshot();delete data.disqualifications;
  const plan=planVenueStageImport(signed(data),publicPem,env,now);
@@ -374,6 +410,19 @@ test('RED: new signed roster with blank vehicle plates cannot collide with exist
  assert.equal(done.addedCars,1);
 });
 
+test('database failure reports a fixed import phase and safe Prisma code without participant names or SQL',async()=>{
+ const plan=planVenueStageImport(signed(),publicPem,env,now);
+ const {db,tx}=mockDb();
+ tx.car.createMany=async()=>{const error=new Error('private row Иванов, secret /local-private');
+  error.code='P2002';throw error};
+ await assert.rejects(()=>applyVenueStageImport(plan,db),error=>{
+  assert.equal(importer.classifyVenueImportFailure(error),'DATABASE_P2002_CARS');
+  return true;
+ });
+ const unsafe=new Error('participant Иванов /local-private SELECT password');
+ unsafe.code='P2002';unsafe.venueImportPhase='unsafe-dynamic-message';
+ assert.equal(importer.classifyVenueImportFailure(unsafe),'DATABASE_P2002');
+});
 test('RED: startup refusal produces safe, PII-free reason codes for clock, historical roster, trust and database',()=>{
  assert.equal(importer.classifyVenueImportFailure(new Error('Пакет просрочен или время ноутбука неверно')),'PACKAGE_EXPIRED_OR_CLOCK');
  assert.equal(importer.classifyVenueImportFailure(new Error('Повтор или повреждение участника справочника')),'SIGNED_DIRECTORY_INVALID');
