@@ -1,11 +1,12 @@
 import { PushService } from '../push/push.service';
-import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { SiteSettingsService } from '../site-settings/site-settings.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import type { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
+import { criticalStageChanges, criticalStageSnapshot, CRITICAL_STAGE_LABELS, type CriticalStageSnapshot } from './stage-critical-notice';
 
 @Injectable()
 export class StagesService {
@@ -195,7 +196,11 @@ export class StagesService {
       registrationStartsAt: dto.registrationStartsAt ? this.parseDate(dto.registrationStartsAt, 'Некорректная дата начала регистрации') : null,
       registrationEndsAt: dto.registrationEndsAt ? this.parseDate(dto.registrationEndsAt, 'Некорректная дата окончания регистрации') : null,
       isDeleted: false,
+      criticalNoticeBaseline: null as any,
+      criticalNoticeState: 'IDLE',
+      ...(existing ? { criticalNoticeRevision: { increment: 1 } } : {}),
     };
+    data.criticalNoticeBaseline = criticalStageSnapshot(data) as any;
 
     if (data.registrationStartsAt && data.registrationEndsAt && data.registrationStartsAt > data.registrationEndsAt) {
       throw new BadRequestException('Дата начала регистрации не может быть позже даты окончания');
@@ -220,6 +225,131 @@ export class StagesService {
     }
 
     return stage;
+  }
+
+
+  /** Persistent state is compared against what entrants last received, not against
+   * the immediately preceding edit. Poster/class/name changes never set pending. */
+  private async criticalNoticeMutation(previous: any, next: any) {
+    const before = criticalStageSnapshot(previous);
+    const after = criticalStageSnapshot(next);
+    const changed = criticalStageChanges(before, after);
+    const eligibilityChanged = previous.status !== next.status
+      && (!['PUBLISHED', 'CANCELLED'].includes(next.status));
+    if (!changed.length && !eligibilityChanged) return {};
+    const active = await this.prisma.registration.count({
+      where: { stageId: previous.id, status: 'ACTIVE' },
+    });
+    const previousBaseline = previous.criticalNoticeBaseline
+      ? previous.criticalNoticeBaseline as CriticalStageSnapshot : before;
+    const hasPendingChanges = criticalStageChanges(previousBaseline, after).length > 0;
+    const eligible = active > 0 && ['PUBLISHED', 'CANCELLED'].includes(next.status);
+    return {
+      criticalNoticeBaseline: (eligible ? previousBaseline : after) as any,
+      criticalNoticeRevision: { increment: 1 },
+      criticalNoticeState: eligible && hasPendingChanges ? 'PENDING' : 'IDLE',
+    };
+  }
+
+  private async criticalNoticeRecipients(stageId: string) {
+    const registrations = await this.prisma.registration.findMany({
+      where: { stageId, status: 'ACTIVE' },
+      select: { participant: { select: { user: {
+        select: { id: true, email: true, isActive: true, emailVerifiedAt: true },
+      } } } },
+    });
+    const eligible = new Set<string>();
+    for (const registration of registrations) {
+      const user = registration.participant?.user;
+      if (user?.id && user.email && user.isActive && user.emailVerifiedAt) eligible.add(user.id);
+    }
+    return eligible.size;
+  }
+
+  /** ADMIN-only operational notice preview: no email addresses or message content. */
+  async criticalNoticeStatus(id: string) {
+    const stage = await this.prisma.stage.findFirst({ where: { id, isDeleted: false } });
+    if (!stage) throw new NotFoundException('Этап не найден');
+    const current = criticalStageSnapshot(stage);
+    const baseline = stage.criticalNoticeBaseline
+      ? stage.criticalNoticeBaseline as CriticalStageSnapshot : current;
+    const changedFields = criticalStageChanges(baseline, current);
+    const recipients = changedFields.length && stage.criticalNoticeState !== 'IDLE'
+      ? await this.criticalNoticeRecipients(id) : 0;
+    const pending = stage.criticalNoticeState === 'PENDING'
+      && ['PUBLISHED', 'CANCELLED'].includes(stage.status)
+      && changedFields.length > 0 && recipients > 0;
+    const transport = this.emailNotifications?.criticalStageMailReadiness() ?? { ready: false, reason: 'Почтовый сервис не подключён' };
+    return {
+      pending,
+      revision: stage.criticalNoticeRevision,
+      changedFields,
+      changedLabels: changedFields.map(key => CRITICAL_STAGE_LABELS[key]),
+      recipients,
+      sending: stage.criticalNoticeState === 'SENDING',
+      mailReady: transport.ready,
+      mailNote: transport.reason,
+      lastSentAt: stage.criticalNoticeSentAt,
+      canSend: pending && transport.ready,
+    };
+  }
+
+  /** Manual two-step confirmation, version check and atomic claim prevent
+   * duplicate button presses or edits during a send. */
+  async sendCriticalNotice(id: string, revision: number, confirmed: boolean, request: AuthenticatedRequest) {
+    if (!confirmed) throw new BadRequestException('Подтвердите рассылку зарегистрированным участникам');
+    if (!Number.isSafeInteger(revision) || revision < 1) throw new BadRequestException('Некорректная версия изменений');
+    const preview = await this.criticalNoticeStatus(id);
+    if (!preview.pending || preview.revision !== revision) {
+      throw new ConflictException('Изменения этапа устарели или уже обработаны. Обновите карточку.');
+    }
+    if (!preview.mailReady || !this.emailNotifications) {
+      throw new ServiceUnavailableException(preview.mailNote || 'Рассылка служебных писем не настроена');
+    }
+    const claimed = await this.prisma.stage.updateMany({
+      where: { id, criticalNoticeRevision: revision, criticalNoticeState: 'PENDING', isDeleted: false },
+      data: { criticalNoticeState: 'SENDING' },
+    });
+    if (claimed.count !== 1) throw new ConflictException('Рассылка уже выполняется или данные этапа изменились');
+    let completed = false;
+    try {
+      const stage = await this.prisma.stage.findFirst({ where: { id, isDeleted: false } });
+      if (!stage || stage.criticalNoticeRevision !== revision) throw new ConflictException('Изменились данные этапа');
+      const baseline = stage.criticalNoticeBaseline as CriticalStageSnapshot | null;
+      const current = criticalStageSnapshot(stage);
+      const changes = criticalStageChanges(baseline ?? current, current);
+      const summary = await this.emailNotifications.sendCriticalStageNotice(stage, changes, revision,
+        async () => {
+          const state = await this.prisma.stage.findFirst({
+            where: { id, isDeleted: false },
+            select: { criticalNoticeRevision: true, criticalNoticeState: true },
+          });
+          return state?.criticalNoticeRevision === revision && state.criticalNoticeState === 'SENDING';
+        });
+      completed = summary.total > 0 && summary.accepted === summary.total && !summary.interrupted;
+      await this.prisma.stage.updateMany({
+        where: { id, criticalNoticeRevision: revision, criticalNoticeState: 'SENDING' },
+        data: completed ? {
+          criticalNoticeState: 'IDLE',
+          criticalNoticeBaseline: current as any,
+          criticalNoticeSentAt: new Date(),
+        } : { criticalNoticeState: 'PENDING' },
+      });
+      await this.audit.log({
+        userId: request.user.sub,
+        action: completed ? 'STAGE_CRITICAL_NOTICE_ACCEPTED' : 'STAGE_CRITICAL_NOTICE_PARTIAL',
+        entity: 'Stage', entityId: id, ipAddress: request.ip,
+        metadata: { revision, changedFields: changes, total: summary.total, accepted: summary.accepted,
+          failed: summary.failed, interrupted: summary.interrupted },
+      });
+      return { ...summary, completed, deliveryConfirmed: false };
+    } catch (error) {
+      await this.prisma.stage.updateMany({
+        where: { id, criticalNoticeRevision: revision, criticalNoticeState: 'SENDING' },
+        data: { criticalNoticeState: 'PENDING' },
+      });
+      throw error;
+    }
   }
 
   async update(id: string, dto: UpdateStageDto, request: AuthenticatedRequest) {
@@ -315,25 +445,16 @@ export class StagesService {
       data.registrationOpen = false;
     }
 
+    Object.assign(data, await this.criticalNoticeMutation(stage, { ...stage, ...data }));
     const updated = await this.prisma.stage.update({ where: { id }, data, include: { season: true } });
 
     if (!stage.registrationOpen && updated.registrationOpen) {
       void this.emailNotifications?.registrationOpened(updated.id).catch(() => undefined);
       void this.pushNotifications?.registrationOpened(updated.id).catch(() => undefined);
     }
-    if (
-      stage.name !== updated.name ||
-      String(stage.date ?? '') !== String(updated.date ?? '') ||
-      (stage.startTimeMsk ?? '10:00') !== (updated.startTimeMsk ?? '10:00') ||
-      stage.city !== updated.city ||
-      stage.venue !== updated.venue ||
-      stage.address !== updated.address ||
-      stage.status !== updated.status
-    ) {
-      if (typeof this.emailNotifications?.stageChanged === 'function') {
-        void Promise.resolve(this.emailNotifications.stageChanged(stage, updated)).catch(() => undefined);
-      }
-    }
+
+    // Sending is a separate ADMIN action in the stage card. No automatic
+    // emails on saving, publishing, changing artwork/classes or cancelling.
 
     const changed = Object.keys(data);
     await this.audit.log({
@@ -356,15 +477,11 @@ export class StagesService {
 
     const updated = await this.prisma.stage.update({
       where: { id },
-      data: { status: 'CANCELLED', registrationOpen: false, isDeleted: false },
+      data: { status: 'CANCELLED', registrationOpen: false, isDeleted: false,
+        ...await this.criticalNoticeMutation(stage, { ...stage, status: 'CANCELLED' }) },
       include: { season: true },
     });
 
-    // The dedicated cancellation action must notify participants just like a
-    // status change in the stage editor. Skip an already-cancelled stage.
-    if (stage.status !== 'CANCELLED' && typeof this.emailNotifications?.stageChanged === 'function') {
-      void Promise.resolve(this.emailNotifications.stageChanged(stage, updated)).catch(() => undefined);
-    }
 
     await this.audit.log({
       userId: request.user.sub,
