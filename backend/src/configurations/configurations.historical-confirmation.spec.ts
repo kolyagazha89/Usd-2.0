@@ -33,4 +33,20 @@ describe('participant confirmation of final 2026 configuration',()=>{
   await service.update(request,'config',dto);expect(db.carConfigurationVersion.create).toHaveBeenCalled();expect(db.carConfigurationVersion.update).not.toHaveBeenCalled();expect(db.carHeadUnit.deleteMany).not.toHaveBeenCalled();
  });
  it('preserves even unreferenced working versions on edit',async()=>{db.registration.count.mockResolvedValue(0);await service.update(request,'config',dto);expect(db.carConfigurationVersion.create).toHaveBeenCalled();expect(db.carConfigurationVersion.update).not.toHaveBeenCalled();expect(db.carHeadUnit.deleteMany).not.toHaveBeenCalled()});
+ it('does not expose a hidden car through a remembered member configuration URL',async()=>{
+  db.car.findUnique.mockResolvedValue({id:'car',participantId:'person',isActive:false});
+  await expect(service.findByCar(request,'car')).rejects.toThrow('Car not found');
+  expect(db.carConfiguration.findMany).toBeUndefined();
+ });
+ it('blocks judge access to archived car configurations by direct car ID',async()=>{
+  db.car.findUnique.mockResolvedValue({id:'car',isActive:false});
+  await expect(service.findByCar({user:{role:'PARTICIPANT',customRoleId:'judge-role'}},'car'))
+   .rejects.toThrow('Car not found');
+ });
+ it('blocks judge access to hidden car configuration by configuration ID',async()=>{
+  db.carConfiguration.findUnique.mockResolvedValue({id:'config',carId:'car',car:{id:'car',isActive:false}});
+  await expect(service.findOne({user:{role:'PARTICIPANT',customRoleId:'judge-role'}},'config'))
+   .rejects.toThrow('Configuration not found');
+ });
+
 });
