@@ -93,6 +93,29 @@ describe('isValidRegistrationPlate', () => {
     expect(isValidRegistrationPlate(country, plate)).toBe(false);
   });
 
+  it('accepts the structural 2026 codes and 1–9 regional prefixes without a stale region whitelist', () => {
+    for (const region of ['20','147','155','166','193','198','224','250','252','323','550','778','997']) {
+      expect(isValidRegistrationPlate('RU','У623РН'+region)).toBe(true);
+    }
+    for (let base=1; base<=99; base++) {
+      const suffix=String(base).padStart(2,'0');
+      for (const prefix of ['',...'123456789']) {
+        expect(isValidRegistrationPlate('RU','А123ВС'+prefix+suffix)).toBe(true);
+      }
+    }
+    for (const region of ['00','000','001','100','200','900']) {
+      expect(isValidRegistrationPlate('RU','А123ВС'+region)).toBe(false);
+    }
+  });
+
+  it('normalizes pasted separators and Latin lookalikes before matching Russian codes', () => {
+    for (const plate of ['Y623PH193','У 623 РН-193','У623РН|193','у623рн193']) {
+      expect(isValidRegistrationPlate('RU',plate)).toBe(true);
+    }
+    expect(isValidRegistrationPlate('RU','Д623ЯЯ193')).toBe(false);
+    expect(isValidRegistrationPlate('RU','У623РН1934')).toBe(false);
+  });
+
   it('rejects unknown countries and empty plates', () => {
     expect(isValidRegistrationPlate('XX', 'ABC123')).toBe(false);
     expect(isValidRegistrationPlate('RU', '')).toBe(false);
