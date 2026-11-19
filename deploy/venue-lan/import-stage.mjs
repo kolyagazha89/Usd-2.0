@@ -533,20 +533,25 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
    return car.registrationCountry+':'+letters.replace(/[^\p{L}\p{N}]/gu,'');
   };
   const currentCars=await tx.car.findMany({select:{id:true,participantId:true,registrationNumber:true,registrationCountry:true}});
+  const sourceCarIds=new Set(plan.participantDirectory.flatMap(person=>person.cars.map(car=>car.id)));
   const plates=new Map();
   for(const car of currentCars){
    const plate=normalizedPlate(car);
-   if(plates.has(plate)&&plates.get(plate)!==car.id)
-    throw new Error('В локальной базе есть совпадающие номера разных автомобилей');
-   plates.set(plate,car.id);
+   if(!plates.has(plate))plates.set(plate,new Set());
+   plates.get(plate).add(car.id);
   }
   let addedParticipants=0,addedCars=0;
-  // Existing local entries may have legitimate offline edits: never overwrite.
+  // Identical plates on different centrally signed car IDs may be historical
+  // data; retain both identities. A new local-only car with an occupied plate
+  // needs manual review, never an automatic reassignment or overwrite.
   for(const person of plan.participantDirectory){
    for(const car of person.cars){
-    const plate=normalizedPlate(car),otherId=plates.get(plate);
-    if(otherId&&otherId!==car.id)throw new Error('Номер автомобиля уже принадлежит другому локальному ID');
-    plates.set(plate,car.id);
+    const plate=normalizedPlate(car);
+    const owners=plates.get(plate)??new Set();
+    if([...owners].some(id=>id!==car.id&&!sourceCarIds.has(id)))
+     throw new Error('MANUAL_REVIEW: госномер уже занят локальным автомобилем под другим ID');
+    owners.add(car.id);
+    plates.set(plate,owners);
    }
   }
   await tx.$executeRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");

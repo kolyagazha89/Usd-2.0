@@ -34,6 +34,7 @@ export function postgresFullVenueAdapter(client){
    try{
     await client.query("SET LOCAL statement_timeout = '55000ms'");
     await client.query("SET LOCAL lock_timeout = '12000ms'");
+    let cachedParticipantFios=null;
     const tx={
      async stage(stageId){
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[stageId]);
@@ -94,10 +95,11 @@ export function postgresFullVenueAdapter(client){
       // Never use the stale offline signed roster for online duplicate decisions.
       if(typeof person?.firstName!=='string'||typeof person?.lastName!=='string')
        throw Error('VENUE DB: invalid person for duplicate review');
-      const {rows}=await client.query(
-       'SELECT id,"firstName","lastName","middleName" FROM "Participant"'
-      );
-      return rows;
+      if(!cachedParticipantFios){
+       const result=await client.query('SELECT id,"firstName","lastName","middleName" FROM "Participant"');
+       cachedParticipantFios=result.rows;
+      }
+      return cachedParticipantFios;
      },
      async participantEligible(participantId,stageId){
       const {rows}=await client.query(
