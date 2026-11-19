@@ -120,6 +120,57 @@ test('PG18: a central car with the same plate but different owner forces manual 
  }
 });
 
+test('PG18: approved LINK transfers same signed registration, number, inspection and score to existing central USD ID',async()=>{
+ const centralId=uid(188),adminId=uid(189),reviewId=uid(190);
+ await query('INSERT INTO "Participant"(id,"firstName","lastName",city) VALUES ($1,$2,$3,$4)',
+  [centralId,'Новый','Участник','Омск']);
+ await query('INSERT INTO "User"(id,email,"passwordHash",role,"updatedAt") VALUES ($1,$2,$3,$4,now())',
+  [adminId,'venue-review-test@example.invalid','ci-only-hash','ADMIN']);
+ const decision={
+  key:'Participant:'+participant,table:'Participant',sourceId:participant,
+  action:'LINK',targetId:centralId,candidateIds:[centralId],
+  reason:'Проверен оригинальный профиль и результаты',
+ };
+ const approved={...opts,reviewId,approvedBy:adminId,
+  resolutions:{[decision.key]:decision}};
+ try{
+  const adapter=postgresFullVenueAdapter(client);
+  const dry=await applyCompleteVenueJournal(changes,adapter,{...approved,apply:false});
+  assert.equal(dry.readyEvents,9);
+  assert.equal(await read('Participant',participant),null);
+  const accepted=await applyCompleteVenueJournal(changes,adapter,approved);
+  assert.equal(accepted.appliedEvents,9);
+  assert.equal(await read('Participant',participant),null,'no duplicate profile');
+  assert.equal((await read('Registration',registration)).participantId,centralId);
+  assert.equal((await read('Car',car)).participantId,centralId);
+  assert.equal((await read('RegistrationNumber',number)).number,42);
+  assert.equal((await read('Inspection',inspection)).status,'PASSED');
+  assert.equal((await read('Result',result)).value,154.12);
+  const audited=await query('SELECT metadata FROM "AuditLog" WHERE action=$1 AND "entityId"=$2',
+   ['VENUE_RETURN_IDENTITY_RESOLVED',participant]);
+  assert.equal(audited.rows.length,1);
+  assert.equal(audited.rows[0].metadata.reviewId,reviewId);
+  assert.equal(audited.rows[0].metadata.targetId,centralId);
+  assert.equal((await applyCompleteVenueJournal(changes,adapter,approved)).alreadyApplied,true);
+  await assert.rejects(()=>applyCompleteVenueJournal(changes,adapter,opts),
+   /partial, unknown or different journal receipts/);
+ }finally{
+  // This test uses production migration SQL but only an isolated CI database;
+  // remove the completed signed stage graph for following baseline tests.
+  for(const table of ['Result','Inspection','RegistrationClass','RegistrationNumber',
+   'Registration','CarConfigurationVersion','CarConfiguration','Car']){
+   const id={Result:result,Inspection:inspection,RegistrationClass:regclass,
+    RegistrationNumber:number,Registration:registration,
+    CarConfigurationVersion:version,CarConfiguration:config,Car:car}[table];
+   await query('DELETE FROM "'+table+'" WHERE id=$1',[id]);
+  }
+  await query('DELETE FROM "AuditLog" WHERE action IN ($1,$2) AND metadata->>$3=$4',
+   ['VENUE_FULL_EVENT_IMPORTED','VENUE_RETURN_IDENTITY_RESOLVED','journalEndHash',changes.journalEndHash]);
+  await query('DELETE FROM "User" WHERE id=$1',[adminId]);
+  await query('DELETE FROM "Participant" WHERE id=$1',[centralId]);
+ }
+});
+
 test('PG18: full offline entrants, configs, number, inspection and result write atomically',async()=>{
  const adapter=postgresFullVenueAdapter(client);
  const preview=await applyCompleteVenueJournal(changes,adapter,{...opts,apply:false});
