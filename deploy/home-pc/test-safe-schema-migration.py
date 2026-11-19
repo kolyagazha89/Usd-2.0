@@ -83,6 +83,53 @@ class SafeSqlTests(unittest.TestCase):
                 self.assertNotIn("NOT NULL", sql.upper())
                 self.assertNotIn("DEFAULT ", sql.upper())
 
+
+    def test_newly_merged_20261119_migrations_are_accepted_by_host_gate(self):
+        """The real committed SQL must pass without modifying Prisma checksums."""
+        root = Path(__file__).parents[2] / "backend/prisma/migrations"
+        for folder in (
+            "20261119140000_manual_stage_critical_notice",
+            "20261119173000_venue_return_review",
+        ):
+            with self.subTest(migration=folder):
+                module.check_additive_sql((root / folder / "migration.sql").read_text())
+
+    def test_existing_table_defaults_are_reviewed_by_exact_column_and_value(self):
+        unsafe = (
+            """ALTER TABLE "Participant" ADD COLUMN "other" INTEGER NOT NULL DEFAULT 0;""",
+            """ALTER TABLE "Stage" ADD COLUMN "criticalNoticeRevision" INTEGER NOT NULL DEFAULT 1;""",
+            """ALTER TABLE "Stage" ADD COLUMN "criticalNoticeState" VARCHAR(16) NOT NULL DEFAULT 'SENT';""",
+            """ALTER TABLE "Stage" ADD COLUMN "criticalNoticeRevision" INTEGER DEFAULT 0;""",
+            """ALTER TABLE "Stage" ADD COLUMN "criticalNoticeState" TEXT NOT NULL DEFAULT 'IDLE';""",
+            """ALTER TABLE "Stage" ADD COLUMN "criticalNoticeRevision" INTEGER NOT NULL DEFAULT 0, DROP COLUMN "name";""",
+            """ALTER TABLE "Stage" ADD COLUMN "criticalNoticeRevision" INTEGER NOT NULL DEFAULT 0, ADD COLUMN "unsafe" TEXT NOT NULL;""",
+        )
+        for sql in unsafe:
+            with self.subTest(sql=sql), self.assertRaises(ValueError):
+                module.check_additive_sql(sql)
+
+    def test_new_table_constraints_cannot_execute_arbitrary_expressions(self):
+        valid = """CREATE TABLE "NewReview" (
+          "id" TEXT PRIMARY KEY,
+          "authorizationId" TEXT NOT NULL,
+          "version" INTEGER NOT NULL DEFAULT 0,
+          "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT NOW(),
+          CONSTRAINT "NewReview_authorization_fkey" FOREIGN KEY ("authorizationId")
+            REFERENCES "VenueSyncAuthorization"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+          CONSTRAINT "NewReview_version_check" CHECK ("version" >= 0)
+        );"""
+        module.check_additive_sql(valid)
+        for broken in (
+            valid.replace('"version" >= 0', '"version" >= (SELECT COUNT(*) FROM "User")'),
+            valid.replace('"version" >= 0', '"id" >= 0'),
+            valid.replace('DEFAULT NOW()', "DEFAULT NOW() + INTERVAL '1 day'"),
+            valid.replace('ON DELETE RESTRICT', 'ON DELETE SET DEFAULT'),
+            valid.replace('TEXT PRIMARY KEY', 'TEXT PRIMARY KEY DEFAULT (SELECT current_user)'),
+            """ALTER TABLE "Participant" ADD CONSTRAINT "x" CHECK ("id" >= 0);""",
+        ):
+            with self.subTest(sql=broken), self.assertRaises(ValueError):
+                module.check_additive_sql(broken)
+
     def test_new_table_and_index(self):
         module.check_additive_sql("""
             CREATE TABLE "NewThing" (
