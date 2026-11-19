@@ -16,6 +16,7 @@ import { EmailNotificationsService } from '../mail/email-notifications.service';
 import { isValidRegistrationPlate } from '../participants/profile-validation';
 import { normalizePlateNumber,canonicalPlateIdentity,plateAdvisoryKey } from '../participants/plate-identity';
 import { configurationStillPending } from './pending-configuration';
+import {readSignedVenueDisqualifications} from '../stages/venue-disqualification-snapshot';
 import { redactArchivedRegistration } from '../participants/car-visibility';
 import { MAX_REGISTRATION_CLASS_IDS,planRegistrationClassNumbers } from './registration-class-numbering';
 import type { CreateOnSiteProfileDto, CreateOnSiteCarDto } from './dto/create-registration.dto';
@@ -158,6 +159,9 @@ export class RegistrationsService {
         'Этап не найден',
       );
     }
+
+    if(process.env.USD_VENUE_LAN_MODE==='true')
+      return readSignedVenueDisqualifications(tx,participantId,stage.id,stage.seasonId);
 
     return tx.disqualification.findMany({
       where: {
