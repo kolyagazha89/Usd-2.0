@@ -55,6 +55,8 @@ test('primary search and stage choice remain visible outside the advanced filter
  const registrations=await source('../src/admin/RegistrationsPage.tsx');
  const inspections=await source('../src/admin/InspectionsPage.tsx');
  for(const [name,s] of [['registrations',registrations],['inspections',inspections]]){
-  assert.match(s,/<\/CollapsibleFilters>\s*<label>Этап<select/,name+' current stage must stay visible');
+  const stagePicker=s.slice(s.indexOf('className="toolbar stage-picker'));
+  assert.match(stagePicker,/^className="toolbar stage-picker"><label>Этап<select/,name+' current stage is first');
+  assert.ok(stagePicker.indexOf('<label>Этап<select')<stagePicker.indexOf('<CollapsibleFilters'),name+' stage is outside and before advanced filters');
  }
 });
