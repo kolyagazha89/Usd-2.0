@@ -513,6 +513,7 @@ function Install-Local {
    $installed=@(& docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c "SELECT to_regclass('venue_private.operation_journal');")
   Assert-Exit 'inspect journal after resumed import'
   $journalFile=$(if($installed -contains 'venue_private.operation_journal'){'upgrade-journal-links.sql'}else{'install-journal.sql'})
+  if($journalFile -eq 'upgrade-journal-links.sql'){Repair-VenueCoverageIfNeeded}
   Get-Content -LiteralPath (Join-Path $Root $journalFile) -Raw -Encoding UTF8 |
    & docker @(Get-VenueComposeArguments) exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
   Assert-Exit 'append-only journal'
@@ -548,6 +549,7 @@ function Start-Local {
  Assert-NoOtherVenueGatewayRunning
  Start-VenueDatabase
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для выгрузки используйте Экспорт в этой папке.'}
+ Repair-VenueCoverageIfNeeded
  Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
   & docker @(Get-VenueComposeArguments) exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
  Assert-Exit 'upgrade durable amplifier link journal'
@@ -765,6 +767,7 @@ function Return-Online {
  if(-not $Silent){Start-Process $OnlineUrl}
 }
 . (Join-Path $Root 'venue-season.ps1')
+. (Join-Path $Root 'venue-coverage.ps1')
 . (Join-Path $Root 'venue-ca.ps1')
 . (Join-Path $Root 'venue-update.ps1')
 if($MyInvocation.InvocationName -eq '.'){return}

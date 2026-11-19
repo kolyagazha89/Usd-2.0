@@ -56,3 +56,23 @@ test('coverage watermark stays unique after stage switches and duplicate repair 
  assert.match(repair,/ORDER BY installed_at, ctid/);
  assert.doesNotMatch(repair,/(?:DELETE|TRUNCATE|UPDATE)\s+(?:FROM\s+)?venue_private\.operation_journal/);
 });
+
+test('one-click Windows repair backs up DB and checks coverage before every upgrade',async()=>{
+ const [control,season,coverage,kit]=await Promise.all([
+  source('./venue-control.ps1'),source('./venue-season.ps1'),
+  source('./venue-coverage.ps1'),source('./build-windows-kit.py'),
+ ]);
+ assert.match(control,/Repair-VenueCoverageIfNeeded\s+Get-Content -LiteralPath \(Join-Path \$Root 'upgrade-journal-links\.sql'\)/);
+ assert.match(season,/Repair-VenueCoverageIfNeeded\s+Get-Content -LiteralPath \(Join-Path \$Root 'upgrade-journal-links\.sql'\)/);
+ assert.match(control,/if\(\$journalFile -eq 'upgrade-journal-links\.sql'\)\{Repair-VenueCoverageIfNeeded\}/);
+ assert.match(control,/venue-coverage\.ps1/);
+ assert.match(season,/'venue-coverage\.ps1'/);
+ assert.match(kit,/"venue-coverage\.ps1"/);
+ assert.match(coverage,/pg_dump/);
+ assert.match(coverage,/pg_restore/);
+ assert.match(coverage,/Get-FileHash -LiteralPath \$filename -Algorithm SHA256/);
+ assert.match(coverage,/\$all -ne \$valid/);
+ assert.match(coverage,/DirectorySecurity/);
+ assert.match(coverage,/Restore-VenueApi/);
+ assert.ok(coverage.indexOf('pg_dump')<coverage.indexOf('Get-Content -LiteralPath $sql'));
+});
