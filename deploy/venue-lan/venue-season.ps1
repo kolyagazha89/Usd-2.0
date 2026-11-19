@@ -34,17 +34,20 @@ function Get-VenueHome {
 }
 function Assert-NoOtherVenueGatewayRunning {
  $expected=Get-VenueProject
- $containers=@(& docker ps --filter 'label=com.docker.compose.service=gateway' --format '{{.ID}}')
- Assert-Exit 'inspect other local USD stages'
- foreach($id in $containers){
-  if([string]$id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный ID шлюза'}
-  $labels=Read-VenueDockerLabels 'container' ([string]$id)
-  if([string]$labels.'com.docker.compose.service' -cne 'gateway'){
-   throw 'У шлюза Docker неверная метка службы'
-  }
-  $project=[string]$labels.'com.docker.compose.project'
-  if($project -like 'usd-venue*' -and $project -cne $expected){
-   throw ('Уже работает другой этап '+$project+'. Остановите его через «USD — Онлайн», не смешивайте подключения судей.')
+ # A stopped gateway may leave the previous stage's RustFS binding port 19000.
+ foreach($service in @('gateway','rustfs')){
+  $containers=@(& docker ps --filter ('label=com.docker.compose.service='+$service) --format '{{.ID}}')
+  Assert-Exit 'inspect other local USD stages'
+  foreach($id in $containers){
+   if([string]$id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный ID локального сервиса'}
+   $labels=Read-VenueDockerLabels 'container' ([string]$id)
+   if([string]$labels.'com.docker.compose.service' -cne $service){
+    throw 'У сервиса Docker неверная метка'
+   }
+   $project=[string]$labels.'com.docker.compose.project'
+   if($project -like 'usd-venue*' -and $project -cne $expected){
+    throw ('Уже запущен другой офлайн-этап '+$project+'. Остановите его через USD — Онлайн; данные остаются на ноутбуке.')
+   }
   }
  }
 }
