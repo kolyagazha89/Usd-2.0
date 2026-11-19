@@ -287,7 +287,9 @@ class VenueLauncherContracts(unittest.TestCase):
     def test_fresh_stage_signature_preflight_requires_no_database_or_existing_receipt(self):
         source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
         confirm=source[source.index('function Confirm-SignedStage'):source.index('function Install-Local')]
-        self.assertIn("if($State.phase -eq 'CONFIGURED')",confirm)
+        self.assertIn("'IMPORTED'",confirm)
+        self.assertIn("[array]::IndexOf",confirm)
+        self.assertIn("$preImport",confirm)
         self.assertIn("'--dry-run'",confirm)
         self.assertIn("'--check-installed'",confirm)
         self.assertLess(confirm.index("'--dry-run'"),confirm.index("'--check-installed'"))
@@ -297,7 +299,9 @@ class VenueLauncherContracts(unittest.TestCase):
         source=(ROOT/'provision-existing-staff.mjs').read_text(encoding='utf-8')
         self.assertIn("'--preflight'",windows)
         self.assertIn("function Confirm-VenueStaffKey",windows)
-        self.assertIn("phase -eq 'CONFIGURED'",windows)
+        self.assertIn("[array]::IndexOf",windows)
+        self.assertIn("'IMPORTED'",windows)
+        self.assertIn("-Preflight",windows)
         self.assertIn("extra[0]==='--preflight'",source)
         self.assertLess(source.index("if(extra[0]==='--preflight')"),source.index("const require=createRequire"))
         self.assertIn("planVenueStageImport",source)
@@ -315,6 +319,14 @@ class VenueLauncherContracts(unittest.TestCase):
         directory=(ROOT/"venue-directory.ps1").read_text(encoding="utf-8-sig")
         self.assertLess(coverage.index("backup checksum differs"),coverage.index("Get-Content -LiteralPath $sql"))
         self.assertLess(directory.index("backup checksum differs"),directory.index("'--apply-directory'"))
+
+    def test_resume_accepts_only_the_original_installed_signed_receipt(self):
+        node=(ROOT/'import-stage.mjs').read_text(encoding='utf-8')
+        staff=(ROOT/'provision-existing-staff.mjs').read_text(encoding='utf-8')
+        self.assertIn("assertInstalledVenueStageReceipt",node)
+        self.assertIn("if(mode==='--check-installed')",node)
+        self.assertIn("assertInstalledVenueStageReceipt",staff)
+        self.assertIn("if(extra[0]==='--check')",staff)
 
 if __name__=="__main__":
     unittest.main()
