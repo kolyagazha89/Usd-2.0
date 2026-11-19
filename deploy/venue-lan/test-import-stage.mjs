@@ -363,3 +363,11 @@ test('RED: new signed roster with blank vehicle plates cannot collide with exist
  const done=await importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage});
  assert.equal(done.addedCars,1);
 });
+
+test('RED: startup refusal produces safe, PII-free reason codes for clock, historical roster, trust and database',()=>{
+ assert.equal(importer.classifyVenueImportFailure(new Error('Пакет просрочен или время ноутбука неверно')),'PACKAGE_EXPIRED_OR_CLOCK');
+ assert.equal(importer.classifyVenueImportFailure(new Error('Повтор или повреждение участника справочника')),'SIGNED_DIRECTORY_INVALID');
+ assert.equal(importer.classifyVenueImportFailure(new Error('Доверенный отпечаток ключа подписи не совпадает с пакетом')),'SIGNATURE_OR_TRUST');
+ assert.equal(importer.classifyVenueImportFailure(new Error('Адрес локальной базы данных недопустим')),'LOCAL_DATABASE_CONFIG');
+ assert.equal(importer.classifyVenueImportFailure(new Error('SQL error: password=SECRET, Иванов, /local-private')),'UNCLASSIFIED');
+});
