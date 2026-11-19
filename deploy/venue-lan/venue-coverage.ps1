@@ -14,7 +14,10 @@ function Repair-VenueCoverageIfNeeded {
  if($all -ne $valid){throw 'Служебные отметки журнала различаются. Автовосстановление запрещено.'}
  $sql=Join-Path $Root 'repair-journal-coverage.sql'
  if(!(Test-Path -LiteralPath $sql -PathType Leaf)){throw 'Нет проверенного сценария восстановления. Обновите Windows-комплект USD.'}
- $destination=Join-Path $PrivateDir 'db-backups'
+ $backupHome=[Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+ if([string]::IsNullOrWhiteSpace($backupHome)){throw 'Нет защищённой локальной папки резервных копий Windows'}
+ # Never put unencrypted personal-data dumps in OneDrive Desktop workspaces.
+ $destination=Join-Path (Join-Path $backupHome 'USD-Venue') 'db-backups'
  if(!(Test-Path -LiteralPath $destination)){New-Item -ItemType Directory -Path $destination -Force|Out-Null}
  $acl=New-Object System.Security.AccessControl.DirectorySecurity
  $acl.SetAccessRuleProtection($true,$false)
