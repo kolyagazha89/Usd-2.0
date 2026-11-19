@@ -73,6 +73,8 @@ test('one-click Windows repair backs up DB and checks coverage before every upgr
  assert.match(coverage,/Get-FileHash -LiteralPath \$filename -Algorithm SHA256/);
  assert.match(coverage,/\$all -ne \$valid/);
  assert.match(coverage,/DirectorySecurity/);
+ assert.match(coverage,/SpecialFolder\]::LocalApplicationData/);
+ assert.doesNotMatch(coverage,/Join-Path \$PrivateDir 'db-backups'/);
  assert.match(coverage,/Restore-VenueApi/);
  assert.ok(coverage.indexOf('pg_dump')<coverage.indexOf('Get-Content -LiteralPath $sql'));
 });
