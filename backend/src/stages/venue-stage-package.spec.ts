@@ -65,6 +65,10 @@ describe('Signed LAN stage export',()=>{
     numbers:[],classes:[],inspection:null,stageInspection:null,results:[],
    }],
   })},
+   disqualification:{findMany:jest.fn<() => Promise<any>>().mockResolvedValue([{
+    id:'a510f672-79f7-44eb-8173-2a8ff94b1c0e',participantId:'e510f672-79f7-44eb-8173-2a8ff94b1c0e',
+    scope:'FORMAT',stageId:null,seasonId:null,
+   }])},
    participant:{findMany:jest.fn<() => Promise<any>>().mockResolvedValue([
     {id:'person1',firstName:'Иван',lastName:'Иванов',middleName:null,city:'Омск',team:null,isPublic:true,
      cars:[{id:'car1',participantId:'person1',brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'А001УР55',color:null,isPublic:true,isActive:true}]},
@@ -92,6 +96,11 @@ describe('Signed LAN stage export',()=>{
    });
    expect(pkg.snapshot.syncAuthorization?.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
    expect(pkg.snapshot.participantDirectory).toHaveLength(2);
+   expect(pkg.snapshot.disqualifications).toHaveLength(1);
+   expect(pkg.snapshot.disqualifications?.[0]).toMatchObject({scope:'FORMAT',stageId:null,seasonId:null});
+   expect(prisma.disqualification.findMany).toHaveBeenCalledWith(expect.objectContaining({
+    where:expect.objectContaining({status:'ACTIVE'}),select:expect.objectContaining({id:true,participantId:true}),
+   }));
    expect((pkg.snapshot.participantDirectory as any[])[1]).toMatchObject({id:'person2',cars:[{id:'car2'}]});
    expect(prisma.participant.findMany).toHaveBeenCalledWith(expect.objectContaining({
     where:{mergeAsSource:{is:null}},select:expect.objectContaining({id:true,lastName:true}),

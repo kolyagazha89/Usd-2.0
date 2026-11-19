@@ -10,6 +10,7 @@ import { Prisma } from '../generated/prisma/client';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {MAX_REGISTRATION_CLASS_IDS,planRegistrationClassNumbers,isBassRaceStageClass} from '../registrations/registration-class-numbering';
+import {readSignedVenueDisqualifications} from '../stages/venue-disqualification-snapshot';
 import { EmailNotificationsService } from '../mail/email-notifications.service';
 import { redactArchivedRegistration, redactArchivedResult } from '../participants/car-visibility';
 
@@ -94,6 +95,16 @@ export class InspectionsService {
     private readonly prisma: PrismaService,
     @Optional() private readonly emailNotifications?: EmailNotificationsService,
   ) {}
+
+  private async assertVenuePassAllowed(tx:any,participantId:string,stage:{id:string;seasonId:string},status:InspectionStatus) {
+    if(status!=='PASSED'||process.env.USD_VENUE_LAN_MODE!=='true')return;
+    const active=await readSignedVenueDisqualifications(tx,participantId,stage.id,stage.seasonId);
+    if(active.length)throw new ConflictException({
+      code:'VENUE_DISQUALIFIED',
+      message:'Участник дисквалифицирован. Инспекция PASSED запрещена.',
+      disqualificationId:active[0].id,
+    });
+  }
 
   async findOne(id: string) {
     const vehicleInspection = await this.prisma.inspection.findUnique({ where: { id }, include: inspectionInclude });
@@ -383,6 +394,8 @@ export class InspectionsService {
       if (registrationClass.registration.stage.isDeleted || registrationClass.registration.stage.status === 'CANCELLED') {
         throw new ConflictException('Нельзя проверить регистрацию отменённого этапа');
       }
+      await this.assertVenuePassAllowed(tx,registrationClass.registration.participantId,
+        registrationClass.registration.stage,data.status);
       if (registrationClass.inspection) throw new ConflictException('Для этого выступления BassRace проверка уже существует');
       if (data.status === 'FAILED' && registrationClass.results.length > 0) {
         throw new ConflictException('Нельзя отказать в допуске: по этому классу уже есть результат');
@@ -431,6 +444,14 @@ export class InspectionsService {
       throw new ConflictException('Нельзя перевести инспекцию в FAILED: по классу уже есть результат');
     }
     const saved = await this.prisma.$transaction(async (tx) => {
+      if(nextStatus==='PASSED'&&process.env.USD_VENUE_LAN_MODE==='true'){
+        const reg=await tx.registration.findUnique({
+          where:{id:current.registrationClass.registrationId},
+          select:{participantId:true,stage:{select:{id:true,seasonId:true}}},
+        });
+        if(!reg)throw new NotFoundException('Регистрация не найдена');
+        await this.assertVenuePassAllowed(tx,reg.participantId,reg.stage,nextStatus);
+      }
       const updated = await tx.registrationClassInspection.update({
         where: { id },
         data: {
@@ -568,6 +589,7 @@ export class InspectionsService {
       if (!registration) throw new NotFoundException('Регистрация не найдена');
       if (registration.status !== 'ACTIVE') throw new ConflictException('Нельзя проверить неактивную регистрацию');
       if (registration.stage.isDeleted || registration.stage.status === 'CANCELLED') throw new ConflictException('Нельзя проверить регистрацию отменённого этапа');
+      await this.assertVenuePassAllowed(tx,registration.participantId,registration.stage,data.status);
       if (registration.inspection) throw new ConflictException('Для этого автомобиля на этапе инспекция уже существует');
       if (registration.stageInspection) throw new ConflictException('Старая общая инспекция ещё не перенесена на автомобиль. Обновите миграции и повторите попытку.');
       if (data.status === 'FAILED' && (registration.results.length || registration.classes.some((item: any) => item.results.length))) {
@@ -763,6 +785,13 @@ export class InspectionsService {
         this.validateNotes(nextStatus, data.notes === undefined ? vehicleInspection.notes : data.notes);
         if (nextStatus === 'FAILED' && (vehicleInspection.registration.results.length || vehicleInspection.registration.classes.some((item: any) => item.results.length))) {
           throw new ConflictException('Нельзя отказать в допуске: по этому автомобилю уже есть результат');
+        }
+        if(nextStatus==='PASSED'&&process.env.USD_VENUE_LAN_MODE==='true'){
+          const stage=await tx.stage.findUnique({
+            where:{id:vehicleInspection.registration.stageId},select:{id:true,seasonId:true},
+          });
+          if(!stage)throw new NotFoundException('Этап не найден');
+          await this.assertVenuePassAllowed(tx,vehicleInspection.registration.participantId,stage,nextStatus);
         }
         const updated = await tx.inspection.update({
           where: { id },

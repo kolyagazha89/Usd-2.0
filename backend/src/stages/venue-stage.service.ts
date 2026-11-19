@@ -94,6 +94,18 @@ export class VenueStageService {
   if(participantDirectory.length>25000)
    throw new ServiceUnavailableException('Справочник участников превышает лимит офлайн-пакета; нужен пакетный экспорт');
 
+  // Ban data is signed for ALL affected profiles, including unregistered users.
+  // Reasons and issuer identities never leave the central server.
+  const disqualifications=await this.prisma.disqualification.findMany({
+   where:{status:'ACTIVE',OR:[
+    {scope:'FORMAT'},{scope:'SEASON',seasonId:data.seasonId},
+    {scope:'STAGE',stageId:id},
+   ]},
+   select:{id:true,participantId:true,scope:true,stageId:true,seasonId:true},
+   orderBy:{id:'asc'},
+  });
+  if(disqualifications.length>25000)
+   throw new ServiceUnavailableException('Список запретов слишком большой для офлайн-пакета');
   // Copy ONLY published, centrally approved public legal terms and regulation.
   // Missing approval deliberately leaves on-site intake unavailable.
   const settings=await this.prisma.siteSettings.findUnique({
@@ -166,7 +178,7 @@ export class VenueStageService {
    ...(staffAccess?{staffAccess}:{}),
    syncAuthorization:{token:syncToken,expiresAt:syncExpires.toISOString()},
    registrations:data.registrations,
-   participantDirectory,
+   participantDirectory,disqualifications,
   };
   let signed;
   try{signed=signVenueStageSnapshot(snapshot,signingKey)}
@@ -182,7 +194,7 @@ export class VenueStageService {
     userId:request.user.sub,action:'VENUE_STAGE_PACKAGE_EXPORTED',entity:'Stage',entityId:id,
     metadata:{sha256:signed.integrity.sha256,registrationCount:data.registrations.length,
      exportedAt:signed.snapshot.generatedAt,expiresAt:signed.snapshot.expiresAt,
-     automaticReturn:true,staffCount,directoryCount:participantDirectory.length}, 
+     automaticReturn:true,staffCount,directoryCount:participantDirectory.length,banCount:disqualifications.length}, 
    }});
   });
   return withStaff?{signed,staffKey,staffCount}:signed;

@@ -383,6 +383,9 @@ export class SiteSettingsService{
     const publicRegistration = { ...s.registration } as Record<string, any>;
     delete publicRegistration.emailTemplates;
     delete publicRegistration.pushTemplates;
+    // The signed venue admission list contains private disciplinary identities.
+    // It is read only by server-side registration/result gates, never by public CMS.
+    delete publicRegistration.venueDisqualificationSnapshot;
     return {
       success: true,
       settings: rewriteLegacyPublicMediaUrls({

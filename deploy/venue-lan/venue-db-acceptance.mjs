@@ -29,6 +29,9 @@ const ID={
  number:'7f163be4-541f-4f94-a7e0-b5de8b3a6b4e',
  regClass:'5a4b83a1-51f5-4c2f-81c7-a01b78bcb51f',
  inspection:'c610f672-79f7-44eb-8173-2a8ff94b1c0e',
+ banned:'f210f672-79f7-44eb-8173-2a8ff94b1c0e',
+ bannedCar:'f310f672-79f7-44eb-8173-2a8ff94b1c0e',
+ ban:'f410f672-79f7-44eb-8173-2a8ff94b1c0e',
 };
 const ADMIN_PASSWORD='Venue-Admin!Strong#17',JUDGE_PASSWORD='Venue-Judge!Strong#17';
 const REAL_MODE=process.env.USD_VENUE_CI_STAFF_MODE==='existing';
@@ -65,6 +68,11 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
     class:{id:ID.klass,code:'L20_CI',name:'Limited 2.0',unit:'DB',sortOrder:0,isActive:true,
      direction:{id:ID.direction,name:'SPL',sortOrder:0,isActive:true}}}],
   },
+  disqualifications:[{id:ID.ban,participantId:ID.banned,scope:'FORMAT',stageId:null,seasonId:null}],
+  participantDirectory:[{id:ID.banned,firstName:'Недопущенный',lastName:'Тестовый',middleName:null,
+   city:'Тюмень',team:null,isPublic:false,cars:[{id:ID.bannedCar,participantId:ID.banned,
+    brand:'Lada',model:'Vesta',registrationCountry:'RU',registrationNumber:'А777ВС77',
+    color:null,isPublic:false,isActive:true}]}],
   venuePolicy:{
    legal:{legalApproved:true,legalVersion:'1',ipName:'USD CI',
     privacyText:'Тестовая политика USD',consentText:'Тестовое согласие USD',
@@ -139,6 +147,8 @@ async function seed(){
   assert.equal(season.status,'ACTIVE','The venue must permit on-site registration into active season');
   const settings=await client.siteSettings.findUnique({where:{id:'default'}});
   assert.equal(settings?.legal?.legalApproved,true,'The venue must carry the real approved legal policy');
+  assert.equal(settings?.registration?.venueDisqualificationSnapshot?.stageId,ID.stage);
+  assert.equal(settings?.registration?.venueDisqualificationSnapshot?.records?.[0]?.participantId,ID.banned);
   assert.equal(settings?.registration?.rulesDocument?.published?.id,'ci-rules-1');
   assert.equal((await applyVenueStageImport(plan,client)).replayed,true);
   if(REAL_MODE){
@@ -229,6 +239,16 @@ async function probe(){
   'Offline ADMIN must not create stages');
  const roster=await request('/registrations?stageId='+ID.stage,{headers:authJudge});
  assert.equal(roster.status,200);
+ const publicSettings=await request('/site-settings/public');
+ assert.equal(publicSettings.status,200);
+ assert.ok(!JSON.stringify(publicSettings.body).includes(ID.banned),
+  'Public settings must never leak signed disciplinary identity IDs');
+ const denied=await request('/registrations',{method:'POST',headers:authAdmin,
+  body:JSON.stringify({stageId:ID.stage,participantId:ID.banned,carId:ID.bannedCar,
+   classIds:[ID.klass],source:'ON_SITE',rulesAccepted:true,privacyConsent:true,
+   termsAccepted:true,protocolConsent:true})});
+ assert.equal(denied.status,409,'Signed central FORMAT ban must reject LAN registration');
+ assert.match(JSON.stringify(denied.body),/PARTICIPANT_FORMAT_DISQUALIFIED/);
  const newProfile=await request('/registrations/on-site/profile',{method:'POST',headers:authAdmin,
   body:JSON.stringify({
    lastName:'Площадочный',firstName:'Новый',brand:'Lada',model:'Granta',

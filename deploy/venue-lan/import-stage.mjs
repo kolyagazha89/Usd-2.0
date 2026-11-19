@@ -318,6 +318,10 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
     throw new Error('Этап уже импортирован из другого пакета. Судейские данные сохранены.');
    }
   }
+  // An installed legacy stage may still resume and export its existing data.
+  // A NEW stage with live legal intake must have an explicit signed ban list.
+  if(plan.snapshot.venuePolicy&&!Array.isArray(plan.snapshot.disqualifications))
+   throw new Error('Для нового этапа отсутствует подписанный список дисквалификаций. Скачайте новый пакет на основном USD.');
   const createShared=async(model,data)=>{
    if(shared){
     const previous=await tx[model].findUnique({where:{id:data.id}});
@@ -386,7 +390,11 @@ export async function applyVenueStageImport(plan,prisma,{shared=false}={}){
     legal:policy.legal,
     contacts:{...(current?.contacts??{}),email:policy.contactEmail},
     registration:{...(current?.registration??{}),
-     enabled:true,rulesDocument:{published:policy.rulesPublished}},
+     enabled:true,rulesDocument:{published:policy.rulesPublished},
+     ...(Array.isArray(plan.snapshot.disqualifications)?{
+      venueDisqualificationSnapshot:{stageId:stage.id,
+       generatedAt:plan.snapshot.generatedAt,records:plan.snapshot.disqualifications},
+     }:{})},
    };
    if(current){
     await tx.siteSettings.update({where:{id:'default'},data:update});

@@ -1,5 +1,6 @@
 import { createHash, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
 import type {SealedVenueStaff} from './venue-staff-access';
+import type {SignedVenueDisqualification} from './venue-disqualification-snapshot';
 
 export const VENUE_STAGE_FORMAT=1;
 export const VENUE_STAGE_TTL_MS=72*60*60*1000;
@@ -15,6 +16,8 @@ export type VenueStageSnapshot={
  registrations:unknown[];
  /** Complete minimal local search directory; excludes contacts, credentials and history. */
  participantDirectory?:unknown[];
+ /** Effective central bans. Old unsigned lists cannot permit LAN admission. */
+ disqualifications?:SignedVenueDisqualification[];
  venuePolicy?:unknown;
  staffAccess?:SealedVenueStaff;
  syncAuthorization?:{token:string;expiresAt:string};
@@ -63,6 +66,7 @@ export function verifyVenueStagePackage(
   ||typeof snapshot.stageId!=='string'||!snapshot.stageId
   ||!Array.isArray(snapshot.registrations)||snapshot.registrations.length>2500
   ||(snapshot.participantDirectory!==undefined&&(!Array.isArray(snapshot.participantDirectory)||snapshot.participantDirectory.length>25000))
+  ||(snapshot.disqualifications!==undefined&&(!Array.isArray(snapshot.disqualifications)||snapshot.disqualifications.length>25000))
   ||integrity.algorithm!=='Ed25519'||!looksLikeSha(integrity.sha256)
   ||!looksLikeSha(integrity.publicKeyFingerprint)
   ||typeof integrity.signature!=='string'
