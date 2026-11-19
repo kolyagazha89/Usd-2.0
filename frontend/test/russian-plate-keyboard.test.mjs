@@ -45,13 +45,30 @@ test('all car entrypoints use the native OS keyboard and shared plate input mask
 });
 
 
-test('RU plate input accepts valid 2026 three-digit regional codes and rejects unknown ones',()=>{
- for(const region of ['180','181','182','184','185']){
-  const plate='А123ВС'+region;
+test('RU plate input accepts two-digit codes and legal 1–9-prefixed extensions, including 193',()=>{
+ const examples=['01','20','77','88','93','99','101','147','155','166','180','181','182','183','184','185','193','198','224','250','252','323','550','778','997'];
+ for(const region of examples){
+  const plate='У623РН'+region;
   assert.equal(formatPlateInput('RU',plate),plate,region+' input mask');
   assert.equal(isValidPlate('RU',plate),true,region+' region');
  }
- for(const region of ['000','100','183']){
-  assert.equal(isValidPlate('RU','А123ВС'+region),false,region+' unknown region');
+ // Ministry of Internal Affairs order 766 permits a leading digit 1–9 for
+ // three-digit codes. Do not require every new allocation to ship a code change.
+ for(let base=1;base<=99;base++){
+  const suffix=String(base).padStart(2,'0');
+  for(const prefix of ['',...'123456789']){
+   assert.equal(isValidPlate('RU','А123ВС'+prefix+suffix),true,'region '+prefix+suffix);
+  }
  }
+ for(const region of ['00','000','001','100','200','900']){
+  assert.equal(isValidPlate('RU','А123ВС'+region),false,region+' invalid region structure');
+ }
+});
+
+test('RU plate validation accepts Latin lookalikes and common pasted separators',()=>{
+ for(const plate of ['Y623PH193','У 623 РН-193','У623РН|193','у623рн193']){
+  assert.equal(isValidPlate('RU',plate),true,plate);
+ }
+ assert.equal(isValidPlate('RU','Д623ЯЯ193'),false,'unsupported Cyrillic letters');
+ assert.equal(isValidPlate('RU','У623РН1934'),false,'four-digit region');
 });
