@@ -202,7 +202,7 @@ function Import-SharedVenueStage([object]$state,[hashtable]$cfg,[array]$mounts){
    }finally{if($null -eq $priorPass){Remove-Item Env:\VENUE_DB_PASSWORD -ErrorAction SilentlyContinue}else{$env:VENUE_DB_PASSWORD=$priorPass};if($null -eq $priorDb){Remove-Item Env:\DATABASE_URL -ErrorAction SilentlyContinue}else{$env:DATABASE_URL=$priorDb}}
 }
 
-function Create-ExistingStaff([object]$State,[array]$Mounts,[switch]$CheckOnly){
+function Create-ExistingStaff([object]$State,[array]$Mounts,[switch]$CheckOnly,[switch]$Preflight){
  if([string]::IsNullOrWhiteSpace([string]$State.accessKey) -or
   !(Test-Path -LiteralPath $State.accessKey -PathType Leaf)){
   throw 'Для настоящего этапа требуется отдельный ключ существующих аккаунтов USD'
@@ -210,7 +210,7 @@ function Create-ExistingStaff([object]$State,[array]$Mounts,[switch]$CheckOnly){
  $staffMounts=@('--volume',($State.accessKey+':/app/venue-access-key.txt:ro'),
   '--volume',((Join-Path $Root 'venue-judge-permissions.mjs')+':/app/venue-judge-permissions.mjs:ro'),
   '--volume',((Join-Path $Root 'provision-existing-staff.mjs')+':/app/provision-existing-staff.mjs:ro'))
-$checkArgs=@();if($CheckOnly){$checkArgs=@('--check')}
+$checkArgs=@();if($Preflight){$checkArgs=@('--preflight')}elseif($CheckOnly){$checkArgs=@('--check')}
  $seasonArgs=@();if($State.PSObject.Properties.Name -contains 'shared' -and $State.shared){$seasonArgs=@('-e','VENUE_RETAINED_SEASON=true')}
  Invoke-Compose (@('run','--rm','--no-deps')+$seasonArgs+$Mounts+$staffMounts+
   @('--entrypoint','node','api','/app/provision-existing-staff.mjs',
@@ -255,7 +255,12 @@ function Restore-VenueStack {
  Invoke-Compose @('start') 'restore all previously installed services after cancelled stage switch'
 }
 function Confirm-VenueStaffKey([object]$State,[array]$Mounts){
- try{Create-ExistingStaff $State $Mounts -CheckOnly;return}catch{
+ $isFresh=$State.phase -eq 'CONFIGURED'
+ try{
+  if($isFresh){Create-ExistingStaff $State $Mounts -Preflight}
+  else{Create-ExistingStaff $State $Mounts -CheckOnly}
+  return
+ }catch{
   if($Silent){throw}
   Write-Host 'Ключ судей не подходит. Выберите ключ .key именно этого этапа.'
   $replacement=Select-VenueFile 'Ключ судей выбранного этапа' 'Ключ доступа (*.key)|*.key'
@@ -264,7 +269,8 @@ function Confirm-VenueStaffKey([object]$State,[array]$Mounts){
   $temp=Join-Path $PrivateDir ('staff-key-'+[guid]::NewGuid().ToString('N')+'.tmp')
   Write-PrivateFile $temp $value
   Move-Item -LiteralPath $temp -Destination $State.accessKey -Force
-  Create-ExistingStaff $State $Mounts -CheckOnly
+  if($isFresh){Create-ExistingStaff $State $Mounts -Preflight}
+  else{Create-ExistingStaff $State $Mounts -CheckOnly}
  }
 }
 
