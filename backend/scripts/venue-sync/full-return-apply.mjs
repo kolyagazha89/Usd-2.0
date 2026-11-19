@@ -105,6 +105,24 @@ function buildScope(snapshot,original){
   amplifiers:new Set(original.amplifiers??[]),
   components:new Set(original.components??[]),
  };
+ // A visitor can leave after on-site profile+car creation but before the
+ // stage registration. Those signed INSERTs must not poison ALL score returns.
+ // A standalone Participant with no signed car is never stage-scoped.
+ const newCarOwners=new Set(snapshot.events.filter(e=>
+  e.payload.table==='Car'&&e.payload.operation==='INSERT')
+  .map(e=>e.payload.after?.participantId));
+ for(const event of snapshot.events){
+  const p=event.payload;
+  if(p.operation==='INSERT'&&p.table==='Participant'){
+   if(!newCarOwners.has(p.recordId))
+    reject('MANUAL_REVIEW: unpaired on-site participant without signed car');
+   scope.participants.add(p.recordId);
+  }
+  if(p.operation==='INSERT'&&p.table==='Car'){
+   scope.cars.add(p.recordId);
+   scope.participants.add(p.after.participantId);
+  }
+ }
  for(const e of snapshot.events){
   const p=e.payload,r=p.after??p.before;
   if(p.table==='Registration'&&r?.stageId===scope.stageId){
