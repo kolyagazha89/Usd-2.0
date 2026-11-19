@@ -70,7 +70,7 @@ function Read-Env([string]$Path=$EnvFile) {
  return $result
 }
 function Write-PrivateFile([string]$Path,[string]$Value){
- # Secure ACL BEFORE writing any secrets. Never overwrite existing files.
+ # Protect secrets before writing.
  $stream=New-Object System.IO.FileStream($Path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
  $stream.Dispose()
  $acl=New-Object System.Security.AccessControl.FileSecurity
@@ -91,7 +91,7 @@ function Read-State {
   $s.stageId -notmatch '^[0-9a-f-]{36}$' -or $s.fingerprint -notmatch '^[0-9a-f]{64}$'){
   throw 'Метаданные установки повреждены: не трогайте Docker volumes'
  }
- # Legacy DEMO lacks accessKey; normalize only in memory.
+ # Normalize old DEMO state.
  if($s.PSObject.Properties.Name -notcontains 'accessKey'){
   $s|Add-Member -NotePropertyName accessKey -NotePropertyValue $null
  }
@@ -140,7 +140,7 @@ function Get-PrivateLanIp {
  return Select-VenueOption 'USD — Сеть площадки' 'Выберите подключение к роутеру соревнований. Телефоны судей должны быть в этой же сети.' $options
 }
 function Test-VenueFirewallRule([string]$Ip){
- # Do not mistake a pre-existing rule with the same name for a safe rule.
+ # Verify the actual firewall rule.
  $name='USD Venue HTTPS '+$Ip
  $rules=@(Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue)
  if($rules.Count -ne 1){return $false}
@@ -242,7 +242,7 @@ function Save-DesktopShortcuts {
  $help=$shell.CreateShortcut((Join-Path $desktop 'USD — Инструкция.lnk'))
  $help.TargetPath=(Join-Path $Root 'INSTRUCTION.html');$help.Save()
 }
-# PowerShell 5.1 requires quote-free native Go templates.
+# PS5.1 native Go templates.
 function Read-VenueDockerLabels([ValidateSet('container','image')][string]$Kind,[string]$Identity){
  if([string]::IsNullOrWhiteSpace($Identity)){throw 'Docker object ID is missing'}
  $arguments=$(if($Kind -eq 'container'){
@@ -291,7 +291,7 @@ console.log("USD VENUE API RELEASE CHECK PASSED");
   throw 'На Ubuntu установлена старая версия USD без полного офлайн-режима. Ничего не установлено; повторите после обновления.'
  }
 }
-# Never attach a fresh installer folder to volumes from another installation.
+# Keep venue installations isolated.
 function Replace-LegacyDemo([object]$State){
  if($State.demo -ne $true -or $State.phase -ne 'READY' -or $State.accessKey){
   throw 'Автоматически очистить можно только завершённую старую пробную установку. Данные сохранены.'
@@ -362,7 +362,7 @@ function New-InitialState {
   $stageId=[string]$payload.snapshot.stageId
   $project=Get-VenueProjectForStage $stageId
   if($source){$project=[string]$source.project}else{Assert-NoOrphanedVenueStack $project}
-  # Trusted fingerprint comes independently from the authenticated admin page.
+  # Trust independently verified admin fingerprint.
   $fingerprint=$(if($reuseTrust){[string]$trustedSource.fingerprint}else{(Read-VenueFingerprint).Trim()})
   if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Нет независимого доверенного отпечатка Ed25519'}
   if([string]$payload.snapshot.syncAuthorization.token -cnotmatch '^[A-Za-z0-9_-]{43}$'){
@@ -563,7 +563,7 @@ function Start-Local {
  Assert-Exit 'upgrade durable amplifier link journal'
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для запуска используйте текущий ярлык USD. Для его выгрузки нажмите Экспорт в этой папке.'}
  Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
- # Wait for a responding local API before opening the browser or exporting CA.
+ # Wait for the local API.
  $ready=$false
  for($i=0;$i -lt 40;$i++){
   if((Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId) -and (Test-VenueGatewayReady $state.ip)){$ready=$true;break}
@@ -599,7 +599,7 @@ Promise.all([
 }).catch(()=>process.exit(4));
 '@
  try{
-  # PS5.1: pass JS on stdin; node -e strips string quotes.
+  # JS via stdin for PS5.1.
   $program | & docker @(Get-VenueComposeArguments) exec -T api node - $ExpectedSha $ExpectedStage 2>$null | Out-Null
   return ($LASTEXITCODE -eq 0)
  }catch{return $false}
@@ -607,7 +607,7 @@ Promise.all([
 }
 function Export-VenueReturn {
  param([switch]$LeaveApiStopped,[switch]$Automatic,[switch]$LocalArchive)
- # This makes a signed ENCRYPTED USB file. It cannot synchronize with Ubuntu.
+ # Export is encrypted; no automatic Ubuntu sync.
  # Never use central secrets or delete local durable records.
  if($Silent){throw 'Экспорт требует присутствия администратора и пароль'}
  Assert-VenueCompose
