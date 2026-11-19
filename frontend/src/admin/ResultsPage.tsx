@@ -154,14 +154,14 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
  const selectedRegistration=registrations.find(r=>r.id===editor?.registrationId);
  const canCreate=registrations.some(r=>canJudgeRegistration(r)&&remainingJudgingClasses(r,results).length>0);
  return <>
-  <section className="judging-summary" aria-label="Сводка судейства">
+  <details className="event-ops-metrics-drawer"><summary>Сводка: {stats.admitted} допущены · {stats.remaining} классов без результатов · {stats.entered} внесено</summary><section className="judging-summary" aria-label="Сводка судейства">
    {[
     {key:'registrations',name:'Регистрации',icon:Users,value:stats.registrations},
     {key:'admitted',name:'Допущены',icon:CheckCircle2,value:stats.admitted},
     {key:'remaining',name:'Классы без результатов',icon:ClipboardCheck,value:stats.remaining},
     {key:'entered',name:'Результаты',icon:Trophy,value:stats.entered},
    ].map(metric=><div key={metric.key} className="judging-summary-card"><metric.icon size={20}/><strong>{loading?'—':metric.value}</strong><span>{metric.name}</span></div>)}
-  </section>
+  </section></details>
   <section className="judging-context" aria-label="Состояние этапа">
    <div><strong><AdminEntityLink kind="stage" id={stageId}>{stage.name}</AdminEntityLink></strong><p>{stats.awaiting} ожидают инспекцию · {stats.failed} не прошли · {stats.admitted} допущены</p></div>
    {stats.awaiting>0&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/inspections?stageId='+encodeURIComponent(stageId))}><ShieldAlert size={16}/>Завершить инспекции</button>}
@@ -203,7 +203,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
      Показано {filteredResults.length} из {results.length} результатов.
      {!canCreate&&!loading?' Для нового измерения требуется допуск и класс без внесённого результата.':''}
     </p>
-    <div className="panel table-wrap judging-results" aria-busy={loading}>
+    <div id="event-ops-records" className="panel table-wrap judging-results" aria-busy={loading}>
      {loading?<LoadingPage small/>:!filteredResults.length?
       <Empty text={results.length?'По запросу результаты не найдены':'Измерения пока не внесены'}/>:
       <table className="data-table judging-results-table" aria-label="Протокол результатов этапа">

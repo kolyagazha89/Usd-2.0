@@ -1120,8 +1120,12 @@ try{
       assert.equal(await nav.locator('.event-ops-workflow-step').count(),3,'three stage-scoped desks');
        assert.equal(await nav.getByRole('button',{name:'Все участники и допуски'}).count(),1,'stage desk offers return to unified roster');
       assert.equal(await nav.locator('[aria-current="page"]').getAttribute('aria-label'),'Судейство');
-      await page.locator('.judging-summary-card').first().waitFor();
+      // The judging KPIs are intentionally collapsed until an operator requests them.
+      const judgingMetrics=page.locator('details.event-ops-metrics-drawer');
+      assert.equal(await judgingMetrics.getAttribute('open'),null,'judging metrics stay compact by default');
       assert.equal(await page.locator('.judging-summary-card').count(),4,'four judge KPIs');
+      await judgingMetrics.locator('summary').click();
+      await page.locator('.judging-summary-card').first().waitFor({state:'visible'});
       assert.match(await page.locator('.judging-context').innerText(),/1 допущены/);
       if(route.includes('entry=1')){
        const wizard=page.locator('.judging-entry-wizard');
@@ -1191,6 +1195,10 @@ try{
        assert.ok(tablet.scrollWidth<=tablet.clientWidth+1,'no horizontal tablet table scroll '+JSON.stringify(tablet));
        row.eventDeskTablet='no sideways table scroll at '+width+'px';
       }
+      const metricsDrawer=page.locator('details.event-ops-metrics-drawer');
+      assert.equal(await metricsDrawer.getAttribute('open'),null,'staff metrics stay compact by default');
+      assert.ok(await page.locator('#event-ops-records').count(),'records have a stable jump target');
+      await metricsDrawer.locator('summary').click();
       if(route==='/admin/registrations'){
        assert.match(await page.locator('.event-ops-metrics').innerText(),/всего записей/);
        assert.equal(await page.locator('.event-ops-search [role="status"]').innerText(),'1 из 1');
@@ -1200,8 +1208,21 @@ try{
        await page.getByRole('button',{name:/ожидают/i}).click();
        assert.equal(await page.locator('.event-ops-results .data-table tbody tr').count(),1,'pending queue includes unchecked registrations');
       }
+      if(route==='/admin/inspections'){
+       assert.equal(await page.locator('.page-heading-actions').getByRole('button',{name:'Сканировать QR'}).count(),0,'QR no longer takes over page heading');
+       assert.equal(await page.locator('.inspection-toolbar').getByRole('button',{name:'Сканировать QR'}).count(),1,'QR is next to on-site registration');
+       const search=page.getByRole('searchbox',{name:'Поиск участников инспекции'});
+       await search.fill('Тест');
+       const clear=page.getByRole('button',{name:'Очистить поиск'});
+       const shape=await clear.evaluate(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height,writingMode:getComputedStyle(el).writingMode}));
+       assert.ok(shape.width>=40&&shape.height>=40&&shape.width<150,'mobile search clear must be horizontal and touch-sized '+JSON.stringify(shape));
+       assert.equal(shape.writingMode,'horizontal-tb','clear label must not stack letters');
+       await clear.click();
+       assert.equal(await search.inputValue(),'');
+      }
       const workflow=page.getByRole('navigation',{name:'Рабочие разделы этапа'});
       await workflow.waitFor({state:'visible'});
+      assert.equal(await workflow.getByRole('button',{name:/К списку/}).count(),1,'staff can jump straight to the records list');
       assert.match(await workflow.innerText(),/Кубок USD/,'both desks show the selected stage');
       const activeLabel=route==='/admin/registrations'?'Регистрации':'Инспекция въезда';
       const nextLabel=route==='/admin/registrations'?'Инспекция въезда':'Регистрации';

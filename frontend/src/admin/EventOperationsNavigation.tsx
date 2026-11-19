@@ -1,4 +1,5 @@
 import {AdminEntityLink} from './AdminEntityLink';
+import {jumpToEventOpsRecords} from './event-ops-scroll';
 import {ArrowUpRight,ClipboardCheck,Trophy,Users} from 'lucide-react';
 
 type OperationsSection = 'registrations' | 'inspections' | 'results';
@@ -25,7 +26,10 @@ export function EventOperationsNavigation({current,stageId,stageName,go}:{
    <span className="event-ops-workflow-kicker">USD · ДЕНЬ СОРЕВНОВАНИЙ</span>
    <strong><AdminEntityLink kind="stage" id={stageId}>{stageId?(stageName||'Выбранный этап'):'Сначала выберите этап'}</AdminEntityLink></strong>
    <small>Одна площадка · три связанных рабочих раздела</small>
-   {stageId&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))}>Все участники и допуски</button>}
+   {stageId&&<div className="event-ops-workflow-context-actions">
+    <button type="button" className="secondary-button compact event-ops-list-jump" onClick={()=>jumpToEventOpsRecords()}>↓ К списку</button>
+    <button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))}>Все участники и допуски</button>
+   </div>}
   </div>
   <div className="event-ops-workflow-steps">
    {sections.map(step=>{
