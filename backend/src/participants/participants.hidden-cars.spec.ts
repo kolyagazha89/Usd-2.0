@@ -17,7 +17,11 @@ describe('Historical car visibility without losing registrations and results', (
     user.findUnique.mockImplementation(async ({where}:any) =>
       where.id === 'judge'
         ? {id:'judge',role:'PARTICIPANT',isActive:true,customRoleId:'judge-role',participantId:null}
-        : {id:'admin',role:'ADMIN',isActive:true,customRoleId:null,participantId:null});
+        : where.id === 'member'
+          ? {id:'member',role:'PARTICIPANT',isActive:true,customRoleId:null,participantId:'old-person'}
+          : where.id === 'other'
+            ? {id:'other',role:'PARTICIPANT',isActive:true,customRoleId:null,participantId:'other-person'}
+            : {id:'admin',role:'ADMIN',isActive:true,customRoleId:null,participantId:null});
     car.findUnique.mockResolvedValue({ id: 'historical-car', participantId: 'old-person',
       brand: 'ВАЗ', model: '2107', registrationCountry: 'RU',
       registrationNumber: 'А123ВС77', isActive: true, isPublic: true });
@@ -84,9 +88,53 @@ describe('Historical car visibility without losing registrations and results', (
     }));
   });
 
-  it('does not let a member bypass the admin-only hide flag', async () => {
-    user.findUnique.mockResolvedValueOnce({id:'member',role:'PARTICIPANT',isActive:true,participantId:'old-person'});
-    await expect(service.updateCar({user:{sub:'member',role:'PARTICIPANT'}} as any,'historical-car',{isActive:false}))
+  const member: any = { user: { sub: 'member', role: 'PARTICIPANT' } };
+  const other: any = { user: { sub: 'other', role: 'PARTICIPANT' } };
+
+  it('returns only active vehicles from the normal member garage', async () => {
+    await service.findMyCars(member);
+    expect(car.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {participantId:'old-person',isActive:true},
+    }));
+  });
+
+  it('allows the owner to load only their own hidden cars on demand', async () => {
+    await service.findMyCars(member, 'hidden');
+    expect(car.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {participantId:'old-person',isActive:false},
+    }));
+  });
+
+  it('does not return hidden cars on malformed visibility requests', async () => {
+    await expect(service.findMyCars(member, 'everything' as any)).rejects.toThrow('категория');
+    expect(car.findMany).not.toHaveBeenCalled();
+  });
+
+  it('lets a member hide an owned car without losing historical registrations', async () => {
+    await service.updateCar(member, 'historical-car', {isActive:false});
+    expect(car.update).toHaveBeenCalledWith(expect.objectContaining({
+      where:{id:'historical-car'},data:expect.objectContaining({isActive:false,isPublic:false}),
+    }));
+  });
+
+  it('lets the owner restore a hidden car without republishing it', async () => {
+    await service.updateCar(member, 'historical-car', {isActive:true});
+    expect(car.update).toHaveBeenCalledWith(expect.objectContaining({
+      data:{isActive:true},
+    }));
+  });
+
+  it('blocks a member from hiding a vehicle registered for an upcoming event', async () => {
+    registration.count.mockResolvedValueOnce(1);
+    await expect(service.updateCar(member,'historical-car',{isActive:false}))
+      .rejects.toThrow('активной регистрации');
+    expect(car.update).not.toHaveBeenCalled();
+  });
+
+  it('never allows members to hide or restore somebody else’s car', async () => {
+    await expect(service.updateCar(other,'historical-car',{isActive:false}))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.updateCar(other,'historical-car',{isActive:true}))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(car.update).not.toHaveBeenCalled();
   });
