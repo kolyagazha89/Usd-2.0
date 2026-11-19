@@ -45,7 +45,13 @@ export function publicDocumentLinks(legal: LegalSettings | undefined, registrati
 export function publicDocumentListState(legal:LegalSettings|undefined,registration:RegistrationSettings|undefined,loading:boolean):
  {status:'loading'|'error'|'published'|'empty';files:PublicDocumentLink[]} {
  if(!legal)return {status:loading?'loading':'error',files:[]};
- const files=publicDocumentLinks(legal,registration);
+ // Do not reintroduce unsafe CMS download metadata; the old list filtered
+ // untrusted URLs before showing cards. The reader itself stays internal.
+ const safeDownload=(url:string)=>{
+  if(url.startsWith('/')&&!url.startsWith('//')&&!url.includes('\\'))return true;
+  try{return ['http:','https:'].includes(new URL(url).protocol)}catch{return false}
+ };
+ const files=publicDocumentLinks(legal,registration).filter(file=>safeDownload(file.downloadUrl));
  if(files.length)return {status:'published',files};
  if(legal.legalApproved===true){
   const fallback=[
