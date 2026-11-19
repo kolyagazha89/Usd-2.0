@@ -18,9 +18,11 @@ test('catalog workspace separates browsing, bulk management, import, and request
  assert.match(code,/importConfirmed/);
 });
 
-test('registration keeps original actions while putting search ahead of bulky overview',async()=>{
+test('registration keeps original actions but moves lists ahead of optional metrics',async()=>{
  const code=await source('admin/RegistrationsPage.tsx');
- assert.ok(code.indexOf('className="event-ops-search"') < code.indexOf('className="event-ops-overview"'));
+ assert.ok(code.indexOf('className="event-ops-search"') < code.indexOf('className="event-ops-main-actions"') || code.indexOf('className="event-ops-search"') < code.indexOf('event-ops-quick-actions event-ops-main-actions'));
+ assert.match(code,/<details className="event-ops-metrics-drawer"/);
+ assert.doesNotMatch(code,/className="event-ops-overview"/);
  assert.match(code,/onClick=\{\(\)=>go\(walkInRegistrationPath\(stageId\)\)\}/);
  assert.match(code,/aria-label="Поиск регистраций"/);
  assert.match(code,/className="toolbar stage-picker"/);
