@@ -120,6 +120,15 @@ test('signed on-site profile and car left unregistered at gate do not poison the
  assert.equal(db.rows.get('Car').get(ids.car).participantId,ids.participant);
  assert.equal(db.receipt.size,2);
 });
+test('new car for an existing central profile is returned even before its stage registration',async()=>{
+ const db=memoryDb({existing:{Participant:[participant]}});
+ const report=await applyCompleteVenueJournal(packet([
+  event(1,'Car','INSERT',car),
+ ]),db,opts);
+ assert.equal(report.appliedEvents,1);
+ assert.equal(db.rows.get('Car').get(ids.car).participantId,ids.participant);
+ assert.equal(db.receipt.size,1);
+});
 test('a stray unpaired participant INSERT cannot escape the stage-scoped journal',async()=>{
  const db=memoryDb();
  await assert.rejects(()=>applyCompleteVenueJournal(packet([
