@@ -362,7 +362,7 @@ function New-InitialState {
   $stageId=[string]$payload.snapshot.stageId
   $project=Get-VenueProjectForStage $stageId
   if($source){$project=[string]$source.project}else{Assert-NoOrphanedVenueStack $project}
-  # Trust independently verified admin fingerprint.
+  # trusted fingerprint verified by admin.
   $fingerprint=$(if($reuseTrust){[string]$trustedSource.fingerprint}else{(Read-VenueFingerprint).Trim()})
   if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Нет независимого доверенного отпечатка Ed25519'}
   if([string]$payload.snapshot.syncAuthorization.token -cnotmatch '^[A-Za-z0-9_-]{43}$'){
