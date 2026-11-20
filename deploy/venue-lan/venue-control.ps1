@@ -540,6 +540,7 @@ function Install-Local {
  if($state.phase -eq 'STAFF_READY'){
   Set-VenueStep 'start-lan-services'
   Assert-NoOtherVenueGatewayRunning
+  Assert-VenueVolumeRetained @('venue_media')
   Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never') 'start HTTPS API and LIVE'
   Set-VenueStep 'verify-first-lan-readiness'
   Wait-VenueLanReady $state
@@ -566,6 +567,7 @@ function Start-Local {
   & docker @(Get-VenueComposeArguments) exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
  Assert-Exit 'upgrade durable amplifier link journal'
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для запуска используйте текущий ярлык USD. Для его выгрузки нажмите Экспорт в этой папке.'}
+ Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')
  Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never') 'start offline without Internet'
  Wait-VenueLanReady $state
  Save-Autostart
