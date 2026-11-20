@@ -66,6 +66,19 @@ try {
  if([IO.File]::ReadAllText($replayed.publicKey) -cne $originalPem){
   throw 'Repeat installation did not preserve the original trust material'
  }
+ # A different signed access secret must never replace the immutable first-setup key.
+ Remove-Item -LiteralPath $StateFile,$EnvFile -Force
+ [IO.File]::WriteAllText($script:staffPath,('d'*43))
+ $script:Selected=0
+ $rejected=$false
+ try{New-InitialState|Out-Null}catch{$rejected=$true}
+ if(!$rejected -or (Test-Path -LiteralPath $EnvFile)){
+  throw 'Changing the initial staff key was accepted after an interrupted setup'
+ }
+ $originalAccess=[IO.File]::ReadAllText((Join-Path $PrivateDir 'venue-staff-access.key'))
+ if($originalAccess -cne ('c'*43)){
+  throw 'Signed initial staff access key was overwritten by a retry'
+ }
  Write-Host 'USD WINDOWS INITIAL TRUST PASS: local PEM pinned, partial bootstrap replayed, download disposable'
 } finally {
  $Root=$oldRoot
