@@ -453,7 +453,7 @@ test('Prisma PostgreSQL SELECT contract: signed import and directory recovery ne
   const {tx,db}=mockDb();
   const readQueries=[];
   tx.$executeRawUnsafe=async sql=>{
-   assert.doesNotMatch(sql,/^\\s*SELECT\\b/i,scenario+' must use Prisma queryRaw for row-producing SELECT');
+   assert.equal(sql.trimStart().toUpperCase().startsWith('SELECT '),false,scenario+' must use Prisma queryRaw for row-producing SELECT');
    return 1;
   };
   tx.$queryRawUnsafe=async sql=>{
