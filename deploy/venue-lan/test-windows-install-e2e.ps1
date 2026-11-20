@@ -97,8 +97,9 @@ Assert-PhaseOrder
 $script:steps.Clear()
 function Update-ReadyVenueFrontend([object]$State){[void]$script:steps.Add('web-noop')}
 Install-Local
-if(($script:steps -join ';') -cne 'web-noop;start-frontend'){
- throw 'READY retry unexpectedly modified a completed installation'
+$mutations=@($script:steps|Where-Object {$_ -ne 'compose-config --quiet'})
+if(($mutations -join ';') -cne 'web-noop;start-frontend'){
+ throw ('READY retry unexpectedly modified a completed installation: '+($script:steps -join ';'))
 }
 # Import crash: do not stamp IMPORTED before a transaction commits.
 Reset-Installer
