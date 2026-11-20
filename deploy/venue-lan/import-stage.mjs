@@ -304,7 +304,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress
  try{
  return await prisma.$transaction(async tx=>{
   // Static SQL, no input interpolation. Serialize repeated apply attempts.
-  await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
+  await tx.$queryRawUnsafe('SELECT 1::int AS acquired FROM pg_advisory_xact_lock(1827726187)');
   if(shared){
    const roles=await tx.$queryRawUnsafe('SELECT current_user AS name, rolsuper FROM pg_roles WHERE rolname=current_user');
    if(roles.length!==1||roles[0].name!=='usd_venue_root'||roles[0].rolsuper!==true)
@@ -558,7 +558,7 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
   ||plan.snapshot?.stageId!==stageId)
   throw new Error('Нет проверенного справочника для этого этапа');
  return prisma.$transaction(async tx=>{
-  await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
+  await tx.$queryRawUnsafe('SELECT 1::int AS acquired FROM pg_advisory_xact_lock(1827726187)');
   const role=await tx.$queryRawUnsafe('SELECT current_user AS name,rolsuper FROM pg_roles WHERE rolname=current_user');
   if(role.length!==1||role[0].name!=='usd_venue_root'||role[0].rolsuper!==true)
    throw new Error('Пополнение справочника разрешено только локальному root-установщику');
