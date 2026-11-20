@@ -29,10 +29,10 @@ YAML
 compose=(docker compose --project-directory "$tmp" -p "$project" -f "$tmp/compose.yaml")
 "${compose[@]}" up -d --no-deps --no-build --pull never db
 for i in $(seq 1 45); do
-  if "${compose[@]}" exec -T db pg_isready -U usd_venue_root -d usd_venue >/dev/null 2>&1; then break; fi
+  if "${compose[@]}" exec -T db pg_isready -h 127.0.0.1 -U usd_venue_root -d usd_venue >/dev/null 2>&1; then break; fi
   sleep 1
 done
-"${compose[@]}" exec -T db psql -U usd_venue_root -d usd_venue -v ON_ERROR_STOP=1 -c "CREATE TABLE ci_stage_marker (id int PRIMARY KEY, stage_name text NOT NULL); INSERT INTO ci_stage_marker VALUES (1, 'original signed event');" >/dev/null
+"${compose[@]}" exec -T db psql -h 127.0.0.1 -U usd_venue_root -d usd_venue -v ON_ERROR_STOP=1 -c "CREATE TABLE ci_stage_marker (id int PRIMARY KEY, stage_name text NOT NULL); INSERT INTO ci_stage_marker VALUES (1, 'original signed event');" >/dev/null
 first=$("${compose[@]}" ps -a -q db)
 test -n "$first"
 python3 - "$volume" "$project" <<'PY'
@@ -52,10 +52,10 @@ test -n "$(docker volume ls --quiet --filter name="^$volume$")"
 second=$("${compose[@]}" ps -a -q db)
 test -n "$second" && test "$first" != "$second"
 for i in $(seq 1 45); do
-  if "${compose[@]}" exec -T db pg_isready -U usd_venue_root -d usd_venue >/dev/null 2>&1; then break; fi
+  if "${compose[@]}" exec -T db pg_isready -h 127.0.0.1 -U usd_venue_root -d usd_venue >/dev/null 2>&1; then break; fi
   sleep 1
 done
-value=$("${compose[@]}" exec -T db psql -X -At -U usd_venue_root -d usd_venue -c 'SELECT stage_name FROM ci_stage_marker WHERE id=1')
+value=$("${compose[@]}" exec -T db psql -h 127.0.0.1 -X -At -U usd_venue_root -d usd_venue -c 'SELECT stage_name FROM ci_stage_marker WHERE id=1')
 test "$value" = 'original signed event'
 # An already running database is never recreated by resume.
 third=$("${compose[@]}" ps -a -q db)
