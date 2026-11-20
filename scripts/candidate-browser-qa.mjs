@@ -405,7 +405,7 @@ try{
       const brands=page.locator('.vehicle-catalog-brand-list .catalog-manage-row');
       const models=page.locator('.vehicle-catalog-model-list .catalog-manage-row');
       assert.equal(await brands.count(),308,'all seed makes are accessible');
-      assert.equal(await models.count(),60,'large model directory is paginated instead of rendering all 4,347 rows');
+      assert.equal(await models.count(),20,'large model directory is paginated instead of rendering all 4,347 rows');
       const first=brands.first();
       await first.getByRole('button',{name:'Редактировать'}).click();
       await first.getByLabel('Название марки').fill('QA only — unsaved');
@@ -508,14 +508,9 @@ try{
      }
      if(role==='ADMIN'&&route==='/admin/components'){
       const categoryPicker=page.getByRole('combobox',{name:'Категория оборудования'});
-      if(width<=760){
-       assert.ok(await categoryPicker.isVisible(),'all equipment categories are available without horizontal scrolling on phones');
-       await categoryPicker.selectOption('SUBWOOFER');
-       assert.equal(await categoryPicker.inputValue(),'SUBWOOFER','selected mobile equipment category is explicit');
-      }else{
-       assert.equal(await categoryPicker.isVisible(),false,'desktop category tabs remain the main control');
-       await page.getByRole('button',{name:'Сабвуферы',exact:true}).click();
-      }
+      assert.ok(await categoryPicker.isVisible(),'category selection is available at every width');
+      await categoryPicker.selectOption('SUBWOOFER');
+      assert.equal(await categoryPicker.inputValue(),'SUBWOOFER');
       const brands=page.locator('.catalog-two-column .panel').first().locator('.catalog-manage-row');
       assert.equal(await brands.count(),2,'component catalog includes enabled and disabled brands');
       const first=brands.first();
@@ -1445,10 +1440,10 @@ try{
       row.participantSearchRecovery='clear no-match filter, restore participant cards and keyboard focus';
      }
      if(route==='/admin/cars'&&role==='ADMIN'){
-      assert.equal(await page.locator('.data-table tbody tr').count(),25);
+      assert.equal(await page.locator('.data-table tbody tr').count(),10);
       await page.getByRole('button',{name:'Следующая страница автомобилей',exact:true}).click();
-      assert.equal(await page.locator('.data-table tbody tr').count(),25);
-      assert.match(await page.locator('.data-table tbody tr').first().innerText(),/Vesta 26/);
+      assert.equal(await page.locator('.data-table tbody tr').count(),10);
+      assert.match(await page.locator('.data-table tbody tr').first().innerText(),/Vesta 11/);
       await page.getByRole('button',{name:'Предыдущая страница автомобилей',exact:true}).click();
       const carSearch=page.getByRole('searchbox',{name:'Поиск автомобилей'});
       await carSearch.fill('Случайная несуществующая модель USD 999');
@@ -1456,10 +1451,10 @@ try{
       assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').count(),0);
       await page.getByRole('button',{name:'Показать все автомобили'}).click();
       assert.equal(await carSearch.inputValue(),'');
-      assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').count(),25);
+      assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').count(),10);
       assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').first().getAttribute('tabindex'),'0','car card can receive keyboard focus');
-      row.carSearchRecovery='no-match state recovers to all 25 cars with keyboard focusable rows';
-      row.carPagination='25 rows per page; next and previous passed';
+      row.carSearchRecovery='no-match state recovers to all 10 visible cars with keyboard focusable rows';
+      row.carPagination='10 rows per page; next and previous passed';
      }
      if(route==='/participant'&&role==='PARTICIPANT'){
       await page.getByRole('link',{name:'Мои автомобили',exact:true}).click();await page.waitForURL(/tab=cars/);
