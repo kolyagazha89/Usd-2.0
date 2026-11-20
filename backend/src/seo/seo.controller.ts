@@ -12,12 +12,15 @@ export class SeoController{
  @Header('Content-Type','application/xml; charset=utf-8')
  @Header('Cache-Control','public, max-age=300')
  async sitemap():Promise<string>{
-  const stages=await this.prisma.stage.findMany({
+  const [stages,siteSettings]=await Promise.all([
+   this.prisma.stage.findMany({
    where:{status:{in:['PUBLISHED','COMPLETED']},isDeleted:false},
    select:{id:true,status:true,isDeleted:true,updatedAt:true},
    orderBy:{date:'desc'},
    take:5000,
-  });
-  return renderSitemapXml(publicUsdSiteOrigin(process.env.FRONTEND_URL),stages);
+   }),
+   this.prisma.siteSettings.findUnique({where:{id:'default'},select:{news:true}}),
+  ]);
+  return renderSitemapXml(publicUsdSiteOrigin(process.env.FRONTEND_URL),stages,Array.isArray(siteSettings?.news)?siteSettings.news:[]);
  }
 }
