@@ -41,6 +41,16 @@ class VenueLauncherContracts(unittest.TestCase):
             self.assertEqual(len(re.findall(r"(?m)^function\s+"+re.escape(func)+r"\b",source)),1,func)
         self.assertIn("if($Sha -cnotmatch '^[a-f0-9]{40}$')",source)
 
+    def test_windows_season_helpers_are_unique_and_cannot_duplicate_on_patching(self):
+        source=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
+        self.assertLess(len(source.encode('utf-8')),27000,'PowerShell season file unexpectedly ballooned')
+        functions=re.findall(r'(?m)^function\s+([\w-]+)\s*[{(]',source)
+        self.assertGreaterEqual(len(functions),20)
+        self.assertEqual(len(functions),len(set(functions)),'Duplicate PowerShell functions shadow actual installer checks')
+        for name in ('Start-VenueDatabase','Assert-VenueDatabaseVolume','Wait-VenueLanReady',
+                     'Get-VenueProject','Get-VenueComposeArguments'):
+            self.assertEqual(functions.count(name),1)
+
     def test_release_image_and_api_modules_are_verified_before_installation(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
         self.assertIn("function Assert-VenueReleaseImages",source)
