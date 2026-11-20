@@ -1,5 +1,6 @@
 import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink} from './AdminEntityLink';
+import {SearchableSelect} from './FormComponents';
 import {useViewState,matchesSeason} from './view-state';
 import {useEffect,useState} from 'react';
 import {AlertTriangle,ChevronLeft,Plus,RefreshCw,X} from 'lucide-react';
@@ -26,7 +27,7 @@ function DisqualificationsPage({PageFrame,ErrorPanel,LoadingPage,Empty,displayPe
 function DisqualificationForm({participants,stages,seasons,saving,error,onCancel,onSubmit}:{participants:any[];stages:any[];seasons:any[];saving:boolean;error?:string;onCancel:()=>void;onSubmit:(v:any)=>Promise<void>}){
  const[v,setV]=useState<any>({scope:'STAGE',participantId:'',stageId:'',seasonId:'',reason:''});
  return <section className="panel resource-editor-page"><div className="resource-editor-heading"><div><span className="eyebrow">СПОРТИВНЫЙ КОНТРОЛЬ</span><h2>Новая дисквалификация</h2><p>Укажите участника, область действия и документируемую причину решения.</p></div><button type="button" className="secondary-button" onClick={onCancel}><ChevronLeft size={16}/>К списку</button></div>{error&&<div className="form-error modal-form-error"><AlertTriangle size={16}/><span>{error}</span></div>}<form className="form resource-editor-form" onSubmit={e=>{e.preventDefault();void onSubmit(v)}}>
-  <label>Участник<select value={v.participantId} onChange={e=>setV({...v,participantId:e.target.value})} required><option value="">Выберите участника</option>{participants.map(p=><option key={p.id} value={p.id}>{[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ')}{p.team?' · '+p.team:''}</option>)}</select></label>
+  <label>Участник<SearchableSelect value={v.participantId} onChange={participantId=>setV({...v,participantId})} options={participants.map(p=>({id:p.id,label:[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ')+(p.team?' · '+p.team:'')+' · ID '+String(p.id).slice(0,8)}))} placeholder="Начните вводить ФИО участника…" ariaLabel="Участник" required clearOnSearch/></label>
   <label>Область действия<select value={v.scope} onChange={e=>setV({...v,scope:e.target.value,stageId:'',seasonId:''})}><option value="STAGE">Один этап</option><option value="SEASON">Весь сезон</option><option value="FORMAT">Весь формат</option></select></label>
   {v.scope==='STAGE'&&<label>Этап<select value={v.stageId} onChange={e=>setV({...v,stageId:e.target.value})} required><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>№{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>}
   {v.scope==='SEASON'&&<label>Сезон<select value={v.seasonId} onChange={e=>setV({...v,seasonId:e.target.value})} required><option value="">Выберите сезон</option>{seasons.map(s=><option key={s.id} value={s.id}>{s.year} · {s.name}</option>)}</select></label>}
