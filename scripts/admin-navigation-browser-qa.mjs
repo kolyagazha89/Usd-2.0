@@ -13,7 +13,7 @@ const server=createServer(async(req,res)=>{try{const file=path.resolve(dist,'.'+
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch(getBrowserLaunchOptions()),report=[];
 try{
- for(const width of [390,1366]){
+ for(const width of [390,1024,1366]){
   const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});
   const participant={id:'person-1',photoUrl:'private-test-photo',lastName:'Тестовый',firstName:'Участник',isPublic:true};
   const cars=Array.from({length:60},(_,i)=>({id:'car-'+i,brand:'Lada',model:'Vesta '+i,participantId:participant.id,participant,registrationNumber:'А001АА181',registrationCountry:'RU',isActive:true,configurations:[]}));
@@ -85,7 +85,7 @@ try{
   await page.getByRole('button',{name:/Выступления ·/}).click();assert.equal(await page.locator('.participant-history-event[open]').count(),0);
   await page.screenshot({path:path.join(out,'participant-'+width+'.png'),fullPage:true});
   // Long brand lists must not push models below them on any screen.
-  await page.goto(base+'/admin/components');await page.locator('.catalog-brands-pane .catalog-list-select').first().waitFor();
+  await page.goto(base+'/admin/components');await page.locator('.catalog-brands-pane .catalog-list-select').first().waitFor();assert.ok(await page.getByRole('combobox',{name:'Категория оборудования',exact:true}).isVisible());
   const brandViewport=await page.locator('.catalog-brands-pane .catalog-list').evaluate(el=>({height:el.clientHeight,scrollHeight:el.scrollHeight}));
   assert.ok(brandViewport.height<650&&brandViewport.scrollHeight>brandViewport.height);
   await page.locator('.catalog-brands-pane .catalog-list-select').first().click();
