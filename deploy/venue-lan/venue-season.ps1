@@ -315,6 +315,21 @@ function Assert-VenueVolumeRetained([string[]]$Names){
   }
  }
 }
+# Read-only Windows preflight: pg_isready does not check that the restricted
+# API role exists or that it is NOT PostgreSQL superuser. A partial/legacy
+# Docker volume can therefore pass migration and fail on first signed import.
+function Assert-VenueDatabaseImportRole {
+ $sql="SELECT COALESCE((SELECT rolsuper::text FROM pg_roles WHERE rolname='usd_venue'),'missing') || '|' || COALESCE((SELECT rolsuper::text FROM pg_roles WHERE rolname='usd_venue_root'),'missing');"
+ $rows=@(& docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c $sql)
+ Assert-Exit 'read-only signed-import database role preflight'
+ if($rows.Count -ne 1){throw 'Локальная БД не вернула состояние ролей. Импорт не выполнялся; сохраните Docker volumes.'}
+ switch([string]$rows[0]){
+  'false|true' {Write-Host 'USD VENUE DB ROLE PREFLIGHT VERIFIED';return}
+  'true|true' {throw 'DATABASE_UNSAFE_SUPERUSER_ROLE: роль usd_venue имеет права superuser. Данные сохранены, требуется безопасное исправление прав.'}
+  'missing|true' {throw 'DATABASE_APP_ROLE_MISSING: в сохранённой БД отсутствует роль usd_venue. Пустая база не создавалась.'}
+  default {throw 'DATABASE_ROLE_MISMATCH: роли локальной БД не совпадают с установкой USD. Импорт остановлен без изменения данных.'}
+ }
+}
 function Wait-VenueLanReady([object]$State){
  if(!$State -or [string]$State.image -cnotmatch '^[a-f0-9]{40}$' -or
     [string]$State.stageId -cnotmatch '^[0-9a-f-]{36}$'){
