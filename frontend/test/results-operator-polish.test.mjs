@@ -1,0 +1,74 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {
+ groupJudgingResults,pendingJudgeRegistrations,
+} from '../src/admin/results-operations-model.ts';
+
+const stageInspection={status:'PASSED'};
+const c1={id:'rc1',class:{id:'c1',name:'Limited 1',sortOrder:1,direction:{id:'spl',name:'SPL',sortOrder:1}}};
+const c2={id:'rc2',class:{id:'c2',name:'Limited 2',sortOrder:2,direction:{id:'spl',name:'SPL',sortOrder:1}}};
+const cb={id:'rcb',class:{id:'cb',name:'Front 1',sortOrder:1,direction:{id:'bfspl',name:'BFSPL',sortOrder:2}}};
+const participant=(id,number,classes=[c1,c2])=>({
+ id,participantNumber:number,status:'ACTIVE',stageInspection,
+ participant:{firstName:'Иван',lastName:'Иванов'},classes,
+});
+const result=(id,registrationClass,place,number)=>({
+ id,registrationClass,place,registration:participant('reg-'+id,number),
+});
+
+test('protocol is grouped by direction and sorted class -> recorded place -> participant number',()=>{
+ const raw=[
+  result('bfspl',cb,1,3),
+  result('spl-unplaced',c1,null,1),
+  result('spl-second-class',c2,1,5),
+  result('spl-runner',c1,2,7),
+  result('spl-winner',c1,1,8),
+  result('spl-tie',c1,1,2),
+ ];
+ const originalIds=raw.map(r=>r.id);
+ const groups=groupJudgingResults(raw);
+ assert.deepEqual(groups.map(g=>g.name),['SPL','BFSPL']);
+ assert.deepEqual(groups[0].rows.map(r=>r.id),['spl-tie','spl-winner','spl-runner','spl-unplaced','spl-second-class']);
+ assert.deepEqual(groups[1].rows.map(r=>r.id),['bfspl']);
+ assert.deepEqual(raw.map(r=>r.id),originalIds,'sorting never modifies API response');
+});
+
+test('same-named directions retain distinct identities and empty place is not first',()=>{
+ const alt={id:'different-direction',name:'SPL',sortOrder:5};
+ const grouped=groupJudgingResults([
+  result('first',c1,'',4),
+  result('second',{id:'rcx',class:{id:'cx',name:'Limited 1',direction:alt}},0,5),
+  result('third',c1,3,6),
+ ]);
+ assert.equal(grouped.length,2);
+ assert.deepEqual(grouped[0].rows.map(r=>r.id),['third','first']);
+ assert.deepEqual(grouped[1].rows.map(r=>r.id),['second']);
+});
+
+test('entry roster offers only admitted registrations with unmeasured classes',()=>{
+ const seven=participant('reg7',7);
+ const nine=participant('reg9',9,[c1]);
+ const failed={...participant('reg10',10),stageInspection:{status:'FAILED'}};
+ const rows=[failed,nine,seven];
+ const completed=[{id:'saved',registrationId:'reg9',registrationClassId:'rc1'},
+  {id:'saved-7',registrationId:'reg7',registrationClassId:'rc1'}];
+ assert.deepEqual(pendingJudgeRegistrations(rows,completed,'').map(r=>r.id),['reg7']);
+ assert.deepEqual(pendingJudgeRegistrations(rows,completed,'№7').map(r=>r.id),['reg7']);
+ assert.deepEqual(pendingJudgeRegistrations(rows,completed,'№9'),[]);
+ assert.deepEqual(pendingJudgeRegistrations(rows,[...completed,{id:'last',registrationId:'reg7',registrationClassId:'rc2'}],'').map(r=>r.id),[]);
+});
+
+test('judging list has one-tap search reset, keyboard row access and mobile measured-value hierarchy',async()=>{
+ const source=await readFile(new URL('../src/admin/ResultsPage.tsx',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/admin/admin-shell-layout.css',import.meta.url),'utf8');
+ assert.match(source,/groupJudgingResults\(filteredResults\)/);
+ assert.match(source,/pendingJudgeRegistrations\(registrations,results,term\)/);
+ assert.match(source,/aria-label="Очистить поиск результатов"/);
+ assert.match(source,/aria-label="Сбросить фильтры результатов"/);
+ assert.match(source,/aria-label=\{'Открыть результат/);
+ assert.match(source,/onKeyDown=\{e=>\{if\(e\.target===e\.currentTarget/);
+ assert.match(css,/\.judging-result-search-clear/);
+ assert.match(css,/\.judging-results-table tbody td\[data-label="Результат"\]/);
+ assert.match(css,/env\(safe-area-inset-bottom/);
+});
