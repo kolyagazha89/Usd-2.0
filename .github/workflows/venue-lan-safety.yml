@@ -21,6 +21,9 @@ on:
       - '.github/workflows/venue-lan-safety.yml'
 permissions:
   contents: read
+concurrency:
+  group: venue-lan-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   venue-lan-safety:
     runs-on: ubuntu-latest
@@ -30,7 +33,7 @@ jobs:
       - name: Verify downloadable Windows kit matches reviewed sources
         run: python3 deploy/venue-lan/build-windows-kit.py --check
       - name: Validate RFC1918-only hub and independent credentials
-        run: python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v && python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v
+        run: python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v
       - name: Verify actual Caddy TLS, refresh cookies and HTTP spectator boundary
         run: |
           docker create --name usd-caddy-contract caddy:2-alpine
