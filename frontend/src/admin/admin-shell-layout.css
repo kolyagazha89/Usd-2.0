@@ -2410,3 +2410,15 @@ body .app-shell .main .judging-page .judging-results-table tbody tr.clickable-ro
  body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Авто"],
  body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Статус"]{grid-column:1/-1}
 }
+
+/* Tablet/compact desktop: search owns its own toolbar row. At 1024px the filter
+ * disclosure previously covered the search clear button and intercepted clicks. */
+@media(min-width:761px) and (max-width:1200px){
+ body .app-shell .main .judging-page .judging-toolbar>.judging-search{
+  box-sizing:border-box!important;
+  flex:1 1 100%!important;
+  width:100%;
+  min-width:0;
+ }
+ body .app-shell .main .judging-page .judging-toolbar>.usd-filter-drawer{flex:0 0 auto}
+}

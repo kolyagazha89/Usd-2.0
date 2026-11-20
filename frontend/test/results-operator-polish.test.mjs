@@ -85,4 +85,6 @@ test('judging list has one-tap search reset, keyboard row access and mobile meas
  assert.match(css,/\.judging-result-search-clear/);
  assert.match(css,/\.judging-results-table tbody td\[data-label="Результат"\]/);
  assert.match(css,/env\(safe-area-inset-bottom/);
+ assert.match(css,/@media\(min-width:761px\) and \(max-width:1200px\)/);
+ assert.match(css,/judging-toolbar>\.judging-search\{[\s\S]*?flex:1 1 100%!important/,'search and filter must not overlap on a 1024px tablet');
 });
