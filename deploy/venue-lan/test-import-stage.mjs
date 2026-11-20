@@ -118,7 +118,7 @@ function mockDb(){
   };
  }
  tx.$executeRawUnsafe=async sql=>{assert.equal(sql.trimStart().toUpperCase().startsWith('SELECT '),false);return 1};
- tx.$queryRawUnsafe=async sql=>sql.includes('pg_advisory_xact_lock')?[{pg_advisory_xact_lock:null}]:[{rolsuper:false}];
+ tx.$queryRawUnsafe=async sql=>sql.includes('pg_advisory_xact_lock')?[{acquired:1}]:[{rolsuper:false}];
  const db={$transaction:async(callback,opts)=>{assert.equal(opts.isolationLevel,'Serializable');return callback(tx)}};
  return {tx,db,log};
 }
@@ -479,7 +479,7 @@ test('Prisma PostgreSQL SELECT contract: signed import and directory recovery ne
   };
   tx.$queryRawUnsafe=async sql=>{
    readQueries.push(sql);
-   if(sql.includes('pg_advisory_xact_lock'))return [{pg_advisory_xact_lock:null}];
+   if(sql.includes('pg_advisory_xact_lock')){assert.match(sql,/SELECT 1::int AS acquired FROM pg_advisory_xact_lock/);return [{acquired:1}];}
    if(sql.includes('pg_roles'))return [{name:scenario==='initial signed stage'?'usd_venue':'usd_venue_root',
     rolsuper:scenario!=='initial signed stage'}];
    if(sql.includes('set_config'))return [{set_config:'true'}];
