@@ -19,3 +19,13 @@ test('desktop stage-detail poster scales under viewport height while mobile reta
  assert.match(rule,/object-fit\s*:\s*contain\s*!important/);
  assert.match(css,/\.public-site \.public-stage-detail img\.public-stage-poster\s*\{[\s\S]*?max-height:\s*none\s*!important/,'legacy mobile natural-height styling remains');
 });
+
+test('stage listing retains the entire portrait artwork in desktop cards',async()=>{
+ const css=await readFile(new URL('../src/styles.css',import.meta.url),'utf8');
+ const rules=css.match(/@media\s*\(min-width:\s*761px\)\s*\{[\s\S]*?\.public-site \.public-stage-card\.usd-stage-card-approved img\.public-stage-list-poster\s*\{([^}]+)\}/)?.[1]??'';
+ assert.ok(rules,'desktop stage card poster fit has its own bounded layout');
+ assert.match(rules,/max-height:\s*min\(\s*60dvh\s*,\s*620px\s*\)\s*!important/);
+ assert.match(rules,/object-fit:\s*contain\s*!important/);
+ assert.match(rules,/max-width:\s*100%\s*!important/);
+ assert.match(rules,/aspect-ratio:\s*auto\s*!important/);
+});
