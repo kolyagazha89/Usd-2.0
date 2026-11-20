@@ -174,11 +174,12 @@ body .participant-portal.usd-member .participant-journey li{background:#141920;b
 body .participant-portal.usd-member .participant-journey-step>span{color:#ff4053}
 body .participant-portal.usd-member .participant-journey h3{font-size:16px!important}
 body .participant-portal.usd-member .participant-journey li>p{font-size:12px;color:#919ba9}
-body .participant-portal.usd-member .member-more-stages>article{display:flex;gap:22px;align-items:center;border-top:1px solid #252e3b;padding:20px 0}
-body .participant-portal.usd-member .member-more-stages>article>span{color:#a2adbd;font-size:13px}
-body .participant-portal.usd-member .member-more-stages>article>div{display:grid;gap:7px;flex:1}
-body .participant-portal.usd-member .member-more-stages>article strong{font-size:15px}
+body .participant-portal.usd-member .member-more-stages>article{display:grid;grid-template-columns:minmax(96px,auto) minmax(0,1fr) auto;grid-template-areas:"date details action";gap:16px;align-items:center;background:#141920;border:1px solid #2a313c;border-radius:12px;padding:18px 20px;margin-top:12px}
+body .participant-portal.usd-member .member-more-stages>article>span{grid-area:date;justify-self:start;white-space:nowrap;padding:7px 10px;background:#202833;border-radius:8px;color:#a2adbd;font-size:12px;line-height:1.4}
+body .participant-portal.usd-member .member-more-stages>article>div{grid-area:details;display:grid;gap:6px;min-width:0}
+body .participant-portal.usd-member .member-more-stages>article strong{font-size:16px;line-height:1.35;overflow-wrap:anywhere}
 body .participant-portal.usd-member .member-more-stages>article small{font-size:12px;color:#919ba9}
+body .participant-portal.usd-member .member-more-stages>article .secondary-button{grid-area:action;justify-self:end;display:inline-flex;align-items:center;gap:8px;width:max-content;max-width:100%;white-space:normal;text-align:center;padding:10px 14px}
 body .participant-portal.usd-member .registration-hero{padding:0 0 28px!important;margin:0!important;border:0!important;min-height:0!important}
 body .participant-portal.usd-member .registration-hero h1{font-size:clamp(28px,3vw,38px)!important;margin:12px 0!important}
 body .participant-portal.usd-member .registration-hero p{font-size:14px!important;color:#919ba9!important}
@@ -291,8 +292,8 @@ body .participant-portal.usd-member :is(.config-tab-button.active,.config-sectio
  body .participant-portal.usd-member .member-system-directions>div{padding:10px 8px}
  body .participant-portal.usd-member .member-system-directions strong{font-size:9px}
  body .participant-portal.usd-member .member-system-directions strong svg{width:11px}
- body .participant-portal.usd-member .member-more-stages>article{flex-wrap:wrap;gap:14px}
- body .participant-portal.usd-member .member-more-stages>article .secondary-button{width:100%}
+ body .participant-portal.usd-member .member-more-stages>article{grid-template-columns:minmax(0,1fr);grid-template-areas:"date" "details" "action";gap:12px;padding:16px}
+ body .participant-portal.usd-member .member-more-stages>article .secondary-button{width:max-content;justify-self:end;max-width:100%;min-height:44px}
  body .participant-portal.usd-member .entry-workspace{grid-template-columns:minmax(0,1fr);gap:20px}
  body .participant-portal.usd-member .entry-event{position:static;grid-row:1;padding:16px 18px}
  body .participant-portal.usd-member .entry-event>h2{font-size:18px!important;margin:12px 0}
