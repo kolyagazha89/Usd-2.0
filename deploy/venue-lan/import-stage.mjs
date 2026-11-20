@@ -304,7 +304,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress
  try{
  return await prisma.$transaction(async tx=>{
   // Static SQL, no input interpolation. Serialize repeated apply attempts.
-  await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
+  await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
   if(shared){
    const roles=await tx.$queryRawUnsafe('SELECT current_user AS name, rolsuper FROM pg_roles WHERE rolname=current_user');
    if(roles.length!==1||roles[0].name!=='usd_venue_root'||roles[0].rolsuper!==true)
@@ -318,7 +318,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress
    }
    // Only the short-lived root importer can bypass its own seed writes.
    // The API never receives this role/password; the flag ends at COMMIT.
-   await tx.$executeRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
+   await tx.$queryRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
   }else{
    await assertVenueDatabaseRole(tx);
    const existing=await tx.stage.findUnique({where:{id:stage.id}});
@@ -558,7 +558,7 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
   ||plan.snapshot?.stageId!==stageId)
   throw new Error('Нет проверенного справочника для этого этапа');
  return prisma.$transaction(async tx=>{
-  await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
+  await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(1827726187)');
   const role=await tx.$queryRawUnsafe('SELECT current_user AS name,rolsuper FROM pg_roles WHERE rolname=current_user');
   if(role.length!==1||role[0].name!=='usd_venue_root'||role[0].rolsuper!==true)
    throw new Error('Пополнение справочника разрешено только локальному root-установщику');
@@ -615,7 +615,7 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
     plates.set(plate,owners);
    }
   }
-  await tx.$executeRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
+  await tx.$queryRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
   for(const person of plan.participantDirectory){
    const old=await tx.participant.findUnique({where:{id:person.id}});
    if(!old){
@@ -658,10 +658,20 @@ export function classifyVenueImportFailure(error){
  if(/Цифровая подпись не подтверждена|Доверенный отпечаток ключа подписи не совпадает|Контрольная сумма пакета не совпадает|Нужен открытый ключ Ed25519/.test(reason))return 'SIGNATURE_OR_TRUST';
  if(/Адрес локальной базы данных недопустим|Импорт в публичную или постороннюю базу запрещён/.test(reason))return 'LOCAL_DATABASE_CONFIG';
  if(/UUID этапа не совпадает|этапа не совпадает с закреплённым|Импорт разрешён только на локальной площадке/.test(reason))return 'STAGE_SCOPE';
+
+ // Stable, non-sensitive explanations for failures that otherwise appear only
+ // as DATABASE_DB_PRECHECK. Never echo underlying SQL, names or connection URL.
+ if(/Локальный API не имеет права работать с PostgreSQL superuser/.test(reason))return 'DATABASE_UNSAFE_SUPERUSER_ROLE';
+ const sqlstate=typeof error?.meta?.code==='string'?error.meta.code:'';
+ if(sqlstate==='42501')return 'DATABASE_PERMISSION_DENIED';
+ if(sqlstate==='42P01'||sqlstate==='42703')return 'DATABASE_SCHEMA_MISMATCH';
+ if(sqlstate==='28P01'||sqlstate==='28000')return 'DATABASE_AUTH_FAILED';
+ if(sqlstate==='3D000')return 'DATABASE_NOT_FOUND';
+ if(/^08[0-9A-Z]{3}$/.test(sqlstate))return 'DATABASE_CONNECTION';
  if(/Этап уже импортирован из другого пакета|исходной подписанной установки|пакета не совпадает/.test(reason))return 'INSTALLED_PACKAGE_MISMATCH';
  const phase=['DB_PRECHECK','STAGE_CATALOG','SIGNED_POLICY','PARTICIPANTS','CARS','REGISTRATIONS','INSPECTIONS_RESULTS','RECEIPT']
   .includes(error?.venueImportPhase)?error.venueImportPhase:null;
- const prismaCode=typeof error?.code==='string'&&/^P(?:10[012]|20(?:00|02|03|04|11|22|24|25|28|34))$/.test(error.code)
+ const prismaCode=typeof error?.code==='string'&&/^P(?:10(?:0[0-3]|17)|20(?:00|02|03|04|10|11|21|22|24|25|28|34))$/.test(error.code)
   ?error.code:null;
  if(prismaCode)return 'DATABASE_'+prismaCode+(phase?'_'+phase:'');
  if(phase)return 'DATABASE_'+phase;
