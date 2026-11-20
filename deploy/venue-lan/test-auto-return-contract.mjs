@@ -20,10 +20,10 @@ test('no online switch until signed ACK includes exact journal hash and derived 
 });
 test('signed grant is protected on Windows and central secrets never copied to venue',async()=>{
  const ctl=await read('venue-control.ps1');
- assert.match(ctl,/Write-VenueImmutableBootstrapFile \\$privateStage/);
- assert.match(ctl,/Write-VenueImmutableBootstrapFile \\$privateAccess/);
- assert.match(ctl,/Write-VenueImmutableBootstrapFile \\$privatePublicKey/);
- assert.match(ctl,/Write-PrivateFile \\$Path \\$Value/);
+ assert.match(ctl,/Write-VenueImmutableBootstrapFile \$privateStage/);
+ assert.match(ctl,/Write-VenueImmutableBootstrapFile \$privateAccess/);
+ assert.match(ctl,/Write-VenueImmutableBootstrapFile \$privatePublicKey/);
+ assert.match(ctl,/Write-PrivateFile \$Path \$Value/);
  assert.match(ctl,/AreAccessRulesProtected/);
  assert.doesNotMatch(ctl,/VENUE_PRODUCTION_DATABASE_URL|VENUE_PRODUCTION_JWT_SECRET/);
 });
