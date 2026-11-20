@@ -1,3 +1,4 @@
+import {jest} from '@jest/globals';
 import {SeoController} from './seo.controller';
 
 describe('SEO sitemap controller',()=>{
