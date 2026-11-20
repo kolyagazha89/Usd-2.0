@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import {configurationStillPending} from '../registrations/pending-configuration';
 import { redactInactiveCar } from '../participants/car-visibility';
+import { summarizeAudioBrands } from './brand-statistics';
 
 type ResultRow = {
   id: string;
@@ -1171,29 +1172,18 @@ export class StatisticsService {
     }
 
     const isolationMap = new Map<string, number>();
-    const brandMap = new Map<string, number>();
-    const addBrand = (value: unknown) => {
-      if (typeof value !== 'string') return;
-      const brand = value.trim();
-      if (!brand) return;
-      brandMap.set(brand, (brandMap.get(brand) ?? 0) + 1);
-    };
-    const readSnapshot = (raw: unknown) => {
-      if (!raw || typeof raw !== 'object') return;
-      const x = raw as Record<string, any>;
-      if (typeof x.vibrationIsolation === 'string' && x.vibrationIsolation.trim()) {
-        const key = x.vibrationIsolation.trim();
-        isolationMap.set(key, (isolationMap.get(key) ?? 0) + 1);
-      }
-      for (const key of ['headUnits', 'audioComponents', 'amplifiers', 'batteries', 'generators']) {
-        const list = Array.isArray(x[key]) ? x[key] : [];
-        for (const item of list) {
-          if (!item || typeof item !== 'object') continue;
-          addBrand(item.brand);
-        }
-      }
-    };
-    registrations.forEach((r) => readSnapshot(r.configurationSnapshot));
+    for (const registration of registrations) {
+      const snapshot = registration.configurationSnapshot;
+      if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) continue;
+      const isolation = (snapshot as Record<string, unknown>).vibrationIsolation;
+      if (typeof isolation !== 'string' || !isolation.trim()) continue;
+      const name = isolation.trim();
+      isolationMap.set(name, (isolationMap.get(name) ?? 0) + 1);
+    }
+    // Reporting uses only speakers and amplifiers. Each brand is counted
+    // once per frozen registration, regardless of quantity or model count.
+    const brands = summarizeAudioBrands(registrations);
+
 
     const pct = (n: number) => total ? Number(((n / total) * 100).toFixed(1)) : 0;
     const teams = [...teamMap.values()]
@@ -1213,9 +1203,7 @@ export class StatisticsService {
       vibrationIsolation: [...isolationMap.entries()]
         .map(([name, count]) => ({ name, count, percent: pct(count) }))
         .sort((a, b) => b.count - a.count),
-      configurationBrands: [...brandMap.entries()]
-        .map(([brand, count]) => ({ brand, count, percent: pct(count) }))
-        .sort((a, b) => b.count - a.count),
+      ...brands,
     };
   }
 

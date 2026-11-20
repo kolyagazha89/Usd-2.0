@@ -58,6 +58,30 @@ describe('season analytics never rewrite historic affiliations',()=>{
   expect(data.teams.map(team=>team.registrations)).toEqual([1,1]);
   expect(data.teams.map(team=>team.key).sort()).toEqual(['id:team-one','id:team-two']);
  });
+ it('computes sponsor brands only from speaker/amplifier snapshots and counts distinct registrations',async()=>{
+  db.registration.findMany.mockResolvedValue([
+   {...entry('a',null,null),configurationSnapshot:{
+    audioComponents:[{brand:'Russian Bass'},{brand:'Рашн Басс'},{brand:'Apocalypce'}],
+    amplifiers:[{brand:'DEAF-BONCE'}],batteries:[{brand:'Battery'}],generators:[{brand:'Generator'}],
+    headUnits:[{brand:'Head Unit'}],
+   }},
+   {...entry('b',null,null),configurationSnapshot:{
+    audioComponents:[{brand:'russianbass'}],amplifiers:[{brand:'Deaf Bonce'}],
+   }},
+   {...entry('c',null,null),configurationSnapshot:null},
+  ]);
+  const data=await service.getSeasonAnalytics(id);
+  expect(data.speakerBrands).toEqual([
+   {brand:'Russian Bass',count:2,percent:66.7},
+   {brand:'Deaf Bonce',count:1,percent:33.3},
+  ]);
+  expect(data.amplifierBrands).toEqual([{brand:'Deaf Bonce',count:2,percent:66.7}]);
+  expect(data.configurationBrands).toEqual([
+   {brand:'Deaf Bonce',count:2,percent:66.7},
+   {brand:'Russian Bass',count:2,percent:66.7},
+  ]);
+  expect(JSON.stringify(data.configurationBrands)).not.toMatch(/Battery|Generator|Head Unit/);
+ });
  it('retains no team attribution when old registrations have no captured affiliation',async()=>{
   db.registration.findMany.mockResolvedValue([
    entry('a','Team Today',null),
