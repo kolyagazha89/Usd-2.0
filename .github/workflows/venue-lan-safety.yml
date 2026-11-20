@@ -227,6 +227,9 @@ jobs:
       - name: Recover missing DB container safely on PowerShell 5.1
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-db-recovery.ps1
+      - name: Execute Windows installer from CONFIGURED through READY and recover at every boundary
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-install-e2e.ps1
       - name: Verify same-laptop season isolation and acknowledged journal
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-season.ps1
       - name: Verify native release quoting, selected environment and non-recreating database reads
