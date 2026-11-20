@@ -469,6 +469,32 @@ try{
       assert.equal(await visibility.inputValue(),'all');
       row.partnerFilters='hidden/published partner filtering without write';
      }
+     if(role==='ADMIN'&&['/admin/stages','/admin/participants','/admin/cars'].includes(route)){
+      const table=page.locator('.usd-universal-table').first();
+      await table.waitFor({state:'visible'});
+      if(route!=='/admin/cars'){
+       const sort=page.getByRole('combobox',{name:'Сортировка записей'}).first();
+       const column=await sort.locator('option:not([value=""])').first().getAttribute('value');
+       assert.ok(column,'resource lists expose at least one sortable column');
+       await sort.selectOption(column);
+       assert.equal(await table.locator('th[aria-sort="ascending"]').count(),1,'one active ascending sort header');
+       await page.getByRole('button',{name:'Изменить порядок сортировки'}).first().click();
+       assert.equal(await table.locator('th[aria-sort="descending"]').count(),1,'sort direction is reversible');
+      }
+      if(width<=760){
+       const card=table.locator('tbody tr').first();
+       await card.waitFor({state:'visible'});
+       const responsive=await table.evaluate(element=>{
+        const table=element.getBoundingClientRect();
+        const card=element.tBodies[0]?.rows[0]?.getBoundingClientRect();
+        return {display:getComputedStyle(element).display,cardDisplay:element.tBodies[0]?.rows[0]?getComputedStyle(element.tBodies[0].rows[0]).display:'',right:table.right,cardRight:card?.right,width:innerWidth,scrollWidth:element.scrollWidth,clientWidth:element.clientWidth};
+       });
+       assert.equal(responsive.display,'block','resource table must become a mobile card list');
+       assert.equal(responsive.cardDisplay,'grid','mobile list record must be a readable card');
+       assert.ok(responsive.right<=width+2&&responsive.cardRight<=width+2,'resource cards stay inside phone width '+JSON.stringify(responsive));
+       row.universalTable='shared responsive cards, keyboard-sortable resource list';
+      }else row.universalTable='resource sort columns and direction available on desktop';
+     }
      if(role==='ADMIN'&&width<=760&&['/admin/registrations','/admin/inspections','/admin/results'].includes(route.split('?')[0])){
       const stageLayout=await page.locator('.stage-picker').evaluate(element=>{
        const stage=element.querySelector(':scope > label')?.getBoundingClientRect();
