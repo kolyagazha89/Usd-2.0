@@ -1,3 +1,5 @@
+import {CatalogWorkspace} from './CatalogWorkspace';
+import {SearchableSelect} from './FormComponents';
 import CollapsibleFilters from '../CollapsibleFilters';
 import {useEffect,useState} from 'react';
 import {filterComponentRequests} from './component-request-filter';
@@ -93,9 +95,9 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
  const selectBrands=(catalogs.componentBrands as any[]).filter((x:any)=>x.category===category&&!x.isArchived).sort((a:any,b:any)=>a.name.localeCompare(b.name,'ru'));
  const models=(catalogs.componentModels as any[]).filter((x:any)=>x.category===category&&(!modelBrand||x.brand===modelBrand)).filter(matchesActivity).filter((x:any)=>lifecycleFilter==='ALL'||(x.lifecycle??'UNKNOWN')===lifecycleFilter).filter((x:any)=>!query||[x.brand,x.model].join(' ').toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))).sort((a:any,b:any)=>a.brand.localeCompare(b.brand,'ru')||a.model.localeCompare(b.model,'ru'));
  const componentCatalog=catalogs as ComponentCatalog;
- const modelPages=Math.max(1,Math.ceil(models.length/60));
+ const modelPages=Math.max(1,Math.ceil(models.length/20));
  const actualModelPage=Math.min(modelPage,modelPages);
- const visibleModels=models.slice((actualModelPage-1)*60,actualModelPage*60);
+ const visibleModels=models.slice((actualModelPage-1)*20,actualModelPage*20);
  const categoryCounts=activationCounts(componentCatalog,category);
  const allCounts=activationCounts(componentCatalog,'ALL');
  const addComponentBrand=async()=>{
@@ -230,7 +232,7 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
   </div>}
  </section>}
  {workspace==='browse'&&<div className="toolbar catalog-filter-bar">
-  <div className="search-box"><Search size={15}/><input value={query} aria-label="Поиск по брендам и моделям" onChange={e=>{setQuery(e.target.value);setModelPage(1)}} placeholder="Поиск марки или модели"/></div>
+  <div className="search-box"><Search size={15}/><input value={query} aria-label="Поиск по брендам и моделям" onChange={e=>{setQuery(e.target.value);setModelBrand('');setModelPage(1)}} placeholder="Поиск марки или модели"/></div>
   <CollapsibleFilters activeCount={Number(activityFilter!=='ALL')}><label className="catalog-filter-label">Статус
    <select value={activityFilter} onChange={e=>{setActivityFilter(e.target.value as typeof activityFilter);setModelPage(1)}} aria-label="Статус записей справочника">
     <option value="ALL">Все записи</option><option value="ENABLED">Включены</option><option value="DISABLED">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option>
@@ -238,7 +240,7 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
   </label></CollapsibleFilters>
   {(query||activityFilter!=='ALL'||lifecycleFilter!=='ALL'||modelBrand)&&<button type="button" className="secondary-button compact catalog-filter-reset" aria-label="Сбросить фильтры комплектующих" onClick={()=>{setQuery('');setActivityFilter('ALL');setLifecycleFilter('ALL');setModelBrand('');setModelPage(1)}}>Сбросить фильтры</button>}
  </div>}
- {workspace==='browse'&&<div className="catalog-two-column">
+ {workspace==='browse'&&<CatalogWorkspace selection={modelBrand} resetKey={category} pageKey={actualModelPage}>
   <section className="panel">
    <PanelTitle title={'Марки · '+brands.length} icon={Layers}/>
    <form className="catalog-add-row" onSubmit={e=>{e.preventDefault();void addComponentBrand()}}>
@@ -273,9 +275,7 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
    <PanelTitle title={'Модели · '+models.length} icon={Package}/>
    <p className="settings-help">{modelBrand?'Выбрана марка: '+modelBrand:'Выберите марку слева для добавления модели или просматривайте все модели.'} Удаление сохраняет ID и историю конфигураций.</p>
    <form className="catalog-add-row" onSubmit={e=>{e.preventDefault();void addComponentModel()}}>
-    <select aria-label="Марка новой модели" value={modelBrand} onChange={e=>{setModelBrand(e.target.value);setModelPage(1)}} required>
-     <option value="">Выберите марку</option>{selectBrands.map((x:any)=><option key={x.id} value={x.name}>{x.name}</option>)}
-    </select>
+    <SearchableSelect ariaLabel="Марка новой модели" value={modelBrand} onChange={(value:string)=>{setModelBrand(value);setModelPage(1)}} options={selectBrands.map((x:any)=>({id:x.name,label:x.name}))} required placeholder="Найти марку"/>
     <input aria-label="Название новой модели" value={model} onChange={e=>setModel(e.target.value)} placeholder="Модель / серия" maxLength={160} required/>
     <button type="submit" className="primary-button compact" disabled={saving||!modelBrand||!model.trim()}><Plus size={15}/>Добавить</button>
    </form>
@@ -316,7 +316,7 @@ export function CatalogPage({mode,routePath='',PageFrame,PanelTitle,LoadingPage,
     <button type="button" className="secondary-button compact" disabled={actualModelPage>=modelPages} onClick={()=>setModelPage(n=>Math.min(modelPages,Math.min(n,modelPages)+1))}>Вперёд</button>
    </div>}
   </section>
- </div>}
+ </CatalogWorkspace>}
  </>)}
  {!vibration&&tab==='catalog'&&workspace==='manage'&&<section className="panel" aria-label="Типы аккумуляторов">
   <PanelTitle title={'Типы аккумуляторов · '+(catalogs.batteryTypes??[]).length} icon={Layers}/>

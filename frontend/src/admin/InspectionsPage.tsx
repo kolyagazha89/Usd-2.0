@@ -1,3 +1,5 @@
+import {AdminListPagination} from './AdminListPagination';
+import {paginateResourceRows} from './admin-table-model';
 import {isPastStageCalendar} from './stage-calendar';
 import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,AdminRelatedEntities} from './AdminEntityLink';
@@ -179,6 +181,10 @@ function EntryInspection({stageId,onScanQr,go,user,readOnly,Empty,LoadingPage,Se
  const {passed,failed,pending}=summarizeInspections(rows);const inspectedCount=passed+failed;
  const selectedFilter=filter==='NOT_PASSED'?'FAILED':filter;
  const filtered=filterInspections(rows,selectedFilter,search);
+ const [page,setPage]=useViewState('inspections:'+stageId+':page',1),[pageSize,setPageSize]=useViewState('inspections:'+stageId+':pageSize',10);
+ const pagination=paginateResourceRows(filtered,page,pageSize);
+ const previousFilters=useRef([search,selectedFilter].join('\0'));
+ useEffect(()=>{const key=[search,selectedFilter].join('\0');if(previousFilters.current!==key){setPage(1);previousFilters.current=key}},[search,selectedFilter]);
 
  const passAll=async()=>{if(!pending)return;setLoading(true);setError('');try{await apiPost('/inspections/stage/'+encodeURIComponent(stageId)+'/pass-pending',{});setConfirmPassAll(false);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось массово завершить инспекции')}finally{setLoading(false)}};const failAll=async()=>{if(!pending||!failAllReason.trim()){setError('Укажите причину для массового отказа');return}setLoading(true);setError('');try{await apiPost('/inspections/stage/'+encodeURIComponent(stageId)+'/fail-pending',{notes:failAllReason.trim()});setConfirmFailAll(false);setFailAllReason('');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось массово завершить инспекции')}finally{setLoading(false)}};
  const selectedRegistration=rows.find(r=>r.id===selectedRegistrationId);const backToInspectionList=()=>{setSelectedRegistrationId('');const params=new URLSearchParams(location.search);params.delete('registrationId');history.replaceState({},'',location.pathname+(params.toString()?'?'+params.toString():''))};
@@ -204,8 +210,9 @@ function EntryInspection({stageId,onScanQr,go,user,readOnly,Empty,LoadingPage,Se
   <div className="event-ops-inspection-progress" aria-label="Готовность допуска"><div><strong>Проверено {inspectedCount} из {rows.length}</strong><span>{pending>0?`Осталось проверить: ${pending}. Итоговый список доступен после завершения инспекции.`:passed>0?"Проверка завершена. Итоговый список допущенных доступен ниже.":"Ожидаем участников или результаты инспекции."}</span></div><progress value={inspectedCount} max={Math.max(1,rows.length)} aria-label="Доля проверенных участников"/></div></details>
   {readOnly&&<div className="notice"><ClipboardCheck size={16}/><span>Этап завершён. Инспекции доступны только для просмотра — изменения отключены.</span></div>}
   {error&&<div className="notice"><AlertTriangle size={18}/><span>{error}</span></div>}
+  {filtered.length>10&&<AdminListPagination label="инспекций" total={filtered.length} page={pagination.page} pageCount={pagination.pageCount} pageSize={pagination.pageSize} onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1)}}/>}
   <div id="event-ops-records" className="panel table-wrap event-ops-results" aria-busy={loading}>
-   {loading?<LoadingPage small/>:filtered.length?<table className="data-table" aria-label="Очередь инспекции выбранного этапа"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{filtered.map(r=><InspectionRow key={r.id} registration={r} readOnly={readOnly} displayCarName={displayCarName} onOpen={()=>setSelectedRegistrationId(r.id)}/>)}</tbody></table>:<Empty text={rows.length?'В выбранной очереди ничего не найдено. Измените фильтр или поиск':'На выбранный этап нет активных регистраций'}/>}
+   {loading?<LoadingPage small/>:filtered.length?<table className="data-table" aria-label="Очередь инспекции выбранного этапа"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{pagination.rows.map(r=><InspectionRow key={r.id} registration={r} readOnly={readOnly} displayCarName={displayCarName} onOpen={()=>setSelectedRegistrationId(r.id)}/>)}</tbody></table>:<Empty text={rows.length?'В выбранной очереди ничего не найдено. Измените фильтр или поиск':'На выбранный этап нет активных регистраций'}/>}
   </div>
  </>;
 }

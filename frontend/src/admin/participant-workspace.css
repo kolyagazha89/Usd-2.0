@@ -1,0 +1,32 @@
+.participant-workspace{min-width:0}
+.participant-workspace-heading{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.participant-workspace-heading h3{margin:0 0 6px;font-size:20px;overflow-wrap:anywhere}
+.participant-workspace-heading p{margin:0;color:var(--muted,#667085)}
+.admin-profile-photo{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:112px;height:112px;flex:0 0 112px;overflow:hidden;border:1px solid var(--border,#dde1e8);border-radius:12px;background:#f6f7f9;color:#667085;text-align:center}
+.admin-profile-photo img{width:100%;height:100%;object-fit:cover}
+.admin-profile-photo span{font-size:11px;padding:0 4px}
+.admin-profile-photo.is-car{width:64px;height:64px;flex-basis:64px}
+.participant-workspace-tabs{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:12px;margin-bottom:16px;border-bottom:1px solid var(--border,#dde1e8)}
+.participant-workspace-tabs button[aria-pressed=true]{border-color:var(--red,#dc1731);color:var(--red,#dc1731);background:#fff4f5}
+.participant-workspace .participant-detail-cars{border:0;padding:0;margin:0}
+.participant-workspace .participant-car-item{justify-content:start}
+.participant-workspace .participant-car-item>div:not(.admin-profile-photo){flex:1;min-width:0;overflow-wrap:anywhere}
+.participant-workspace .participant-car-item button{margin-left:auto}
+.participant-history-search{display:grid;gap:6px;margin:12px 0;font-size:12px;font-weight:600}
+.participant-history-search input{width:100%;min-width:0;box-sizing:border-box}
+.participant-workspace summary.participant-history-event-heading{cursor:pointer;list-style:none;padding:12px;align-items:center}
+.participant-workspace summary.participant-history-event-heading::after{content:'⌄';font-size:20px;flex:0 0 auto}
+.participant-workspace .participant-history-event[open]>summary::after{content:'⌃'}
+.participant-workspace .participant-history-event{padding:0}
+.participant-workspace .participant-history-event> :not(summary){margin:12px}
+.participant-workspace .participant-history-event h4{margin:5px 0;font-size:14px}
+.participant-workspace .participant-history-event p{margin:4px 0}
+@media(max-width:560px){
+.participant-workspace-heading{align-items:start;gap:12px}
+.participant-workspace-heading h3{font-size:17px}
+.admin-profile-photo{width:88px;height:88px;flex-basis:88px}
+.participant-workspace-tabs{gap:6px}
+.participant-workspace-tabs button{flex:1;white-space:normal;min-height:44px}
+.participant-workspace .participant-car-item{flex-wrap:wrap}
+.participant-workspace .participant-car-item button{width:100%;justify-content:center}
+}

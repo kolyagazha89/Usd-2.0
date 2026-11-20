@@ -12,7 +12,7 @@ test('catalog workspace separates browsing, bulk management, import, and request
  assert.match(code,/workspace==='import'&&<section className="panel catalog-import-panel"/);
  assert.match(code,/workspace==='manage'&&<section className="panel catalog-merge"/);
  assert.match(code,/workspace==='manage'&&<section className="panel catalog-bulk-panel"/);
- assert.match(code,/workspace==='browse'&&<div className="catalog-two-column"/);
+ assert.match(code,/workspace==='browse'&&<CatalogWorkspace/);
  assert.match(code,/tab==='requests'/);
  assert.match(code,/vibration\?<></);
  assert.match(code,/importConfirmed/);

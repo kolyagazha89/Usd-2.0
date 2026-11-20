@@ -1,0 +1,29 @@
+.catalog-workspace{min-width:0}
+.catalog-workspace .catalog-two-column{grid-template-columns:minmax(230px,.85fr) minmax(0,1.4fr);align-items:start}
+.catalog-workspace-pane{min-width:0}
+.catalog-workspace-pane>.panel{min-width:0;margin:0;padding:16px}
+.catalog-workspace-pane .catalog-list{max-height:clamp(240px,52dvh,600px);overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;align-content:start}
+.catalog-workspace-pane .catalog-add-row{display:flex;flex-wrap:wrap;gap:8px}
+.catalog-workspace-pane .catalog-add-row>*{min-width:0;flex:1 1 120px}
+.catalog-workspace-pane .catalog-list-row{align-items:start;flex-direction:column}
+.catalog-workspace-pane .catalog-list-select{width:100%;flex-direction:column;align-items:start;gap:4px;min-height:44px}
+.catalog-workspace-pane .catalog-row-actions{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.catalog-workspace-pane .catalog-row-actions button{font-size:12px;min-height:36px}
+.catalog-workspace-pane .catalog-inline-editor{width:100%;min-width:0}
+.catalog-workspace-pane .catalog-model-label{overflow-wrap:anywhere}
+.catalog-workspace-pane .list-pagination{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px}
+.catalog-pane-switch{display:none}
+.catalog-workspace .searchable-select{width:100%}
+@media(max-width:900px){
+.catalog-pane-switch{display:flex;gap:8px;margin-bottom:12px}
+.catalog-pane-switch button{flex:1;min-width:0;white-space:normal;overflow-wrap:anywhere}
+.catalog-pane-switch button[aria-pressed=true]{border-color:var(--red,#dc1731);color:var(--red,#dc1731);background:#fff4f5}
+.catalog-workspace .catalog-two-column{grid-template-columns:minmax(0,1fr)}
+.catalog-workspace [data-pane=brands]>.catalog-models-pane,.catalog-workspace [data-pane=models]>.catalog-brands-pane{display:none}
+.catalog-workspace-pane .catalog-list{max-height:55dvh}
+}
+/* Category selection has one compact control instead of a duplicate nine-button grid. */
+body .app-shell .main .content .catalog-category-panel>.catalog-category-tabs{display:none}
+body .app-shell .main .content .catalog-category-mobile{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px;max-width:600px}
+body .app-shell .main .content .catalog-category-mobile select{width:100%;min-width:0}
+@media(max-width:560px){body .app-shell .main .content .catalog-category-mobile{grid-template-columns:minmax(0,1fr);gap:6px}}

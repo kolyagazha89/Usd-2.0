@@ -98,7 +98,7 @@ export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:Rea
       <label><span className="field-label">Текст кнопки</span><input value={selected.buttonLabel} maxLength={80} onChange={e=>updateSelected({buttonLabel:e.target.value})}/></label>
       <label className="email-template-wide"><span className="field-label">Подвал письма</span><textarea rows={4} value={selected.footer} onChange={e=>updateSelected({footer:e.target.value})}/><small className="field-help">Системная ссылка действия формируется сервером отдельно от текста шаблона.</small></label>
      </div>
-     <section className="email-template-preview" aria-label="Предпросмотр письма USD">
+     <details className="email-template-preview" aria-label="Предпросмотр письма USD"><summary>Предпросмотр письма</summary>
       <div className="email-preview-chrome">
        <div><strong>Предпросмотр письма</strong><small>Стиль получателя · пример без секретных ссылок</small></div>
        <span className="email-preview-device">Адаптивный макет</span>
@@ -121,7 +121,7 @@ export default function EmailTemplatesPage({PageFrame,PanelTitle}:{PageFrame:Rea
        </div>
       </div>
       <p className="email-preview-disclaimer">Это визуальный образец. Ссылка действия, защищённые параметры и точные данные формируются сервером при отправке. Для проверки отображения в почтовом клиенте отправьте тестовое письмо.</p>
-     </section>
+     </details>
      <div className="email-template-actions"><label><span className="field-label">Email для тестового письма</span><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/></label><div className="button-row"><button className="secondary-button" onClick={()=>void test()} disabled={testing}><Send size={15}/>{testing?'Отправляем…':'Отправить тест этого триггера'}</button><button className="secondary-button" onClick={removeTemplate} disabled={starterTemplates.some(t=>t.id===selected.id)}><Trash2 size={15}/> Удалить добавленный шаблон</button></div></div>
     </div>}
    </div>

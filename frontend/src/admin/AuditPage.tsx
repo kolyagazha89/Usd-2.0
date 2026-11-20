@@ -1,22 +1,32 @@
+import {AdminListPagination} from './AdminListPagination';
 import {AdminEntityLink,AdminRelatedEntities} from './AdminEntityLink';
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {FileClock,RefreshCw} from 'lucide-react';
 import {getAudit,listData,type Role} from '../api';
 import {humanize} from './AdminPrimitives';
 
 export function AuditPage({PageFrame,ErrorPanel,LoadingPage,Empty,enumLabel,formatDate,roleName}:{PageFrame:React.ComponentType<any>;ErrorPanel:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;enumLabel:(v:any)=>string;formatDate:(v:string)=>string;roleName:Record<Role,string>}){
  const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const [page,setPage]=useState(1),[pageSize,setPageSize]=useState(25),[total,setTotal]=useState(0);
+ const requestSequence=useRef(0);
  const[entity,setEntity]=useState(''),[action,setAction]=useState('');
- const load=async()=>{setLoading(true);setError('');try{const r=await getAudit(1,100,entity,action);setData(listData(r))}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить аудит')}finally{setLoading(false)}};
- useEffect(()=>{void load()},[entity,action]);
+ const load=async()=>{
+  const request=++requestSequence.current;setLoading(true);setError('');
+  try{const r=await getAudit(page,pageSize,entity,action);if(request!==requestSequence.current)return;
+   const count=r?.pagination?.total??listData(r).length;setData(listData(r));setTotal(count);setPage(current=>Math.min(current,Math.max(1,Math.ceil(count/pageSize))));
+  }catch(e){if(request===requestSequence.current)setError(e instanceof Error?e.message:'Не удалось загрузить аудит')}
+  finally{if(request===requestSequence.current)setLoading(false)}
+ };
+ useEffect(()=>{void load();return()=>{requestSequence.current++}},[entity,action,page,pageSize]);
  const actions=[...new Set(data.map(x=>x.action).filter(Boolean))];
  return <PageFrame title="Аудит" subtitle="Понятная история: кто, что, где и когда изменил в системе." action={<button className="secondary-button compact" onClick={()=>void load()}><RefreshCw size={14}/>Обновить</button>}>
   <div className="audit-toolbar panel">
-   <label>Раздел<select value={entity} onChange={e=>setEntity(e.target.value)}><option value="">Все разделы</option>{['User','Participant','Car','CarConfiguration','Season','Stage','StageClass','Direction','Class','Registration','RegistrationClass','RegistrationNumber','Inspection','Result','Record','Disqualification','ImportJob','ImportRow','MediaUpload','AssistantRequest','SiteSettings'].map(x=><option key={x} value={x}>{auditEntityName(x)}</option>)}</select></label>
-   <label>Действие<select value={action} onChange={e=>setAction(e.target.value)}><option value="">Все действия</option>{actions.map(x=><option key={x} value={x}>{auditActionName(x)}</option>)}</select></label>
+   <label>Раздел<select value={entity} onChange={e=>{setEntity(e.target.value);setPage(1)}}><option value="">Все разделы</option>{['User','Participant','Car','CarConfiguration','Season','Stage','StageClass','Direction','Class','Registration','RegistrationClass','RegistrationNumber','Inspection','Result','Record','Disqualification','ImportJob','ImportRow','MediaUpload','AssistantRequest','SiteSettings'].map(x=><option key={x} value={x}>{auditEntityName(x)}</option>)}</select></label>
+   <label>Действие<select value={action} onChange={e=>{setAction(e.target.value);setPage(1)}}><option value="">Все действия</option>{[...new Set([action,...actions])].filter(Boolean).map(x=><option key={x} value={x}>{auditActionName(x)}</option>)}</select></label>
    <div className="audit-count"><strong>{data.length}</strong><span>событий показано</span></div>
   </div>
   {error&&<ErrorPanel message={error} retry={load}/>}
+  {total>0&&<AdminListPagination label="событий аудита" total={total} page={page} pageCount={Math.max(1,Math.ceil(total/pageSize))} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1)}}/>}
   {loading?<LoadingPage/>:<div className="audit-list">{data.map((x:any)=><AuditEntryCard key={x.id} item={x} enumLabel={enumLabel} formatDate={formatDate} humanizeAuditKey={humanizeAuditKey} roleName={roleName}/>)}</div>}
   {!loading&&!data.length&&<div className="panel"><Empty text="По выбранным фильтрам событий нет"/></div>}
  </PageFrame>

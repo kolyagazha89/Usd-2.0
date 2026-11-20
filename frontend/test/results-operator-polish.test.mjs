@@ -88,3 +88,13 @@ test('judging list has one-tap search reset, keyboard row access and mobile meas
  assert.match(css,/@media\(min-width:761px\) and \(max-width:1200px\)/);
  assert.match(css,/judging-toolbar>\.judging-search\{[\s\S]*?flex:1 1 100%!important/,'search and filter must not overlap on a 1024px tablet');
 });
+
+test('paging a protocol retains direction order and the recorded places across boundaries',async()=>{
+ const {paginateResourceRows}=await import('../src/admin/admin-table-model.ts');
+ const raw=Array.from({length:23},(_,i)=>result('r'+i,i<12?c1:cb,i+1,i+1)).reverse();
+ const ordered=groupJudgingResults(raw).flatMap(group=>group.rows);
+ const pages=[1,2,3].map(page=>paginateResourceRows(ordered,page,10).rows);
+ assert.deepEqual(pages.flat().map(r=>r.id),ordered.map(r=>r.id));
+ assert.equal(pages[1][0].place,11,'page two must not restart official places');
+ assert.equal(pages[2].length,3);
+});
