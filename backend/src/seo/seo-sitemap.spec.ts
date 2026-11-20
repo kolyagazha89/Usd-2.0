@@ -25,4 +25,24 @@ describe('SEO sitemap',()=>{
   expect(xml).not.toContain('unwanted/path');
   expect(()=>renderSitemapXml('javascript:alert(1)',[])).toThrow();
  });
+
+ it('includes the consent policy and discoverable published news only',()=>{
+  const xml=renderSitemapXml('https://usd-russia.ru',[],[
+   {id:'public-news',isPublished:true,publishedAt:'2026-01-01T12:00:00Z'},
+   {id:'legacy-news',createdAt:'2025-01-01T12:00:00Z'},
+   {id:'draft-news',isPublished:false},
+   {id:'scheduled-news',isPublished:true,publishedAt:'2999-01-01T12:00:00Z'},
+   {id:'invalid-date',isPublished:true,publishedAt:'not-a-date'},
+   {id:'bad/route',isPublished:true},
+   {id:'',isPublished:true},
+   null,
+  ]);
+  expect(xml).toContain('<loc>https://usd-russia.ru/consent</loc>');
+  expect(xml).toContain('<loc>https://usd-russia.ru/news/public-news</loc><lastmod>2026-01-01</lastmod>');
+  expect(xml).toContain('<loc>https://usd-russia.ru/news/legacy-news</loc><lastmod>2025-01-01</lastmod>');
+  for(const id of ['draft-news','scheduled-news','invalid-date','bad%2Froute']){
+   expect(xml).not.toContain('/news/'+id);
+  }
+  expect(xml).not.toContain('<loc>https://usd-russia.ru/news/</loc>');
+ });
 });
