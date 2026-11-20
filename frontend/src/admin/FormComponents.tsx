@@ -9,7 +9,7 @@ import {formatPlateInput,formatPhoneInput,isValidInternationalPhone,isValidPlate
 type Field={name:string;label:string;type?:string;required?:boolean;options?:string[];optionsPath?:string;optionLabel?:(item:any)=>string;placeholder?:string;help?:string};
 
 function fieldPlaceholder(f:Field){if(f.placeholder)return f.placeholder;const p:Record<string,string>={name:'Например: USD Тюмень 2026',lastName:'Фамилия',firstName:'Имя',middleName:'Отчество (необязательно)',city:'Например: Тюмень',team:'Название команды',phone:'+7 900 000-00-00',venue:'Название площадки',address:'Адрес проведения',description:'Короткое описание…',registrationNumber:'Госномер',brand:'Например: Lada',model:'Например: Priora',color:'Например: чёрный'};return p[f.name]??'';}
-export function SearchableSelect({value,options,onChange,placeholder='Выберите…',required=false,ariaLabel}:{value:any;options:any[];onChange:(value:string)=>void;placeholder?:string;required?:boolean;ariaLabel?:string}){
+export function SearchableSelect({value,options,onChange,placeholder='Выберите…',required=false,ariaLabel,clearOnSearch=false}:{value:any;options:any[];onChange:(value:string)=>void;placeholder?:string;required?:boolean;ariaLabel?:string;clearOnSearch?:boolean}){
  const[query,setQuery]=useState(''),[open,setOpen]=useState(false),[active,setActive]=useState(0);
  const id=useId(),input=useRef<HTMLInputElement>(null),menu=useRef<HTMLDivElement>(null);
  const optionId=(option:any)=>String(option.id??option.value);
@@ -25,7 +25,7 @@ export function SearchableSelect({value,options,onChange,placeholder='Выбер
   <input ref={input} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={id} aria-activedescendant={open&&filtered[active]?id+'-'+active:undefined} aria-required={required||undefined} aria-label={ariaLabel} autoComplete="off"
    value={open?query:selectedLabel} placeholder={placeholder} required={required&&!selected}
    onFocus={()=>{setOpen(true);setActive(0)}}
-   onChange={event=>{setQuery(event.target.value);setActive(0);setOpen(true);if(!event.target.value&&value)onChange('')}}
+   onChange={event=>{setQuery(event.target.value);setActive(0);setOpen(true);if(value&&(clearOnSearch||!event.target.value))onChange('')}}
    onBlur={close}
    onKeyDown={event=>{
     if(event.key==='Escape'){event.preventDefault();close();return}
