@@ -24,6 +24,36 @@ describe('Public profile publication permissions', () => {
     service = new ParticipantsService(prisma);
   });
 
+  it('keeps a previously consented participant publicly visible after an unrelated legal version bump', async () => {
+    prisma.siteSettings.findUnique.mockResolvedValueOnce({ legal: { legalApproved: true, legalVersion: '8',
+      documents: { photoProfileConsent: { targetId: 'legal-document-photoProfileConsent-current',
+        url: 'https://example.org/photo-profile.docx' } } } });
+    prisma.participant.findMany.mockResolvedValue([
+      { id: 'previously-consented', ...confirmed, lastName: 'Иванов', firstName: 'Иван',
+        city: 'Тюмень', team: 'Команда', photoUrl: '/photo.jpg', cars: [] },
+    ]);
+    const people = await service.findAll();
+    expect(people.map((person: any) => person.id)).toEqual(['previously-consented']);
+    expect(people[0].city).toBeNull();
+    expect(people[0].team).toBeNull();
+    expect(people[0].photoUrl).toBeNull();
+  });
+
+  it('shows an existing explicit decision as confirmed to its owner after a general legal version bump', async () => {
+    const local:any = {
+      user:{findUnique:jest.fn().mockResolvedValue({id:'user-1',isActive:true,role:'PARTICIPANT',participantId:'participant-1'})},
+      siteSettings:{findUnique:jest.fn().mockResolvedValue({legal:{legalApproved:true,legalVersion:'8',
+        documents:{photoProfileConsent:{targetId:'legal-document-photoProfileConsent-current',
+          url:'https://example.org/profile.docx'}}}})},
+      participant:{findUnique:jest.fn().mockResolvedValue({id:'participant-1',...confirmed})},
+    };
+    const view = await new ParticipantsService(local).getPublicationConsent({user:{sub:'user-1',role:'PARTICIPANT'}} as any);
+    expect(view.confirmed).toBe(true);
+    expect(view.choices.identity).toBe(true);
+    expect(view.choices.profilePhoto).toBe(false);
+    expect(view.recordedAt).toEqual(confirmed.publicationConsentAt);
+  });
+
   it('does not publish any legacy profile merely because isPublic is true', async () => {
     prisma.participant.findMany.mockResolvedValue([
       { id: 'legacy', firstName: 'Иван', lastName: 'Иванов', isPublic: true, photoUrl: '/photo.jpg', cars: [] },

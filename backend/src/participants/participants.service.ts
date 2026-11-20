@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 
 import { randomBytes } from 'node:crypto';
-import { mayPublish, publicationVersion, readPublicationConsent, validatePublicationConsent } from './publication-consent';
+import { consentMatchesPublicationDocument, mayPublish, publicationVersion, readPublicationConsent, validatePublicationConsent } from './publication-consent';
 import { Prisma } from '../generated/prisma/client';
 import { normalizePlateNumber,canonicalPlateIdentity,plateAdvisoryKey } from './plate-identity';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
@@ -867,7 +867,7 @@ export class ParticipantsService {
     ]);
     if (!participant) throw new NotFoundException('Профиль участника не найден');
     const version = publicationVersion(settings?.legal);
-    const confirmed = Boolean(version && participant.publicationConsentAt && participant.publicationConsentVersion === version);
+    const confirmed = Boolean(participant.publicationConsentAt && consentMatchesPublicationDocument(participant.publicationConsentVersion, version));
     return {
       choices: confirmed ? readPublicationConsent(participant.publicationConsent) : readPublicationConsent(null),
       currentVersion: version,
