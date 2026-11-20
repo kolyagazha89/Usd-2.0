@@ -1,3 +1,4 @@
+import './content-draft.css';
 import CollapsibleFilters from '../CollapsibleFilters';
 import {useEditorScroll} from './view-state';
 import {useEffect,useState} from 'react';
@@ -15,6 +16,8 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
 }){
  const [settings,setSettings]=useState<any|null>(null),[items,setItems]=useState<any[]>([]);
  const [editing,setEditing]=useState<any|null>(null),[preview,setPreview]=useState(false);
+ const [editorBaseline,setEditorBaseline]=useState(''),[pendingEditor,setPendingEditor]=useState<{value:any}|null>(null);
+ const dirty=editing!==null&&JSON.stringify(editing)!==editorBaseline;
  const [previewPhoto,setPreviewPhoto]=useState('');
  const [confirmDeleteId,setConfirmDeleteId]=useState('');
  const [query,setQuery]=useState(''),[publicationFilter,setPublicationFilter]=useState<NewsPublicationFilter>('all');
@@ -48,7 +51,7 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
  const showError=(e:unknown)=>setError(e instanceof Error?e.message:'Не удалось сохранить изменения. Обновите страницу.');
  const save=async()=>{
   if(!settings||!editing||saving)return;
-  setSaving(true);setError('');
+  setSaving(true);setPendingEditor(null);setError('');
   try{
    const id=editing.id??crypto.randomUUID();
    let item=prepareNewsItem(editing,id,new Date().toISOString());
@@ -79,7 +82,8 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
    setConfirmDeleteId('');
   }catch(e){showError(e)}finally{setSaving(false)}
  };
- const openEditor=(item:any)=>{setError('');setPreview(false);setEditing({...item})};
+ const applyEditor=(item:any)=>{setError('');setPreview(false);setEditing(item?{...item}:null);setEditorBaseline(item?JSON.stringify(item):'');setPendingEditor(null)};
+ const openEditor=(item:any)=>{if(saving)return;if(dirty){setPendingEditor({value:item});return}applyEditor(item)};
  const previewImage=previewPhoto||editing?.photoUrl;
  const visibleItems=filterNewsItems(items,query,publicationFilter);
  const publishedCount=items.filter(item=>item.isPublished!==false).length;
@@ -87,7 +91,8 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
   action={<button type="button" className="primary-button compact" disabled={saving}
    onClick={()=>openEditor(newNewsDraft())}><Plus size={15}/>Создать новость</button>}>
   {error&&<div className="form-error" role="alert"><AlertTriangle size={16}/><span>{error}</span></div>}
-  {editing&&<div className="panel news-editor">
+  {pendingEditor&&<div className="content-draft-warning" role="alert"><strong>Есть несохранённая новость</strong><p>Продолжите редактирование или отбросьте изменения перед переходом.</p><div className="page-actions"><button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setPendingEditor(null)}>Продолжить редактирование</button><button type="button" className="danger-button compact" disabled={saving} onClick={()=>applyEditor(pendingEditor.value)}>Отбросить изменения</button></div></div>}
+  {editing&&<div className="panel news-editor"><fieldset className="content-draft-fields" disabled={saving}>
    <PanelTitle title={editing.id?'Редактировать новость':'Новая новость · черновик'} icon={Bell}/>
    <p className="settings-help">Новая новость не появляется на сайте до явной публикации. Сначала проверьте текст и изображение.</p>
    <div className="settings-form-grid">
@@ -119,9 +124,9 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
     <button type="button" className="primary-button compact" disabled={saving}
      onClick={()=>void save()}>{saving?'Сохраняем…':editing.isPublished!==false?'Сохранить и опубликовать':'Сохранить черновик'}</button>
     <button type="button" className="secondary-button compact" disabled={saving}
-     onClick={()=>{setEditing(null);setPreview(false)}}>Отмена</button>
+     onClick={()=>openEditor(null)}>Отмена</button>
    </div>
-  </div>}
+  </fieldset></div>}
   <div className="panel news-workbench">
    <div className="news-workbench-toolbar" role="search" aria-label="Поиск и фильтры новостей">
     <label>Поиск<input type="search" aria-label="Поиск новостей" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Заголовок или текст" autoComplete="off"/></label>

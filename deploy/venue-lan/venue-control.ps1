@@ -81,6 +81,22 @@ function Write-PrivateFile([string]$Path,[string]$Value){
  [IO.File]::SetAccessControl($Path,$acl)
  [IO.File]::WriteAllText($Path,$Value,(New-Object System.Text.UTF8Encoding($false)))
 }
+# Immutable operator inputs must survive retry if Windows stops before the
+# setup state is committed. Never overwrite a DIFFERENT signed stage, key or
+# access secret: this could silently change the identity of an event.
+function Write-VenueImmutableBootstrapFile([string]$Path,[string]$Value){
+ if(Test-Path -LiteralPath $Path){
+  if(!(Test-Path -LiteralPath $Path -PathType Leaf)){throw 'Файл первоначальной установки повреждён. Данные сохранены.'}
+  if(-not ([IO.File]::GetAccessControl($Path)).AreAccessRulesProtected){
+   throw 'Защищённый файл первоначальной установки имеет небезопасные права. Данные сохранены.'
+  }
+  if([IO.File]::ReadAllText($Path) -cne $Value){
+   throw 'Сохранённый файл первоначальной установки отличается от выбранного. Ничего не перезаписано.'
+  }
+  return
+ }
+ Write-PrivateFile $Path $Value
+}
 function Read-State {
  if(!(Test-Path -LiteralPath $StateFile)){return $null}
  $s=Get-Content -LiteralPath $StateFile -Raw -Encoding UTF8|ConvertFrom-Json
@@ -375,11 +391,16 @@ function New-InitialState {
   $keyValue=[IO.File]::ReadAllText($keyFile).Trim()
   if($keyValue -cnotmatch '^[A-Za-z0-9_-]{43}$'){throw 'Неверный файл ключа судей'}
   $privateAccess=Join-Path $PrivateDir 'venue-staff-access.key'
-  Write-PrivateFile $privateAccess $keyValue
+  Write-VenueImmutableBootstrapFile $privateAccess $keyValue
   $fileKey=$privateAccess
   $privateStage=Join-Path $PrivateDir 'signed-real-stage.json'
-  Write-PrivateFile $privateStage ([IO.File]::ReadAllText($file))
+  Write-VenueImmutableBootstrapFile $privateStage ([IO.File]::ReadAllText($file))
   $file=$privateStage
+  # Do not depend on Downloads/USB after setup: pin the independently
+  # verified trust material to the same ACL-protected durable workspace.
+  $privatePublicKey=Join-Path $PrivateDir 'venue-signing-public.pem'
+  Write-VenueImmutableBootstrapFile $privatePublicKey ([IO.File]::ReadAllText($key))
+  $key=$privatePublicKey
  if($stageId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'){
   throw 'Неверный UUID этапа'
  }
@@ -507,6 +528,8 @@ function Install-Local {
   Set-SetupPhase $state 'SCHEMA_READY'
  }
  if($state.phase -eq 'SCHEMA_READY'){
+  Set-VenueStep 'verify-local-db-roles'
+  Assert-VenueDatabaseImportRole
   Set-VenueStep 'import-signed-stage'
   $isShared=$state.PSObject.Properties.Name -contains 'shared' -and $state.shared
   if($isShared){

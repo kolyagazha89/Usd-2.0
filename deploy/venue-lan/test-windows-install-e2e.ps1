@@ -46,6 +46,7 @@ function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
   throw ('Injected failure in '+$Purpose)
  }
 }
+function Assert-VenueDatabaseImportRole {[void]$script:steps.Add('verify-db-role')}
 function Start-VenueDatabase {
  if(!$script:DbRestored){throw 'Stored DB volume is missing'}
  [void]$script:steps.Add('restore-db')
@@ -84,6 +85,9 @@ function Assert-PhaseOrder {
   throw 'READY was committed before API + gateway readiness'
  }
  if($calls.IndexOf('verify-ready') -lt 0){throw 'Installer skipped readiness'}
+ if($calls.IndexOf('verify-db-role') -lt 0 -or $calls.IndexOf('verify-db-role') -gt $calls.IndexOf('/app/import-stage.mjs')){
+  throw 'Signed stage import bypassed read-only database privilege preflight'
+ }
  if($calls.IndexOf('start-frontend') -lt $calls.IndexOf('phase-READY')){
   throw 'Frontend activation preceded READY'
  }
