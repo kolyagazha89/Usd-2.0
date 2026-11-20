@@ -2864,6 +2864,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 
 .public-legal-document{max-width:860px;margin:0 auto;padding:clamp(20px,4vw,42px);border:1px solid #303035;border-radius:14px;background:#131315}
 .public-legal-text p{white-space:pre-wrap;line-height:1.8;color:#d0d0d6;margin:0 0 18px}
+.public-legal-document-links{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:24px 0 20px}
 .public-legal-operator{padding-top:18px;border-top:1px solid #303035;color:#aaa;font-size:12px;line-height:1.7}
 .public-footer-identity{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:12px}
 .public-footer-identity small{display:block;width:100%;color:#8e8e96}

@@ -67,3 +67,10 @@ export function publicDocumentListState(legal:LegalSettings|undefined,registrati
  }
  return {status:'empty',files:[]};
 }
+
+/** One relevant approved Word reader per public legal text page, never raw CMS filenames. */
+export function publicLegalPageDocumentPath(page:string,legal:LegalSettings|undefined):string|null {
+ const key=({privacy:'privacyPolicy',terms:'termsOfUse',consent:'personalDataConsent'} as Record<string,string>)[page];
+ if(!key)return null;
+ return publicDocumentLinks(legal,undefined).find(link=>link.key===key)?.openPath??null;
+}
