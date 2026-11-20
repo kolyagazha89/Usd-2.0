@@ -2382,3 +2382,31 @@ body .app-shell .main .event-ops-page .event-ops-search>span[role="status"]{
 @media(max-width:380px){
  body .app-shell .main .event-ops-page .event-ops-main-actions{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Results workbench: clear search, keyboard-openable protocol, and dense mobile score cards.
+ * Preserve the backend's official place/value; this layer only changes presentation. */
+body .app-shell .main .judging-page .judging-search{min-width:0;max-width:100%}
+body .app-shell .main .judging-page .judging-search input{min-width:0!important;flex:1 1 100px;width:100%;max-width:100%}
+body .app-shell .main .judging-page .judging-result-search-clear{display:inline-flex;flex:0 0 44px;align-items:center;justify-content:center;width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:9px;background:#e9edf3;color:#354154;cursor:pointer}
+body .app-shell .main .judging-page .judging-filter-reset{min-height:44px}
+body .app-shell .main .judging-page .judging-result-search-clear:focus-visible,
+body .app-shell .main .judging-page .judging-results-table tbody tr.clickable-row:focus-visible{outline:3px solid #b4203a;outline-offset:2px}
+@media(max-width:760px){
+ body .app-shell .main .judging-page .judging-search{flex:1 1 100%;padding-right:3px}
+ body .app-shell .main .judging-page .judging-results .judging-results-table tbody tr:not(.results-direction-row){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 12px;border-left:3px solid #b52a41}
+ body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Класс"]{order:0;grid-column:1/-1;font-weight:750}
+ body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Участник"]{order:1;grid-column:1/-1;padding-bottom:8px!important;border-bottom:1px solid #e9ebf1!important}
+ body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Результат"]{order:2;grid-column:1;flex-direction:column!important;align-items:flex-start!important;text-align:left!important;gap:4px}
+ body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Место"]{order:3;grid-column:2;flex-direction:column!important;align-items:flex-start!important;text-align:left!important;gap:4px;font-weight:850}
+ body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Результат"] strong{font-size:clamp(19px,5.5vw,25px);line-height:1.15;color:#9e1e38;font-variant-numeric:tabular-nums}
+ body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Авто"]{order:4;grid-column:1;align-items:flex-start!important;text-align:left!important;flex-direction:column!important}
+ body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Статус"]{order:5;grid-column:2;align-items:flex-start!important;text-align:left!important;flex-direction:column!important}
+ body .app-shell .main .judging-page .judging-results-table tbody td.row-actions{order:6;grid-column:1/-1;justify-content:flex-start;flex-wrap:wrap;padding-top:9px!important;border-top:1px solid #e9ebf1!important}
+ body .app-shell .main .judging-page .judging-results-table tbody td.row-actions :is(button,input){min-height:44px}
+ body .app-shell .main .judging-page .judging-filter-reset{flex:1 1 130px}
+ body .app-shell .main .judging-page .judging-toolbar>.primary-button{flex:1 1 145px}
+}
+@media(max-width:380px){
+ body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Авто"],
+ body .app-shell .main .judging-page .judging-results-table tbody td[data-label="Статус"]{grid-column:1/-1}
+}
