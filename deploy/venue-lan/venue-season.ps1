@@ -262,6 +262,157 @@ function Get-VenueComposeArguments {
  return @('compose','--project-directory',$Root,'--env-file',$EnvFile,
   '-p',(Get-VenueProject),'-f',(Join-Path $Root 'compose.yaml'))
 }
+function Assert-VenueDatabaseVolume {
+ $project=Get-VenueProject
+ if($project -cnotmatch '^usd-venue-[0-9a-f]{32} Invoke-Compose @('start','db') 'start existing database without reconfiguration'
+ $prior=$ErrorActionPreference
+ try{
+  $ErrorActionPreference='Continue'
+  for($attempt=0;$attempt -lt 30;$attempt++){
+   & docker @(Get-VenueComposeArguments) exec -T db pg_isready -U usd_venue -d usd_venue 2>$null|Out-Null
+   if($LASTEXITCODE -eq 0){return}
+   Start-Sleep -Seconds 2
+  }
+ }finally{$ErrorActionPreference=$prior}
+ throw 'Локальная база ещё не готова. Данные сохранены; повторите запуск.'
+}
+function Test-VenueJudgingRunning {
+ $rows=@(& docker @(Get-VenueComposeArguments) ps --status running -q api)
+ Assert-Exit 'inspect previous judging state'
+ return @($rows|Where-Object {$_}).Count -gt 0
+}
+function Restore-VenueStack {
+ Invoke-Compose @('start') 'restore all previously installed services after cancelled stage switch'
+}
+function Confirm-VenueStaffKey([object]$State,[array]$Mounts){
+ $isFresh=[array]::IndexOf($Phases,[string]$State.phase) -lt [array]::IndexOf($Phases,'IMPORTED')
+ try{
+  if($isFresh){Create-ExistingStaff $State $Mounts -Preflight}
+  else{Create-ExistingStaff $State $Mounts -CheckOnly}
+  return
+ }catch{
+  if($Silent){throw}
+  Write-Host 'Ключ судей не подходит. Выберите ключ .key именно этого этапа.'
+  $replacement=Select-VenueFile 'Ключ судей выбранного этапа' 'Ключ доступа (*.key)|*.key'
+  $value=[IO.File]::ReadAllText($replacement).Trim()
+  if($value -cnotmatch '^[A-Za-z0-9_-]{43}$'){throw 'Неверный формат ключа судей'}
+  $temp=Join-Path $PrivateDir ('staff-key-'+[guid]::NewGuid().ToString('N')+'.tmp')
+  Write-PrivateFile $temp $value
+  Move-Item -LiteralPath $temp -Destination $State.accessKey -Force
+  if($isFresh){Create-ExistingStaff $State $Mounts -Preflight}
+  else{Create-ExistingStaff $State $Mounts -CheckOnly}
+ }
+}
+
+# First boot must work without registry access when all five exact images
+# are already cached. A normal "compose pull" would contact registries again.
+function Test-VenueRuntimeImagesCached([string]$Sha){
+ if($Sha -cnotmatch '^[a-f0-9]{40}\z'){return $false}
+ $required=@(
+  ('ghcr.io/kolyagazha89/usd-2.0-api:'+$Sha),
+  ('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$Sha),
+  'postgres:18-alpine','rustfs/rustfs:1.0.4','caddy:2-alpine'
+ )
+ foreach($ref in $required){
+  try{
+   $id=@(& docker image inspect --format '{{.ID}}' $ref 2>$null)
+   if($LASTEXITCODE -ne 0 -or $id.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$id[0])){
+    return $false
+   }
+  }catch{return $false}
+ }
+ return $true
+}
+# A previously downloaded, immutable API/frontend image pair is sufficient
+# for offline setup. Validate both embedded revision labels and offline modules
+# before reusing it; never trust only a local tag or an unrelated DEMO container.
+function Get-CachedVenueReleaseSha {
+ Set-VenueStep 'resolve-release-cached-images'
+ $refs=@()
+ try{
+  $refs=@(& docker image ls --format '{{.Repository}}:{{.Tag}}' ghcr.io/kolyagazha89/usd-2.0-api 2>$null)
+  if($LASTEXITCODE -ne 0){return $null}
+ }catch{return $null}
+ $seen=@{}
+ foreach($ref in $refs){
+  if(-not ([string]$ref -cmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-api:([a-f0-9]{40})\z')){continue}
+  $candidate=[string]$Matches[1]
+  if($seen.ContainsKey($candidate)){continue}
+  $seen[$candidate]=$true
+  try{
+   Assert-VenueReleaseImages $candidate
+   Write-Host ('USD VENUE: найден проверенный локальный релиз '+$candidate)
+   return $candidate
+  }catch{
+   Write-Host ('USD VENUE: локальная версия '+$candidate+' неполная, проверяем другие')
+  }
+ }
+ return $null
+}
+function Get-VenueReleaseSha([object]$sharedConfig){
+ if($sharedConfig){
+  $local=[string]$sharedConfig['VENUE_IMAGE_TAG']
+  try{
+   Assert-VenueReleaseImages $local
+   return $local
+  }catch{Write-Host 'USD VENUE: образ предыдущего этапа требует загрузки'}
+ }
+ $cached=Get-CachedVenueReleaseSha
+ $sha=$null
+ foreach($endpoint in @(
+  [pscustomobject]@{Uri='https://api.usd-russia.ru/release';Step='resolve-release-online-api'},
+  [pscustomobject]@{Uri='https://app.usd-russia.ru/usd-release.json';Step='resolve-release-online-frontend'}
+ )){
+  Set-VenueStep $endpoint.Step
+  try{
+   $release=Invoke-RestMethod -Uri $endpoint.Uri -TimeoutSec 8 -ErrorAction Stop
+   $candidate=[string]$release.revision
+   if($candidate -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная версия USD в ответе сервера'}
+   $sha=$candidate
+   break
+  }catch{Write-Host ('USD VENUE: источник версии '+$endpoint.Uri+' недоступен: '+$_.Exception.Message)}
+ }
+ if(!$sha -and $cached){return $cached}
+ if($sha -and $sha -ceq $cached){return $cached}
+ if(!$sha){
+  # CI-published verified USD release candidate; not a mutable :latest tag.
+  # If the operator cannot reach either USD domain, GHCR alone can supply it.
+  $sha='aa0d1a83c70b894a8b5e36141927bc572c71b3c5'
+  Set-VenueStep 'resolve-release-published-fallback'
+  Write-Host ('USD VENUE: оба сайта не ответили, используем опубликованную проверенную версию '+$sha)
+ }
+ Set-VenueStep 'download-immutable-release-images'
+ try{
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
+  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
+  Set-VenueStep 'verify-immutable-release-images'
+  Assert-VenueReleaseImages $sha
+ }catch{
+  throw ('Не удалось получить проверенные образы из ghcr.io. Проверьте интернет до GitHub Container Registry или заранее загрузите образы на ноутбук. Данные Docker сохранены. Причина: '+$_.Exception.Message)
+ }
+ return $sha
+}
+){
+  throw 'Невозможно подтвердить проект базы данных USD. Ничего не изменено.'
+ }
+ $volume=$project+'_venue_db'
+ $prior=$ErrorActionPreference
+ try{
+  $ErrorActionPreference='Continue'
+  $rows=@(& docker volume inspect --format '{{json .Labels}}' $volume 2>$null)
+  $code=$LASTEXITCODE
+ }finally{$ErrorActionPreference=$prior}
+ if($code -ne 0 -or $rows.Count -ne 1){
+  throw 'Том прежней базы USD не найден. Пустая база НЕ создана. Проверьте сохранённые Docker volumes перед повторной установкой.'
+ }
+ try{$labels=ConvertFrom-Json -InputObject ([string]$rows[0]) -ErrorAction Stop}
+ catch{throw 'Не удалось проверить метки существующего тома базы USD'}
+ if($null -eq $labels -or
+    [string]$labels.'com.docker.compose.project' -cne $project -or
+    [string]$labels.'com.docker.compose.volume' -cne 'venue_db'){
+  throw 'Том базы принадлежит другому проекту или не подтверждён. Данные не изменены.'
+ }
+}
 function Start-VenueDatabase {
  Invoke-Compose @('start','db') 'start existing database without reconfiguration'
  $prior=$ErrorActionPreference
