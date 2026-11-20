@@ -174,7 +174,11 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("ExpectedSha",readiness)
         self.assertIn("ExpectedStage",readiness)
         startlocal=source[source.index("function Start-Local"):start]
-        self.assertIn("Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId",startlocal)
+        self.assertIn("Wait-VenueLanReady $state",startlocal)
+        season=(ROOT/"venue-season.ps1").read_text(encoding="utf-8-sig")
+        health=season[season.index("function Wait-VenueLanReady"):season.index("function Start-VenueDatabase")]
+        self.assertIn("Test-VenueApiReady -ExpectedSha $State.image -ExpectedStage $State.stageId",health)
+        self.assertIn("Test-VenueGatewayReady $State.ip",health)
 
     def test_real_contest_requires_independently_verified_public_fingerprint(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
@@ -403,7 +407,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Set-VenueStep 'check-other-stage-ports'",stage)
         self.assertIn('Assert-NoOtherVenueGatewayRunning',stage)
         self.assertLess(stage.index('Assert-NoOtherVenueGatewayRunning'),stage.index('Initialize-VenueMediaVolume'))
-        self.assertLess(stage.index('Assert-NoOtherVenueGatewayRunning'),stage.index("Invoke-Compose @('up','-d','db','rustfs')"))
+        self.assertLess(stage.index('Assert-NoOtherVenueGatewayRunning'),stage.index("Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never','db','rustfs')"))
         season=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
         guard=season[season.index('function Assert-NoOtherVenueGatewayRunning'):season.index('function Test-VerifiedVenueAck')]
         self.assertIn("@('gateway','rustfs')",guard)
