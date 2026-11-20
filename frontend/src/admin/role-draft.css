@@ -1,0 +1,6 @@
+body .app-shell .main .content .role-draft-fields{border:0;padding:0;margin:0;min-width:0}
+body .app-shell .main .content .role-list-items{max-height:55dvh;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+body .app-shell .main .content .roles-editor .permission-matrix{max-height:55dvh;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+body .app-shell .main .content .role-draft-warning{padding:16px;margin-bottom:16px;border:1px solid #e1bb72;border-radius:12px;background:#fff8e8;color:#65420c}
+body .app-shell .main .content .role-draft-warning p{margin:8px 0;font-size:13px;line-height:1.5}
+body .app-shell .main .content .role-draft-status{color:#854a0b;font-size:13px;font-weight:650}
