@@ -186,11 +186,11 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
    <>
     {user.role === 'ADMIN' && <BassRaceTextImport stageId={stageId} stageStatus={stage.status} onImported={load}/>}
     <div className="judging-toolbar" role="search" aria-label="Поиск результата">
-     <label className="judging-search"><Search size={17} aria-hidden="true"/>
+     <div className="judging-search"><Search size={17} aria-hidden="true"/>
       <input aria-label="Поиск результата" type="search" value={search}
        onChange={e=>setSearch(e.target.value)} placeholder="№, ФИО, госномер, класс или команда"/>
       {search&&<button className="judging-result-search-clear" type="button" aria-label="Очистить поиск результатов" title="Очистить поиск" onClick={()=>setSearch('')}><X size={18} aria-hidden="true"/></button>}
-     </label>
+     </div>
      <CollapsibleFilters activeCount={Number(classFilter!=='ALL')}><select className="filter-select" aria-label="Фильтр результатов по классу" value={classFilter}
       onChange={e=>setClassFilter(e.target.value)}>
       <option value="ALL">Все классы</option>
