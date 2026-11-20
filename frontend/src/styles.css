@@ -3993,6 +3993,40 @@ body:has(.modal-backdrop){overflow:hidden!important}
   }
 }
 
+/* Desktop competition poster: scale the original artwork to the available
+   screen height. Never crop logos, addresses, or bottom-of-poster details.
+   Keep the natural-size mobile view, which can scroll normally. */
+@media (min-width: 761px) {
+  .public-site .public-stage-detail img.public-stage-poster {
+    display: block;
+    width: auto !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: calc(100dvh - 136px) !important;
+    object-fit: contain !important;
+    margin-inline: auto !important;
+  }
+  /* Also constrain the stage-list card; its previous full-width portrait
+     poster could dominate a desktop row even though no pixels were cropped. */
+  body .usd-live .public-stage-card.usd-stage-card-approved .usd-stage-poster {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 0 !important;
+  }
+  body .usd-live .public-stage-card.usd-stage-card-approved .usd-stage-poster img.public-stage-list-poster,
+  .public-site .public-stage-card.usd-stage-card-approved img.public-stage-list-poster {
+    display: block !important;
+    width: auto !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: min(60dvh, 620px) !important;
+    aspect-ratio: auto !important;
+    object-fit: contain !important;
+    margin-inline: auto !important;
+  }
+}
+
 /* The import row reconciliation editor is a real workspace route, not
    a fixed-height overlay. No independent viewport-scroll on the editor. */
 .main .content .import-resolution-page {
