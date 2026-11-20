@@ -81,3 +81,48 @@ export function canConfirmJudgingResult({explicit,step,editing,valid,hasRegistra
 }):boolean{
  return explicit&&step===2&&valid&&(editing||(hasRegistration&&hasClass));
 }
+
+/** Only offer admitted registrations that still have at least one available class.
+ * Previously completed participants remain in the protocol and can be corrected by ADMIN. */
+export function pendingJudgeRegistrations(registrations:R[],results:R[],search:string):R[]{
+ return filterJudgeRegistrations(registrations,search,{passedOnly:true})
+  .filter(r=>remainingJudgingClasses(r,results).length>0);
+}
+
+/** Present saved places; never calculate or overwrite competition rankings here. */
+export function groupJudgingResults(rows:R[]):{id:string;name:string;sort:number;rows:R[]}[]{
+ const groups=new Map<string,{id:string;name:string;sort:number;rows:R[]}>();
+ for(const row of rows){
+  const direction=row?.registrationClass?.class?.direction??{};
+  const name=String(direction.name??'Без направления');
+  const id=direction.id!=null?'id:'+String(direction.id):'name:'+name;
+  if(!groups.has(id))groups.set(id,{id,name,sort:direction.sortOrder!=null&&Number.isFinite(Number(direction.sortOrder))?Number(direction.sortOrder):999,rows:[]});
+  groups.get(id)!.rows.push(row);
+ }
+ const collator=new Intl.Collator('ru',{numeric:true,sensitivity:'base'});
+ const classSort=(row:R)=>{
+  const klass=row?.registrationClass?.class??{};
+  const order=Number(klass.sortOrder);
+  return klass.sortOrder!=null&&Number.isFinite(order)?order:999;
+ };
+ const placeSort=(row:R)=>{
+  const value=row?.place;
+  if(value===null||value===undefined||value==='')return Infinity;
+  const n=Number(value);
+  return Number.isFinite(n)&&n>0?n:Infinity;
+ };
+ const regNumber=(row:R)=>{
+  const n=Number(row?.registrationClass?.number?.number??row?.registration?.participantNumber);
+  return Number.isFinite(n)&&n>0?n:Infinity;
+ };
+ return [...groups.values()].sort((a,b)=>a.sort-b.sort||collator.compare(a.name,b.name)).map(group=>({
+  ...group,
+  rows:group.rows.map((row,index)=>({row,index})).sort((a,b)=>
+    classSort(a.row)-classSort(b.row)||
+    collator.compare(String(a.row?.registrationClass?.class?.name??''),String(b.row?.registrationClass?.class?.name??''))||
+    (placeSort(a.row)===placeSort(b.row)?0:placeSort(a.row)-placeSort(b.row))||
+    (regNumber(a.row)===regNumber(b.row)?0:regNumber(a.row)-regNumber(b.row))||
+    a.index-b.index
+  ).map(entry=>entry.row),
+ }));
+}

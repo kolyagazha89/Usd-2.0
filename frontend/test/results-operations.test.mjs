@@ -70,7 +70,8 @@ test('connected 3-step desk, role checks and mobile CSS are kept',async()=>{
  assert.match(page,/EventOperationsNavigation current="results"/);
  assert.match(page,/judgingResultLink\(stageId/);
  assert.match(page,/remainingJudgingClasses\(/);
- assert.match(page,/filterJudgeRegistrations\(/);
+ assert.match(page,/pendingJudgeRegistrations\(/,'new measurements list only registrations with unfilled classes');
+ assert.match(page,/groupJudgingResults\(/,'protocol uses saved official places and class ordering');
  assert.match(page,/aria-label="Поиск результата"/);
  assert.match(inspection,/judgingResultLink\(stageId,registrationId\)/);
  assert.match(css,/repeat\(3,minmax\(0,1fr\)\)/);

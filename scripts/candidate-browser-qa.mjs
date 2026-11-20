@@ -1182,6 +1182,21 @@ try{
       await judgingMetrics.locator('summary').click();
       await page.locator('.judging-summary-card').first().waitFor({state:'visible'});
       assert.match(await page.locator('.judging-context').innerText(),/1 допущены/);
+      if(route.includes('?stageId=stage1')&&!route.includes('entry=1')){
+       const searchBox=board.getByRole('searchbox',{name:'Поиск результата'});
+       await searchBox.fill('нет такого участника');
+       const reset=board.getByRole('button',{name:'Сбросить фильтры результатов'});
+       assert.equal(await reset.isVisible(),true,'judge can reset an unsuccessful protocol search');
+       await reset.click();
+       assert.equal(await searchBox.inputValue(),'','one tap resets search and all filters');
+       await searchBox.fill('№7');
+       const clear=board.getByRole('button',{name:'Очистить поиск результатов'});
+       const bounds=await clear.boundingBox();
+       assert.ok(bounds&&bounds.width>=43&&bounds.height>=43,'judge search clear is a 44px target: '+JSON.stringify(bounds));
+       await clear.click();
+       assert.equal(await searchBox.inputValue(),'','search clear must restore the protocol without writes');
+       row.judgeSearch='search clear 44px and one-tap reset with no backend writes';
+      }
       if(route.includes('entry=1')){
        const wizard=page.locator('.judging-entry-wizard');
        await wizard.waitFor({state:'visible'});
