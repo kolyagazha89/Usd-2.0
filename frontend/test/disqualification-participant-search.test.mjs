@@ -6,6 +6,20 @@ import {build} from 'esbuild';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 
+test('disqualification directory uses authenticated operational lookup, not filtered public profiles',async()=>{
+ const [page,controller,service]=await Promise.all([
+  readFile(new URL('../src/admin/DisqualificationsPage.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../../backend/src/participants/participants.controller.ts',import.meta.url),'utf8'),
+  readFile(new URL('../../backend/src/participants/participants.service.ts',import.meta.url),'utf8'),
+ ]);
+ assert.match(page,/apiGet<any>\('\/participants\/lookup'\)/,'admin form must load all operational identities');
+ assert.doesNotMatch(page,/apiGet<any>\('\/participants'\)/,'the public endpoint removes profiles without publication consent');
+ assert.match(controller,/@Roles\('ADMIN'\)\s+@Get\('participants\/lookup'\)/,'the directory must remain protected');
+ const section=service.split('async findAllForOperations(request: AuthenticatedRequest) {')[1]?.split('// PUBLIC PARTICIPANTS')[0]??'';
+ assert.match(section,/where: \{ mergeAsSource: \{ is: null \} \}/,'merged aliases must not be shown');
+ assert.doesNotMatch(section,/where:[^\n]*isPublic: true/,'private participants must remain selectable for admin sanctions');
+});
+
 test('new disqualification searches participants by name instead of opening a native select',async()=>{
  const page=await readFile(new URL('../src/admin/DisqualificationsPage.tsx',import.meta.url),'utf8');
  const field=page.match(/<label>Участник([\s\S]*?)<\/label>/)?.[1];
