@@ -78,6 +78,9 @@
     },
     "@nestjs/mau": {
       "undici": "6.29.1"
+    },
+    "@prisma/config": {
+      "effect": "3.22.1"
     }
   }
 }
