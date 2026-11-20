@@ -66,8 +66,14 @@ try{
  $script:commands=@();$script:target=$null
  Update-ReadyVenueFrontend $state
  if((Read-Env)['VENUE_WEB_IMAGE_TAG'] -ne $tv -or
-  ($script:commands -join ';') -match 'docker pull'){
-  throw 'Offline reinstall changed or re-downloaded installed TV'
+  $script:commands.Count -ne 0){
+  throw 'Offline READY retry unexpectedly re-created frontend/gateway or changed pinned TV'
+ }
+ # Same verified published SHA must be a no-op too (judge access stays online).
+ $script:commands=@();$script:target=$tv
+ Update-ReadyVenueFrontend $state
+ if($script:commands.Count -ne 0){
+  throw 'READY retry with the already installed version restarted live frontend'
  }
  # Failed rollout rolls back the exact prior .env without touching data.
  $script:commands=@();$script:target=$next;$script:failOnce=$true
