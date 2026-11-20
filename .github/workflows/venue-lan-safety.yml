@@ -227,6 +227,9 @@ jobs:
       - name: Exercise native PowerShell helpers without Docker or administrator access
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-helpers.ps1
+      - name: Persist signing key and replay interrupted initial Windows setup
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-first-install-trust.ps1
       - name: Recover missing DB container safely on PowerShell 5.1
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-db-recovery.ps1
