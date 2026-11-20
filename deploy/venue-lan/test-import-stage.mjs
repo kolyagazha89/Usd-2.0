@@ -442,3 +442,44 @@ test('RED: an unexpired but DIFFERENT signed stage packet cannot pass installed 
  const gone={...matches,stage:{findUnique:async()=>null}};
  await assert.rejects(()=>importer.assertInstalledVenueStageReceipt(plan,gone),/этап|установ/i);
 });
+
+
+test('Prisma PostgreSQL SELECT contract: signed import and directory recovery never run SELECT via executeRaw',async()=>{
+ const scenarios=['initial signed stage','retained signed stage','retained participant directory'];
+ for(const scenario of scenarios){
+  const payload=snapshot();
+  if(scenario==='retained participant directory')payload.participantDirectory=[];
+  const plan=planVenueStageImport(signed(payload),publicPem,env,now);
+  const {tx,db}=mockDb();
+  const readQueries=[];
+  tx.$executeRawUnsafe=async sql=>{
+   assert.doesNotMatch(sql,/^\\s*SELECT\\b/i,scenario+' must use Prisma queryRaw for row-producing SELECT');
+   return 1;
+  };
+  tx.$queryRawUnsafe=async sql=>{
+   readQueries.push(sql);
+   if(sql.includes('pg_advisory_xact_lock'))return [{pg_advisory_xact_lock:null}];
+   if(sql.includes('pg_roles'))return [{name:scenario==='initial signed stage'?'usd_venue':'usd_venue_root',
+    rolsuper:scenario!=='initial signed stage'}];
+   if(sql.includes('set_config'))return [{set_config:'true'}];
+   if(sql.includes('venue_private.active_stage'))return [{stageId:uuid.stage}];
+   throw new Error('Unexpected SQL query in '+scenario);
+  };
+  if(scenario==='initial signed stage'){
+   await applyVenueStageImport(plan,db);
+  }else if(scenario==='retained signed stage'){
+   await applyVenueStageImport(plan,db,{shared:true});
+  }else{
+   tx.stage.findUnique=async()=>({id:uuid.stage});
+   tx.auditLog.findFirst=async options=>options.where.action==='VENUE_STAGE_PACKAGE_IMPORTED'
+    ?{metadata:{sha256:plan.packageHash}}:null;
+   tx.car.findMany=async()=>[];
+   await importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage});
+  }
+  assert.equal(readQueries.filter(sql=>sql.includes('pg_advisory_xact_lock')).length,1,
+   scenario+' must acquire advisory lock within transaction');
+  if(scenario!=='initial signed stage')
+   assert.equal(readQueries.filter(sql=>sql.includes('set_config')).length,1,
+    scenario+' must configure signed importing in transaction');
+ }
+});
