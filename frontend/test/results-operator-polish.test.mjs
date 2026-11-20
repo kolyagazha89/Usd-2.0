@@ -46,6 +46,20 @@ test('same-named directions retain distinct identities and empty place is not fi
  assert.deepEqual(grouped[1].rows.map(r=>r.id),['second']);
 });
 
+test('missing class order and invalid or zero places never outrank official positions',()=>{
+ const unrankedClass={id:'unranked',class:{id:'c99',name:'A Special',sortOrder:null,direction:{id:'spl',name:'SPL',sortOrder:1}}};
+ const noDirectionOrder={id:'other',class:{id:'co',name:'Other',direction:{id:'other',name:'Other',sortOrder:null}}};
+ const groups=groupJudgingResults([
+  result('unranked-class',unrankedClass,1,1),
+  result('zero-place',c1,0,2),
+  result('no-place',c1,null,3),
+  result('official',c1,2,4),
+  result('unknown-direction',noDirectionOrder,1,5),
+ ]);
+ assert.deepEqual(groups.map(group=>group.name),['SPL','Other']);
+ assert.deepEqual(groups[0].rows.map(row=>row.id),['official','zero-place','no-place','unranked-class']);
+});
+
 test('entry roster offers only admitted registrations with unmeasured classes',()=>{
  const seven=participant('reg7',7);
  const nine=participant('reg9',9,[c1]);

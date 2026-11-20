@@ -96,20 +96,20 @@ export function groupJudgingResults(rows:R[]):{id:string;name:string;sort:number
   const direction=row?.registrationClass?.class?.direction??{};
   const name=String(direction.name??'Без направления');
   const id=direction.id!=null?'id:'+String(direction.id):'name:'+name;
-  if(!groups.has(id))groups.set(id,{id,name,sort:Number.isFinite(Number(direction.sortOrder))?Number(direction.sortOrder):999,rows:[]});
+  if(!groups.has(id))groups.set(id,{id,name,sort:direction.sortOrder!=null&&Number.isFinite(Number(direction.sortOrder))?Number(direction.sortOrder):999,rows:[]});
   groups.get(id)!.rows.push(row);
  }
  const collator=new Intl.Collator('ru',{numeric:true,sensitivity:'base'});
  const classSort=(row:R)=>{
   const klass=row?.registrationClass?.class??{};
   const order=Number(klass.sortOrder);
-  return Number.isFinite(order)?order:999;
+  return klass.sortOrder!=null&&Number.isFinite(order)?order:999;
  };
  const placeSort=(row:R)=>{
   const value=row?.place;
   if(value===null||value===undefined||value==='')return Infinity;
   const n=Number(value);
-  return Number.isFinite(n)&&n>=0?n:Infinity;
+  return Number.isFinite(n)&&n>0?n:Infinity;
  };
  const regNumber=(row:R)=>{
   const n=Number(row?.registrationClass?.number?.number??row?.registration?.participantNumber);
