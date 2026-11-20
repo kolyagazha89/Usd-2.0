@@ -507,6 +507,8 @@ function Install-Local {
   Set-SetupPhase $state 'SCHEMA_READY'
  }
  if($state.phase -eq 'SCHEMA_READY'){
+  Set-VenueStep 'verify-local-db-roles'
+  Assert-VenueDatabaseImportRole
   Set-VenueStep 'import-signed-stage'
   $isShared=$state.PSObject.Properties.Name -contains 'shared' -and $state.shared
   if($isShared){
