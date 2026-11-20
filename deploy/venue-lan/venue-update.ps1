@@ -59,6 +59,14 @@ function Update-ReadyVenueFrontend([object]$State) {
  $installed=$(if($cfg.ContainsKey('VENUE_WEB_IMAGE_TAG')){[string]$cfg['VENUE_WEB_IMAGE_TAG']}else{[string]$State.image})
  if($installed -cnotmatch '^[a-f0-9]{40}\z'){throw 'LIVE: неверная версия установленного frontend'}
  $target=Get-OnlineVenueReleaseSha
+ # An installed READY stage already has a verified web image. Retrying its
+ # installer must never restart judges' HTTPS gateway without a new revision.
+ # Start-Local takes care of a genuinely stopped container separately.
+ if(!$target -or $target -ceq $installed){
+  Write-Host ('USD LIVE: frontend '+$installed+'; перезапуск не требуется')
+  if(!$target){Write-Warning 'Версии онлайн USD недоступны: оставили установленный frontend без перезапуска.'}
+  return
+ }
  $original=$null
  if($target -and $target -cne $installed){
   Set-VenueStep 'download-current-frontend-image'
