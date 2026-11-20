@@ -45,13 +45,32 @@ services:
   $parsed=($config -join [Environment]::NewLine)|ConvertFrom-Json
   if($parsed.services.api.environment.VENUE_STAGE_ID -cne 'correct-stage'){throw 'Caller .env overrode selected workspace'}
  }finally{Pop-Location}
- # Reads must start an existing DB without reconciling bind mounts or images.
- function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
-  if(($Arguments -join ' ') -cne 'start db'){throw 'Database read would recreate the running service'}
+ # Running stage-owned DB stays untouched; only read status and readiness.
+ function Read-State {return [pscustomobject]@{phase='READY'}}
+ function Assert-VenueDatabaseVolume {}
+ function Read-VenueDockerLabels([string]$Kind,[string]$Identity){
+  return [pscustomobject]@{
+   'com.docker.compose.project'='usd-venue-native-regression'
+   'com.docker.compose.service'='db'
+  }
  }
- function docker {$global:LASTEXITCODE=0}
+ function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
+  throw ('Healthy DB was modified by '+($Arguments -join ' '))
+ }
+ function docker {
+  $flat=@()
+  foreach($item in $args) {
+   if($item -is [array]) {foreach($part in $item) {$flat+=([string]$part)}}
+   else {$flat+=([string]$item)}
+  }
+  $call=$flat -join ' '
+  $global:LASTEXITCODE=0
+  if($call -match ' ps -a -q db$' -or $call -match ' ps --status running -q db$'){return 'abcdef123456'}
+  if($call -match ' exec -T db pg_isready '){return}
+  throw ('Unexpected Docker read: '+$call)
+ }
  Start-VenueDatabase
- Write-Host 'USD NATIVE RELEASE PASS: stdin JS, selected env, no DB recreation'
+ Write-Host 'USD NATIVE RELEASE PASS: stdin JS, selected env, running DB unchanged'
 }finally{
  $Root=$originalRoot;$EnvFile=$originalEnv
  Remove-Item -LiteralPath $temp -Recurse -Force

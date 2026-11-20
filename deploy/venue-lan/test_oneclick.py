@@ -41,6 +41,16 @@ class VenueLauncherContracts(unittest.TestCase):
             self.assertEqual(len(re.findall(r"(?m)^function\s+"+re.escape(func)+r"\b",source)),1,func)
         self.assertIn("if($Sha -cnotmatch '^[a-f0-9]{40}$')",source)
 
+    def test_windows_season_helpers_are_unique_and_cannot_duplicate_on_patching(self):
+        source=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
+        self.assertLess(len(source.encode('utf-8')),27000,'PowerShell season file unexpectedly ballooned')
+        functions=re.findall(r'(?m)^function\s+([\w-]+)\s*[{(]',source)
+        self.assertGreaterEqual(len(functions),20)
+        self.assertEqual(len(functions),len(set(functions)),'Duplicate PowerShell functions shadow actual installer checks')
+        for name in ('Start-VenueDatabase','Assert-VenueDatabaseVolume','Assert-VenueVolumeRetained','Wait-VenueLanReady',
+                     'Get-VenueProject','Get-VenueComposeArguments'):
+            self.assertEqual(functions.count(name),1)
+
     def test_release_image_and_api_modules_are_verified_before_installation(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
         self.assertIn("function Assert-VenueReleaseImages",source)
@@ -164,7 +174,11 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("ExpectedSha",readiness)
         self.assertIn("ExpectedStage",readiness)
         startlocal=source[source.index("function Start-Local"):start]
-        self.assertIn("Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId",startlocal)
+        self.assertIn("Wait-VenueLanReady $state",startlocal)
+        season=(ROOT/"venue-season.ps1").read_text(encoding="utf-8-sig")
+        health=season[season.index("function Wait-VenueLanReady"):season.index("function Start-VenueDatabase")]
+        self.assertIn("Test-VenueApiReady -ExpectedSha $State.image -ExpectedStage $State.stageId",health)
+        self.assertIn("Test-VenueGatewayReady $State.ip",health)
 
     def test_real_contest_requires_independently_verified_public_fingerprint(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
@@ -343,7 +357,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotIn("'--volumes'",section)
         install=control[control.index('function Install-Local'):control.index('function Start-Local')]
         self.assertIn('Initialize-VenueMediaVolume',install)
-        self.assertLess(install.index('Initialize-VenueMediaVolume'),install.index("Invoke-Compose @('up','-d','db','rustfs')"))
+        self.assertLess(install.index('Initialize-VenueMediaVolume'),install.index("Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never','db','rustfs')"))
 
     def test_rustfs_first_boot_waits_for_storage_readiness_without_online_update_checks(self):
         media=(ROOT/'provision-rustfs.mjs').read_text(encoding='utf-8')
@@ -355,6 +369,28 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("RUSTFS_STARTUP_READINESS_MAX_WAIT_SECS: \"180\"",compose)
         self.assertIn("RUSTFS_CHECK_UPDATE: \"false\"",compose)
         self.assertIn("RUSTFS_REGION: \"us-east-1\"",compose)
+
+    def test_database_container_recovery_checks_volume_ownership_and_all_installer_phases(self):
+        control=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        season=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
+        start=season[season.index('function Start-VenueDatabase'):season.index('function Test-VenueJudgingRunning')]
+        volume=season[season.index('function Assert-VenueDatabaseVolume'):season.index('function Wait-VenueLanReady')]
+        self.assertIn("Assert-VenueDatabaseVolume",start)
+        self.assertIn("ps -a -q db",start)
+        self.assertIn("ps --status running -q db",start)
+        self.assertIn("up','-d','--no-deps','--no-build','--no-recreate','--pull','never','db'",start)
+        self.assertIn("Read-VenueDockerLabels 'container'",start)
+        self.assertIn("com.docker.compose.volume",volume)
+        self.assertIn("venue_db",volume)
+        self.assertIn("Пустая база НЕ создана",volume)
+        installer=control[control.index('function Install-Local'):control.index('function Start-Local')]
+        self.assertLess(installer.index("Wait-VenueLanReady $state"),installer.index("Set-SetupPhase $state 'READY'"))
+        self.assertIn("Wait-VenueLanReady $state",control[control.index('function Start-Local'):control.index('function Test-VenueApiReady')])
+        self.assertIn("'--no-recreate','--pull','never'",installer)
+        self.assertIn("Assert-VenueVolumeRetained @('venue_media')",installer)
+        self.assertIn("Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')",
+                      control[control.index('function Start-Local'):control.index('function Test-VenueApiReady')])
+        self.assertNotIn("Invoke-Compose @('start','db') 'start existing database",season)
 
     def test_windows_rustfs_provision_failure_shows_safe_step_without_dumping_credentials(self):
         control=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
@@ -371,7 +407,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Set-VenueStep 'check-other-stage-ports'",stage)
         self.assertIn('Assert-NoOtherVenueGatewayRunning',stage)
         self.assertLess(stage.index('Assert-NoOtherVenueGatewayRunning'),stage.index('Initialize-VenueMediaVolume'))
-        self.assertLess(stage.index('Assert-NoOtherVenueGatewayRunning'),stage.index("Invoke-Compose @('up','-d','db','rustfs')"))
+        self.assertLess(stage.index('Assert-NoOtherVenueGatewayRunning'),stage.index("Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never','db','rustfs')"))
         season=(ROOT/'venue-season.ps1').read_text(encoding='utf-8-sig')
         guard=season[season.index('function Assert-NoOtherVenueGatewayRunning'):season.index('function Test-VerifiedVenueAck')]
         self.assertIn("@('gateway','rustfs')",guard)

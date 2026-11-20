@@ -21,6 +21,9 @@ on:
       - '.github/workflows/venue-lan-safety.yml'
 permissions:
   contents: read
+concurrency:
+  group: venue-lan-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   venue-lan-safety:
     runs-on: ubuntu-latest
@@ -30,7 +33,7 @@ jobs:
       - name: Verify downloadable Windows kit matches reviewed sources
         run: python3 deploy/venue-lan/build-windows-kit.py --check
       - name: Validate RFC1918-only hub and independent credentials
-        run: python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v && python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v
+        run: python3 -m unittest discover -s deploy/venue-lan -p 'test_*.py' -v
       - name: Verify actual Caddy TLS, refresh cookies and HTTP spectator boundary
         run: |
           docker create --name usd-caddy-contract caddy:2-alpine
@@ -43,6 +46,8 @@ jobs:
           docker run --rm --entrypoint sh postgres:18-alpine -c 'command -v pg_dump && command -v pg_restore && command -v sha256sum'
       - name: Exercise actual Docker Compose create, RustFS volume ownership and idempotent replay
         run: bash deploy/venue-lan/test-compose-media-bootstrap.sh
+      - name: Recover removed PostgreSQL Docker container with actual retained rows
+        run: bash deploy/venue-lan/test-compose-db-recovery.sh
       - name: Rehearse no-secret venue compose preflight
         working-directory: deploy/venue-lan
         run: |
@@ -222,6 +227,12 @@ jobs:
       - name: Exercise native PowerShell helpers without Docker or administrator access
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-helpers.ps1
+      - name: Recover missing DB container safely on PowerShell 5.1
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-db-recovery.ps1
+      - name: Execute Windows installer from CONFIGURED through READY and recover at every boundary
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-install-e2e.ps1
       - name: Verify same-laptop season isolation and acknowledged journal
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-season.ps1
       - name: Verify native release quoting, selected environment and non-recreating database reads

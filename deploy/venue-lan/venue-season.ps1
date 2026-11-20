@@ -262,8 +262,99 @@ function Get-VenueComposeArguments {
  return @('compose','--project-directory',$Root,'--env-file',$EnvFile,
   '-p',(Get-VenueProject),'-f',(Join-Path $Root 'compose.yaml'))
 }
+function Assert-VenueDatabaseVolume {
+ $project=Get-VenueProject
+ if($project -cnotmatch '^usd-venue-[0-9a-f]{32}$'){
+  throw 'Невозможно подтвердить проект базы данных USD. Ничего не изменено.'
+ }
+ $volume=$project+'_venue_db'
+ $prior=$ErrorActionPreference
+ try{
+  $ErrorActionPreference='Continue'
+  $rows=@(& docker volume inspect --format '{{json .Labels}}' $volume 2>$null)
+  $code=$LASTEXITCODE
+ }finally{$ErrorActionPreference=$prior}
+ if($code -ne 0 -or $rows.Count -ne 1){
+  throw 'Том прежней базы USD не найден. Пустая база НЕ создана. Проверьте сохранённые Docker volumes перед повторной установкой.'
+ }
+ try{$labels=ConvertFrom-Json -InputObject ([string]$rows[0]) -ErrorAction Stop}
+ catch{throw 'Не удалось проверить метки существующего тома базы USD'}
+ if($null -eq $labels -or
+    [string]$labels.'com.docker.compose.project' -cne $project -or
+    [string]$labels.'com.docker.compose.volume' -cne 'venue_db'){
+  throw 'Том базы принадлежит другому проекту или не подтверждён. Данные не изменены.'
+ }
+}
+# Prevent Compose from creating blank replacement media/CA volumes on replay.
+# Only inspect stage-owned volumes; never delete or automatically reinitialize.
+function Assert-VenueVolumeRetained([string[]]$Names){
+ $project=Get-VenueProject
+ if($project -cnotmatch '^usd-venue-[0-9a-f]{32}$'){
+  throw 'Невозможно подтвердить проект сохранённых данных USD'
+ }
+ foreach($name in $Names){
+  if($name -cnotin @('venue_media','venue_ca','venue_caddy_config')){
+   throw 'Неизвестный тип сохраняемого тома USD'
+  }
+  $volume=$project+'_'+$name
+  $prior=$ErrorActionPreference
+  try{
+   $ErrorActionPreference='Continue'
+   $rows=@(& docker volume inspect --format '{{json .Labels}}' $volume 2>$null)
+   $code=$LASTEXITCODE
+  }finally{$ErrorActionPreference=$prior}
+  if($code -ne 0 -or $rows.Count -ne 1){
+   throw ('Не найден сохранённый том '+$name+'. Docker не будет создавать пустую замену автоматически.')
+  }
+  try{$labels=ConvertFrom-Json -InputObject ([string]$rows[0]) -ErrorAction Stop}
+  catch{throw ('Повреждены метки сохранённого тома '+$name)}
+  if($null -eq $labels -or
+     [string]$labels.'com.docker.compose.project' -cne $project -or
+     [string]$labels.'com.docker.compose.volume' -cne $name){
+   throw ('Сохранённый том '+$name+' не принадлежит текущему этапу')
+  }
+ }
+}
+function Wait-VenueLanReady([object]$State){
+ if(!$State -or [string]$State.image -cnotmatch '^[a-f0-9]{40}$' -or
+    [string]$State.stageId -cnotmatch '^[0-9a-f-]{36}$'){
+  throw 'Невозможно подтвердить запуск подписанного этапа USD'
+ }
+ for($attempt=0;$attempt -lt 40;$attempt++){
+  if((Test-VenueApiReady -ExpectedSha $State.image -ExpectedStage $State.stageId) -and
+     (Test-VenueGatewayReady $State.ip)){
+   return
+  }
+  Start-Sleep -Seconds 2
+ }
+ throw 'Локальный API/HTTPS не подтвердил готовность этапа. Установка сохранена, повторите USD — Установка; база не удаляется.'
+}
 function Start-VenueDatabase {
- Invoke-Compose @('start','db') 'start existing database without reconfiguration'
+ $state=Read-State
+ if(!$state -or $state.phase -eq 'CONFIGURED'){
+  throw 'До первого запуска базы требуется проверка подписанного этапа. Запустите USD — Установка.'
+ }
+ Assert-VenueDatabaseVolume
+ $ids=@(& docker @(Get-VenueComposeArguments) ps -a -q db)
+ Assert-Exit 'inspect existing stage DB container'
+ $ids=@($ids|Where-Object {-not [string]::IsNullOrWhiteSpace([string]$_)})
+ if($ids.Count -gt 1){throw 'Найдены неоднозначные контейнеры локальной базы. Данные не изменены.'}
+ if($ids.Count -eq 1){
+  $id=[string]$ids[0]
+  if($id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный идентификатор базы'}
+  $labels=Read-VenueDockerLabels 'container' $id
+  if([string]$labels.'com.docker.compose.project' -cne (Get-VenueProject) -or
+     [string]$labels.'com.docker.compose.service' -cne 'db'){
+   throw 'Контейнер базы не принадлежит текущему этапу. Данные не изменены.'
+  }
+  $running=@(& docker @(Get-VenueComposeArguments) ps --status running -q db)
+  Assert-Exit 'inspect running stage DB container'
+  if($running -notcontains $id){
+   Invoke-Compose @('start','db') 'start stopped database without reconfiguration'
+  }
+ }else{
+  Invoke-Compose @('up','-d','--no-deps','--no-build','--no-recreate','--pull','never','db') 'restore missing database container from existing volume'
+ }
  $prior=$ErrorActionPreference
  try{
   $ErrorActionPreference='Continue'
