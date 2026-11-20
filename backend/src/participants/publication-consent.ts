@@ -57,10 +57,24 @@ type ConsentRow = {
   publicationRestrictions?: string | null;
 };
 
+/** The subject consents to this specific immutable publication document, not to
+ * every unrelated revision of the site's general legal settings. Keep accepting
+ * legacy publication-vN@documentId records only while that *same* separately
+ * approved document remains published. Changed or absent document fails closed. */
+export function consentMatchesPublicationDocument(recordedVersion: string | null | undefined, currentVersion: string | null): boolean {
+  if (!recordedVersion || !currentVersion) return false;
+  const documentId = (version: string): string | null => {
+    const match = /^publication-v[^@]+@(legal-document-photoProfileConsent-[A-Za-z0-9-]+)$/.exec(version);
+    return match?.[1] ?? null;
+  };
+  const activeDocument = documentId(currentVersion);
+  return Boolean(activeDocument && activeDocument === documentId(recordedVersion));
+}
+
 /** isPublic controls visibility, consent controls permitted categories independently. */
 export function mayPublish(row: ConsentRow | null | undefined, key: PublicationConsentKey, version: string | null): boolean {
   return Boolean(row?.isPublic === true &&
     !String(row?.publicationRestrictions ?? '').trim() &&
-    row.publicationConsentAt && version && row.publicationConsentVersion === version &&
+    row.publicationConsentAt && consentMatchesPublicationDocument(row.publicationConsentVersion, version) &&
     readPublicationConsent(row.publicationConsent)[key]);
 }
