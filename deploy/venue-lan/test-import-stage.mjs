@@ -117,8 +117,8 @@ function mockDb(){
    update:async value=>{log.push({model:name,update:value.data});return {}},
   };
  }
- tx.$executeRawUnsafe=async sql=>{assert.match(sql,/advisory_xact_lock/);return 1};
- tx.$queryRawUnsafe=async()=>[{rolsuper:false}];
+ tx.$executeRawUnsafe=async sql=>{assert.equal(sql.trimStart().toUpperCase().startsWith('SELECT '),false);return 1};
+ tx.$queryRawUnsafe=async sql=>sql.includes('pg_advisory_xact_lock')?[{pg_advisory_xact_lock:null}]:[{rolsuper:false}];
  const db={$transaction:async(callback,opts)=>{assert.equal(opts.isolationLevel,'Serializable');return callback(tx)}};
  return {tx,db,log};
 }
@@ -408,6 +408,27 @@ test('RED: new signed roster with blank vehicle plates cannot collide with exist
  ];
  const done=await importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage});
  assert.equal(done.addedCars,1);
+});
+
+
+test('safe Windows database diagnostics distinguish role, schema, connection and SQL failures without secrets',()=>{
+ const classify=importer.classifyVenueImportFailure;
+ assert.equal(classify(new Error('Локальный API не имеет права работать с PostgreSQL superuser')),'DATABASE_UNSAFE_SUPERUSER_ROLE');
+ for(const [code,expected] of [
+  ['42501','DATABASE_PERMISSION_DENIED'],['42P01','DATABASE_SCHEMA_MISMATCH'],
+  ['42703','DATABASE_SCHEMA_MISMATCH'],['28P01','DATABASE_AUTH_FAILED'],
+  ['3D000','DATABASE_NOT_FOUND'],['08006','DATABASE_CONNECTION'],
+ ]){
+  const error=new Error('private postgres error: password=secret, Иванов');
+  error.meta={code};error.venueImportPhase='DB_PRECHECK';
+  assert.equal(classify(error),expected);
+ }
+ for(const [code,expected] of [['P2010','DATABASE_P2010_DB_PRECHECK'],['P2021','DATABASE_P2021_DB_PRECHECK'],
+  ['P1017','DATABASE_P1017_DB_PRECHECK']]){
+  const error=new Error('secret credentials');
+  error.code=code;error.venueImportPhase='DB_PRECHECK';
+  assert.equal(classify(error),expected);
+ }
 });
 
 test('database failure reports a fixed import phase and safe Prisma code without participant names or SQL',async()=>{
