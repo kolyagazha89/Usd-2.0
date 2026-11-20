@@ -357,6 +357,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotIn("'--volumes'",section)
         install=control[control.index('function Install-Local'):control.index('function Start-Local')]
         self.assertIn('Initialize-VenueMediaVolume',install)
+        self.assertIn('Assert-VenueDatabaseImportRole',install, 'import must verify restricted local DB role before any signed writes')
         self.assertLess(install.index('Initialize-VenueMediaVolume'),install.index("Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never','db','rustfs')"))
 
     def test_rustfs_first_boot_waits_for_storage_readiness_without_online_update_checks(self):
