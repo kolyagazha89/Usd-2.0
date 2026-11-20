@@ -2,14 +2,15 @@ import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,useAdminDetail} from './AdminEntityLink';
 import './form-journey.css';
 import {useEffect,useRef,useState} from 'react';
-import {AlertTriangle,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Hash,Pencil,Plus,RefreshCw,Search,ShieldAlert,Trash2,Trophy,Users,XCircle} from 'lucide-react';
+import {AlertTriangle,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Hash,Pencil,Plus,RefreshCw,Search,ShieldAlert,Trash2,Trophy,Users,XCircle,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
-import {useViewState,matchesSeason,seasonYears,stageYear} from './view-state';
+import {useViewState,useListScroll,matchesSeason,seasonYears,stageYear} from './view-state';
 import {EventOperationsNavigation} from './EventOperationsNavigation';
 import BassRaceTextImport from './BassRaceTextImport';
 import {
- canJudgeRegistration,filterJudgeRegistrations,judgingInspectionStatus,judgingNumbers,
+ canJudgeRegistration,judgingInspectionStatus,judgingNumbers,
  judgingOverview,judgingResultLink,matchesJudgingResult,remainingJudgingClasses,canConfirmJudgingResult,
+ groupJudgingResults,pendingJudgeRegistrations,
 } from './results-operations-model';
 
 type Go=(path:string)=>void;
@@ -85,6 +86,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
  const [classFilter,setClassFilter]=useViewState('results:'+stageId+':class','ALL');
  const [search,setSearch]=useViewState('results:'+stageId+':search','');
  const handledEntry=useRef('');
+ useListScroll('results:'+stageId,editor===null&&detail===null,!loading);
  const load=async()=>{
   setLoading(true);setError('');
   try{
@@ -187,12 +189,14 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
      <label className="judging-search"><Search size={17} aria-hidden="true"/>
       <input aria-label="Поиск результата" type="search" value={search}
        onChange={e=>setSearch(e.target.value)} placeholder="№, ФИО, госномер, класс или команда"/>
+      {search&&<button className="judging-result-search-clear" type="button" aria-label="Очистить поиск результатов" title="Очистить поиск" onClick={()=>setSearch('')}><X size={18} aria-hidden="true"/></button>}
      </label>
      <CollapsibleFilters activeCount={Number(classFilter!=='ALL')}><select className="filter-select" aria-label="Фильтр результатов по классу" value={classFilter}
       onChange={e=>setClassFilter(e.target.value)}>
       <option value="ALL">Все классы</option>
       {classes.map((c:any)=><option key={c.id} value={c.id}>{c.direction?.name?c.direction.name+' · ':''}{c.name}</option>)}
      </select></CollapsibleFilters>
+     {(search.trim()||classFilter!=='ALL')&&<button className="secondary-button compact judging-filter-reset" type="button" aria-label="Сбросить фильтры результатов" onClick={()=>{setSearch('');setClassFilter('ALL')}}>Сбросить фильтры</button>}
      <button className="primary-button compact" type="button" disabled={loading||!canCreate} onClick={()=>{
       setEditor({});setEditorError('');setDetail(null);
      }}><Plus size={15}/>Внести результат</button>
@@ -208,14 +212,9 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
       <Empty text={results.length?'По запросу результаты не найдены':'Измерения пока не внесены'}/>:
       <table className="data-table judging-results-table" aria-label="Протокол результатов этапа">
        <thead><tr><th>Класс</th><th>Участник</th><th>Автомобиль</th><th>Результат</th><th>Место</th><th>Статус</th><th>Действия</th></tr></thead>
-       <tbody>{Object.values(filteredResults.reduce((groups:Record<string,{name:string;sort:number;rows:any[]}>,r:any)=>{
-        const direction=r.registrationClass?.class?.direction??{};
-        const key=String(direction.id??'none');
-        if(!groups[key])groups[key]={name:direction.name??'Без направления',sort:direction.sortOrder??999,rows:[]};
-        groups[key].rows.push(r);return groups;
-       },{})).sort((a:any,b:any)=>a.sort-b.sort||a.name.localeCompare(b.name,'ru')).flatMap((group:any)=>[
-        <tr key={'direction-'+group.name} className="results-direction-row"><td colSpan={7}><strong>{group.name}</strong><span>{group.rows.length} результатов</span></td></tr>,
-        ...group.rows.map((row:any)=><tr key={row.id} className="clickable-row" onClick={()=>setDetail(row)}>
+       <tbody>{groupJudgingResults(filteredResults).flatMap(group=>[
+        <tr key={'direction-'+group.id} className="results-direction-row"><td colSpan={7}><strong>{group.name}</strong><span>{group.rows.length} результатов</span></td></tr>,
+        ...group.rows.map((row:any)=><tr key={row.id} className="clickable-row" tabIndex={0} aria-label={'Открыть результат: '+participantName(row.registration?.participant)+' · '+String(row.registrationClass?.class?.name??'класс не указан')} onClick={()=>setDetail(row)} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setDetail(row)}}}>
          <td data-label="Класс">{row.registrationClass?.class?.name||'—'}</td>
          <td data-label="Участник"><strong><AdminEntityLink kind="participant" id={row.registration?.participant?.id??row.registration?.participantId}>{participantName(row.registration?.participant)}</AdminEntityLink></strong>
           <small className="table-sub">№{row.registrationClass?.number?.number??judgingNumbers(row.registration??{})[0]??row.registration?.participantNumber??'—'}</small></td>
@@ -255,7 +254,7 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
  const [judgingStep,setJudgingStep]=useState<0|1|2>(value?.id?2:0);
  const judgingHeadingRef=useRef<HTMLHeadingElement>(null);
  useEffect(()=>{if(!value?.id)judgingHeadingRef.current?.focus()},[judgingStep]);
- const eligible=filterJudgeRegistrations(registrations,term,{passedOnly:true});
+ const eligible=pendingJudgeRegistrations(registrations,results,term);
  const selected=registrations.find(r=>r.id===v.registrationId);
  const available=remainingJudgingClasses(selected,results).sort((a:any,b:any)=>
   (a.class?.direction?.sortOrder??999)-(b.class?.direction?.sortOrder??999)||
@@ -309,7 +308,7 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
      </div>
      {eligible.length>18&&<p className="judging-quick-help">Показаны первые 18. Уточните номер или ФИО, чтобы сузить поиск.</p>}
      {!eligible.length&&<p className="judging-quick-help">
-      {term?'Допущенных участников по запросу нет.':'Нет зарегистрированных участников с успешной инспекцией.'}
+      {term?'Участников с невнесёнными результатами по запросу нет.':'Нет допущенных участников с невнесёнными результатами.'}
      </p>}
     </fieldset>
     <fieldset className="judging-entry-step" hidden={judgingStep!==1} disabled={saving||!selected}>
