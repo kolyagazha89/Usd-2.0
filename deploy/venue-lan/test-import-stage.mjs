@@ -117,8 +117,8 @@ function mockDb(){
    update:async value=>{log.push({model:name,update:value.data});return {}},
   };
  }
- tx.$executeRawUnsafe=async sql=>{assert.match(sql,/advisory_xact_lock/);return 1};
- tx.$queryRawUnsafe=async()=>[{rolsuper:false}];
+ tx.$executeRawUnsafe=async sql=>{assert.equal(sql.trimStart().toUpperCase().startsWith('SELECT '),false);return 1};
+ tx.$queryRawUnsafe=async sql=>sql.includes('pg_advisory_xact_lock')?[{acquired:1}]:[{rolsuper:false}];
  const db={$transaction:async(callback,opts)=>{assert.equal(opts.isolationLevel,'Serializable');return callback(tx)}};
  return {tx,db,log};
 }
@@ -410,6 +410,27 @@ test('RED: new signed roster with blank vehicle plates cannot collide with exist
  assert.equal(done.addedCars,1);
 });
 
+
+test('safe Windows database diagnostics distinguish role, schema, connection and SQL failures without secrets',()=>{
+ const classify=importer.classifyVenueImportFailure;
+ assert.equal(classify(new Error('Локальный API не имеет права работать с PostgreSQL superuser')),'DATABASE_UNSAFE_SUPERUSER_ROLE');
+ for(const [code,expected] of [
+  ['42501','DATABASE_PERMISSION_DENIED'],['42P01','DATABASE_SCHEMA_MISMATCH'],
+  ['42703','DATABASE_SCHEMA_MISMATCH'],['28P01','DATABASE_AUTH_FAILED'],
+  ['3D000','DATABASE_NOT_FOUND'],['08006','DATABASE_CONNECTION'],
+ ]){
+  const error=new Error('private postgres error: password=secret, Иванов');
+  error.meta={code};error.venueImportPhase='DB_PRECHECK';
+  assert.equal(classify(error),expected);
+ }
+ for(const [code,expected] of [['P2010','DATABASE_P2010_DB_PRECHECK'],['P2021','DATABASE_P2021_DB_PRECHECK'],
+  ['P1017','DATABASE_P1017_DB_PRECHECK']]){
+  const error=new Error('secret credentials');
+  error.code=code;error.venueImportPhase='DB_PRECHECK';
+  assert.equal(classify(error),expected);
+ }
+});
+
 test('database failure reports a fixed import phase and safe Prisma code without participant names or SQL',async()=>{
  const plan=planVenueStageImport(signed(),publicPem,env,now);
  const {db,tx}=mockDb();
@@ -441,4 +462,45 @@ test('RED: an unexpired but DIFFERENT signed stage packet cannot pass installed 
  assert.equal((await importer.assertInstalledVenueStageReceipt(plan,matches)).packageHash,plan.packageHash);
  const gone={...matches,stage:{findUnique:async()=>null}};
  await assert.rejects(()=>importer.assertInstalledVenueStageReceipt(plan,gone),/этап|установ/i);
+});
+
+
+test('Prisma PostgreSQL SELECT contract: signed import and directory recovery never run SELECT via executeRaw',async()=>{
+ const scenarios=['initial signed stage','retained signed stage','retained participant directory'];
+ for(const scenario of scenarios){
+  const payload=snapshot();
+  if(scenario==='retained participant directory')payload.participantDirectory=[];
+  const plan=planVenueStageImport(signed(payload),publicPem,env,now);
+  const {tx,db}=mockDb();
+  const readQueries=[];
+  tx.$executeRawUnsafe=async sql=>{
+   assert.equal(sql.trimStart().toUpperCase().startsWith('SELECT '),false,scenario+' must use Prisma queryRaw for row-producing SELECT');
+   return 1;
+  };
+  tx.$queryRawUnsafe=async sql=>{
+   readQueries.push(sql);
+   if(sql.includes('pg_advisory_xact_lock')){assert.match(sql,/SELECT 1::int AS acquired FROM pg_advisory_xact_lock/);return [{acquired:1}];}
+   if(sql.includes('pg_roles'))return [{name:scenario==='initial signed stage'?'usd_venue':'usd_venue_root',
+    rolsuper:scenario!=='initial signed stage'}];
+   if(sql.includes('set_config'))return [{set_config:'true'}];
+   if(sql.includes('venue_private.active_stage'))return [{stageId:uuid.stage}];
+   throw new Error('Unexpected SQL query in '+scenario);
+  };
+  if(scenario==='initial signed stage'){
+   await applyVenueStageImport(plan,db);
+  }else if(scenario==='retained signed stage'){
+   await applyVenueStageImport(plan,db,{shared:true});
+  }else{
+   tx.stage.findUnique=async()=>({id:uuid.stage});
+   tx.auditLog.findFirst=async options=>options.where.action==='VENUE_STAGE_PACKAGE_IMPORTED'
+    ?{metadata:{sha256:plan.packageHash}}:null;
+   tx.car.findMany=async()=>[];
+   await importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage});
+  }
+  assert.equal(readQueries.filter(sql=>sql.includes('pg_advisory_xact_lock')).length,1,
+   scenario+' must acquire advisory lock within transaction');
+  if(scenario!=='initial signed stage')
+   assert.equal(readQueries.filter(sql=>sql.includes('set_config')).length,1,
+    scenario+' must configure signed importing in transaction');
+ }
 });
