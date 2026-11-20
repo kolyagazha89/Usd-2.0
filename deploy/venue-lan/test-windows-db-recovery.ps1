@@ -19,7 +19,10 @@ function Read-VenueDockerLabels([string]$Kind,[string]$Identity){
  }
 }
 function docker {
- $argLine=$args -join ' '
+ # PowerShell script-function mocks receive splatted native arguments as arrays.
+ $flat=@()
+ foreach($item in $args){$flat+=@($item)}
+ $argLine=$flat -join ' '
  $global:LASTEXITCODE=0
  if($argLine -match '^compose -p .* ps -a -q db$'){
   if($script:dbScenario.Container){return 'abcdef123456'}else{return}
