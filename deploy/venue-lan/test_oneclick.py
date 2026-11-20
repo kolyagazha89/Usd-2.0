@@ -47,7 +47,7 @@ class VenueLauncherContracts(unittest.TestCase):
         functions=re.findall(r'(?m)^function\s+([\w-]+)\s*[{(]',source)
         self.assertGreaterEqual(len(functions),20)
         self.assertEqual(len(functions),len(set(functions)),'Duplicate PowerShell functions shadow actual installer checks')
-        for name in ('Start-VenueDatabase','Assert-VenueDatabaseVolume','Wait-VenueLanReady',
+        for name in ('Start-VenueDatabase','Assert-VenueDatabaseVolume','Assert-VenueVolumeRetained','Wait-VenueLanReady',
                      'Get-VenueProject','Get-VenueComposeArguments'):
             self.assertEqual(functions.count(name),1)
 
@@ -383,6 +383,9 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertLess(installer.index("Wait-VenueLanReady $state"),installer.index("Set-SetupPhase $state 'READY'"))
         self.assertIn("Wait-VenueLanReady $state",control[control.index('function Start-Local'):control.index('function Test-VenueApiReady')])
         self.assertIn("'--no-recreate','--pull','never'",installer)
+        self.assertIn("Assert-VenueVolumeRetained @('venue_media')",installer)
+        self.assertIn("Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')",
+                      control[control.index('function Start-Local'):control.index('function Test-VenueApiReady')])
         self.assertNotIn("Invoke-Compose @('start','db') 'start existing database",season)
 
     def test_windows_rustfs_provision_failure_shows_safe_step_without_dumping_credentials(self):
