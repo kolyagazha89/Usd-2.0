@@ -16,6 +16,9 @@ function Assert-VenueCompose {}
 function Ensure-DockerReady {}
 function Ensure-Firewall([string]$Ip){}
 function Assert-NoOtherVenueGatewayRunning {}
+function Assert-VenueVolumeRetained([string[]]$Names){
+ [void]$script:steps.Add('check-retained-'+($Names -join ','))
+}
 function Test-VenueRuntimeImagesCached([string]$Sha){return $true}
 function Initialize-VenueMediaVolume {[void]$script:steps.Add('prepare-media')}
 function Confirm-SignedStage([object]$State){
