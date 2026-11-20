@@ -285,6 +285,36 @@ function Assert-VenueDatabaseVolume {
   throw 'Том базы принадлежит другому проекту или не подтверждён. Данные не изменены.'
  }
 }
+# Prevent Compose from creating blank replacement media/CA volumes on replay.
+# Only inspect stage-owned volumes; never delete or automatically reinitialize.
+function Assert-VenueVolumeRetained([string[]]$Names){
+ $project=Get-VenueProject
+ if($project -cnotmatch '^usd-venue-[0-9a-f]{32}$'){
+  throw 'Невозможно подтвердить проект сохранённых данных USD'
+ }
+ foreach($name in $Names){
+  if($name -cnotin @('venue_media','venue_ca','venue_caddy_config')){
+   throw 'Неизвестный тип сохраняемого тома USD'
+  }
+  $volume=$project+'_'+$name
+  $prior=$ErrorActionPreference
+  try{
+   $ErrorActionPreference='Continue'
+   $rows=@(& docker volume inspect --format '{{json .Labels}}' $volume 2>$null)
+   $code=$LASTEXITCODE
+  }finally{$ErrorActionPreference=$prior}
+  if($code -ne 0 -or $rows.Count -ne 1){
+   throw ('Не найден сохранённый том '+$name+'. Docker не будет создавать пустую замену автоматически.')
+  }
+  try{$labels=ConvertFrom-Json -InputObject ([string]$rows[0]) -ErrorAction Stop}
+  catch{throw ('Повреждены метки сохранённого тома '+$name)}
+  if($null -eq $labels -or
+     [string]$labels.'com.docker.compose.project' -cne $project -or
+     [string]$labels.'com.docker.compose.volume' -cne $name){
+   throw ('Сохранённый том '+$name+' не принадлежит текущему этапу')
+  }
+ }
+}
 function Wait-VenueLanReady([object]$State){
  if(!$State -or [string]$State.image -cnotmatch '^[a-f0-9]{40}$' -or
     [string]$State.stageId -cnotmatch '^[0-9a-f-]{36}$'){
