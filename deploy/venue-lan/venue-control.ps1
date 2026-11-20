@@ -480,7 +480,7 @@ function Install-Local {
    Initialize-VenueMediaVolume
   }
   Set-VenueStep 'start-storage'
-  Invoke-Compose @('up','-d','db','rustfs') 'start storage'
+  Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never','db','rustfs') 'start storage'
   if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){
   $env:VENUE_S3_ROOT_ACCESS=$cfg['VENUE_S3_ROOT_ACCESS']
   $env:VENUE_S3_ROOT_SECRET=$cfg['VENUE_S3_ROOT_SECRET']
@@ -500,7 +500,7 @@ function Install-Local {
  }
  if($state.phase -eq 'STORAGE_READY'){
   Set-VenueStep 'migrate-local-db'
-  Invoke-Compose @('up','-d','db','rustfs') 'start DB'
+  Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never','db','rustfs') 'start DB'
   Invoke-Compose @('run','--rm','--no-deps','--entrypoint',
    './node_modules/.bin/prisma','api','migrate','deploy',
    '--config','./prisma7.config.ts') 'migrate isolated DB'
@@ -540,7 +540,9 @@ function Install-Local {
  if($state.phase -eq 'STAFF_READY'){
   Set-VenueStep 'start-lan-services'
   Assert-NoOtherVenueGatewayRunning
-  Invoke-Compose @('up','-d') 'start HTTPS API and LIVE'
+  Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never') 'start HTTPS API and LIVE'
+  Set-VenueStep 'verify-first-lan-readiness'
+  Wait-VenueLanReady $state
   Set-SetupPhase $state 'READY'
  }
  Set-VenueStep 'verify-lan-readiness'
@@ -564,14 +566,8 @@ function Start-Local {
   & docker @(Get-VenueComposeArguments) exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
  Assert-Exit 'upgrade durable amplifier link journal'
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для запуска используйте текущий ярлык USD. Для его выгрузки нажмите Экспорт в этой папке.'}
- Invoke-Compose @('up','-d','--no-build','--pull','never') 'start offline without Internet'
- # Wait for the local API.
- $ready=$false
- for($i=0;$i -lt 40;$i++){
-  if((Test-VenueApiReady -ExpectedSha $state.image -ExpectedStage $state.stageId) -and (Test-VenueGatewayReady $state.ip)){$ready=$true;break}
-  Start-Sleep -Seconds 2
- }
- if(-not $ready){throw 'Сервер ещё не ответил. Подождите немного и нажмите «USD — Офлайн» снова. Данные сохранены.'}
+ Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never') 'start offline without Internet'
+ Wait-VenueLanReady $state
  Save-Autostart
  Save-DesktopShortcuts
  try{Export-VenueCA}catch{
