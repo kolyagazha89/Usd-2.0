@@ -15,16 +15,19 @@ const browser=await chromium.launch(getBrowserLaunchOptions()),report=[];
 try{
  for(const width of [390,1366]){
   const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});
-  const participant={id:'person-1',lastName:'Тестовый',firstName:'Участник',isPublic:true};
+  const participant={id:'person-1',photoUrl:'private-test-photo',lastName:'Тестовый',firstName:'Участник',isPublic:true};
   const cars=Array.from({length:60},(_,i)=>({id:'car-'+i,brand:'Lada',model:'Vesta '+i,participantId:participant.id,participant,registrationNumber:'А001АА181',registrationCountry:'RU',isActive:true,configurations:[]}));
   const stage={id:'stage-1',stageNumber:1,name:'Проверочный этап',date:'2026-11-29T12:00:00Z',status:'PUBLISHED',registrationOpen:true,season:{year:2026}};
   const otherStage={...stage,id:'stage-2',stageNumber:2,name:'Второй проверочный этап'};
   const news=Array.from({length:45},(_,i)=>({id:'news-'+i,title:'Проверочная новость '+i,excerpt:'Тестовая запись',body:'Текст новости',isPublished:false}));
   const registration={id:'reg-1',participantId:participant.id,participant,carId:cars[50].id,car:cars[50],stageId:stage.id,stage,participantNumber:1,status:'ACTIVE',classes:[]};
+  const catalogBrands=Array.from({length:70},(_,i)=>({id:'brand-'+i,category:'HEAD_UNIT',name:'Марка '+String(i).padStart(2,'0'),isActive:true}));
+  const catalogModels=catalogBrands.flatMap(b=>Array.from({length:45},(_,i)=>({id:b.id+'-model-'+i,category:b.category,brand:b.name,model:'Модель '+i,isActive:true})));
   let failCars=false,delay=0;
   await context.route('**/*',async route=>{
    const url=new URL(route.request().url());if(url.origin===base)return route.continue();
    if(delay)await new Promise(r=>setTimeout(r,delay));
+   if(url.pathname.startsWith('/media/private-file/'))return route.fulfill({contentType:'image/png',body:await readFile(path.join(dist,'usd/pwa-192.png'))});
    let data=[];
    if(url.pathname==='/auth/refresh')data={accessToken:'synthetic',user:{id:'fixture-admin',email:'admin@example.test',role:'ADMIN'}};
    else if(url.pathname==='/admin/participants')data=Array.from({length:80},(_,i)=>({...participant,id:i===50?participant.id:'person-'+(i+10),lastName:'Тестовый '+String(i).padStart(2,'0')}));
@@ -36,7 +39,7 @@ try{
    else if(url.pathname.startsWith('/registrations'))data=url.searchParams.get('stageId')==='stage-2'?[{...registration,id:'reg-2',stageId:otherStage.id,stage:otherStage,carId:cars[51].id,car:cars[51]}]:[registration];
    else if(url.pathname==='/records/admin/current')data=[{id:'record',stage,stageId:stage.id,value:150,unit:'DB',achievedAt:stage.date,class:{id:'c',name:'Limited',direction:{name:'SPL'}},result:{registration}}];
    else if(url.pathname==='/seasons')data=[{id:'season',year:2026}];
-   else if(url.pathname.startsWith('/site-settings'))data={settings:{branding:{},homepage:{blocks:[]},news,legal:{privacyText:Array.from({length:80},(_,i)=>'Раздел '+i+'\n'+('Текст политики обработки данных. '.repeat(20))).join('\n\n')}}};
+   else if(url.pathname.startsWith('/site-settings'))data={settings:{catalogs:{componentBrands:catalogBrands,componentModels:catalogModels},branding:{},homepage:{blocks:[]},news,legal:{privacyText:Array.from({length:80},(_,i)=>'Раздел '+i+'\n'+('Текст политики обработки данных. '.repeat(20))).join('\n\n')}}};
    return route.fulfill({json:data});
   });
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -76,6 +79,28 @@ try{
   await page.goto(base+'/admin/cars?carId=missing');await page.getByRole('alert').filter({hasText:'Автомобиль не найден'}).waitFor();
   failCars=true;await page.goto(base+'/admin/cars?carId=car-50');await page.getByRole('alert').filter({hasText:'Временная ошибка'}).waitFor();failCars=false;await page.getByRole('button',{name:'Повторить загрузку'}).click();await page.getByRole('heading',{name:'Автомобиль',exact:true}).waitFor();
   await page.screenshot({path:path.join(out,'car-'+width+'.png'),fullPage:true});
+  // Participant photo and compact history are actual browser-rendered controls.
+  await page.goto(base+'/admin/participants?view=person-1');await page.locator('.admin-profile-photo img').waitFor();
+  await page.waitForFunction(()=>document.querySelector('.admin-profile-photo img')?.naturalWidth>0);
+  await page.getByRole('button',{name:/Выступления ·/}).click();assert.equal(await page.locator('.participant-history-event[open]').count(),0);
+  await page.screenshot({path:path.join(out,'participant-'+width+'.png'),fullPage:true});
+  // Long brand lists must not push models below them on any screen.
+  await page.goto(base+'/admin/components');await page.locator('.catalog-brands-pane .catalog-list-select').first().waitFor();
+  const brandViewport=await page.locator('.catalog-brands-pane .catalog-list').evaluate(el=>({height:el.clientHeight,scrollHeight:el.scrollHeight}));
+  assert.ok(brandViewport.height<650&&brandViewport.scrollHeight>brandViewport.height);
+  await page.locator('.catalog-brands-pane .catalog-list-select').first().click();
+  assert.equal(await page.locator('.catalog-models-pane .catalog-list-row').count(),20);
+  const catalogLayout=await page.evaluate(()=>{
+   const brands=document.querySelector('.catalog-brands-pane'),models=document.querySelector('.catalog-models-pane'),list=brands.querySelector('.catalog-list');
+   return {brandsVisible:getComputedStyle(brands).display!=='none',modelsVisible:getComputedStyle(models).display!=='none',brandsTop:brands.getBoundingClientRect().top,modelsTop:models.getBoundingClientRect().top,listHeight:list.clientHeight,listScrollHeight:list.scrollHeight,overflow:document.documentElement.scrollWidth-innerWidth};
+  });
+  assert.ok(catalogLayout.modelsVisible);assert.ok(catalogLayout.overflow<=1);
+  if(width<=900){
+   assert.equal(catalogLayout.brandsVisible,false);
+   await page.getByRole('button',{name:'Марки',exact:true}).click();await page.locator('.catalog-brands-pane .catalog-list-select').first().click();
+   assert.ok(await page.locator('.catalog-models-pane').isVisible(),'same brand reopens models');
+  }else assert.ok(Math.abs(catalogLayout.brandsTop-catalogLayout.modelsTop)<3,'desktop panes stay aligned');
+  await page.screenshot({path:path.join(out,'catalog-'+width+'.png'),fullPage:true});
   // Public transitions and history after asynchronously loading content.
   await page.goto(base+'/privacy');await page.locator('.usd-live').waitFor();await cookie();await page.waitForTimeout(150);await scroll(1400);const privacyTop=await page.evaluate(()=>scrollY);assert.ok(privacyTop>500);
   delay=200;
@@ -83,7 +108,7 @@ try{
   await page.goBack();await page.waitForURL(base+'/privacy');await page.waitForTimeout(600);const restored=await page.evaluate(()=>scrollY);assert.ok(Math.abs(restored-privacyTop)<5,JSON.stringify({privacyTop,restored}));
   await page.goForward();await page.waitForURL(base+'/stages');await page.waitForTimeout(500);await expectTop();
   assert.deepEqual(errors,[]);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
-  report.push({width,adminScroll:{before,after,newsBefore,newsAfter,carsBefore,carsAfter,stageBefore,stageAfter},publicHistory:{before:privacyTop,after:restored},errors});await context.close();
+  report.push({width,catalogLayout,adminScroll:{before,after,newsBefore,newsAfter,carsBefore,carsAfter,stageBefore,stageAfter},publicHistory:{before:privacyTop,after:restored},errors});await context.close();
  }
  await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
 }catch(error){for(const context of browser.contexts())for(const page of context.pages()){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true}).catch(()=>{});await writeFile(path.join(out,'failure.txt'),String(error)+'\n'+await page.locator('body').innerText().catch(()=>''));}throw error;}finally{await browser.close();await new Promise(r=>server.close(r))}
