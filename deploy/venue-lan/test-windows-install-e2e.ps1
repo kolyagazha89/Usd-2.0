@@ -26,6 +26,7 @@ function Confirm-SignedStage([object]$State){
  return @('--volume','fixture:/app/venue-stage.json:ro')
 }
 function Read-State {return $script:state}
+function Complete-VenueInitialConfig([object]$State){}
 function Read-Env {
  return @{
   VENUE_STAGE_ID=$script:stageId;VENUE_IMAGE_TAG=('a'*40)

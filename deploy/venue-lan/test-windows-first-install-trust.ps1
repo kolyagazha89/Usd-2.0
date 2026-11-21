@@ -51,8 +51,30 @@ try {
  if([IO.File]::ReadAllText($privatePublic) -cne $originalPem){
   throw 'Local public key differs from the operator-selected PEM'
  }
+ # Recreate the durable boundary after CONFIGURED was written, before the
+ # staged .env is promoted. Verify no input dialog or new credentials are needed.
+ $pending=Join-Path $PrivateDir $first.pendingConfig
+ $envHash=(Get-FileHash -LiteralPath $EnvFile).Hash
+ [IO.File]::Move($EnvFile,$pending)
+ $originalEnv=[IO.File]::ReadAllText($pending)
+ [IO.File]::AppendAllText($pending,'# corrupted')
+ $blocked=$false
+ try{Complete-VenueInitialConfig (Read-State)}catch{$blocked=$true}
+ if(!$blocked -or (Test-Path -LiteralPath $EnvFile)){throw 'Corrupted pending config was promoted'}
+ [IO.File]::WriteAllText($pending,$originalEnv,(New-Object System.Text.UTF8Encoding($false)))
+ Complete-VenueInitialConfig (Read-State)
+ if((Get-FileHash -LiteralPath $EnvFile).Hash -cne $envHash -or (Test-Path -LiteralPath $pending)){
+  throw 'Recovery must complete with the exact original credentials'
+ }
+ # Without state, unknown .env still blocks install and is never modified.
+ Remove-Item -LiteralPath $StateFile -Force
+ $blocked=$false
+ try{New-InitialState|Out-Null}catch{$blocked=$true}
+ if(!$blocked -or (Get-FileHash -LiteralPath $EnvFile).Hash -cne $envHash){
+  throw 'An unrelated .env must be preserved'
+ }
  # Simulate interruption after writing immutable input files, before DB creation.
- Remove-Item -LiteralPath $StateFile,$EnvFile -Force
+ Remove-Item -LiteralPath $EnvFile -Force
  $script:Selected=0
  $replayed=New-InitialState
  if($replayed.publicKey -cne $privatePublic){

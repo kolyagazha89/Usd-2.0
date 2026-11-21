@@ -95,7 +95,14 @@ function Write-VenueImmutableBootstrapFile([string]$Path,[string]$Value){
   }
   return
  }
- Write-PrivateFile $Path $Value
+ # Publish only after the protected file has been fully written.
+ $temp=$Path+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+ try{
+  Write-PrivateFile $temp $Value
+  [IO.File]::Move($temp,$Path)
+ }finally{
+  if(Test-Path -LiteralPath $temp -PathType Leaf){Remove-Item -LiteralPath $temp -Force}
+ }
 }
 function Read-State {
  if(!(Test-Path -LiteralPath $StateFile)){return $null}
@@ -357,6 +364,27 @@ function Replace-LegacyDemo([object]$State){
  New-Item -ItemType Directory -Path $PrivateDir|Out-Null
  Write-Host 'Старая пробная база удалена. Продолжаем установку подписанного этапа.'
 }
+# Store the phase marker before promoting the config. A retry may promote
+# only the exact file recorded by CONFIGURED, never regenerate DB credentials.
+function Complete-VenueInitialConfig([object]$State) {
+ if(Test-Path -LiteralPath $EnvFile){return}
+ if($State.phase -ne 'CONFIGURED' -or
+    $State.PSObject.Properties.Name -notcontains 'pendingConfig' -or
+    $State.PSObject.Properties.Name -notcontains 'pendingConfigHash'){
+  throw 'Нет локальной конфигурации. Восстановите .env из резервной копии.'
+ }
+ if($State.pendingConfig -cnotmatch '^bootstrap-env-[a-f0-9]{32}\.tmp$' -or
+    $State.pendingConfigHash -notmatch '^[a-f0-9]{64}$'){
+  throw 'Метаданные локальной конфигурации повреждены.'
+ }
+ $pending=Join-Path $PrivateDir $State.pendingConfig
+ if(!(Test-Path -LiteralPath $pending -PathType Leaf) -or
+    -not ([IO.File]::GetAccessControl($pending)).AreAccessRulesProtected -or
+    (Get-FileHash -LiteralPath $pending -Algorithm SHA256).Hash -ine $State.pendingConfigHash){
+  throw 'Подготовленная локальная конфигурация отсутствует или повреждена. Данные сохранены.'
+ }
+ [IO.File]::Move($pending,$EnvFile)
+}
 function New-InitialState {
  if(Test-Path -LiteralPath $EnvFile){throw '.env существует без маркера установки. Нельзя затирать чужую конфигурацию.'}
  $source=$null;$sharedConfig=$null
@@ -428,14 +456,18 @@ function New-InitialState {
   Copy-VenueWebVersion $values $sharedConfig
  }
  $text=($values.GetEnumerator()|ForEach-Object {$_.Key+'='+$_.Value}) -join [Environment]::NewLine
- Write-PrivateFile $EnvFile ($text+[Environment]::NewLine)
+ $pendingConfig='bootstrap-env-'+[guid]::NewGuid().ToString('N')+'.tmp'
+ $pendingPath=Join-Path $PrivateDir $pendingConfig
+ Write-PrivateFile $pendingPath ($text+[Environment]::NewLine)
  $state=[pscustomobject]@{
   format=1;phase='CONFIGURED';stageId=$stageId;fingerprint=$fingerprint
   ip=$ip;image=$sha;package=$file;publicKey=$key;accessKey=$fileKey
   project=$project;home=(Get-VenueHome);shared=($null -ne $source)
+  pendingConfig=$pendingConfig;pendingConfigHash=(Get-FileHash -LiteralPath $pendingPath -Algorithm SHA256).Hash
   projectStageId=$(if($source){[string]$source.projectStageId}else{$stageId})
  }
  Set-SetupPhase $state 'CONFIGURED'
+ Complete-VenueInitialConfig $state
  return $state
 }
 function Confirm-SignedStage([object]$State) {
@@ -474,6 +506,8 @@ function Install-Local {
  if(!$state){
   Set-VenueStep 'select-signed-stage-and-verify-release'
   $state=New-InitialState
+ }else{
+  Complete-VenueInitialConfig $state
  }
  $cfg=Read-Env
  if($cfg['VENUE_STAGE_ID'] -ne $state.stageId -or $cfg['VENUE_IMAGE_TAG'] -ne $state.image){
