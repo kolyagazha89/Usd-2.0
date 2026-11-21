@@ -51,5 +51,22 @@ export async function runAdminUserUsability(){
  assert.equal(row.getAttribute('tabindex'),'0','list row is keyboard reachable');
  await act(async()=>row.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true})));await flush();
  assert.ok(host.textContent?.includes('Пользователь'),'keyboard opens details');
+ await click(button('К списку'));
+ (globalThis as any).__userRecords.push(
+  {id:'u2',email:'linked-verified@usd.test',role:'PARTICIPANT',emailVerifiedAt:'2026-01-01',participantId:'p2',participant:{id:'p2',firstName:'Иван'},isActive:true},
+  {id:'u3',email:'free-verified@usd.test',role:'PARTICIPANT',emailVerifiedAt:'2026-01-01',isActive:true},
+  {id:'u4',email:'linked-pending@usd.test',role:'PARTICIPANT',participantId:'p4',isActive:true});
+ await click(host.querySelector('[aria-label="Обновить список пользователей"]') as HTMLElement);
+ const totals=()=>[...host.querySelectorAll('.users-count-summary strong')].map(n=>n.textContent);
+ assert.deepEqual(totals(),['4','2','2'],'global counts cover confirmed emails and both profile identity shapes');
+ const emailFilter=host.querySelector('[aria-label="Фильтр подтверждения почты"]') as HTMLSelectElement;
+ const profileFilter=host.querySelector('[aria-label="Фильтр привязки профиля"]') as HTMLSelectElement;
+ await choose(emailFilter,'VERIFIED');assert.equal(host.querySelectorAll('tbody tr').length,2);
+ await choose(profileFilter,'LINKED');assert.equal(host.querySelectorAll('tbody tr').length,1);assert.match(host.querySelector('tbody tr')!.textContent!,/linked-verified/);
+ assert.deepEqual(totals(),['4','2','2'],'filtering never replaces global totals');
+ await choose(emailFilter,'UNVERIFIED');assert.match(host.querySelector('tbody tr')!.textContent!,/linked-pending/);
+ await choose(profileFilter,'UNLINKED');assert.match(host.querySelector('tbody tr')!.textContent!,/participant@usd.test/);
+ await click(button('Сбросить фильтры пользователей'));assert.equal(host.querySelectorAll('tbody tr').length,4);
+ assert.equal(emailFilter.value,'ALL');assert.equal(profileFilter.value,'ALL');
  await act(async()=>root.unmount());host.remove();
 }

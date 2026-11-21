@@ -607,126 +607,70 @@ body .app-shell .main .event-ops-page :is(.stage-picker,.event-ops-overview,.eve
 }
 body .app-shell .main .event-ops-page .event-ops-workflow {
   display:grid;
-  grid-template-columns:minmax(210px,.8fr) minmax(0,1.6fr);
-  gap:0;
+  grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);
   min-inline-size:0;
-  margin:0 0 20px;
-  overflow:hidden;
+  margin:0 0 12px;
   border:1px solid #dcdee4;
-  border-radius:18px;
+  border-radius:12px;
   background:#fff;
-  box-shadow:0 12px 28px rgba(15,18,25,.045);
+  overflow:hidden;
 }
 body .app-shell .main .event-ops-workflow-context {
-  display:grid;
-  align-content:center;
-  gap:7px;
-  min-inline-size:0;
-  padding:clamp(18px,2.2vw,28px);
-  background:linear-gradient(130deg,#ffffff 0%,#f8f9fb 70%,#fff0f2 100%);
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:4px 8px;
+  padding:4px 10px;
+  min-width:0;
+  background:linear-gradient(130deg,#ffffff,#f8f9fb);
   color:#232730;
-  border-right:3px solid #ed2638;
-}
-body .app-shell .main .event-ops-workflow-kicker {
-  font-size:10px;
-  font-weight:800;
-  line-height:1.4;
-  letter-spacing:.15em;
-  color:#c21c37;
 }
 body .app-shell .main .event-ops-workflow-context strong {
-  font-size:clamp(16px,1.8vw,21px);
-  line-height:1.25;
-  letter-spacing:-.025em;
+  flex:1 1 116px;
+  min-width:0;
+  font-size:14px;
   overflow-wrap:anywhere;
 }
-body .app-shell .main .event-ops-workflow-context small {
+body .app-shell .main .event-ops-workflow-number-label {
+  color:#51555e;
   font-size:12px;
-  line-height:1.45;
-  color:#646c78;
+  white-space:nowrap;
 }
 body .app-shell .main .event-ops-workflow-steps {
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:repeat(3,minmax(0,1fr));
   min-inline-size:0;
-  align-items:stretch;
 }
 body .app-shell .main .event-ops-workflow-step {
-  position:relative;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  text-align:left;
   min-inline-size:0;
-  min-height:104px;
-  width:100%;
-  padding:18px clamp(12px,1.65vw,22px);
+  min-height:44px;
+  padding:6px 3px;
   border:0;
   border-right:1px solid #ecedf0;
-  border-bottom:4px solid transparent;
+  border-bottom:3px solid transparent;
   border-radius:0;
   background:#fff;
   color:#51555e;
   box-shadow:none!important;
+  font-size:clamp(11px,2.8vw,14px);
+  font-weight:700;
+  line-height:1.2;
   cursor:pointer;
-  transition:background-color .2s,border-color .2s,color .2s;
 }
 body .app-shell .main .event-ops-workflow-step:last-child {border-right:0}
 body .app-shell .main .event-ops-workflow-step.is-active {
   border-bottom-color:#ed2638;
   background:#fff6f7;
-  color:#b51935;
+  color:#a91530;
   cursor:default;
 }
-body .app-shell .main .event-ops-workflow-step:hover:not(.is-active):not(:disabled) {
-  background:#f7f7f9;
-  color:#191c23;
-}
+body .app-shell .main .event-ops-workflow-step:hover:not(.is-active):not(:disabled) {background:#f7f7f9}
 body .app-shell .main .event-ops-workflow-step:focus-visible {
   outline:3px solid #ed2638!important;
   outline-offset:-4px!important;
   z-index:1;
 }
-body .app-shell .main .event-ops-workflow-step:disabled {
-  opacity:.6;
-  cursor:not-allowed;
-}
-body .app-shell .main .event-ops-workflow-step>svg {
-  flex-shrink:0;
-  color:currentColor;
-}
-body .app-shell .main .event-ops-workflow-number {
-  position:absolute;
-  top:10px;
-  right:12px;
-  font-size:10px;
-  font-weight:850;
-  letter-spacing:.1em;
-  color:#626a76;
-}
-body .app-shell .main .event-ops-workflow-copy {
-  display:grid;
-  min-width:0;
-  gap:5px;
-}
-body .app-shell .main .event-ops-workflow-copy strong {
-  font-size:14px;
-  line-height:1.35;
-  font-weight:800;
-  color:#1e2026;
-  overflow-wrap:anywhere;
-}
-body .app-shell .main .event-ops-workflow-step.is-active .event-ops-workflow-copy strong {color:#ad1730}
-body .app-shell .main .event-ops-workflow-copy small {
-  font-size:11px;
-  line-height:1.5;
-  color:#626a76;
-  overflow-wrap:anywhere;
-}
-body .app-shell .main .event-ops-workflow-arrow {
-  margin-left:auto;
-  flex-shrink:0;
-}
+body .app-shell .main .event-ops-workflow-step:disabled {opacity:.6;cursor:not-allowed}
 body .app-shell .main .event-ops-page :is(.event-ops-overview,.event-ops-toolbar,.stage-picker,.event-ops-inspection-progress) {
   border-color:#e0e2e7;
   box-shadow:0 9px 26px rgba(17,20,26,.035);
@@ -849,22 +793,10 @@ body .app-shell .main .event-ops-page .resource-editor-page :is(input,select,tex
   font-size:16px;
 }
 @media(max-width:1100px) {
-  body .app-shell .main .event-ops-page .event-ops-workflow {grid-template-columns:1fr}
-  body .app-shell .main .event-ops-workflow-context {
-    border-right:0;
-    border-bottom:3px solid #ed2638;
-    padding:18px 22px;
-  }
-  body .app-shell .main .event-ops-workflow-step {min-height:90px}
+  body .app-shell .main .event-ops-page .event-ops-workflow {grid-template-columns:minmax(0,1fr)}
+  body .app-shell .main .event-ops-workflow-context {border-bottom:1px solid #e7e9ef}
 }
 @media(max-width:760px) {
-  body .app-shell .main .event-ops-page .event-ops-workflow {margin-bottom:14px;border-radius:14px}
-  body .app-shell .main .event-ops-workflow-context {padding:15px 16px}
-  body .app-shell .main .event-ops-workflow-context small {font-size:11px}
-  body .app-shell .main .event-ops-workflow-step {min-height:86px;padding:20px 12px 12px;gap:8px}
-  body .app-shell .main .event-ops-workflow-step>svg {width:17px;height:17px}
-  body .app-shell .main .event-ops-workflow-copy strong {font-size:12px}
-  body .app-shell .main .event-ops-workflow-copy small {font-size:10px}
   body .app-shell .main .event-ops-page .event-ops-results {
     overflow-x:visible!important;
     overflow-y:visible!important;
@@ -894,9 +826,6 @@ body .app-shell .main .event-ops-page .resource-editor-page :is(input,select,tex
   }
 }
 @media(max-width:410px) {
-  body .app-shell .main .event-ops-workflow-copy small {display:none}
-  body .app-shell .main .event-ops-workflow-step {min-height:72px}
-  body .app-shell .main .event-ops-workflow-number {top:5px;right:8px}
   body .app-shell .main .event-ops-page .event-ops-results .data-table tbody td {
     grid-template-columns:minmax(72px,34%) minmax(0,1fr);
     gap:8px;
@@ -992,10 +921,6 @@ body .app-shell .main .content .mail-channel-status.needs-setup {
 
 /* USD EVENT-DAY JUDGING: registered -> inspected -> measured.
    Owned by the white admin shell. Public and member routes are unaffected. */
-body .app-shell .main .event-ops-workflow-steps {grid-template-columns:repeat(3,minmax(0,1fr))}
-body .app-shell .main .event-ops-workflow-step{gap:9px;padding-inline:clamp(10px,1.2vw,18px)}
-body .app-shell .main .event-ops-workflow-copy strong{font-size:clamp(12px,1vw,14px)}
-body .app-shell .main .event-ops-workflow-copy small{font-size:11px}
 body .app-shell .main .content .judging-page{max-width:100%;min-width:0}
 body .app-shell .main .judging-page :is(.judging-stage-picker,.judging-summary,.judging-context,.judging-toolbar,.judging-entry-wizard,.judging-results){box-sizing:border-box;min-width:0;max-width:100%}
 body .app-shell .main .judging-stage-picker{background:#fff;border:1px solid #e2e5eb;border-radius:15px;padding:14px 18px;gap:12px;flex-wrap:wrap}
@@ -1058,14 +983,8 @@ body .app-shell .main .judging-class-warning{display:flex;align-items:flex-start
 @media(max-width:850px){
  body .app-shell .main .judging-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
  body .app-shell .main .judging-roster{grid-template-columns:1fr}
- body .app-shell .main .event-ops-workflow-step{min-height:85px}
 }
 @media(max-width:760px){
- body .app-shell .main .event-ops-workflow-steps{grid-template-columns:repeat(3,minmax(0,1fr))}
- body .app-shell .main .event-ops-workflow-step{flex-direction:column;justify-content:center;gap:5px;min-height:76px;padding:16px 4px 8px;text-align:center}
- body .app-shell .main .event-ops-workflow-copy strong{font-size:clamp(10px,2.8vw,13px);line-height:1.25;text-align:center}
- body .app-shell .main .event-ops-workflow-number{top:4px;right:6px;font-size:9px}
- body .app-shell .main .event-ops-workflow-arrow{display:none}
  body .app-shell .main .judging-toolbar .filter-select{max-width:none;flex:1}
  body .app-shell .main .judging-roster-classes{display:none}
  body .app-shell .main .judging-results .data-table,.app-shell .main .judging-results .data-table tbody{display:block;min-width:0!important;width:100%}
@@ -1817,33 +1736,6 @@ body .app-shell .main .content .event-day-extra-actions {display:contents}
   body .app-shell .main .content .event-ops-page .stage-picker>.filter-select {
     grid-column:1/-1;margin:0!important;
   }
-  /* One compact row instead of three oversized workflow tiles. */
-  body .app-shell .main .content .event-ops-page .event-ops-workflow {
-    margin:0 0 10px;border-radius:13px;
-  }
-  body .app-shell .main .content .event-ops-workflow-context {
-    display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
-    gap:7px;padding:10px 12px;border-bottom:1px solid #e7e9ef;
-  }
-  body .app-shell .main .content .event-ops-workflow-context :is(.event-ops-workflow-kicker,small) {display:none}
-  body .app-shell .main .content .event-ops-workflow-context>strong {
-    flex:1 1 150px;min-width:0;font-size:14px;
-  }
-  body .app-shell .main .content .event-ops-workflow-context>button {
-    min-height:38px;padding:6px 10px;font-size:12px;
-  }
-  body .app-shell .main .content .event-ops-workflow-steps {
-    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-  }
-  body .app-shell .main .content .event-ops-workflow-step {
-    min-height:58px;padding:8px 5px;justify-content:center;border-bottom-width:3px;
-  }
-  body .app-shell .main .content .event-ops-workflow-step>svg,
-  body .app-shell .main .content .event-ops-workflow-number,
-  body .app-shell .main .content .event-ops-workflow-copy small {display:none}
-  body .app-shell .main .content .event-ops-workflow-copy strong {
-    font-size:12px;line-height:1.2;text-align:center;
-  }
   /* Search is earlier in the DOM, immediately following stage navigation. */
   body .app-shell .main .content .event-ops-page .event-ops-search {
     min-height:48px;margin:0 0 11px;padding:2px 10px;gap:7px;
@@ -2191,11 +2083,11 @@ body .app-shell .main .event-ops-page .event-ops-workflow-context-actions{
  min-width:0;
 }
 body .app-shell .main .event-ops-page .event-ops-workflow-context-actions>button{
- flex:1 1 150px;
+ flex:0 1 auto;
  min-width:0;
  min-height:44px;
  white-space:normal;
- padding:9px 10px;
+ padding:5px 8px;
 }
 body .app-shell .main .event-ops-page .event-ops-list-jump{
  border-color:#b4203a;
@@ -2376,7 +2268,6 @@ body .app-shell .main .event-ops-page .event-ops-search>span[role="status"]{
   overflow-wrap:normal;
   font-size:12px;
  }
- body .app-shell .main .event-ops-page .event-ops-workflow-context-actions>button{flex:1 1 125px}
  body .app-shell .main .event-ops-page .event-ops-metrics-drawer>summary{font-size:12px}
 }
 @media(max-width:380px){

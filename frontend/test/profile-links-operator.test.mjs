@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {afterProfileLinkDecision,filterProfileLinkRequests} from '../src/admin/profile-link-operator-model.ts';
+import {afterProfileLinkDecision,filterProfileLinkRequests,nextPendingProfileLink,profileLinkBlockReason} from '../src/admin/profile-link-operator-model.ts';
 
 const requests=[
  {id:'first',status:'PENDING',claimant:{email:'a@example.test'}},
@@ -48,4 +48,18 @@ test('profile-link queue has live find and reset controls',async()=>{
  assert.match(source,/filterProfileLinkRequests\(rows,query\)/);
  assert.match(source,/Сбросить поиск заявок/);
  assert.match(source,/По вашему запросу заявок не найдено/);
+});
+
+test('decision advances to the next pending filtered request, falling back to the preceding pending one',()=>{
+ const rows=[requests[0],{id:'closed',status:'APPROVED'},requests[1]];
+ assert.equal(nextPendingProfileLink(rows,'first')?.id,'second');
+ assert.equal(nextPendingProfileLink(rows,'second')?.id,'first');
+ assert.equal(nextPendingProfileLink(rows.slice(0,2),'first'),undefined);
+});
+
+test('queue explains both occupied sides of a profile link',()=>{
+ assert.equal(profileLinkBlockReason({participant:{},claimant:{}}),null);
+ assert.match(profileLinkBlockReason({participant:{user:{id:'u'}},claimant:{}}),/Профиль уже привязан/);
+ assert.match(profileLinkBlockReason({participant:{},claimant:{participantId:'p'}}),/заявителя уже есть профиль/);
+ assert.match(profileLinkBlockReason({participant:{user:{id:'u'}},claimant:{participantId:'p'}}),/Профиль и аккаунт/);
 });

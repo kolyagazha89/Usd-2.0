@@ -53,3 +53,16 @@ body .app-shell .main .content .config-editor-actions{display:flex;flex-wrap:wra
 body .app-shell .main .content .config-editor-actions button{min-height:44px}
 @media(max-width:900px){body .app-shell .main .content .config-admin-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){body .app-shell .main .content .config-admin-steps{grid-template-columns:minmax(0,1fr)}body .app-shell .main .content .config-editor-actions button{flex:1 1 100%;justify-content:center}}
+
+/* Supplemental content spans the workspace, separate from action buttons. */
+.entity-detail-extra{display:grid;gap:16px;min-width:0;margin:16px 0}
+.entity-detail-extra>.participant-detail-cars{margin:0}
+
+body .app-shell .main .content .media-upload-panel {scroll-margin-top:90px}
+body .app-shell .main .content .media-upload-panel>summary {cursor:pointer;font-weight:750;min-height:28px}
+body .app-shell .main .content .team-team-list>ul {max-height:55dvh;overflow:auto;overscroll-behavior:contain;align-content:start;scrollbar-gutter:stable}
+body .app-shell .main .content .team-archive>ul {max-height:40dvh;overflow:auto;overscroll-behavior:contain}
+body .app-shell .main .content .email-template-list {max-height:50dvh;overflow:auto;overscroll-behavior:contain;align-content:start}
+
+body .app-shell .main .content :is(.record-visibility-panel,.email-template-preview,.settings-field-card)>summary {cursor:pointer;font-weight:750;line-height:1.5;min-height:28px}
+body .app-shell .main .content :is(.record-visibility-panel,.email-template-preview,.settings-field-card)[open]>summary {margin-bottom:12px}

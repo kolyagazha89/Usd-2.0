@@ -1,5 +1,5 @@
 /** Shared client-side ordering/paging for finite resource lists already fetched by ADMIN. */
-export const ADMIN_TABLE_PAGE_SIZES=[25,50,100] as const;
+export const ADMIN_TABLE_PAGE_SIZES=[10,25,50,100] as const;
 export type SortDirection='asc'|'desc';
 function sortableValue(value:unknown):string|number|null{
  if(value===null||value===undefined||value==='')return null;

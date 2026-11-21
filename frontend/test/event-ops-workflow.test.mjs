@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {eventOperationsPath} from '../src/admin/event-operations-path.ts';
 
 const read=p=>readFile(new URL(p,import.meta.url),'utf8');
 
@@ -11,7 +12,7 @@ test('registration and inspection share one stage-aware command desk with preser
   read('../src/admin/InspectionsPage.tsx'),
  ]);
  assert.match(nav,/aria-label="Рабочие разделы этапа"/);
- assert.match(nav,/step\.path\+'\?stageId='\+encodeURIComponent\(stageId\)/);
+ assert.match(nav,/eventOperationsPath\(step.id,stageId,registrationId\)/);
  assert.match(nav,/disabled=\{!stageId\}/,'no navigation without selecting a stage');
  assert.match(nav,/aria-current=\{active\?'page':undefined\}/);
  assert.match(nav,/if\(!active&&stageId\)go/,'current section does not trigger navigation');
@@ -21,6 +22,17 @@ test('registration and inspection share one stage-aware command desk with preser
  assert.match(registrations,/stageName=\{selectedStage\?\.name\}/);
  assert.match(inspections,/stageName=\{stages\.find\(s=>s\.id===stageId\)\?\.name\}/);
  assert.match(inspections,/readOnly=\{period==='PAST'\}/);
+});
+
+test('switching desks retains the exact registration, even where participant numbers repeat',()=>{
+ for(const [section,selection] of [['registrations','view'],['inspections','registrationId'],['results','registrationId']]){
+  const path=new URL(eventOperationsPath(section,'stage/2026','car+registration'),'https://usd.test');
+  assert.equal(path.pathname,'/admin/'+section);
+  assert.equal(path.searchParams.get('stageId'),'stage/2026');
+  assert.equal(path.searchParams.get(selection),'car+registration');
+  assert.equal(path.searchParams.get('entry'),section==='results'?'1':null);
+ }
+ assert.equal(eventOperationsPath('inspections','stage1'),'/admin/inspections?stageId=stage1');
 });
 
 test('both operational lists have independently reachable detail actions and loading semantics',async()=>{

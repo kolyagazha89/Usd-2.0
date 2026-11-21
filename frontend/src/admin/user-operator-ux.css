@@ -24,3 +24,9 @@
  .user-role-confirmation{max-width:100%;box-sizing:border-box}
  .user-role-confirmation-actions button{flex:1 1 120px}
 }
+
+body .app-shell .main .content .users-count-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+body .app-shell .main .content .users-count-summary>div{display:grid;gap:6px;padding:14px;border:1px solid #dce1e8;border-radius:12px;background:#fff;min-width:0}
+body .app-shell .main .content .users-count-summary span{color:#596474;font-size:12px;line-height:1.4}
+body .app-shell .main .content .users-count-summary strong{color:#202630;font-size:26px;font-variant-numeric:tabular-nums}
+@media(max-width:560px){body .app-shell .main .content .users-count-summary{gap:6px}body .app-shell .main .content .users-count-summary>div{padding:10px}body .app-shell .main .content .users-count-summary strong{font-size:22px}}

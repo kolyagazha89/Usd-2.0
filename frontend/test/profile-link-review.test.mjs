@@ -22,7 +22,7 @@ test('admin confirms or rejects profile claims directly without mandatory text o
  assert.match(service,/profile-link:\x27\+requestId/);
  assert.match(service,/participant-claim:/);
  assert.match(service,/claimant-user:/);
- assert.match(view,/row\.participant\.user\|\|row\.claimant\.participantId/);
+ assert.match(view,/profileLinkBlockReason\(row\)/);
 });
 
 test('participant can self-link only on server-approved verified historical-email match',async()=>{

@@ -150,6 +150,11 @@ try{
    const failuresSeen=new Set();
    let registrationCalendarFailures=0;
    const registrationWrites=[];
+   const dashboardCarWrites=[];
+   let profileLinkRows=[
+    {id:'link-1',status:'PENDING',createdAt:stage.date,note:'Документы первого участника',claimant:{id:'u1',email:'first@example.test'},participant},
+    {id:'link-2',status:'PENDING',createdAt:stage.date,note:'Проверить прежнюю привязку',claimant:{id:'u2',email:'second@example.test',participantId:'p3'},participant:{...participant,id:'p2',firstName:'Пётр',lastName:'Петров'}},
+   ];
    await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
     // Tall synthetic artwork intentionally exposes portrait cropping on mobile.
@@ -164,6 +169,17 @@ try{
       registrationWrites.push({method:request.method(),path:url.pathname,body});
       const response=url.pathname==='/auth/protocol-consent'?{accepted:true,legalReady:true,version:'fixture'}:{id:'reg1'};
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(response)});
+     }
+     if(role==='ADMIN'&&request.method()==='POST'&&url.pathname==='/participants/p1/cars'){
+      dashboardCarWrites.push(JSON.parse(request.postData()||'{}'));
+      return route.fulfill({json:{...car,id:'car63'}});
+     }
+     if(role==='ADMIN'&&request.method()==='GET'&&url.pathname==='/admin/profile-links')return route.fulfill({json:profileLinkRows});
+     if(role==='ADMIN'&&request.method()==='PATCH'&&url.pathname==='/admin/profile-links/link-1'){
+      const body=JSON.parse(request.postData()||'{}');
+      if(body.decision!=='APPROVE')return route.fulfill({status:400,json:{message:'Unexpected decision'}});
+      profileLinkRows=profileLinkRows.filter(item=>item.id!=='link-1');
+      return route.fulfill({json:{success:true}});
      }
      if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'&&!(role==='ONBOARDING'&&request.method()==='POST'&&url.pathname==='/auth/profile/historical-candidates')){
       let source='unavailable';try{const frameUrl=new URL(request.frame().url());source=frameUrl.pathname+frameUrl.search}catch{/* keep diagnostics bounded */}blocked.push({method:request.method(),path:url.pathname,source,role,width});return route.abort('blockedbyclient');
@@ -405,7 +421,7 @@ try{
       const brands=page.locator('.vehicle-catalog-brand-list .catalog-manage-row');
       const models=page.locator('.vehicle-catalog-model-list .catalog-manage-row');
       assert.equal(await brands.count(),308,'all seed makes are accessible');
-      assert.equal(await models.count(),60,'large model directory is paginated instead of rendering all 4,347 rows');
+      assert.equal(await models.count(),20,'large model directory is paginated instead of rendering all 4,347 rows');
       const first=brands.first();
       await first.getByRole('button',{name:'Редактировать'}).click();
       await first.getByLabel('Название марки').fill('QA only — unsaved');
@@ -508,14 +524,9 @@ try{
      }
      if(role==='ADMIN'&&route==='/admin/components'){
       const categoryPicker=page.getByRole('combobox',{name:'Категория оборудования'});
-      if(width<=760){
-       assert.ok(await categoryPicker.isVisible(),'all equipment categories are available without horizontal scrolling on phones');
-       await categoryPicker.selectOption('SUBWOOFER');
-       assert.equal(await categoryPicker.inputValue(),'SUBWOOFER','selected mobile equipment category is explicit');
-      }else{
-       assert.equal(await categoryPicker.isVisible(),false,'desktop category tabs remain the main control');
-       await page.getByRole('button',{name:'Сабвуферы',exact:true}).click();
-      }
+      assert.ok(await categoryPicker.isVisible(),'category selection is available at every width');
+      await categoryPicker.selectOption('SUBWOOFER');
+      assert.equal(await categoryPicker.inputValue(),'SUBWOOFER');
       const brands=page.locator('.catalog-two-column .panel').first().locator('.catalog-manage-row');
       assert.equal(await brands.count(),2,'component catalog includes enabled and disabled brands');
       const first=brands.first();
@@ -1102,7 +1113,31 @@ try{
       }
       await page.evaluate(()=>scrollTo(0,0));
      }
+     if(role==='ADMIN'&&route==='/admin'&&[1440,390].includes(width)){
+      await page.getByRole('button',{name:/Добавить автомобиль/}).click();
+      const owner=page.getByRole('combobox',{name:'Владелец автомобиля'});
+      await owner.fill('Тестовый');
+      await page.getByRole('option',{name:/Тестовый Иван/}).click();
+      await page.getByRole('combobox',{name:'Марка',exact:true}).fill('Lada');
+      await page.getByRole('combobox',{name:'Модель',exact:true}).fill('Vesta');
+      await page.getByLabel('Госномер').fill('А123ВС72');
+      await page.getByRole('button',{name:'Создать',exact:true}).click();
+      await page.waitForURL(url=>url.pathname==='/admin/cars'&&url.searchParams.get('carId')==='car63');
+      await page.getByText('Vesta 63',{exact:false}).first().waitFor();
+      assert.equal(dashboardCarWrites.length,1);
+      assert.equal(dashboardCarWrites[0].model,'Vesta');
+      row.dashboardQuickCar='owner lookup, one write and exact car opened';
+      await page.goto(base+route,{waitUntil:'networkidle'});
+     }
      if(role==='ADMIN'&&route==='/admin/profile-links'){
+      const requestTitle=page.locator('#profile-link-review-title');
+      await requestTitle.getByText('Тестовый Иван',{exact:true}).waitFor();
+      await page.locator('.profile-link-row').getByText('У заявителя уже есть профиль').waitFor();
+      await page.getByRole('button',{name:'Подтвердить привязку'}).click();
+      await requestTitle.getByText('Петров Пётр',{exact:true}).waitFor();
+      assert.equal(await page.getByRole('button',{name:'Подтвердить привязку'}).isDisabled(),true);
+      assert.equal(await page.locator('.profile-link-row').count(),1);
+      row.profileLinkQueue='decision removes the reviewed item and opens the next, with its blocker visible';
       const extraTools=page.locator('details.profile-link-advanced-tools');
       assert.equal(await extraTools.getAttribute('open'),null,'advanced tools should be collapsed initially');
       await extraTools.locator('summary').click();
@@ -1164,6 +1199,17 @@ try{
       assert.match(await detail.locator('.resource-editor-heading').innerText(),/007/,'QR retains the correct primary number');
       assert.equal(new URL(page.url()).searchParams.get('registrationId'),'reg1','QR deep link preserves registration ID');
       row.registrationQrInspection='same-origin QR -> stage-specific inspection detail; read-only';
+      const desk=page.getByRole('navigation',{name:'Рабочие разделы этапа'});
+      await desk.getByRole('button',{name:'Регистрации'}).click();
+      await page.waitForURL(url=>url.pathname==='/admin/registrations'&&url.searchParams.get('view')==='reg1');
+      await desk.getByText('Участник № 7').waitFor();
+      await desk.getByRole('button',{name:'Судейство'}).click();
+      await page.waitForURL(url=>url.pathname==='/admin/results'&&url.searchParams.get('registrationId')==='reg1');
+      await page.locator('.judging-entry-wizard').waitFor();
+      await desk.getByRole('button',{name:'Инспекция въезда'}).click();
+      await page.waitForURL(url=>url.pathname==='/admin/inspections'&&url.searchParams.get('stageId')==='stage1'&&url.searchParams.get('registrationId')==='reg1');
+      await detail.getByRole('heading',{name:'Тестовый Иван',exact:true}).waitFor();
+      row.registrationDeskContext='same registration from inspection to registration to judging and back';
       await page.getByRole('button',{name:/Назад/}).first().click();
       assert.equal(new URL(page.url()).searchParams.has('registrationId'),false,'returning to queue clears deep-link selection');
      }
@@ -1445,10 +1491,10 @@ try{
       row.participantSearchRecovery='clear no-match filter, restore participant cards and keyboard focus';
      }
      if(route==='/admin/cars'&&role==='ADMIN'){
-      assert.equal(await page.locator('.data-table tbody tr').count(),25);
+      assert.equal(await page.locator('.data-table tbody tr').count(),10);
       await page.getByRole('button',{name:'Следующая страница автомобилей',exact:true}).click();
-      assert.equal(await page.locator('.data-table tbody tr').count(),25);
-      assert.match(await page.locator('.data-table tbody tr').first().innerText(),/Vesta 26/);
+      assert.equal(await page.locator('.data-table tbody tr').count(),10);
+      assert.match(await page.locator('.data-table tbody tr').first().innerText(),/Vesta 11/);
       await page.getByRole('button',{name:'Предыдущая страница автомобилей',exact:true}).click();
       const carSearch=page.getByRole('searchbox',{name:'Поиск автомобилей'});
       await carSearch.fill('Случайная несуществующая модель USD 999');
@@ -1456,10 +1502,10 @@ try{
       assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').count(),0);
       await page.getByRole('button',{name:'Показать все автомобили'}).click();
       assert.equal(await carSearch.inputValue(),'');
-      assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').count(),25);
+      assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').count(),10);
       assert.equal(await page.locator('.usd-admin-cars-list .data-table tbody tr').first().getAttribute('tabindex'),'0','car card can receive keyboard focus');
-      row.carSearchRecovery='no-match state recovers to all 25 cars with keyboard focusable rows';
-      row.carPagination='25 rows per page; next and previous passed';
+      row.carSearchRecovery='no-match state recovers to all 10 visible cars with keyboard focusable rows';
+      row.carPagination='10 rows per page; next and previous passed';
      }
      if(route==='/participant'&&role==='PARTICIPANT'){
       await page.getByRole('link',{name:'Мои автомобили',exact:true}).click();await page.waitForURL(/tab=cars/);

@@ -1,3 +1,5 @@
+import {AdminListPagination} from './AdminListPagination';
+import {paginateResourceRows} from './admin-table-model';
 import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,useAdminDetail} from './AdminEntityLink';
 import './form-journey.css';
@@ -64,8 +66,7 @@ export function ResultsPage({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
  return <PageFrame className="event-ops-page judging-page" title="Судейство и результаты" subtitle="Третий этап рабочего процесса: допуск, измерения, места и протоколы">
   <StagePicker path={path} go={go} Empty={Empty}>
    {(stageId,stage)=><>
-    <EventOperationsNavigation current="results" stageId={stageId} stageName={stage.name} go={go}/>
-    <ResultsStage key={stageId} stageId={stageId} stage={stage} entryId={entryId} go={go}
+    <ResultsStage key={stageId} stageId={stageId} stage={stage} entryId={stageId===requested.get('stageId')?entryId:''} go={go}
      user={user} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}
      EntityDetailModal={EntityDetailModal} enumLabel={enumLabel}
      displayCarName={displayCarName} displayPersonName={displayPersonName}/>
@@ -85,6 +86,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
  const [saving,setSaving]=useState(false),[deleteTargetId,setDeleteTargetId]=useState(''),[deleteReason,setDeleteReason]=useState('');
  const [classFilter,setClassFilter]=useViewState('results:'+stageId+':class','ALL');
  const [search,setSearch]=useViewState('results:'+stageId+':search','');
+ const [page,setPage]=useViewState('results:'+stageId+':page',1),[pageSize,setPageSize]=useViewState('results:'+stageId+':pageSize',10);
  const handledEntry=useRef('');
  useListScroll('results:'+stageId,editor===null&&detail===null,!loading);
  const load=async()=>{
@@ -153,9 +155,12 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
    (a.sortOrder??999)-(b.sortOrder??999)||String(a.name??'').localeCompare(String(b.name??''),'ru'));
  const filteredResults=results.filter(r=>
   (classFilter==='ALL'||r.registrationClass?.class?.id===classFilter)&&matchesJudgingResult(r,search));
- const selectedRegistration=registrations.find(r=>r.id===editor?.registrationId);
+ const orderedResults=groupJudgingResults(filteredResults).flatMap(group=>group.rows);
+ const pagination=paginateResourceRows(orderedResults,page,pageSize);
+ const selectedRegistration=registrations.find(r=>r.id===(editor?.registrationId??entryId))??detail?.registration;
  const canCreate=registrations.some(r=>canJudgeRegistration(r)&&remainingJudgingClasses(r,results).length>0);
  return <>
+  <EventOperationsNavigation current="results" stageId={stageId} stageName={stage.name} registrationId={selectedRegistration?.id} participantNumber={selectedRegistration?.participantNumber} showListJump={!editor&&!detail} go={go}/>
   <details className="event-ops-metrics-drawer"><summary>Сводка: {stats.admitted} допущены · {stats.remaining} классов без результатов · {stats.entered} внесено</summary><section className="judging-summary" aria-label="Сводка судейства">
    {[
     {key:'registrations',name:'Регистрации',icon:Users,value:stats.registrations},
@@ -188,15 +193,15 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
     <div className="judging-toolbar" role="search" aria-label="Поиск результата">
      <div className="judging-search"><Search size={17} aria-hidden="true"/>
       <input aria-label="Поиск результата" type="search" value={search}
-       onChange={e=>setSearch(e.target.value)} placeholder="№, ФИО, госномер, класс или команда"/>
-      {search&&<button className="judging-result-search-clear" type="button" aria-label="Очистить поиск результатов" title="Очистить поиск" onClick={()=>setSearch('')}><X size={18} aria-hidden="true"/></button>}
+       onChange={e=>{setSearch(e.target.value);setPage(1)}} placeholder="№, ФИО, госномер, класс или команда"/>
+      {search&&<button className="judging-result-search-clear" type="button" aria-label="Очистить поиск результатов" title="Очистить поиск" onClick={()=>{setSearch('');setPage(1)}}><X size={18} aria-hidden="true"/></button>}
      </div>
      <CollapsibleFilters activeCount={Number(classFilter!=='ALL')}><select className="filter-select" aria-label="Фильтр результатов по классу" value={classFilter}
-      onChange={e=>setClassFilter(e.target.value)}>
+      onChange={e=>{setClassFilter(e.target.value);setPage(1)}}>
       <option value="ALL">Все классы</option>
       {classes.map((c:any)=><option key={c.id} value={c.id}>{c.direction?.name?c.direction.name+' · ':''}{c.name}</option>)}
      </select></CollapsibleFilters>
-     {(search.trim()||classFilter!=='ALL')&&<button className="secondary-button compact judging-filter-reset" type="button" aria-label="Сбросить фильтры результатов" onClick={()=>{setSearch('');setClassFilter('ALL')}}>Сбросить фильтры</button>}
+     {(search.trim()||classFilter!=='ALL')&&<button className="secondary-button compact judging-filter-reset" type="button" aria-label="Сбросить фильтры результатов" onClick={()=>{setSearch('');setClassFilter('ALL');setPage(1)}}>Сбросить фильтры</button>}
      <button className="primary-button compact" type="button" disabled={loading||!canCreate} onClick={()=>{
       setEditor({});setEditorError('');setDetail(null);
      }}><Plus size={15}/>Внести результат</button>
@@ -204,16 +209,17 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
       <RefreshCw size={15}/>Обновить</button>
     </div>
     <p className="judging-quick-help" role="status" aria-live="polite">
-     Показано {filteredResults.length} из {results.length} результатов.
+     Найдено {filteredResults.length} из {results.length} результатов.
      {!canCreate&&!loading?' Для нового измерения требуется допуск и класс без внесённого результата.':''}
     </p>
+    {filteredResults.length>10&&<AdminListPagination label="результатов" total={filteredResults.length} page={pagination.page} pageCount={pagination.pageCount} pageSize={pagination.pageSize} onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1)}}/>}
     <div id="event-ops-records" className="panel table-wrap judging-results" aria-busy={loading}>
      {loading?<LoadingPage small/>:!filteredResults.length?
       <Empty text={results.length?'По запросу результаты не найдены':'Измерения пока не внесены'}/>:
       <table className="data-table judging-results-table" aria-label="Протокол результатов этапа">
        <thead><tr><th>Класс</th><th>Участник</th><th>Автомобиль</th><th>Результат</th><th>Место</th><th>Статус</th><th>Действия</th></tr></thead>
-       <tbody>{groupJudgingResults(filteredResults).flatMap(group=>[
-        <tr key={'direction-'+group.id} className="results-direction-row"><td colSpan={7}><strong>{group.name}</strong><span>{group.rows.length} результатов</span></td></tr>,
+       <tbody>{groupJudgingResults(pagination.rows).flatMap(group=>[
+        <tr key={'direction-'+group.id} className="results-direction-row"><td colSpan={7}><strong>{group.name}</strong><span>{group.rows.length} результатов на странице</span></td></tr>,
         ...group.rows.map((row:any)=><tr key={row.id} className="clickable-row" tabIndex={0} aria-label={'Открыть результат: '+participantName(row.registration?.participant)+' · '+String(row.registrationClass?.class?.name??'класс не указан')} onClick={()=>setDetail(row)} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setDetail(row)}}}>
          <td data-label="Класс">{row.registrationClass?.class?.name||'—'}</td>
          <td data-label="Участник"><strong><AdminEntityLink kind="participant" id={row.registration?.participant?.id??row.registration?.participantId}>{participantName(row.registration?.participant)}</AdminEntityLink></strong>

@@ -1,3 +1,4 @@
+import {CatalogWorkspace} from './CatalogWorkspace';
 import CollapsibleFilters from '../CollapsibleFilters';
 import {useCallback,useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,CheckCircle2,CarFront,Pencil,Plus,RefreshCw,Search,Trash2,Upload} from 'lucide-react';
@@ -8,7 +9,7 @@ import {addVehicleBrand,addVehicleModel,archiveVehicleBrand,archiveVehicleModel,
 
 type Editor={kind:'brand'|'model';id:string;name:string;brandId:string};
 type Status='ALL'|'ACTIVE'|'INACTIVE'|'ARCHIVED';
-const PAGE_SIZE=60;
+const PAGE_SIZE=20;
 const displayStatus=(item:{isActive:boolean;isArchived?:boolean})=>item.isArchived?'Удалено (архив)':item.isActive?'Включено':'Отключено';
 
 export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Empty}:{PageFrame:React.ComponentType<any>;PanelTitle:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>}){
@@ -146,7 +147,7 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
     {bulkScope&&<div className="catalog-inline-confirm" role="group"><span>Подтвердить включение {countDisabledVehicles(catalog,bulkScope).total} записей ({bulkScope==='ALL'?'весь справочник':brandNames.get(bulkScope)})?</span><button type="button" className="primary-button compact" disabled={saving} onClick={()=>void activate()}>Подтвердить</button><button type="button" className="secondary-button compact" onClick={()=>setBulkScope(null)}>Отмена</button></div>}
    </section>
    <div className="toolbar catalog-filter-bar"><div className="search-box"><Search size={15}/><input aria-label="Поиск марок и моделей" placeholder="Марка или модель" value={search} onChange={e=>{setSearch(e.target.value);setSelectedBrand('');setPage(1)}}/></div><CollapsibleFilters activeCount={Number(status!=='ALL')}><label className="catalog-filter-label">Статус<select aria-label="Статус записей автомобилей" value={status} onChange={e=>{setStatus(e.target.value as Status);setPage(1)}}><option value="ALL">Все</option><option value="ACTIVE">Включены</option><option value="INACTIVE">Отключены</option><option value="ARCHIVED">Удалённые (архив)</option></select></label></CollapsibleFilters></div>
-   <div className="catalog-two-column">
+   <CatalogWorkspace selection={currentSelection?.name??''} pageKey={actualPage}>
     <section className="panel">
      <PanelTitle title={'Марки · '+brands.length} icon={CarFront}/>
      <form className="catalog-add-row" onSubmit={e=>{e.preventDefault();void mutate((c,o)=>addVehicleBrand(c,o,crypto.randomUUID(),newBrand),'Марка добавлена').then(ok=>{if(ok)setNewBrand('')})}}>
@@ -182,7 +183,7 @@ export default function VehicleCatalogPage({PageFrame,PanelTitle,LoadingPage,Emp
      </div>)}{models.length===0&&<Empty text="Модели не найдены"/>}</div>
      {pageCount>1&&<div className="list-pagination"><span>Страница {actualPage} из {pageCount} · всего {models.length} моделей</span><nav aria-label="Страницы моделей"><button type="button" className="secondary-button compact" disabled={actualPage<=1} onClick={()=>setPage(x=>Math.max(1,Math.min(x,pageCount)-1))}>Назад</button><button type="button" className="secondary-button compact" disabled={actualPage>=pageCount} onClick={()=>setPage(x=>Math.min(pageCount,Math.min(x,pageCount)+1))}>Дальше</button></nav></div>}
     </section>
-   </div>
+   </CatalogWorkspace>
   </>}
  </PageFrame>;
 }

@@ -105,8 +105,8 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
     </label>
     <p className="settings-help">Загрузка не означает юридического утверждения; оно выполняется после проверки содержания.</p>
    </div>
-   <div className="settings-form-grid">{documents.map(doc=>{const current=stored[doc.key];return <div key={doc.key} className="settings-field-card" style={{padding:16,border:'1px solid var(--border,#303036)',borderRadius:12,minWidth:0}}>
-    <strong>{doc.title}</strong><p className="settings-help">{doc.description}</p>
+   <div className="settings-form-grid">{documents.map(doc=>{const current=stored[doc.key];return <details key={doc.key} className="settings-field-card" style={{padding:16,border:'1px solid var(--border,#303036)',borderRadius:12,minWidth:0}}>
+    <summary><strong>{doc.title}</strong> · {current?'Загружен':'Нет файла'}</summary><p className="settings-help">{doc.description}</p>
     {current?<div style={{display:'grid',gap:6,marginBottom:12}}>
      <strong>{current.fileName||doc.filename}</strong>
      <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
@@ -116,7 +116,7 @@ export default function LegalDocumentsPage({PageFrame,PanelTitle,LoadingPage,Err
      <small>Загружен: {current.uploadedAt?new Date(current.uploadedAt).toLocaleString('ru-RU'):'дата не указана'}</small>
     </div>:<p className="settings-help">Файл ещё не загружен.</p>}
     <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}><label className="primary-button compact" style={{cursor:busy?'wait':'pointer',opacity:busy?0.65:1}}>{busy===doc.key?<><Loader2 size={14} className="spin"/>Загружаем…</>:<><UploadCloud size={14}/>{current?'Заменить DOCX':'Загрузить DOCX'}</>}<input hidden type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={Boolean(busy)} onChange={e=>{void upload(doc.key,e.target.files?.[0]);e.currentTarget.value=''}}/></label>{current&&(pendingRemoval===doc.key?<span className="inline-confirm-actions"><span>Убрать ссылку? Файл сохранится в хранилище.</span><button className="danger-button compact" type="button" disabled={Boolean(busy)} onClick={()=>void remove(doc.key)}>Подтвердить</button><button className="secondary-button compact" type="button" onClick={()=>setPendingRemoval(null)}>Отмена</button></span>:<button className="secondary-button" type="button" disabled={Boolean(busy)} onClick={()=>setPendingRemoval(doc.key)}>Убрать ссылку</button>)}</div>
-   </div>})}</div>
+   </details>})}</div>
    {preview&&<section className="settings-field-card" aria-label="Предпросмотр документа Word" style={{padding:20,marginTop:18,maxHeight:650,overflow:'auto'}}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,marginBottom:12}}>
      <h3>Предпросмотр: {documents.find(doc=>doc.key===preview.key)?.title}</h3>

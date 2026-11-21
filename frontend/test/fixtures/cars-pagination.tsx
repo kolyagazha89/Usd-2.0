@@ -14,6 +14,7 @@ export async function runCarsPagination(){
  state.__getPublic=async(path:string)=>path==='/cars?visibility=active'?cars:[];
  history.replaceState({},'','/admin/cars');
  sessionStorage.setItem('usd:view:cars:page','2');
+ sessionStorage.setItem('usd:view:cars:pageSize','25');
  const root=createRoot(document.getElementById('root')!);
  try{
   await act(async()=>root.render(<App/>));await flush();
