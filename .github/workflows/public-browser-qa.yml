@@ -61,7 +61,7 @@ jobs:
         run: node scripts/stage-actions-browser-qa.mjs
       - name: Test isolated public-read verification without network
         if: matrix.suite == 'core-desktop'
-        run: node --test scripts/public-browser-read-recheck.test.mjs
+        run: node --test scripts/public-browser-read-recheck.test.mjs scripts/public-browser-qa-shell.test.mjs
       - name: Validate safe online exact-SHA release probe without network
         if: matrix.suite == 'core-desktop'
         run: node --test scripts/online-release-preflight.test.mjs
@@ -122,33 +122,6 @@ jobs:
             stage-actions-browser-qa/
             admin-navigation-browser-qa/
             admin-drawer-swipe-browser-qa/
-          retention-days: 7
-
-  # A slow or unavailable prerelease host must leave the independently tested
-  # candidate result and artifacts available for review.
-  live-public-layout:
-    runs-on: ubuntu-latest
-    # The pinned image bundles Chromium and its OS libraries; apt mirrors are not required.
-    container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
-    timeout-minutes: 15
-    env:
-      USD_BROWSER_TOOLING: /tmp/usd-browser-tooling
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install isolated browser tooling
-        run: npm install --prefix "$USD_BROWSER_TOOLING" --no-save --no-package-lock playwright@1.64.1
-      - name: Check deployed anonymous pages at desktop and mobile widths
-        run: node scripts/public-browser-qa.mjs
-      - name: Save live screenshots and structured report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: public-browser-qa-${{ github.run_attempt }}
-          path: public-browser-qa/
           retention-days: 7
 
   candidate-accessibility:

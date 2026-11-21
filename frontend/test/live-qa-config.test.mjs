@@ -41,3 +41,9 @@ test('candidate CSS preview is explicitly enabled and labelled',()=>{
 test('ambiguous preview settings fail instead of silently changing acceptance scope',()=>{
  for(const value of ['true','yes','0']) assert.throws(()=>getLiveQaConfig({USD_QA_CANDIDATE_CSS:value}),/USD_QA_CANDIDATE_CSS/);
 });
+
+test('live browser matrix retains both widths and permits one per worker',()=>{
+ assert.deepEqual(getLiveQaConfig({}).widths,[1440,390]);
+ for(const width of [1440,390])assert.deepEqual(getLiveQaConfig({USD_LIVE_QA_WIDTH:String(width)}).widths,[width]);
+ assert.throws(()=>getLiveQaConfig({USD_LIVE_QA_WIDTH:'1024'}),/USD_LIVE_QA_WIDTH/);
+});

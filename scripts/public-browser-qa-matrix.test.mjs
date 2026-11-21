@@ -16,7 +16,7 @@ test('full candidate browser QA is parallelized into four safe independent shard
 });
 
 test('every original browser QA and offline boundary step remains exactly once and has its shard gate', () => {
-  const part = workflow.split('  live-public-layout:')[0];
+  const part = workflow.split('  candidate-accessibility:')[0];
   const scripts = {
     'core-desktop': [
       'admin-drawer-swipe-browser-qa.mjs',
@@ -91,4 +91,16 @@ test('team directory and season comparison are tested as separate, accessible sc
   const measurementPattern=new RegExp(measurementAssertion[1]);
   assert.match('30.500 м/с',measurementPattern,'the browser QA regex must accept actual MPS result');
   assert.doesNotMatch('30x500 м/с',measurementPattern,'decimal separator must be treated literally');
+});
+
+test('candidate checks authorize the exact main SHA and deployed browser checks follow a confirmed release',()=>{
+  const live=readFileSync(path.join(root,'.github/workflows/deployed-public-browser-qa.yml'),'utf8');
+  assert.match(workflow,/push:\n    branches: \[main\]/);
+  assert.match(workflow,/candidate-accessibility:/);
+  assert.doesNotMatch(workflow,/live-public-layout:|run: node scripts\/public-browser-qa\.mjs/);
+  assert.match(live,/workflows: \[Request USD home-PC deploy after images and main checks\]/);
+  assert.match(live,/workflow_run\.conclusion == 'success'/);
+  assert.match(live,/width: \[1440, 390\]/);
+  assert.match(live,/run: node scripts\/public-browser-qa\.mjs/);
+  assert.doesNotMatch(live,/continue-on-error|self-hosted/);
 });
