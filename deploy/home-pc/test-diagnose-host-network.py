@@ -36,7 +36,7 @@ class HostNetworkTests(unittest.TestCase):
                 self.assertIsNone(result['http_status'])
                 self.assertNotIn('secret', json.dumps(result))
         with patch.object(probe, 'command', return_value=(0, '401')):
-            self.assertEqual(probe.probe_http(probe.TARGETS[1])['result'], 'reachable')
+            self.assertEqual(probe.probe_http(next(target for target in probe.TARGETS if target[0] == 'ghcr_https'))['result'], 'reachable')
 
     def test_timeout_and_os_error_do_not_leak_exception_details(self):
         for error, expected in ((subprocess.TimeoutExpired('secret', 15), 28), (OSError('secret'), 127)):
@@ -86,6 +86,32 @@ class HostNetworkTests(unittest.TestCase):
         self.assertIn("github.ref == 'refs/heads/main'", workflow)
         self.assertIn('github.event.workflow_run.head_repository.full_name == github.repository', workflow)
         self.assertIn("vars.USD_HOME_PC_HOST_APPROVED == 'true'", workflow)
+
+    def test_journal_can_find_original_attempt_after_quarantine(self):
+        candidate, original, unrelated = 'a' * 40, 'b' * 32, 'c' * 32
+        def entry(ident, message):
+            return json.dumps({'_SYSTEMD_INVOCATION_ID': ident, 'MESSAGE': message})
+        output = '\n'.join([
+            entry(unrelated, 'CRITICAL: ignored unrelated sensitive details'),
+            entry(original, 'Images already available for ' + candidate),
+            entry(original, 'Public primary-domain acceptance failed: Public frontend asset secret-url'),
+            entry(original, 'Public prerelease acceptance failed; rolling back application images'),
+            entry(original, 'Previous API/frontend passed readiness after rollback'),
+        ])
+        attempt = {'reason': 'QUARANTINED', 'candidate': candidate, 'invocation': 'd' * 32}
+        with patch.object(probe, 'command', return_value=(0, output)) as run:
+            result = probe.probe_release_journal(attempt)
+        self.assertEqual(result['events'], ['FRONTEND_ASSET_FAILED', 'PUBLIC_ACCEPTANCE_FAILED', 'ROLLBACK_READY'])
+        self.assertNotIn('secret', json.dumps(result))
+        self.assertEqual(run.call_args.args[0][0], '/usr/bin/journalctl')
+
+    def test_inaccessible_journal_is_reported_without_escalating(self):
+        attempt = {'reason': 'RELEASE_FAILED', 'candidate': 'a' * 40, 'invocation': 'b' * 32}
+        with patch.object(probe, 'command', return_value=(1, 'secret')) as run:
+            result = probe.probe_release_journal(attempt)
+        self.assertEqual(result['result'], 'unavailable_or_no_matching_events')
+        self.assertEqual(result['events'], [])
+        self.assertNotIn('sudo', run.call_args.args[0])
 
     def test_public_reason_codes_match_existing_root_protocol(self):
         status_spec = importlib.util.spec_from_file_location('root_status', Path(__file__).with_name('deploy-status.py'))
