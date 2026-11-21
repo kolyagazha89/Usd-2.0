@@ -38,7 +38,7 @@ jobs:
           set -Eeuo pipefail
           python3 - <<'PY'
           #!/usr/bin/env python3
-          """Bounded public-network evidence; no deployment or private host reads."""
+          """Bounded diagnostics using only existing unprivileged runner access."""
           import concurrent.futures
           import hashlib
           import json
@@ -49,12 +49,15 @@ jobs:
           import subprocess
 
           TARGETS = (
+              ('frontend_release_https', 'https://app.usd-russia.ru/usd-release.json', (200,)),
+              ('api_release_https', 'https://api.usd-russia.ru/release', (200,)),
               ('github_https', 'https://github.com/kolyagazha89/Usd-2.0', (200,)),
               ('ghcr_https', 'https://ghcr.io/v2/', (200, 401)),
               ('sigstore_trust_https', 'https://tuf-repo-cdn.sigstore.dev/timestamp.json', (200,)),
           )
           EXPECTED_COSIGN = '4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71'
           SHA = re.compile(r'[a-f0-9]{40}')
+          INVOCATION = re.compile(r'[a-f0-9]{32}')
           REASONS = {
               **dict.fromkeys(('STARTING', 'FETCHING_SOURCE', 'ACQUIRING_IMAGES', 'CHECKING_POLICY', 'CHECKING_CI',
                                'BACKING_UP', 'CHECKING_MIGRATIONS', 'RESTORING_BACKUP', 'APPLYING_MIGRATIONS', 'RELEASING'), 'running'),
@@ -145,20 +148,83 @@ jobs:
                                    and value.get('completed') == value['candidate']
                                    or value['phase'] != 'succeeded' and value.get('completed') is None)):
                           # Explicit projection: never print extra fields, raw errors or environment.
-                          return {'probe': 'public_deploy_status', **{key: value.get(key) for key in
-                                  ('phase', 'reason', 'candidate', 'completed', 'updated_at')}}
+                          result = {'probe': 'public_deploy_status', **{key: value.get(key) for key in
+                                    ('phase', 'reason', 'candidate', 'completed', 'updated_at')}}
+                          invocation = value.get('attempt')
+                          if isinstance(invocation, str) and INVOCATION.fullmatch(invocation):
+                              result['invocation'] = invocation
+                          return result
                   except (ValueError, TypeError):
                       pass
               return {'probe': 'public_deploy_status', 'result': 'unavailable'}
 
 
+          # Only these fixed labels can leave the runner. Journal text itself may
+          # contain confidential operational details.
+          RELEASE_EVENTS = (
+              ('Public primary-domain acceptance failed: Public frontend revision', 'FRONTEND_SHA_MISMATCH'),
+              ('Public primary-domain acceptance failed: Public API revision', 'API_SHA_MISMATCH'),
+              ('Public primary-domain acceptance failed: Public frontend route', 'FRONTEND_ROUTE_FAILED'),
+              ('Public primary-domain acceptance failed: Public frontend asset', 'FRONTEND_ASSET_FAILED'),
+              ('Public primary-domain acceptance failed: Public frontend does not contain', 'FRONTEND_ENTRYPOINT_FAILED'),
+              ('Public primary-domain acceptance failed: Private API route', 'PRIVATE_ROUTE_CHECK_FAILED'),
+              ('Public primary-domain acceptance failed: Public ', 'PUBLIC_DATA_CHECK_FAILED'),
+              ('Public primary-domain acceptance failed:', 'PUBLIC_HTTPS_CHECK_FAILED'),
+              ('Public prerelease acceptance failed;', 'PUBLIC_ACCEPTANCE_FAILED'),
+              ('Production DB became unhealthy during release', 'DATABASE_HEALTH_FAILED'),
+              ('Database container changed unexpectedly', 'DATABASE_IDENTITY_MISMATCH'),
+              ('New API/frontend failed readiness checks', 'APP_READINESS_FAILED'),
+              ('New API/frontend image tags do not match', 'IMAGE_IDENTITY_MISMATCH'),
+              ('Previous API/frontend passed readiness after rollback', 'ROLLBACK_READY'),
+              ('Release failed (exit ', 'ROLLBACK_STARTED'),
+              ('CRITICAL:', 'CRITICAL_ROLLBACK_ERROR'),
+          )
+
+
+          def release_events(output, candidate, invocation):
+              matched = set()
+              entries = []
+              for line in output.splitlines():
+                  try:
+                      row = json.loads(line)
+                  except ValueError:
+                      continue
+                  if not isinstance(row, dict):
+                      continue
+                  ident, message = row.get('_SYSTEMD_INVOCATION_ID'), row.get('MESSAGE')
+                  if not isinstance(ident, str) or not INVOCATION.fullmatch(ident) or not isinstance(message, str):
+                      continue
+                  if ident == invocation or message == 'Images already available for ' + candidate:
+                      matched.add(ident)
+                  entries.append((ident, message))
+              return list(dict.fromkeys(
+                  event for ident, message in entries if ident in matched
+                  for event in [next((label for prefix, label in RELEASE_EVENTS if message.startswith(prefix)), None)]
+                  if event is not None
+              ))
+
+
+          def probe_release_journal(attempt):
+              result = {'probe': 'release_journal', 'result': 'no_failed_release', 'events': []}
+              candidate = attempt.get('candidate')
+              if attempt.get('reason') not in ('RELEASE_FAILED', 'QUARANTINED') or not isinstance(candidate, str) or not SHA.fullmatch(candidate):
+                  return result
+              code, output = command(['/usr/bin/journalctl', '--unit=usd-auto-deploy.service',
+                                      '--since=-12h', '--lines=500', '--output=json', '--no-pager', '--quiet'])
+              events = release_events(output, candidate, attempt.get('invocation')) if code == 0 else []
+              return {**result, 'result': 'matched' if events else 'unavailable_or_no_matching_events', 'events': events}
+
+
           def diagnose():
-              with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+              with concurrent.futures.ThreadPoolExecutor(max_workers=len(TARGETS) + 1) as pool:
                   futures = [pool.submit(probe_http, target) for target in TARGETS]
                   futures.append(pool.submit(probe_source))
                   network = [future.result() for future in futures]
-              return {'scope': 'unprivileged_runner_public_network_only', 'network': network,
-                      'tools': probe_tools(), 'attempt': probe_status(),
+              attempt = probe_status()
+              journal = probe_release_journal(attempt)
+              attempt.pop('invocation', None)
+              return {'scope': 'unprivileged_runner_network_and_release_categories', 'network': network,
+                      'tools': probe_tools(), 'attempt': attempt, 'release_journal': journal,
                       'acceptance': 'diagnostic_only_not_signature_or_deployment_acceptance'}
 
 
