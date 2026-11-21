@@ -66,8 +66,7 @@ export function ResultsPage({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
  return <PageFrame className="event-ops-page judging-page" title="Судейство и результаты" subtitle="Третий этап рабочего процесса: допуск, измерения, места и протоколы">
   <StagePicker path={path} go={go} Empty={Empty}>
    {(stageId,stage)=><>
-    <EventOperationsNavigation current="results" stageId={stageId} stageName={stage.name} go={go}/>
-    <ResultsStage key={stageId} stageId={stageId} stage={stage} entryId={entryId} go={go}
+    <ResultsStage key={stageId} stageId={stageId} stage={stage} entryId={stageId===requested.get('stageId')?entryId:''} go={go}
      user={user} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}
      EntityDetailModal={EntityDetailModal} enumLabel={enumLabel}
      displayCarName={displayCarName} displayPersonName={displayPersonName}/>
@@ -158,9 +157,10 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
   (classFilter==='ALL'||r.registrationClass?.class?.id===classFilter)&&matchesJudgingResult(r,search));
  const orderedResults=groupJudgingResults(filteredResults).flatMap(group=>group.rows);
  const pagination=paginateResourceRows(orderedResults,page,pageSize);
- const selectedRegistration=registrations.find(r=>r.id===editor?.registrationId);
+ const selectedRegistration=registrations.find(r=>r.id===(editor?.registrationId??entryId))??detail?.registration;
  const canCreate=registrations.some(r=>canJudgeRegistration(r)&&remainingJudgingClasses(r,results).length>0);
  return <>
+  <EventOperationsNavigation current="results" stageId={stageId} stageName={stage.name} registrationId={selectedRegistration?.id} participantNumber={selectedRegistration?.participantNumber} showListJump={!editor&&!detail} go={go}/>
   <details className="event-ops-metrics-drawer"><summary>Сводка: {stats.admitted} допущены · {stats.remaining} классов без результатов · {stats.entered} внесено</summary><section className="judging-summary" aria-label="Сводка судейства">
    {[
     {key:'registrations',name:'Регистрации',icon:Users,value:stats.registrations},

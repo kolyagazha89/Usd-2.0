@@ -1,49 +1,39 @@
 import {AdminEntityLink} from './AdminEntityLink';
+import {eventOperationsPath,type OperationsSection} from './event-operations-path';
 import {jumpToEventOpsRecords} from './event-ops-scroll';
-import {ArrowUpRight,ClipboardCheck,Trophy,Users} from 'lucide-react';
-
-type OperationsSection = 'registrations' | 'inspections' | 'results';
 
 const sections = [
-  {id:'registrations' as const,number:'01',title:'Регистрации',description:'Участники, автомобили и классы',icon:Users,path:'/admin/registrations'},
-  {id:'inspections' as const,number:'02',title:'Инспекция въезда',description:'Проверка и список допущенных',icon:ClipboardCheck,path:'/admin/inspections'},
-  {id:'results' as const,number:'03',title:'Судейство',description:'Измерения и протокол',icon:Trophy,path:'/admin/results'},
-];
+ {id:'registrations',title:'Регистрации'},
+ {id:'inspections',title:'Инспекция',label:'Инспекция въезда'},
+ {id:'results',title:'Судейство'},
+] as const;
 
-/**
- * Stage-specific workflow navigation shared by all three event-day desks.
- * This is navigation only: changing steps never changes registration or
- * inspection data. Stage ID stays in the route when switching desks.
- */
-export function EventOperationsNavigation({current,stageId,stageName,go}:{
-  current:OperationsSection;
-  stageId:string;
-  stageName?:string;
-  go:(path:string)=>void;
+export function EventOperationsNavigation({current,stageId,stageName,registrationId,participantNumber,showListJump=true,go}:{
+ current:OperationsSection;
+ stageId:string;
+ stageName?:string;
+ registrationId?:string;
+ participantNumber?:number|string;
+ showListJump?:boolean;
+ go:(path:string)=>void;
 }){
  return <nav className="event-ops-workflow" aria-label="Рабочие разделы этапа">
   <div className="event-ops-workflow-context">
-   <span className="event-ops-workflow-kicker">USD · ДЕНЬ СОРЕВНОВАНИЙ</span>
    <strong><AdminEntityLink kind="stage" id={stageId}>{stageId?(stageName||'Выбранный этап'):'Сначала выберите этап'}</AdminEntityLink></strong>
-   <small>Одна площадка · три связанных рабочих раздела</small>
+   {participantNumber!=null&&<span className="event-ops-workflow-number-label">Участник № {participantNumber}</span>}
    {stageId&&<div className="event-ops-workflow-context-actions">
-    <button type="button" className="secondary-button compact event-ops-list-jump" onClick={()=>jumpToEventOpsRecords()}>↓ К списку</button>
-    <button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))}>Все участники и допуски</button>
+    {showListJump&&<button type="button" className="secondary-button compact event-ops-list-jump" onClick={()=>jumpToEventOpsRecords()}>К списку</button>}
+    <button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))} aria-label="Все участники и допуски">Участники и допуски</button>
    </div>}
   </div>
   <div className="event-ops-workflow-steps">
    {sections.map(step=>{
     const active=step.id===current;
-    const Icon=step.icon;
     return <button key={step.id} type="button"
      className={'event-ops-workflow-step'+(active?' is-active':'')}
-     aria-current={active?'page':undefined} aria-label={step.title}
-     disabled={!stageId}
-     onClick={()=>{if(!active&&stageId)go(step.path+'?stageId='+encodeURIComponent(stageId))}}>
-     <span className="event-ops-workflow-number">{step.number}</span>
-     <Icon size={19} aria-hidden="true"/>
-     <span className="event-ops-workflow-copy"><strong>{step.title}</strong><small>{step.description}</small></span>
-     {!active&&<ArrowUpRight size={16} className="event-ops-workflow-arrow" aria-hidden="true"/>}
+     aria-current={active?'page':undefined} aria-label={'label' in step?step.label:step.title} disabled={!stageId}
+     onClick={()=>{if(!active&&stageId)go(eventOperationsPath(step.id,stageId,registrationId))}}>
+     {step.title}
     </button>;
    })}
   </div>

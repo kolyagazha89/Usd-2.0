@@ -93,3 +93,22 @@
  .profile-link-filters label:first-child{flex:1 1 100%;min-width:0}
  .profile-link-filters input[type="search"]{width:100%;min-width:0}
 }
+
+.profile-link-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:14px}
+.profile-link-list{gap:8px;min-width:0}
+.profile-link-list ul{display:grid;gap:4px;list-style:none;margin:0;padding:0}
+.profile-link-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:46px;padding:6px 10px;text-align:left;background:#fff;border:1px solid #dce2e9;border-radius:9px;color:#263348}
+.profile-link-row[aria-pressed="true"]{border-color:#a9213b;background:#fff5f7}
+.profile-link-row span{min-width:0;overflow-wrap:anywhere;font-size:12px}
+.profile-link-row span:first-child{flex:1}
+.profile-link-row span:last-child{max-width:44%}
+.profile-link-row strong,.profile-link-row small{display:block}
+.profile-link-row small{color:#54647a}
+.profile-link-workspace .profile-link-card{display:grid;gap:8px}
+.profile-link-workspace .profile-link-actions{width:auto}
+.profile-link-workspace .profile-link-blocked{color:#9d2039;font-weight:650}
+.profile-link-workspace h3{scroll-margin-top:100px}
+@media(max-width:850px){
+ .profile-link-workspace{grid-template-columns:minmax(0,1fr)}
+ .profile-link-workspace .profile-link-list ul{max-height:212px;overflow:auto}
+}

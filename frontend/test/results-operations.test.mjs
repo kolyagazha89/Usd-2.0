@@ -65,8 +65,7 @@ test('connected 3-step desk, role checks and mobile CSS are kept',async()=>{
   .map(p=>readFile(new URL(p,dir),'utf8')));
  const [nav,page,inspection,css,routes]=files;
  assert.match(nav,/id:'results'/);
- assert.match(nav,/Одна площадка · три связанных рабочих раздела/);
- assert.match(nav,/step\.path\+'\?stageId='\+encodeURIComponent\(stageId\)/);
+ assert.match(nav,/eventOperationsPath\(step.id,stageId,registrationId\)/);
  assert.match(page,/EventOperationsNavigation current="results"/);
  assert.match(page,/judgingResultLink\(stageId/);
  assert.match(page,/remainingJudgingClasses\(/);

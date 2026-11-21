@@ -1,8 +1,10 @@
 import {AdminEntityLink} from './AdminEntityLink';
 import './profile-links.css';
 import DuplicateProfilesPreview from './DuplicateProfilesPreview';
-import {afterProfileLinkDecision,filterProfileLinkRequests} from './profile-link-operator-model';
-import {useEffect,useState} from 'react';
+import {afterProfileLinkDecision,filterProfileLinkRequests,nextPendingProfileLink,profileLinkBlockReason} from './profile-link-operator-model';
+import {AdminListPagination} from './AdminListPagination';
+import {paginateResourceRows} from './admin-table-model';
+import {useEffect,useRef,useState} from 'react';
 import {apiGet,apiPatch,apiPost} from '../api';
 
 type Coverage={
@@ -36,6 +38,17 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
  const [diagnoses,setDiagnoses]=useState<Record<string,string>>({}),[diagnosing,setDiagnosing]=useState<string|null>(null);
  const [advancedVisited,setAdvancedVisited]=useState(false);
  const [reviewNotice,setReviewNotice]=useState(''),[query,setQuery]=useState('');
+ const [selectedId,setSelectedId]=useState(''),[page,setPage]=useState(1),[pageSize,setPageSize]=useState(10);
+ const requestId=useRef(0);
+ const focusReview=useRef(false),reviewHeading=useRef<HTMLHeadingElement>(null),queueHeading=useRef<HTMLHeadingElement>(null);
+ const visibleRows=filterProfileLinkRequests(rows,query);
+ const pagination=paginateResourceRows(visibleRows,page,pageSize);
+ const selected=visibleRows.find(row=>row.id===selectedId)??(status==='PENDING'?pagination.rows[0]:undefined);
+ const blocked=selected?profileLinkBlockReason(selected):null;
+ const nameOf=(row:LinkRequest)=>[row.participant.lastName,row.participant.firstName,row.participant.middleName].filter(Boolean).join(' ');
+ useEffect(()=>{
+  if(focusReview.current){(reviewHeading.current??queueHeading.current)?.focus();focusReview.current=false}
+ },[selected?.id,reviewNotice]);
  const loadCoverage=async()=>{try{setCoverageError('');setCoverage(await apiGet<Coverage>('/admin/profile-links/coverage'))}catch(e){setCoverageError(e instanceof Error?e.message:'Статистика архивных email недоступна')}};
  useEffect(()=>{if(advancedVisited)void loadCoverage()},[advancedVisited]);
  const reconcileEmails=async(apply:boolean)=>{
@@ -46,8 +59,17 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
   finally{setEmailBusy(false)}
  };
 
- const load=async()=>{setLoading(true);setError('');try{const data=await apiGet<any>('/admin/profile-links'+(status?'?status='+encodeURIComponent(status):''));setRows(Array.isArray(data)?data:data?.data??[])}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить заявки')}finally{setLoading(false)}};
- useEffect(()=>{void load()},[status]);
+ const load=async(quiet=false)=>{
+  const request=++requestId.current;
+  if(!quiet)setLoading(true);
+  setError('');
+  try{
+   const data=await apiGet<any>('/admin/profile-links'+(status?'?status='+encodeURIComponent(status):''));
+   if(request===requestId.current)setRows(Array.isArray(data)?data:data?.data??[]);
+  }catch(e){if(request===requestId.current)setError(e instanceof Error?e.message:'Не удалось загрузить заявки')}
+  finally{if(request===requestId.current)setLoading(false)}
+ };
+ useEffect(()=>{void load();return()=>{requestId.current++}},[status]);
  const diagnose=async(row:LinkRequest)=>{
   if(diagnosing)return;
   setDiagnosing(row.id);setError('');
@@ -58,49 +80,68 @@ function ProfileLinksPage({PageFrame,LoadingPage,ErrorPanel}:{PageFrame:React.Co
   finally{setDiagnosing(null)}
  };
  const review=async(row:LinkRequest,decision:'APPROVE'|'REJECT')=>{
-  if(busy)return;
-  if(decision==='APPROVE'&&(row.participant.user||row.claimant.participantId)){
+  if(busy||loading||row.status!=='PENDING')return;
+  if(decision==='APPROVE'&&profileLinkBlockReason(row)){
    setError('Привязка заблокирована: профиль или аккаунт уже занят. Обновите список.');return;
   }
   setBusy(true);setError('');setReviewNotice('');
   try{
    await apiPatch('/admin/profile-links/'+encodeURIComponent(row.id),{decision});
+   const next=nextPendingProfileLink(visibleRows,row.id);
+   const remaining=afterProfileLinkDecision(visibleRows,row.id,decision,status);
    setRows(current=>afterProfileLinkDecision(current,row.id,decision,status));
+   if(next){
+    setPage(Math.floor(remaining.findIndex(item=>item.id===next.id)/pagination.pageSize)+1);
+    setSelectedId(next.id);
+   }else{setSelectedId('')}
+   focusReview.current=true;
    if(decision==='APPROVE')setReviewNotice('Привязка подтверждена');
    else setReviewNotice('Заявка отклонена');
-   await load();
+   await load(true);
   }catch(e){setError(e instanceof Error?e.message:'Не удалось обработать заявку')}finally{setBusy(false)}
  };
- const visibleRows=filterProfileLinkRequests(rows,query);
  return <PageFrame title="Привязка профилей" subtitle="Заявки на восстановление исторических профилей. Привязка только после проверки владения администратором.">
   <section className="profile-link-work-queue" aria-label="Заявки на привязку профилей">
-   <header className="profile-link-queue-heading"><div><h2>Заявки на привязку</h2><p>Сначала разберите заявки участников. Проверка архивных email и объединение дублей доступны ниже отдельно.</p></div>{status==='PENDING'&&!loading&&<span className="profile-link-pending-count" role="status">{rows.length} ожидают решения</span>}</header>
-  <div className="profile-link-filters"><label>Поиск заявок<input type="search" aria-label="Поиск заявок по ФИО или email" placeholder="ФИО, email, заметка…" value={query} onChange={e=>setQuery(e.target.value)}/></label><label>Статус
-   <select value={status} onChange={e=>{setStatus(e.target.value);setError('');setReviewNotice('')}}>
+   <header className="profile-link-queue-heading"><div><h2 ref={queueHeading} tabIndex={-1}>Заявки на привязку</h2></div>{status==='PENDING'&&!loading&&<span className="profile-link-pending-count" role="status">{rows.length} ожидают решения</span>}</header>
+  <div className="profile-link-filters"><label>Поиск заявок<input type="search" aria-label="Поиск заявок по ФИО или email" placeholder="ФИО, email, заметка…" value={query} disabled={busy} onChange={e=>{setQuery(e.target.value);setSelectedId('');setPage(1)}}/></label><label>Статус
+   <select value={status} disabled={busy} onChange={e=>{requestId.current++;setRows([]);setLoading(true);setStatus(e.target.value);setError('');setReviewNotice('');setSelectedId('');setPage(1)}}>
     <option value="">Все</option>{Object.entries(statusText).map(([value,label])=><option key={value} value={value}>{label}</option>)}
-   </select></label>{query&&<button type="button" className="secondary-button compact" aria-label="Сбросить поиск заявок" onClick={()=>setQuery('')}>Очистить</button>}<button type="button" onClick={()=>void load()} disabled={loading||busy}>Обновить</button></div>
+   </select></label>{query&&<button type="button" className="secondary-button compact" aria-label="Сбросить поиск заявок" disabled={busy} onClick={()=>{setQuery('');setSelectedId('');setPage(1)}}>Очистить</button>}<button type="button" onClick={()=>void load()} disabled={loading||busy}>Обновить</button></div>
   {reviewNotice&&<p className="profile-link-review-notice" role="status">{reviewNotice}</p>}
   {error&&<div className="form-error" role="alert">{error}</div>}
-  {loading?<LoadingPage/>:visibleRows.length===0?<p className="muted">{query?'По вашему запросу заявок не найдено':'Заявок с выбранным статусом нет.'}</p>:<div className="profile-link-list">{visibleRows.map(row=><article className="profile-link-card" key={row.id}>
-   <div><small>{statusText[row.status]??row.status} · {new Date(row.createdAt).toLocaleString('ru-RU')}</small>
-    <h3><AdminEntityLink kind="participant" id={row.participant.id}>{[row.participant.lastName,row.participant.firstName,row.participant.middleName].filter(Boolean).join(' ')}</AdminEntityLink></h3>
-    <p>Аккаунт заявителя: <strong>{row.claimant.email}</strong></p>
-    <p>Сведения для проверки: {row.note}</p>
-    {row.legacyEmailStatus&&<p className="muted" role="status"><strong>Проверка email:</strong> {legacyStatusText[row.legacyEmailStatus]}</p>}
-    <button type="button" onClick={()=>void diagnose(row)} disabled={!!diagnosing||busy} aria-label="Проверить возможность самостоятельной привязки по архивной почте">{diagnosing===row.id?'Проверяем…':'Проверить историческую привязку'}</button>
-    {diagnoses[row.id]&&<p className="muted" role="status"><strong>Диагностика:</strong> {diagnoses[row.id]}</p>}
-    {row.participant.user&&<p role="alert">Профиль уже привязан к аккаунту. Не подтверждайте без расследования.</p>}
-    {row.claimant.participantId&&<p role="alert">У заявителя уже есть профиль. Привязка запрещена.</p>}
-    {row.decisionReason&&<p>Решение: {row.decisionReason}</p>}
+  {loading?<LoadingPage/>:visibleRows.length===0?<p className="muted">{query?'По вашему запросу заявок не найдено':'Заявок с выбранным статусом нет.'}</p>:<div className="profile-link-workspace">
+   <div className="profile-link-list">
+    {visibleRows.length>10&&<AdminListPagination label="заявок" total={visibleRows.length} page={pagination.page} pageCount={pagination.pageCount} pageSize={pagination.pageSize} onPageChange={next=>{if(!busy){setPage(next);setSelectedId('')}}} onPageSizeChange={size=>{if(!busy){setPageSize(size);setPage(1);setSelectedId('')}}}/>}
+    <ul aria-label="Очередь заявок">{pagination.rows.map(row=>{
+     const reason=row.status==='PENDING'?profileLinkBlockReason(row):null;
+     return <li key={row.id}><button type="button" className="profile-link-row" aria-pressed={selected?.id===row.id}
+      disabled={busy} onClick={()=>{if(selected?.id===row.id)reviewHeading.current?.focus();else{focusReview.current=true;setSelectedId(row.id)}}}>
+      <span><strong>{nameOf(row)}</strong><small>{row.claimant.email}</small></span>
+      <span className={reason?'profile-link-blocked':undefined}>{reason??statusText[row.status]??row.status}</span>
+     </button></li>;
+    })}</ul>
    </div>
-   {row.status==='PENDING'&&<div className="profile-link-actions">
-    <p className="muted">Нажатие «Подтвердить привязку» означает, что администратор проверил принадлежность профиля. Решение автоматически сохраняется в журнале.</p>
-    <div className="profile-link-decisions">
-     <button type="button" className="primary-button" disabled={busy||!!row.participant.user||!!row.claimant.participantId} onClick={()=>void review(row,'APPROVE')}>{busy?'Сохраняем…':'Подтвердить привязку'}</button>
-     <button type="button" disabled={busy} onClick={()=>void review(row,'REJECT')}>Отклонить</button>
+   {selected&&<article className="profile-link-card" aria-labelledby="profile-link-review-title">
+    <div>
+     <small>{statusText[selected.status]??selected.status} · {new Date(selected.createdAt).toLocaleString('ru-RU')}</small>
+     <h3 id="profile-link-review-title" ref={reviewHeading} tabIndex={-1}><AdminEntityLink kind="participant" id={selected.participant.id}>{nameOf(selected)}</AdminEntityLink></h3>
+     <p>Аккаунт заявителя: <strong>{selected.claimant.email}</strong></p>
+     {selected.note&&<p>Сведения для проверки: {selected.note}</p>}
+     {selected.legacyEmailStatus&&<p className="muted"><strong>Проверка email:</strong> {legacyStatusText[selected.legacyEmailStatus]}</p>}
+     {blocked&&selected.status==='PENDING'&&<p className="profile-link-blocked" role="status">{blocked}</p>}
+     <button type="button" className="secondary-button compact" onClick={()=>void diagnose(selected)} disabled={!!diagnosing||busy} aria-label="Проверить возможность самостоятельной привязки по архивной почте">{diagnosing===selected.id?'Проверяем…':'Проверить историческую привязку'}</button>
+     {diagnoses[selected.id]&&<p className="muted" role="status"><strong>Диагностика:</strong> {diagnoses[selected.id]}</p>}
+     {selected.decisionReason&&<p>Решение: {selected.decisionReason}</p>}
     </div>
-   </div>}
-  </article>)}</div>}
+    {selected.status==='PENDING'&&<div className="profile-link-actions">
+     <p className="muted">Подтверждайте заявку после проверки, что профиль принадлежит заявителю.</p>
+     <div className="profile-link-decisions">
+      <button type="button" className="primary-button" disabled={busy||!!blocked} onClick={()=>void review(selected,'APPROVE')}>{busy?'Сохраняем…':'Подтвердить привязку'}</button>
+      <button type="button" disabled={busy} onClick={()=>void review(selected,'REJECT')}>Отклонить</button>
+     </div>
+    </div>}
+   </article>}
+  </div>}
 
   </section>
   <details className="profile-link-advanced-tools" onToggle={e=>{if(e.currentTarget.open)setAdvancedVisited(true)}}>
