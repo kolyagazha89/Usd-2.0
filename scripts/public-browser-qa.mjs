@@ -10,10 +10,10 @@ import {recheckFailedPublicReads} from './public-browser-read-recheck.mjs';
 const tooling=process.env.USD_BROWSER_TOOLING;
 if(!tooling)throw new Error('Set USD_BROWSER_TOOLING to the temporary Playwright installation');
 const {chromium}=createRequire(path.join(tooling,'package.json'))('playwright');
-const {base,injectCandidateCss,visualSource}=getLiveQaConfig();
+const {base,injectCandidateCss,visualSource,widths}=getLiveQaConfig();
 const output=path.resolve('public-browser-qa');
 await mkdir(output,{recursive:true});
-const report={base,visualSource,injectCandidateCss,startedAt:new Date().toISOString(),scope:'anonymous live public site; every non-read request is blocked',pages:[],failures:[],blockedRequests:[]};
+const report={base,visualSource,injectCandidateCss,startedAt:new Date().toISOString(),scope:'anonymous live public site; every non-read request is blocked',motion:'Reduced-motion production layout; the candidate graphics test covers normal-motion logo behavior',pages:[],failures:[],blockedRequests:[]};
 let candidateCss='';
 if(injectCandidateCss){
 const candidateResultCss=await readFile('frontend/src/participant-ui-polish.css','utf8');
@@ -42,19 +42,27 @@ const hasSurface=element=>!['transparent','rgba(0, 0, 0, 0)'].includes(element.b
 const browser=await chromium.launch(getBrowserLaunchOptions());
 const routes=['/','/stages?season=ALL','/stages?season=2025','/results','/records','/rules','/privacy','/terms','/consent','/login','/reset-password','/confirm-email-change'];
 try{
-  for(const width of [1440,390]){
-    const context=await browser.newContext({viewport:{width,height:900},deviceScaleFactor:1,serviceWorkers:'block'});
-    await context.route('**/*',route=>handleLiveQaRoute(route,report.blockedRequests));
-    const page=await context.newPage();
+  for(const width of widths){
     for(const route of routes){
+      const context=await browser.newContext({viewport:{width,height:900},deviceScaleFactor:1,serviceWorkers:'block',reducedMotion:'reduce'});
+      await context.route('**/*',route=>handleLiveQaRoute(route,report.blockedRequests));
       const errors=[];
-      const onError=error=>errors.push(error.message);
-      page.on('pageerror',onError);
+      let page,crashed=false;
+      const getPage=async(replace)=>{
+        if(!replace&&page&&!crashed&&!page.isClosed())return page;
+        if(page&&!page.isClosed())await page.close({runBeforeUnload:false}).catch(()=>{});
+        const tab=await context.newPage();
+        page=tab;
+        crashed=false;
+        tab.on('crash',()=>{if(page===tab)crashed=true});
+        tab.on('pageerror',error=>errors.push(error.message));
+        return tab;
+      };
       const row={width,route};
       const startedAt=Date.now();
       console.log('PUBLIC_QA_START '+JSON.stringify(row));
       try{
-        await loadPublicShell(page,base+route,row);
+        page=await loadPublicShell(getPage,base+route,row);
         await page.waitForLoadState('networkidle',{timeout:15000}).catch(()=>{});
         await page.waitForTimeout(1000);
         // Do not sample an unfinished auto-discovery request as an empty
@@ -131,11 +139,11 @@ try{
           // Each live read can be dropped by ingress independently. Reuse the
           // already-tested one bounded GET retry after BOTH navigation hops.
           // Persistent blanks still fail release QA and save screenshots.
-          await loadPublicShell(page,base+'/privacy',row);
+          page=await loadPublicShell(getPage,base+'/privacy',row);
           await navigatePublic(page,'Этапы');
           await page.waitForURL(/\/stages(?:\?|$)/);
           row.privacyNavigation='Home and Stages clicks passed';
-          await loadPublicShell(page,base+'/privacy',row);
+          page=await loadPublicShell(getPage,base+'/privacy',row);
         }
         if(route==='/'||route==='/results'){
           const before=originalResultText;
@@ -166,14 +174,15 @@ try{
         report.failures.push({width,route,error:error.message});
       }
       const filename=width+'-'+route.replace(/[^a-zA-Z0-9]/g,'_')+'.png';
-      await page.screenshot({path:path.join(output,filename),fullPage:false}).catch(error=>{row.screenshotError=error.message});
-      page.off('pageerror',onError);
+      if(page&&!crashed&&!page.isClosed()){
+        await page.screenshot({path:path.join(output,filename),fullPage:false,timeout:5000}).catch(error=>{row.screenshotError=error.message});
+      }
+      await context.close();
       row.durationMs=Date.now()-startedAt;
       report.pages.push(row);
       console.log(JSON.stringify(row));
       await writeFile(path.join(output,'report.json'),JSON.stringify(report,null,2));
     }
-    await context.close();
   }
 }finally{
   await browser.close();

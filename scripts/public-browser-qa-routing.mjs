@@ -19,7 +19,7 @@ export async function handleLiveQaRoute(route,blockedRequests){
  // failures still fail the browser QA. Redirects are never followed or retried.
  const attempts=request.method()==='GET'&&url.pathname.startsWith('/media/public-file/')?2:1;
  for(let attempt=0;attempt<attempts;attempt++){
-  try{response=await route.fetch({maxRedirects:0});break}
+  try{response=await route.fetch({maxRedirects:0,timeout:12000});break}
   catch{
    if(attempt===attempts-1){
     record('read failed');
@@ -27,9 +27,13 @@ export async function handleLiveQaRoute(route,blockedRequests){
    }
   }
  }
- if([301,302,303,307,308].includes(response.status())){
-  record('redirect');
-  return route.abort('blockedbyclient');
+ try{
+  if([301,302,303,307,308].includes(response.status())){
+   record('redirect');
+   return await route.abort('blockedbyclient');
+  }
+  return await route.fulfill({response});
+ }finally{
+  await response.dispose().catch(()=>{});
  }
- return route.fulfill({response});
 }
