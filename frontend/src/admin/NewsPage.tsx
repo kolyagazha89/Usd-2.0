@@ -27,6 +27,7 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
   setLoading(true);setError('');
   try{
    const r=await getSiteSettings();
+   if(!r?.settings||typeof r.settings!=='object'||Array.isArray(r.settings))throw new Error('Настройки новостей недоступны');
    setSettings(r.settings);
    setItems(Array.isArray(r.settings?.news)?r.settings.news:[]);
   }catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить новости')}
@@ -88,9 +89,9 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
  const visibleItems=filterNewsItems(items,query,publicationFilter);
  const publishedCount=items.filter(item=>item.isPublished!==false).length;
  return <PageFrame title="Новости" subtitle="Черновики, предпросмотр и публикация новостей USD"
-  action={<button type="button" className="primary-button compact" disabled={saving}
+  action={<button type="button" className="primary-button compact" disabled={saving||loading||!settings}
    onClick={()=>openEditor(newNewsDraft())}><Plus size={15}/>Создать новость</button>}>
-  {error&&<div className="form-error" role="alert"><AlertTriangle size={16}/><span>{error}</span></div>}
+  {error&&<div className="form-error" role="alert"><AlertTriangle size={16}/><span>{error}</span>{!settings&&<button type="button" className="secondary-button compact" disabled={loading} onClick={()=>void load()}>Повторить загрузку новостей</button>}</div>}
   {pendingEditor&&<div className="content-draft-warning" role="alert"><strong>Есть несохранённая новость</strong><p>Продолжите редактирование или отбросьте изменения перед переходом.</p><div className="page-actions"><button type="button" className="secondary-button compact" disabled={saving} onClick={()=>setPendingEditor(null)}>Продолжить редактирование</button><button type="button" className="danger-button compact" disabled={saving} onClick={()=>applyEditor(pendingEditor.value)}>Отбросить изменения</button></div></div>}
   {editing&&<div className="panel news-editor"><fieldset className="content-draft-fields" disabled={saving}>
    <PanelTitle title={editing.id?'Редактировать новость':'Новая новость · черновик'} icon={Bell}/>
@@ -155,7 +156,7 @@ function NewsPage({PageFrame,PanelTitle,LoadingPage,Empty,formatDate}: {
        onClick={()=>setConfirmDeleteId(n.id)} title="Удалить"><Trash2 size={14}/></button>}
     </td>
    </tr>)}</tbody>
-  </table>:items.length?<div className="news-workbench-empty"><Empty text="По выбранным фильтрам новости не найдены."/><button type="button" className="secondary-button compact" onClick={()=>{setQuery('');setPublicationFilter('all')}}>Показать все новости</button></div>:<Empty text="Новостей пока нет. Создайте первую публикацию."/>}</div>
+  </table>:!settings?null:items.length?<div className="news-workbench-empty"><Empty text="По выбранным фильтрам новости не найдены."/><button type="button" className="secondary-button compact" onClick={()=>{setQuery('');setPublicationFilter('all')}}>Показать все новости</button></div>:<Empty text="Новостей пока нет. Создайте первую публикацию."/>}</div>
  </PageFrame>
 }
 
