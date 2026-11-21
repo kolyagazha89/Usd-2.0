@@ -23,7 +23,7 @@ test('signed grant is protected on Windows and central secrets never copied to v
  assert.match(ctl,/Write-VenueImmutableBootstrapFile \$privateStage/);
  assert.match(ctl,/Write-VenueImmutableBootstrapFile \$privateAccess/);
  assert.match(ctl,/Write-VenueImmutableBootstrapFile \$privatePublicKey/);
- assert.match(ctl,/Write-PrivateFile \$Path \$Value/);
+ assert.match(ctl,/Write-PrivateFile \$temp \$Value\s+\[IO.File\]::Move\(\$temp,\$Path\)/);
  assert.match(ctl,/AreAccessRulesProtected/);
  assert.doesNotMatch(ctl,/VENUE_PRODUCTION_DATABASE_URL|VENUE_PRODUCTION_JWT_SECRET/);
 });
