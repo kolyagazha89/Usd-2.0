@@ -1208,7 +1208,7 @@ try{
       await page.locator('.judging-entry-wizard').waitFor();
       await desk.getByRole('button',{name:'Инспекция въезда'}).click();
       await page.waitForURL(url=>url.pathname==='/admin/inspections'&&url.searchParams.get('stageId')==='stage1'&&url.searchParams.get('registrationId')==='reg1');
-      await detail.getByText('Тестовый Иван').waitFor();
+      await detail.getByRole('heading',{name:'Тестовый Иван',exact:true}).waitFor();
       row.registrationDeskContext='same registration from inspection to registration to judging and back';
       await page.getByRole('button',{name:/Назад/}).first().click();
       assert.equal(new URL(page.url()).searchParams.has('registrationId'),false,'returning to queue clears deep-link selection');
