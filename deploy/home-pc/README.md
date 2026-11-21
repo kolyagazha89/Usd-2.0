@@ -459,6 +459,12 @@ PR or a manually dispatched run cannot authorize release. Frontend CI installs
 the locked dependency tree with `npm ci --ignore-scripts` before its explicit
 test/build steps.
 
+Public browser QA tests the build from the submitted commit. Deployed public
+browser QA runs separately after a confirmed release and can also be started
+manually. Its screenshots and failures describe the published site. Ubuntu
+verifies public HTTPS, application readiness, assets and the exact frontend and
+API SHA during each release, while automatic rollback is still armed.
+
 
 ## Read-only failed-deploy diagnostics (October 2026)
 
