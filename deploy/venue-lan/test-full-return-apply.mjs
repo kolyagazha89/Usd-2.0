@@ -59,7 +59,7 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
    begin++;
    const working=new Map([...rows].map(([t,items])=>
     [t,new Map([...items].map(([id,row])=>[id,structuredClone(row)]))]));
-   const receipts=new Map(receipt),beforeOverrides=overrides.length;
+   const receipts=new Map(receipt),pendingOverrides=[];
    const adapter={
     stage:async()=>({id:ids.stage,status:'PUBLISHED',isDeleted:false,
      resultsPublishedAt:published?'2026-11-11':null}),
@@ -86,7 +86,7 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
      return structuredClone([...(working.get(table)?.values()??[])].find(sameSlot)??null);
     },
     removeStageSlot:async (table,displaced)=>{working.get(table)?.delete(displaced.id)},
-    auditOverride:async record=>{overrides.push(structuredClone(record))},
+    auditOverride:async record=>{pendingOverrides.push(structuredClone(record))},
     write:async (table,op,row,before)=>{
      if(failAt&&Number(op.eventSequence)===failAt)throw Error('simulated db failure');
      if(!working.has(table))working.set(table,new Map());
@@ -103,7 +103,8 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
    if(!readOnly){
     rows.clear();for(const [t,entries] of working)rows.set(t,entries);
     receipt.clear();for(const [id,entry] of receipts)receipt.set(id,entry);
-   }else overrides.splice(beforeOverrides);
+    overrides.push(...pendingOverrides);
+   }
    return value;
   },
   get begin(){return begin},
@@ -503,5 +504,62 @@ test('central-only registration numbers remain guarded when the offline journal 
   stageId:ids.stage,registrationId:'e310f672-79f7-44eb-8173-2a8ff94b1c0e',number:19}]}});
  await assert.rejects(()=>applyCompleteVenueJournal(full(),db,opts),/номер занят/i);
  assert.equal(db.rows.get('Participant'),undefined);
+ assert.equal(db.receipt.size,0);
+});
+
+test('offline result INSERT replaces a provisional online score with a different UUID and audits the old row',async()=>{
+ const provisionalId='a810f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const offline=packet([event(1,'Result','INSERT',result)]);
+ const db=memoryDb({existing:{Registration:[reg],RegistrationClass:[cls],
+  Inspection:[insp],Result:[{...result,id:provisionalId,value:'149.000'}]}});
+ const scopeDb=db.transaction;
+ db.transaction=(fn,options)=>scopeDb(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set([ids.cls]),
+   configurations:new Set([ids.config]),versions:new Set([ids.version])});
+  return fn(tx);
+ },options);
+ const report=await applyCompleteVenueJournal(offline,db,opts);
+ assert.equal(report.appliedEvents,1);
+ assert.equal(db.rows.get('Result').size,1);
+ assert.equal(db.rows.get('Result').get(ids.result).value,'153.200');
+ assert.equal(db.rows.get('Result').has(provisionalId),false);
+ assert.equal(db.overrides.length,1);
+ assert.equal(db.overrides[0].reason,'OFFLINE_STAGE_SLOT_REPLACED');
+ assert.equal(db.overrides[0].before.value,'149.000');
+ assert.equal((await applyCompleteVenueJournal(offline,db,opts)).alreadyApplied,true);
+});
+test('signed deletion overrides a centrally edited result and replays without resurrecting the old result',async()=>{
+ const offline=packet([event(1,'Result','DELETE',result,result)]);
+ const db=memoryDb({existing:{Registration:[reg],RegistrationClass:[cls],
+  Result:[{...result,value:'143.000'}]}});
+ const scopeDb=db.transaction;
+ db.transaction=(fn,options)=>scopeDb(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set([ids.cls]),
+   configurations:new Set([ids.config]),versions:new Set([ids.version])});
+  return fn(tx);
+ },options);
+ assert.equal((await applyCompleteVenueJournal(offline,db,opts)).appliedEvents,1);
+ assert.equal(db.rows.get('Result').has(ids.result),false);
+ assert.equal(db.overrides.length,1);
+ assert.equal(db.overrides[0].before.value,'143.000');
+ assert.equal((await applyCompleteVenueJournal(offline,db,opts)).alreadyApplied,true);
+});
+test('dry-run reports overridden stage result without changing the online row or writing audit',async()=>{
+ const offline=packet([event(1,'Result','UPDATE',{...result,value:'155.000'},result)]);
+ const db=memoryDb({existing:{Registration:[reg],RegistrationClass:[cls],
+  Result:[{...result,value:'141.000'}]}});
+ const scopeDb=db.transaction;
+ db.transaction=(fn,options)=>scopeDb(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set([ids.cls]),
+   configurations:new Set([ids.config]),versions:new Set([ids.version])});
+  return fn(tx);
+ },options);
+ const preview=await applyCompleteVenueJournal(offline,db,{...opts,apply:false});
+ assert.equal(preview.readyEvents,1);
+ assert.equal(db.rows.get('Result').get(ids.result).value,'141.000');
+ assert.equal(db.overrides.length,0);
  assert.equal(db.receipt.size,0);
 });
