@@ -46,6 +46,57 @@ function addUnique(target,id,label){
 function maybeDate(value,context){return value==null?undefined:parsedDate(value,context);}
 function maybeJSON(value){return value==null?undefined:value;}
 
+/** Restore signed central versions as original, editable venue configurations.
+ * Existing local versions are immutable: a retained stage may have judge edits.
+ * Call only inside the signed isolated-stage import transaction.
+ */
+async function restoreSignedVenueConfigurations(tx,configurations,{shared=false}={}){
+ let addedConfigurations=0,addedVersions=0;
+ for(const config of configurations??[]){
+  const existing=shared?await tx.carConfiguration.findUnique({where:{id:config.id}}):null;
+  if(existing&&existing.carId!==config.carId)
+   throw new Error('MANUAL_REVIEW: конфигурация принадлежит другому автомобилю');
+  if(!existing){
+   await tx.carConfiguration.create({data:{
+    id:config.id,carId:config.carId,name:config.name,isActive:config.isActive,
+    currentVersion:config.currentVersion,createdAt:parsedDate(config.createdAt,'конфигурация'),
+    updatedAt:parsedDate(config.updatedAt,'конфигурация'),
+   }});
+   addedConfigurations++;
+  }
+  for(const version of config.versions){
+   const prior=shared?await tx.carConfigurationVersion.findUnique({where:{id:version.id}}):null;
+   if(prior){
+    if(prior.configurationId!==config.id)
+     throw new Error('MANUAL_REVIEW: версия конфигурации уже привязана к другому автомобилю');
+    // An older live version can be referenced by a prior stage. Never replace
+    // its equipment or overwrite any local amendment made by the operator.
+    continue;
+   }
+   await tx.carConfigurationVersion.create({data:{
+    id:version.id,configurationId:config.id,version:version.version,
+    vibrationIsolation:version.vibrationIsolation,
+    additionalDescription:version.additionalDescription,
+    createdAt:parsedDate(version.createdAt,'версия конфигурации'),
+   }});
+   // Insert audio components before amplifier-component junction rows.
+   for(const [table,rows] of [
+    ['carHeadUnit',version.headUnits],
+    ['carBattery',version.batteries],
+    ['carGenerator',version.generators],
+    ['carAudioComponent',version.audioComponents],
+    ['carAmplifier',version.amplifiers.map(({componentLinks,...amp})=>amp)],
+   ]){
+    if(rows.length)await tx[table].createMany({data:rows});
+   }
+   const links=version.amplifiers.flatMap(amplifier=>amplifier.componentLinks);
+   if(links.length)await tx.carAmplifierComponent.createMany({data:links});
+   addedVersions++;
+  }
+ }
+ return {addedConfigurations,addedVersions};
+}
+
 /** Never allow a caller or environment variable to redirect writes to Ubuntu. */
 export function assertVenueImportEnvironment(env,stageId){
  if(env.USD_VENUE_LAN_MODE!=='true'||!UUID.test(env.VENUE_STAGE_ID??''))
@@ -225,6 +276,7 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
   snapshot,
   registrations:snapshot.registrations,
   participantDirectory:snapshot.participantDirectory,
+  configurations:snapshot.configurations??[],
   summary:{stageId:verified.stageId,registrations:registrations.size,
    classes:classIds.size,results:resultCount},
  };
@@ -463,14 +515,19 @@ export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress
   if(shared){
    for(const data of carRows)await createShared('car',data);
   }else await insertBatches('car',carRows,tx);
+  progress('CONFIGURATIONS');
+  await restoreSignedVenueConfigurations(tx,plan.configurations,{shared});
   progress('REGISTRATIONS');
   for(const r of regs){
-   // A local FK placeholder, NOT a claim that the full historical equipment
-   // graph was exported. Registration.configurationSnapshot is authoritative.
+   // Older signed stage files have only the immutable registration snapshot;
+   // preserve their historical placeholder behaviour for recovery. Fresh
+   // signed files import the real version and must never create a stub.
    const version=shared?await tx.carConfigurationVersion.findUnique({where:{id:r.configurationVersionId},include:{configuration:true}}):null;
    if(version&&version.configuration.carId!==r.carId)
     throw new Error('Версия конфигурации принадлежит другому автомобилю');
    if(!version){
+   if(plan.snapshot.configurations!==undefined)
+    throw new Error('Нет подписанной версии конфигурации регистрации: импорт остановлен');
    const configId=randomUUID();
    await tx.carConfiguration.create({data:{
     id:configId,carId:r.carId,name:'USD VENUE: снимок регистрации',
@@ -642,12 +699,16 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
     addedCars++;
    }
   }
+  // An upgraded signed directory can add the real configurations of existing
+  // central profiles. A locally modified placeholder blocks the transaction
+  // rather than silently replacing an operator's competition-day work.
+  const equipment=await restoreSignedVenueConfigurations(tx,plan.configurations,{shared:true});
   await tx.auditLog.create({data:{
    action:'VENUE_PARTICIPANT_DIRECTORY_IMPORTED',entity:'Stage',entityId:stageId,
    metadata:{sha256:plan.packageHash,participantCount:plan.participantDirectory.length,
-    addedParticipants,addedCars},
+    addedParticipants,addedCars,...equipment},
   }});
-  return {addedParticipants,addedCars,replayed:false};
+  return {addedParticipants,addedCars,...equipment,replayed:false};
  },{isolationLevel:'Serializable',timeout:120000});
 }
 
