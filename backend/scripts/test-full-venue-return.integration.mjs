@@ -244,3 +244,29 @@ test('PG18: signed LAN edits supersede changed online inspection, result and sta
  assert.equal(audit.find(x=>x.metadata.table==='Result')?.metadata.before.value,141);
  assert.equal((await applyCompleteVenueJournal(journal,postgresFullVenueAdapter(client),opts)).alreadyApplied,true);
 });
+
+test('PG18: new LAN result UUID replaces provisional central score in the same registration class',async()=>{
+ await query('DELETE FROM "AuditLog" WHERE action=$1 AND metadata->>\'stageId\'=$2',
+  ['VENUE_FULL_EVENT_IMPORTED',stage]);
+ const old=await read('Result',result);
+ assert.ok(old);
+ const newId=uid(222);
+ const after={...old,id:newId,value:156.78,notes:'Поздний итог судей'};
+ const events=[{sequence:1,previousHash:hash(0),hash:hash(1),payload:{
+  sequence:1,stageId:stage,table:'Result',recordId:newId,
+  operation:'INSERT',before:null,after,recordedAt:'2026-11-13T12:00:00.000Z',
+ }}];
+ const journal={format:2,journalCoverage:{fromSequence:0,tables:FULL_RETURN_COVERAGE_TABLES},
+  stageId:stage,baselineSha256:opts.baselineSha256,
+  journalEndHash:hash(1),eventCount:1,events};
+ const report=await applyCompleteVenueJournal(journal,postgresFullVenueAdapter(client),opts);
+ assert.equal(report.appliedEvents,1);
+ assert.equal(await read('Result',result),null);
+ assert.equal((await read('Result',newId)).value,156.78);
+ const audit=(await query('SELECT metadata FROM "AuditLog" WHERE action=$1 AND "entityId"=$2',
+  ['VENUE_OFFLINE_STAGE_OVERRIDE',newId])).rows;
+ assert.equal(audit.length,1);
+ assert.equal(audit[0].metadata.before.id,result);
+ assert.equal(audit[0].metadata.reason,'OFFLINE_STAGE_SLOT_REPLACED');
+ assert.equal((await applyCompleteVenueJournal(journal,postgresFullVenueAdapter(client),opts)).alreadyApplied,true);
+});
