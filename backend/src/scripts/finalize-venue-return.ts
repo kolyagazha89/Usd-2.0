@@ -31,21 +31,30 @@ export async function finalizeVenueStage(stageId: string, connectionString: stri
       || !['PUBLISHED','COMPLETED'].includes(stage.status)) {
       throw new Error('Центральный этап уже опубликован или неактивен');
     }
-    const receipts=await prisma.$queryRawUnsafe<Array<{id:string}>>(
-      'SELECT DISTINCT "entityId" AS id FROM "AuditLog" WHERE action IN ($1,$2) AND entity=$3 AND metadata->>\'stageId\'=$4 AND "entityId" IS NOT NULL',
+    // Result journals include DELETE and multiple edits of the same signed
+    // result. Only the LAST operation per UUID defines the final state. Never
+    // demand that an intentionally deleted result still exist in PostgreSQL.
+    const receipts=await prisma.$queryRawUnsafe<Array<{id:string;operation:string|null}>>(
+      'SELECT DISTINCT ON ("entityId") "entityId" AS id,metadata->>\'operation\' AS operation FROM "AuditLog" WHERE action IN ($1,$2) AND entity=$3 AND metadata->>\'stageId\'=$4 AND "entityId" IS NOT NULL ORDER BY "entityId",(metadata->>\'sequence\')::bigint DESC NULLS LAST',
       'VENUE_RESULT_IMPORTED','VENUE_FULL_EVENT_IMPORTED','Result',stageId);
-    const ids=receipts.map(x=>x.id);
-    if (!ids.every(id=>UUID.test(id)))throw new Error('Неверная запись журнала переноса');
-    for (const id of ids) {
+    const ids:string[]=[];
+    for (const receipt of receipts) {
+      const id=receipt.id;
+      if (!UUID.test(id))throw new Error('Неверная запись журнала переноса');
       const result=await prisma.result.findUnique({
         where:{id},
         select:{registration:{select:{stageId:true}}},
       });
+      if (receipt.operation==='DELETE') {
+        if(result)throw new Error('Удалённый на площадке результат снова появился в центре');
+        continue;
+      }
       if (!result || result.registration.stageId!==stageId) {
         throw new Error('Не найдена перенесённая запись результатов');
       }
+      ids.push(id);
     }
-    if (!ids.length) return {stageId,recalculated:false,resultCount:0};
+    if (!receipts.length) return {stageId,recalculated:false,resultCount:0};
     const ranking=new ResultsRankingService(prisma as unknown as PrismaService);
     const records=new RecordsService(prisma as unknown as PrismaService);
     await ranking.recalculateByStage(stageId);
@@ -56,7 +65,7 @@ export async function finalizeVenueStage(stageId: string, connectionString: stri
       data:{
         action:'VENUE_RETURN_DERIVED_REBUILT',
         entity:'Stage',entityId:stageId,
-        metadata:{stageId,resultsChecked:ids.length,officiallyPublished:false},
+        metadata:{stageId,resultsChecked:ids.length,deletedResults:receipts.length-ids.length,officiallyPublished:false},
       },
     });
     return {stageId,recalculated:true,resultCount:ids.length};
