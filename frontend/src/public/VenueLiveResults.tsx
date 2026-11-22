@@ -91,7 +91,7 @@ export default function VenueLiveResults(){
   return()=>window.removeEventListener('keydown',onKey);
  },[slides.length]);
  const fresh=!failed&&isVenueLiveSnapshotCurrent(lastSuccess,clock);
- const rowStyle={'--venue-board-rows':Math.max(slide.rows.length,1)} as CSSProperties;
+ const rowStyle={'--venue-board-rows':capacity} as CSSProperties;
  return <main className="usd-venue-live-board" aria-label="USD LIVE — экран соревнований">
   <header className="venue-tv-top">
    <div className="venue-tv-identity">
