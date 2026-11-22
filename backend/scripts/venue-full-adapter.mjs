@@ -85,6 +85,38 @@ export function postgresFullVenueAdapter(client){
        table==='CarAmplifierComponent'?[JSON.stringify(row),row.id]:[JSON.stringify(row)]);
       return rows[0].data;
      },
+     async stageRowBelongs(table,row,stageId){
+      // Compare the real central entity FK graph, never just the signed ID.
+      if(table==='Registration'||table==='RegistrationNumber'
+       ||table==='ParticipantStageInspection'){
+       if(row.stageId!==stageId)return false;
+      }
+      let sql,id;
+      if(table==='Registration'||table==='RegistrationNumber'
+       ||table==='ParticipantStageInspection'){
+       sql='SELECT 1 FROM "Stage" WHERE id=$1';id=stageId;
+      }else if(table==='Inspection'||table==='RegistrationClass'||table==='Result'){
+       sql='SELECT 1 FROM "Registration" WHERE id=$1 AND "stageId"=$2';
+       id=row.registrationId;
+      }else if(table==='RegistrationClassInspection'){
+       sql='SELECT 1 FROM "RegistrationClass" rc JOIN "Registration" r ON r.id=rc."registrationId" WHERE rc.id=$1 AND r."stageId"=$2';
+       id=row.registrationClassId;
+      }else return false;
+      const {rows}=await client.query(sql,
+       sql==='SELECT 1 FROM "Stage" WHERE id=$1'?[id]:[id,stageId]);
+      return rows.length===1;
+     },
+     async auditVenueOverride(item){
+      // The displaced central state is captured transactionally before write.
+      const {stageId,journalEndHash,sequence,eventHash,table,entityId,
+       centralBefore,offlineAfter,operator}=item;
+      if(!TABLES.has(table))throw Error('VENUE DB: invalid override entity');
+      const metadata={stageId,journalEndHash,sequence,eventHash,operator,
+       policy:'SIGNED_OFFLINE_STAGE_AUTHORITATIVE',centralBefore,offlineAfter};
+      await client.query(
+       'INSERT INTO "AuditLog" (id,action,entity,"entityId",metadata,"createdAt") VALUES (gen_random_uuid(),$1,$2,$3,$4::jsonb,now())',
+       ['VENUE_RETURN_CENTRAL_SUPERSEDED',table,entityId,JSON.stringify(metadata)]);
+     },
      async stageClassAllowed(stageId,classId){
       const {rows}=await client.query(
        'SELECT 1 FROM "StageClass" sc JOIN "Class" c ON c.id=sc."classId" WHERE sc."stageId"=$1 AND sc."classId"=$2 AND sc."isActive"=true AND c."isActive"=true LIMIT 1',
