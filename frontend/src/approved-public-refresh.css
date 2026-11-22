@@ -25,6 +25,14 @@ body .usd-live .usd-stage-card-approved .usd-stage-poster{
   overflow:hidden;
   border:1px solid #35485d;
 }
+body .usd-live .usd-stage-card-approved .usd-stage-poster:has(> img.public-stage-list-poster){
+  align-self:start;
+  background:none;
+  border:0;
+}
+body .usd-live .usd-stage-card-approved .usd-stage-poster > img.public-stage-list-poster{
+  margin:0;
+}
 body .usd-live .usd-stage-card-approved .usd-stage-poster .public-stage-list-poster{
   width:100%!important;
   height:auto!important;

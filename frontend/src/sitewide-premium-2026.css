@@ -170,6 +170,26 @@ body .usd-live .p-next-poster {
  background:#0a1019;
 }
 body .usd-live .u-event-mini {isolation:isolate}
+@media (min-width: 1021px) {
+ body .usd-live .u-next-event:has(> .u-event-mini > img.p-next-poster) {
+  grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) auto;
+ }
+ body .usd-live .u-next-event > .u-event-mini:has(> img.p-next-poster) {
+  align-self:center;
+  min-height:0;
+  padding:0;
+  border:0;
+  background:none;
+ }
+ body .usd-live .u-event-mini > img.p-next-poster {
+  display:block;
+  position:static;
+  width:auto;
+  height:auto;
+  max-width:min(24vw,320px);
+  max-height:clamp(180px,34dvh,260px);
+ }
+}
 body .usd-live .u-cinema-hero {isolation:isolate}
 body .usd-live .u-cinema-copy {min-width:0}
 body .usd-live .u-cinema-copy .u-actions {flex-wrap:wrap}

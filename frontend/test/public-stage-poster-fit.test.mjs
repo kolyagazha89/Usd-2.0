@@ -7,7 +7,13 @@ test('homepage next-stage poster preserves all of a portrait poster without crop
  const rule=css.match(/body \.usd-live \.p-next-poster\s*\{([^}]+)\}/)?.[1]??'';
  assert.ok(rule,'homepage stage poster has scoped styling');
  assert.match(rule,/object-fit\s*:\s*contain\s*;/,'cover would crop the competition details and sponsor logos');
- assert.match(rule,/background\s*:/,'letterbox must match the dark poster frame');
+ const link = css.match(/\.u-event-mini:has\(> img\.p-next-poster\)\s*\{([^}]+)\}/)?.[1]??'';
+ const image = css.match(/\.u-event-mini > img\.p-next-poster\s*\{([^}]+)\}/)?.[1]??'';
+ assert.match(link,/padding\s*:\s*0/);
+ assert.match(link,/background\s*:\s*none/);
+ assert.match(image,/position\s*:\s*static/);
+ assert.match(image,/height\s*:\s*auto/);
+ assert.match(image,/width\s*:\s*auto/);
 });
 
 test('desktop stage-detail poster scales under viewport height while mobile retains natural size',async()=>{
@@ -28,4 +34,10 @@ test('stage listing retains the entire portrait artwork in desktop cards',async(
  assert.match(rules,/object-fit:\s*contain\s*!important/);
  assert.match(rules,/max-width:\s*100%\s*!important/);
  assert.match(rules,/aspect-ratio:\s*auto\s*!important/);
+ assert.match(rules,/margin:\s*0 auto\s*!important/);
+ const refresh = await readFile(new URL('../src/approved-public-refresh.css',import.meta.url),'utf8');
+ const frame = refresh.match(/\.usd-stage-poster:has\(> img\.public-stage-list-poster\)\s*\{([^}]+)\}/)?.[1]??'';
+ assert.match(frame,/align-self:\s*start/);
+ assert.match(frame,/background:\s*none/);
+ assert.match(frame,/border:\s*0/);
 });
