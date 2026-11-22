@@ -187,10 +187,14 @@ try{
    await page.goto(base+'/venue/live?screen=spl');
    await rows.nth(count-1).waitFor();
    assert.equal(await rows.count(),count);
-   const [header,first,last,bounds]=await Promise.all([heading.boundingBox(),rows.first().boundingBox(),rows.last().boundingBox(),panel.boundingBox()]);
+   const [header,first,last,bounds,person]=await Promise.all([
+    heading.boundingBox(),rows.first().boundingBox(),rows.last().boundingBox(),panel.boundingBox(),
+    rows.first().locator('.venue-tv-person').boundingBox(),
+   ]);
    assert.ok(Math.abs(first.y-header.y-header.height)<1,'First LIVE row starts at the column heading');
    assert.ok(first.height>=28&&first.height<=89,'LIVE row has a readable, capped height');
    assert.ok(last.y+last.height<=bounds.y+bounds.height,'Last LIVE row fits on screen');
+   assert.ok(person.y>=first.y&&person.y+person.height<=first.y+first.height,'Both name and car fit inside the row');
    heights.push(first.height);
    checks++;
   }

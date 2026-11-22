@@ -31,7 +31,7 @@
 .venue-tv-counters strong{color:#fff}
 .venue-tv-table{
  --venue-tv-column-heading-height:clamp(27px,3.5vh,42px);
- --venue-tv-result-height:clamp(52px,7.5vh,88px);
+ --venue-tv-result-height:clamp(60px,7.5vh,88px);
  display:grid;
  grid-template-rows:var(--venue-tv-column-heading-height) repeat(var(--venue-board-rows),minmax(0,1fr));
  max-height:calc(var(--venue-tv-column-heading-height) + var(--venue-board-rows) * var(--venue-tv-result-height));
@@ -50,7 +50,7 @@
 .venue-tv-number{font-size:clamp(17px,2.6vw,45px);color:#ffc6d2;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .venue-tv-person{display:flex;min-width:0;flex-direction:column;gap:clamp(1px,.4vh,7px);overflow:hidden}
 .venue-tv-person strong{display:block;min-width:0;font-size:clamp(17px,2.4vw,42px);font-weight:850;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.16}
-.venue-tv-person small{display:block;font-size:clamp(11px,1.13vw,20px);color:#b4c5d7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.venue-tv-person small{display:block;font-size:clamp(11px,1.13vw,20px);line-height:1.1;color:#b4c5d7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .venue-tv-measure{display:flex;gap:clamp(5px,.65vw,14px);align-items:baseline;justify-content:flex-end;min-width:0;font-size:clamp(20px,3.2vw,56px);font-weight:900;letter-spacing:-.025em;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .venue-tv-measure small{font-size:clamp(10px,1.2vw,21px);letter-spacing:0;color:#b5c2d2}
 .venue-tv-empty{display:grid;place-items:center;padding:8%;font-size:clamp(17px,2.2vw,34px);text-align:center;color:#e1e7ef}
@@ -65,6 +65,8 @@
  .venue-tv-logo{font-size:40px}
  .venue-tv-class-titles h2{font-size:clamp(20px,2.75vw,32px)}
  .venue-tv-discipline{font-size:clamp(16px,2vw,25px)}
+ .venue-tv-person strong{font-size:clamp(17px,2.1vw,30px)}
+ .venue-tv-person small{font-size:clamp(11px,1.1vw,16px)}
  .venue-tv-result .venue-tv-place{width:34px;height:34px}
  .venue-tv-table-head,.venue-tv-result{padding-inline:16px}
 }
