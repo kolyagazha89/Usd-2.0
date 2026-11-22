@@ -418,3 +418,66 @@ test('central disqualification on a linked profile still blocks entire return',a
  assert.equal(db.receipt.size,0);
  assert.equal(db.rows.get('Car'),undefined);
 });
+
+test('signed offline inspection and result updates win over divergent central values with an audit backup',async()=>{
+ const original=full();
+ const updatedInspection={...insp,status:'FAILED',notes:'Судья исправил инспекцию'};
+ const updatedResult={...result,value:'154.250',notes:'Окончательный замер'};
+ const centralInspection={...insp,status:'FAILED',notes:'Предварительное решение онлайн'};
+ const centralResult={...result,value:'149.100',notes:'Ввод онлайн'};
+ const db=memoryDb({existing:{
+  Participant:[participant],Car:[car],CarConfigurationVersion:[version],
+  Registration:[reg],RegistrationNumber:[number],RegistrationClass:[cls],
+  Inspection:[centralInspection],Result:[centralResult],
+ }});
+ const events=packet([
+  event(1,'Inspection','UPDATE',updatedInspection,insp),
+  event(2,'Result','UPDATE',updatedResult,result),
+ ]);
+ const changes=[];
+ const wrap=db.transaction;
+ db.transaction=(cb,options)=>wrap(async tx=>{
+  const prior=tx.auditOverride;
+  tx.auditOverride=async data=>{changes.push(data);if(prior)await prior(data)};
+  return cb(tx);
+ },options);
+ const report=await applyCompleteVenueJournal(events,db,opts);
+ assert.equal(report.appliedEvents,2);
+ assert.equal(db.rows.get('Inspection').get(ids.insp).notes,'Судья исправил инспекцию');
+ assert.equal(db.rows.get('Result').get(ids.result).value,'154.250');
+ assert.equal(changes.length,2);
+ assert.deepEqual(changes.map(x=>x.before.notes),['Предварительное решение онлайн','Ввод онлайн']);
+ assert.equal((await applyCompleteVenueJournal(events,db,opts)).alreadyApplied,true);
+});
+test('central registration configuration and legal consents stay intact when offline updates its stage status',async()=>{
+ const online={...reg,configurationVersionId:ids.version,
+  configurationSnapshot:{amplifiers:['real-online'],configurationPending:false},
+  privacyConsentVersion:'privacy-v9',termsVersion:'terms-v9',status:'ACTIVE'};
+ const offlineBefore={...reg,configurationSnapshot:{configurationPending:true},
+  privacyConsentVersion:null,termsVersion:null,status:'ACTIVE'};
+ const offlineAfter={...offlineBefore,status:'CANCELLED'};
+ const db=memoryDb({existing:{Participant:[participant],Car:[car],
+  Registration:[online]}});
+ const changed=packet([event(1,'Registration','UPDATE',offlineAfter,offlineBefore)]);
+ await applyCompleteVenueJournal(changed,db,opts);
+ const actual=db.rows.get('Registration').get(reg.id);
+ assert.equal(actual.status,'CANCELLED');
+ assert.deepEqual(actual.configurationSnapshot,online.configurationSnapshot);
+ assert.equal(actual.privacyConsentVersion,'privacy-v9');
+ assert.equal(actual.termsVersion,'terms-v9');
+});
+test('no offline changes to participant car or equipment may override their central values',async()=>{
+ const central={...car,model:'Vesta Online'};
+ const db=memoryDb({existing:{Car:[central]}});
+ const change=packet([event(1,'Car','UPDATE',{...car,model:'Vesta Offline'},car)]);
+ await assert.rejects(()=>applyCompleteVenueJournal(change,db,opts),/central changed/i);
+ assert.equal(db.rows.get('Car').get(ids.car).model,'Vesta Online');
+ assert.equal(db.receipt.size,0);
+});
+test('central-only registration numbers remain guarded when the offline journal uses the same sticker',async()=>{
+ const db=memoryDb({existing:{RegistrationNumber:[{id:'c310f672-79f7-44eb-8173-2a8ff94b1c0e',
+  stageId:ids.stage,registrationId:'e310f672-79f7-44eb-8173-2a8ff94b1c0e',number:19}]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,opts),/номер занят/i);
+ assert.equal(db.rows.get('Participant'),undefined);
+ assert.equal(db.receipt.size,0);
+});
