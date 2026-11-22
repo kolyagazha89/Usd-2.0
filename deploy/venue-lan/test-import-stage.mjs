@@ -530,9 +530,9 @@ test('signed participant configurations import real equipment instead of local r
  assert.equal(log.filter(x=>x.model==='carConfiguration').length,1,'no placeholder configuration');
  assert.equal(log.find(x=>x.model==='carConfiguration').data.id,configurationId);
  assert.equal(log.find(x=>x.model==='carConfigurationVersion').data.id,uuid.version);
- assert.equal(log.find(x=>x.model==='carAudioComponent').data[0].brand,'Deaf Bonce');
- assert.equal(log.find(x=>x.model==='carAmplifier').data[0].brand,'Pride');
- assert.equal(log.find(x=>x.model==='carAmplifierComponent').data[0].componentId,speakerId);
+ assert.equal(log.find(x=>x.model==='carAudioComponent').data.brand,'Deaf Bonce');
+ assert.equal(log.find(x=>x.model==='carAmplifier').data.brand,'Pride');
+ assert.equal(log.find(x=>x.model==='carAmplifierComponent').data.componentId,speakerId);
  assert.equal(log.find(x=>x.model==='registration').data.configurationVersionId,uuid.version);
 });
 test('configurations for directory-only existing cars are imported for venue intake',async()=>{
@@ -545,6 +545,7 @@ test('configurations for directory-only existing cars are imported for venue int
   city:null,team:null,isPublic:false,cars:[{id:carId,participantId:person,brand:'Lada',
    model:'Granta',registrationCountry:'RU',registrationNumber:'А222АА72',color:null,
    isPublic:false,isActive:true}]}];
+ data.registrations=[]; // Directory-only pre-registration profile, no signed stage results yet.
  data.configurations=[{id:configId,carId,name:'Система',isActive:true,currentVersion:1,
   createdAt:'2026-11-01T10:00:00.000Z',updatedAt:'2026-11-01T10:00:00.000Z',
   versions:[{id:versionId,configurationId:configId,version:1,vibrationIsolation:null,
