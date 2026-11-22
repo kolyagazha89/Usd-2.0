@@ -110,7 +110,7 @@ export function postgresFullVenueAdapter(client){
       if(table==='Result'){
        // A previously computed central record must not keep pointing at an
        // obsolete measurement. Final ranking/record rebuild follows import.
-       await client.query('UPDATE "Record" SET "resultId"=NULL WHERE "resultId"=$1',[displaced.id]);
+       await client.query('UPDATE "Record" SET "resultId"=NULL,"isCurrent"=false WHERE "resultId"=$1',[displaced.id]);
       }
       const allowed=new Set(['Result','Inspection','ParticipantStageInspection','RegistrationClassInspection']);
       if(!allowed.has(table))throw Error('VENUE DB: unsafe stage-slot replacement');
@@ -212,6 +212,8 @@ export function postgresFullVenueAdapter(client){
         [JSON.stringify(row),row.id]);
        if(rowCount!==1)throw Error('VENUE DB: updated row disappeared');
       }else if(kind==='DELETE'){
+       if(table==='Result')await client.query(
+        'UPDATE "Record" SET "resultId"=NULL,"isCurrent"=false WHERE "resultId"=$1',[before.id]);
        const {rowCount}=await client.query('DELETE FROM '+name+' WHERE id=$1',[before.id]);
        if(rowCount!==1)throw Error('VENUE DB: deleted row disappeared');
       }else throw Error('VENUE DB: invalid operation');
@@ -226,9 +228,9 @@ export function postgresFullVenueAdapter(client){
      },
      async receipt(event){
       const {stageId,eventHash,sequence,journalEndHash,
-       baselineSha256,entity,entityId,operator,action,resolutionHash}=event;
+       baselineSha256,entity,entityId,operator,operation,action,resolutionHash}=event;
       if(action!=='VENUE_FULL_EVENT_IMPORTED')throw Error('VENUE DB: unknown receipt');
-      const metadata={stageId,eventHash,sequence,journalEndHash,baselineSha256,operator,resolutionHash};
+      const metadata={stageId,eventHash,sequence,journalEndHash,baselineSha256,operator,operation,resolutionHash};
       await client.query(
        'INSERT INTO "AuditLog" (id,action,entity,"entityId",metadata,"createdAt") VALUES (gen_random_uuid(),$1,$2,$3,$4::jsonb,now())',
        [action,entity,entityId,JSON.stringify(metadata)]);
