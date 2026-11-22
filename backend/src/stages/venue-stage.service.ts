@@ -94,6 +94,55 @@ export class VenueStageService {
   if(participantDirectory.length>25000)
    throw new ServiceUnavailableException('Справочник участников превышает лимит офлайн-пакета; нужен пакетный экспорт');
 
+  // Include REAL car configurations for returning entrants AND for directory-only
+  // profiles who may register at the gate. Do not export credentials, catalog
+  // administration records, or confirmation links to other competitions.
+  const venueCarIds=[...new Set([
+   ...participantDirectory.flatMap(person=>person.cars.map(car=>car.id)),
+   ...data.registrations.map(registration=>registration.carId),
+  ])].sort();
+  if(venueCarIds.length>50000)
+   throw new ServiceUnavailableException('Слишком много автомобилей для подписанного пакета');
+  const configurations:NonNullable<VenueStageSnapshot['configurations']>=[];
+  for(let index=0;index<venueCarIds.length;index+=250){
+   const batch=await this.prisma.carConfiguration.findMany({
+    where:{carId:{in:venueCarIds.slice(index,index+250)}},
+    orderBy:{id:'asc'},
+    select:{
+     id:true,carId:true,name:true,isActive:true,currentVersion:true,createdAt:true,updatedAt:true,
+     versions:{orderBy:{version:'asc'},select:{
+      id:true,configurationId:true,version:true,vibrationIsolation:true,
+      additionalDescription:true,createdAt:true,
+      headUnits:{orderBy:{id:'asc'},select:{
+       id:true,versionId:true,brand:true,catalogEntryId:true,model:true,direction:true}},
+      batteries:{orderBy:{id:'asc'},select:{
+       id:true,versionId:true,brand:true,model:true,quantity:true}},
+      generators:{orderBy:{id:'asc'},select:{
+       id:true,versionId:true,brand:true,model:true,quantity:true}},
+      audioComponents:{orderBy:{id:'asc'},select:{
+       id:true,versionId:true,brand:true,catalogEntryId:true,model:true,
+       quantity:true,type:true,direction:true}},
+      amplifiers:{orderBy:{id:'asc'},select:{
+       id:true,versionId:true,brand:true,catalogEntryId:true,model:true,
+       quantity:true,direction:true,
+       componentLinks:{orderBy:{componentId:'asc'},select:{
+        amplifierId:true,componentId:true,quantity:true}},
+      }},
+     }},
+    },
+   });
+   configurations.push(...batch);
+   if(configurations.length>25000)
+    throw new ServiceUnavailableException('Слишком много конфигураций для офлайн-пакета');
+  }
+  const signedVersions=new Map(configurations.flatMap(config=>
+   config.versions.map(version=>[version.id,config.carId] as const)));
+  for(const registration of data.registrations){
+   if(signedVersions.get(registration.configurationVersionId)!==registration.carId)
+    throw new ServiceUnavailableException('Не найдена конфигурация регистрации для офлайн-пакета');
+  }
+
+
   // Ban data is signed for ALL affected profiles, including unregistered users.
   // Reasons and issuer identities never leave the central server.
   const disqualifications=await this.prisma.disqualification.findMany({
@@ -178,7 +227,7 @@ export class VenueStageService {
    ...(staffAccess?{staffAccess}:{}),
    syncAuthorization:{token:syncToken,expiresAt:syncExpires.toISOString()},
    registrations:data.registrations,
-   participantDirectory,disqualifications,
+   participantDirectory,disqualifications,configurations,
   };
   let signed;
   try{signed=signVenueStageSnapshot(snapshot,signingKey)}
@@ -194,7 +243,7 @@ export class VenueStageService {
     userId:request.user.sub,action:'VENUE_STAGE_PACKAGE_EXPORTED',entity:'Stage',entityId:id,
     metadata:{sha256:signed.integrity.sha256,registrationCount:data.registrations.length,
      exportedAt:signed.snapshot.generatedAt,expiresAt:signed.snapshot.expiresAt,
-     automaticReturn:true,staffCount,directoryCount:participantDirectory.length,banCount:disqualifications.length}, 
+     automaticReturn:true,staffCount,directoryCount:participantDirectory.length,configurationCount:configurations.length,banCount:disqualifications.length}, 
    }});
   });
   return withStaff?{signed,staffKey,staffCount}:signed;
