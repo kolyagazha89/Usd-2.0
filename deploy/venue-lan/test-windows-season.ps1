@@ -1,4 +1,4 @@
-# Test the actual Windows PowerShell 5.1 season functions with no Docker service.
+﻿# Test the actual Windows PowerShell 5.1 season functions with no Docker service.
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'venue-control.ps1') -Action install
 $stage='c510f672-79f7-44eb-8173-2a8ff94b1c0e'
