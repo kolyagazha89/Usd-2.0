@@ -107,7 +107,7 @@ test('reject signed but structurally dangerous package BEFORE any write',()=>{
 function mockDb(){
  const log=[];
  const tx={};
- for(const name of ['stage','season','direction','class','stageClass','siteSettings','participant','car','carConfiguration','carConfigurationVersion',
+ for(const name of ['stage','season','direction','class','stageClass','siteSettings','participant','car','carConfiguration','carConfigurationVersion','carAmplifier','carAudioComponent','carHeadUnit','carBattery','carGenerator','carAmplifierComponent',
   'registration','registrationNumber','registrationClass','inspection','participantStageInspection','registrationClassInspection','result','auditLog']){
   tx[name]={
    count:async()=>0,
@@ -504,4 +504,72 @@ test('Prisma PostgreSQL SELECT contract: signed import and directory recovery ne
    assert.equal(readQueries.filter(sql=>sql.includes('set_config')).length,1,
     scenario+' must configure signed importing in transaction');
  }
+});
+
+test('signed participant configurations import real equipment instead of local registration stubs',async()=>{
+ const data=snapshot();
+ const configurationId='a1111111-1111-4111-8111-111111111111';
+ const amplifierId='a2222222-2222-4222-8222-222222222222';
+ const speakerId='a3333333-3333-4333-8333-333333333333';
+ data.configurations=[{
+  id:configurationId,carId:uuid.car,name:'Основная SPL',isActive:true,currentVersion:1,
+  createdAt:'2026-11-01T10:00:00.000Z',updatedAt:'2026-11-02T10:00:00.000Z',
+  versions:[{id:uuid.version,configurationId,version:1,vibrationIsolation:null,
+   additionalDescription:null,createdAt:'2026-11-01T10:00:00.000Z',
+   amplifiers:[{id:amplifierId,versionId:uuid.version,brand:'Pride',catalogEntryId:null,
+    model:'10k',quantity:1,direction:'SUB',
+    componentLinks:[{amplifierId,componentId:speakerId,quantity:1}]}],
+   audioComponents:[{id:speakerId,versionId:uuid.version,brand:'Deaf Bonce',
+    catalogEntryId:null,model:'Apocalypse',quantity:1,type:'SUBWOOFER',direction:'SUB'}],
+   batteries:[],generators:[],headUnits:[],
+  }],
+ }];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {db,log}=mockDb();
+ await applyVenueStageImport(plan,db);
+ assert.equal(log.filter(x=>x.model==='carConfiguration').length,1,'no placeholder configuration');
+ assert.equal(log.find(x=>x.model==='carConfiguration').data.id,configurationId);
+ assert.equal(log.find(x=>x.model==='carConfigurationVersion').data.id,uuid.version);
+ assert.equal(log.find(x=>x.model==='carAudioComponent').data[0].brand,'Deaf Bonce');
+ assert.equal(log.find(x=>x.model==='carAmplifier').data[0].brand,'Pride');
+ assert.equal(log.find(x=>x.model==='carAmplifierComponent').data[0].componentId,speakerId);
+ assert.equal(log.find(x=>x.model==='registration').data.configurationVersionId,uuid.version);
+});
+test('configurations for directory-only existing cars are imported for venue intake',async()=>{
+ const data=snapshot();
+ const person='a1111111-1111-4111-8111-111111111111';
+ const carId='a2222222-2222-4222-8222-222222222222';
+ const configId='a3333333-3333-4333-8333-333333333333';
+ const versionId='a4444444-4444-4444-8444-444444444444';
+ data.participantDirectory=[{id:person,firstName:'Мария',lastName:'Петрова',middleName:null,
+  city:null,team:null,isPublic:false,cars:[{id:carId,participantId:person,brand:'Lada',
+   model:'Granta',registrationCountry:'RU',registrationNumber:'А222АА72',color:null,
+   isPublic:false,isActive:true}]}];
+ data.configurations=[{id:configId,carId,name:'Система',isActive:true,currentVersion:1,
+  createdAt:'2026-11-01T10:00:00.000Z',updatedAt:'2026-11-01T10:00:00.000Z',
+  versions:[{id:versionId,configurationId:configId,version:1,vibrationIsolation:null,
+   additionalDescription:null,createdAt:'2026-11-01T10:00:00.000Z',
+   amplifiers:[],audioComponents:[],batteries:[],generators:[],headUnits:[]}]}];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {db,log}=mockDb();
+ await applyVenueStageImport(plan,db);
+ assert.equal(log.find(x=>x.model==='carConfiguration').data.carId,carId);
+ assert.equal(log.find(x=>x.model==='carConfigurationVersion').data.id,versionId);
+});
+test('a signed configuration may never reference another car or invented equipment links',()=>{
+ const data=snapshot(),configId='a1111111-1111-4111-8111-111111111111';
+ data.configurations=[{id:configId,carId:uuid.season,name:'Подмена',isActive:true,currentVersion:1,
+  createdAt:'2026-11-01T10:00:00.000Z',updatedAt:'2026-11-01T10:00:00.000Z',
+  versions:[{id:uuid.version,configurationId:configId,version:1,vibrationIsolation:null,
+   additionalDescription:null,createdAt:'2026-11-01T10:00:00.000Z',
+   amplifiers:[],audioComponents:[],batteries:[],generators:[],headUnits:[]}]}];
+ assert.throws(()=>planVenueStageImport(signed(data),publicPem,env,now),/конфигурац|автомобил/i);
+ data.configurations[0].carId=uuid.car;
+ data.configurations[0].versions[0].amplifiers=[{
+  id:'a2222222-2222-4222-8222-222222222222',versionId:uuid.version,
+  brand:'Pride',catalogEntryId:null,model:'10k',quantity:1,direction:'SUB',
+  componentLinks:[{amplifierId:'a2222222-2222-4222-8222-222222222222',
+   componentId:'a3333333-3333-4333-8333-333333333333',quantity:1}],
+ }];
+ assert.throws(()=>planVenueStageImport(signed(data),publicPem,env,now),/связ|компонент|конфигурац/i);
 });
