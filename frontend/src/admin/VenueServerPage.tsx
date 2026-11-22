@@ -44,7 +44,7 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
    setStaffKey(file.staffKey);
    // Browsers often block a second automatic download on the same click.
    // Unlock stays in memory only; the operator explicitly downloads it.
-   setNotice('Пакет этапа сохранён. Теперь нажмите «Скачать ключ судей (.key)», затем «Скачать открытый ключ». Существующие аккаунты: '+file.staffCount+'. Действует до '+file.expiresAt+'.');
+   setNotice('Пакет этапа сохранён. Теперь нажмите «Скачать ключ судей (.key)», затем «Скачать открытый ключ». Существующие аккаунты: '+file.staffCount+'. Установите пакет до '+file.expiresAt+' (72 часа с выгрузки).');
   }catch(e){setError(e instanceof Error?e.message:'Не удалось скачать этап. Повторите попытку.')}
   finally{setBusy(false)}
  };

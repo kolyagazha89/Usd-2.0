@@ -51,6 +51,17 @@ test('wrong trust key, tamper, expiry, clock skew are blocked',()=>{
  assert.throws(()=>verifyVenueStageHandoff(pack(base),pem,now+72*60*60*1000+1),/просрочен/);
  assert.throws(()=>verifyVenueStageHandoff(pack(base),pem,now-6*60*1000),/время ноутбука/);
 });
+test('only an authentic signed package can trigger expiry recovery',()=>{
+ const expiry=Date.parse(base.expiresAt);
+ assert.throws(()=>verifyVenueStageHandoff(pack(base),pem,expiry+1),
+  {venuePackageFailure:'PACKAGE_EXPIRED'});
+ assert.throws(()=>verifyVenueStageHandoff(pack(base),pem,now-300001),
+  {venuePackageFailure:'PACKAGE_NOT_YET_VALID'});
+ assert.throws(()=>verifyVenueStageHandoff(pack({...base,expiresAt:base.generatedAt}),pem,now),
+  {venuePackageFailure:'PACKAGE_INVALID_WINDOW'});
+ assert.throws(()=>verifyVenueStageHandoff(pack(base),wrongPublic.export({type:'spki',format:'pem'}),expiry+1),
+  /подпись/);
+});
 test('valid signature alone does not permit cross-stage numbers, classes or secret fields',()=>{
  const unsafe=structuredClone(base);
  unsafe.registrations[0].stageId='another';
