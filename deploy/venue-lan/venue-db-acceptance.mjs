@@ -138,6 +138,30 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
  second.classes[0].id=stableFixtureUuid('second-registration-class');second.classes[0].numberId=second.numbers[0].id;
  second.inspection=null;second.stageInspection=null;
  snapshot.registrations.push(second);
+ // A real PostgreSQL integration fixture: existing participants bring their
+ // original version IDs and all equipment, including a non-registered car.
+ const when=new Date(now-10000).toISOString();
+ const makeConfig=(carId,versionId,name,withEquipment=false)=>{
+  const configurationId=stableFixtureUuid('signed-config-'+carId);
+  const amplifierId=stableFixtureUuid('signed-amplifier-'+carId);
+  const speakerId=stableFixtureUuid('signed-speaker-'+carId);
+  return {id:configurationId,carId,name,isActive:true,currentVersion:1,
+   createdAt:when,updatedAt:when,
+   versions:[{id:versionId,configurationId,version:1,
+    vibrationIsolation:null,additionalDescription:null,createdAt:when,
+    headUnits:[],batteries:[],generators:[],
+    audioComponents:withEquipment?[{id:speakerId,versionId,brand:'Deaf Bonce',
+     catalogEntryId:null,model:'Apocalypse',quantity:1,type:'SUBWOOFER',direction:'SUB'}]:[],
+    amplifiers:withEquipment?[{id:amplifierId,versionId,brand:'Pride',
+     catalogEntryId:null,model:'Bass',quantity:1,direction:'SUB',
+     componentLinks:[{amplifierId,componentId:speakerId,quantity:1}]}]:[],
+   }]};
+ };
+ snapshot.configurations=[
+  makeConfig(ID.car,ID.config,'SPL Main',true),
+  makeConfig(second.carId,second.configurationVersionId,'SPL Second'),
+  makeConfig(ID.bannedCar,stableFixtureUuid('signed-directory-version'),'Directory-only system'),
+ ];
  mutate(snapshot);
  const {privateKey,publicKey}=generateKeyPairSync('ed25519');
  const bytes=Buffer.from(JSON.stringify(snapshot));
@@ -194,6 +218,16 @@ async function seed(){
   assert.equal(imported.replayed,true,'CLI committed the signed stage; module replay must be read-only');
   assert.equal(imported.registrations,2);
   assert.equal(imported.classes,19);
+  const realVersion=await client.carConfigurationVersion.findUnique({
+   where:{id:ID.config},include:{configuration:true,amplifiers:{include:{componentLinks:true}},audioComponents:true},
+  });
+  assert.equal(realVersion.configuration.name,'SPL Main');
+  assert.equal(realVersion.configuration.carId,ID.car);
+  assert.equal(realVersion.amplifiers[0]?.brand,'Pride');
+  assert.equal(realVersion.audioComponents[0]?.brand,'Deaf Bonce');
+  assert.equal(realVersion.amplifiers[0]?.componentLinks[0]?.componentId,realVersion.audioComponents[0]?.id);
+  assert.equal(await client.carConfiguration.count(),3,'real versions and directory configs, no placeholders');
+  assert.equal(await client.carConfiguration.count({where:{name:'USD VENUE: снимок регистрации'}}),0);
   assert.equal(await client.participant.count(),753,'all signed historical identities must import');
   const season=await client.season.findUnique({where:{id:ID.season}});
   assert.equal(season.status,'ACTIVE','The venue must permit on-site registration into active season');

@@ -52,14 +52,14 @@ const full=()=>packet([
 function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
  const rows=new Map(Object.entries(existing).map(([table,records])=>
   [table,new Map(records.map(r=>[r.id,structuredClone(r)]))]));
- const receipt=new Map();let begin=0;
+ const receipt=new Map(),overrides=[];let begin=0;
  return {
-  rows,receipt,
+  rows,receipt,overrides,
   transaction:async (cb,{readOnly=false}={})=>{
    begin++;
    const working=new Map([...rows].map(([t,items])=>
     [t,new Map([...items].map(([id,row])=>[id,structuredClone(row)]))]));
-   const receipts=new Map(receipt);
+   const receipts=new Map(receipt),pendingOverrides=[];
    const adapter={
     stage:async()=>({id:ids.stage,status:'PUBLISHED',isDeleted:false,
      resultsPublishedAt:published?'2026-11-11':null}),
@@ -72,6 +72,21 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
     participantIdentityCandidates:async()=>[...(working.get('Participant')?.values()??[])],
     carPlateCandidates:async()=>[...(working.get('Car')?.values()??[])],
     numberOwner:async (_stage,number)=>[...(working.get('RegistrationNumber')?.values()??[])].find(r=>r.number===number)??null,
+    findStageSlot:async (table,row,_stageId)=>{
+     const sameSlot=(existing)=>{
+      if(table==='Result')return existing.registrationId===row.registrationId&&
+       existing.registrationClassId===row.registrationClassId;
+      if(table==='Inspection')return existing.registrationId===row.registrationId;
+      if(table==='ParticipantStageInspection')return existing.participantId===row.participantId&&
+       existing.stageId===row.stageId;
+      if(table==='RegistrationClassInspection')
+       return existing.registrationClassId===row.registrationClassId;
+      throw Error('unsupported slot');
+     };
+     return structuredClone([...(working.get(table)?.values()??[])].find(sameSlot)??null);
+    },
+    removeStageSlot:async (table,displaced)=>{working.get(table)?.delete(displaced.id)},
+    auditOverride:async record=>{pendingOverrides.push(structuredClone(record))},
     write:async (table,op,row,before)=>{
      if(failAt&&Number(op.eventSequence)===failAt)throw Error('simulated db failure');
      if(!working.has(table))working.set(table,new Map());
@@ -88,6 +103,7 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
    if(!readOnly){
     rows.clear();for(const [t,entries] of working)rows.set(t,entries);
     receipt.clear();for(const [id,entry] of receipts)receipt.set(id,entry);
+    overrides.push(...pendingOverrides);
    }
    return value;
   },
@@ -417,4 +433,154 @@ test('central disqualification on a linked profile still blocks entire return',a
  })),/DISQUALIFIED/);
  assert.equal(db.receipt.size,0);
  assert.equal(db.rows.get('Car'),undefined);
+});
+
+test('signed offline inspection and result updates win over divergent central values with an audit backup',async()=>{
+ const original=full();
+ const updatedInspection={...insp,status:'FAILED',notes:'Судья исправил инспекцию'};
+ const updatedResult={...result,value:'154.250',notes:'Окончательный замер'};
+ const centralInspection={...insp,status:'FAILED',notes:'Предварительное решение онлайн'};
+ const centralResult={...result,value:'149.100',notes:'Ввод онлайн'};
+ const db=memoryDb({existing:{
+  Participant:[participant],Car:[car],CarConfigurationVersion:[version],
+  Registration:[reg],RegistrationNumber:[number],RegistrationClass:[cls],
+  Inspection:[centralInspection],Result:[centralResult],
+ }});
+ const events=packet([
+  event(1,'Inspection','UPDATE',updatedInspection,insp),
+  event(2,'Result','UPDATE',updatedResult,result),
+ ]);
+ const changes=[];
+ const wrap=db.transaction;
+ db.transaction=(cb,options)=>wrap(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set([ids.cls]),
+   configurations:new Set([ids.config]),versions:new Set([ids.version])});
+  const prior=tx.auditOverride;
+  tx.auditOverride=async data=>{changes.push(data);if(prior)await prior(data)};
+  return cb(tx);
+ },options);
+ const report=await applyCompleteVenueJournal(events,db,opts);
+ assert.equal(report.appliedEvents,2);
+ assert.equal(db.rows.get('Inspection').get(ids.insp).notes,'Судья исправил инспекцию');
+ assert.equal(db.rows.get('Result').get(ids.result).value,'154.250');
+ assert.equal(changes.length,2);
+ assert.deepEqual(changes.map(x=>x.before.notes),['Предварительное решение онлайн','Ввод онлайн']);
+ assert.equal((await applyCompleteVenueJournal(events,db,opts)).alreadyApplied,true);
+});
+test('central registration configuration and legal consents stay intact when offline updates its stage status',async()=>{
+ const online={...reg,configurationVersionId:ids.version,
+  configurationSnapshot:{amplifiers:['real-online'],configurationPending:false},
+  privacyConsentVersion:'privacy-v9',termsVersion:'terms-v9',status:'ACTIVE'};
+ const offlineBefore={...reg,configurationSnapshot:{configurationPending:true},
+  privacyConsentVersion:null,termsVersion:null,status:'ACTIVE'};
+ const offlineAfter={...offlineBefore,status:'CANCELLED'};
+ const db=memoryDb({existing:{Participant:[participant],Car:[car],
+  Registration:[online]}});
+ const changed=packet([event(1,'Registration','UPDATE',offlineAfter,offlineBefore)]);
+ await applyCompleteVenueJournal(changed,db,opts);
+ const actual=db.rows.get('Registration').get(reg.id);
+ assert.equal(actual.status,'CANCELLED');
+ assert.deepEqual(actual.configurationSnapshot,online.configurationSnapshot);
+ assert.equal(actual.privacyConsentVersion,'privacy-v9');
+ assert.equal(actual.termsVersion,'terms-v9');
+});
+test('no offline changes to participant car or equipment may override their central values',async()=>{
+ const central={...car,model:'Vesta Online'};
+ const db=memoryDb({existing:{Car:[central]}});
+ const change=packet([event(1,'Car','UPDATE',{...car,model:'Vesta Offline'},car)]);
+ const baseTransaction=db.transaction;
+ db.transaction=(cb,options)=>baseTransaction(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set(),configurations:new Set(),versions:new Set()});
+  return cb(tx);
+ },options);
+ await assert.rejects(()=>applyCompleteVenueJournal(change,db,opts),/central changed/i);
+ assert.equal(db.rows.get('Car').get(ids.car).model,'Vesta Online');
+ assert.equal(db.receipt.size,0);
+});
+test('central-only registration numbers remain guarded when the offline journal uses the same sticker',async()=>{
+ const db=memoryDb({existing:{RegistrationNumber:[{id:'c310f672-79f7-44eb-8173-2a8ff94b1c0e',
+  stageId:ids.stage,registrationId:'e310f672-79f7-44eb-8173-2a8ff94b1c0e',number:19}]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,opts),/номер занят/i);
+ assert.equal(db.rows.get('Participant'),undefined);
+ assert.equal(db.receipt.size,0);
+});
+
+test('offline result INSERT replaces a provisional online score with a different UUID and audits the old row',async()=>{
+ const provisionalId='a810f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const offline=packet([event(1,'Result','INSERT',result)]);
+ const db=memoryDb({existing:{Registration:[reg],RegistrationClass:[cls],
+  Inspection:[insp],Result:[{...result,id:provisionalId,value:'149.000'}]}});
+ const scopeDb=db.transaction;
+ db.transaction=(fn,options)=>scopeDb(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set([ids.cls]),
+   configurations:new Set([ids.config]),versions:new Set([ids.version])});
+  return fn(tx);
+ },options);
+ const report=await applyCompleteVenueJournal(offline,db,opts);
+ assert.equal(report.appliedEvents,1);
+ assert.equal(db.rows.get('Result').size,1);
+ assert.equal(db.rows.get('Result').get(ids.result).value,'153.200');
+ assert.equal(db.rows.get('Result').has(provisionalId),false);
+ assert.equal(db.overrides.length,1);
+ assert.equal(db.overrides[0].reason,'OFFLINE_STAGE_SLOT_REPLACED');
+ assert.equal(db.overrides[0].before.value,'149.000');
+ assert.equal((await applyCompleteVenueJournal(offline,db,opts)).alreadyApplied,true);
+});
+test('signed deletion overrides a centrally edited result and replays without resurrecting the old result',async()=>{
+ const offline=packet([event(1,'Result','DELETE',result,result)]);
+ const db=memoryDb({existing:{Registration:[reg],RegistrationClass:[cls],
+  Result:[{...result,value:'143.000'}]}});
+ const scopeDb=db.transaction;
+ db.transaction=(fn,options)=>scopeDb(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set([ids.cls]),
+   configurations:new Set([ids.config]),versions:new Set([ids.version])});
+  return fn(tx);
+ },options);
+ assert.equal((await applyCompleteVenueJournal(offline,db,opts)).appliedEvents,1);
+ assert.equal(db.rows.get('Result').has(ids.result),false);
+ assert.equal(db.overrides.length,1);
+ assert.equal(db.overrides[0].before.value,'143.000');
+ assert.equal((await applyCompleteVenueJournal(offline,db,opts)).alreadyApplied,true);
+});
+test('dry-run reports overridden stage result without changing the online row or writing audit',async()=>{
+ const offline=packet([event(1,'Result','UPDATE',{...result,value:'155.000'},result)]);
+ const db=memoryDb({existing:{Registration:[reg],RegistrationClass:[cls],
+  Result:[{...result,value:'141.000'}]}});
+ const scopeDb=db.transaction;
+ db.transaction=(fn,options)=>scopeDb(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set([ids.cls]),
+   configurations:new Set([ids.config]),versions:new Set([ids.version])});
+  return fn(tx);
+ },options);
+ const preview=await applyCompleteVenueJournal(offline,db,{...opts,apply:false});
+ assert.equal(preview.readyEvents,1);
+ assert.equal(db.rows.get('Result').get(ids.result).value,'141.000');
+ assert.equal(db.overrides.length,0);
+ assert.equal(db.receipt.size,0);
+});
+
+test('offline UPDATE restores a centrally deleted result even if another online UUID occupies the class',async()=>{
+ const differentId='a810f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const offline=packet([event(1,'Result','UPDATE',{...result,value:'156.000'},result)]);
+ const db=memoryDb({existing:{Registration:[reg],RegistrationClass:[cls],
+  Inspection:[insp],Result:[{...result,id:differentId,value:'145.000'}]}});
+ const base=db.transaction;
+ db.transaction=(callback,options)=>base(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set([ids.cls]),
+   configurations:new Set([ids.config]),versions:new Set([ids.version])});
+  return callback(tx);
+ },options);
+ const applied=await applyCompleteVenueJournal(offline,db,opts);
+ assert.equal(applied.appliedEvents,1);
+ assert.equal(db.rows.get('Result').size,1);
+ assert.equal(db.rows.get('Result').get(ids.result).value,'156.000');
+ assert.equal(db.rows.get('Result').has(differentId),false);
+ assert.equal(db.overrides[0].reason,'OFFLINE_STAGE_SLOT_REPLACED');
+ assert.equal((await applyCompleteVenueJournal(offline,db,opts)).alreadyApplied,true);
 });

@@ -6,6 +6,26 @@ export const VENUE_STAGE_FORMAT=1;
 export const VENUE_STAGE_TTL_MS=72*60*60*1000;
 export const VENUE_STAGE_MAX_BYTES=12*1024*1024;
 
+/** Public venue-only equipment, without other stages' confirmation records. */
+export type VenueStageConfiguration={
+ id:string;carId:string;name:string;isActive:boolean;currentVersion:number;
+ createdAt:Date|string;updatedAt:Date|string;
+ versions:Array<{
+  id:string;configurationId:string;version:number;
+  vibrationIsolation:string|null;additionalDescription:string|null;
+  createdAt:Date|string;
+  amplifiers:Array<{id:string;versionId:string;brand:string;catalogEntryId:string|null;
+   model:string;quantity:number;direction:string;
+   componentLinks:Array<{amplifierId:string;componentId:string;quantity:number}>}>;
+  audioComponents:Array<{id:string;versionId:string;brand:string;catalogEntryId:string|null;
+   model:string;quantity:number;type:string;direction:string}>;
+  headUnits:Array<{id:string;versionId:string;brand:string;catalogEntryId:string|null;
+   model:string;direction:string}>;
+  batteries:Array<{id:string;versionId:string;brand:string;model:string;quantity:number}>;
+  generators:Array<{id:string;versionId:string;brand:string;model:string;quantity:number}>;
+ }>;
+};
+
 export type VenueStageSnapshot={
  format:1;
  purpose:'USD_VENUE_STAGE_READONLY';
@@ -16,6 +36,8 @@ export type VenueStageSnapshot={
  registrations:unknown[];
  /** Complete minimal local search directory; excludes contacts, credentials and history. */
  participantDirectory?:unknown[];
+ /** Full immutable equipment versions for all signed participant-directory cars. */
+ configurations?:VenueStageConfiguration[];
  /** Effective central bans. Old unsigned lists cannot permit LAN admission. */
  disqualifications?:SignedVenueDisqualification[];
  venuePolicy?:unknown;
@@ -66,6 +88,7 @@ export function verifyVenueStagePackage(
   ||typeof snapshot.stageId!=='string'||!snapshot.stageId
   ||!Array.isArray(snapshot.registrations)||snapshot.registrations.length>2500
   ||(snapshot.participantDirectory!==undefined&&(!Array.isArray(snapshot.participantDirectory)||snapshot.participantDirectory.length>25000))
+  ||(snapshot.configurations!==undefined&&(!Array.isArray(snapshot.configurations)||snapshot.configurations.length>25000))
   ||(snapshot.disqualifications!==undefined&&(!Array.isArray(snapshot.disqualifications)||snapshot.disqualifications.length>25000))
   ||integrity.algorithm!=='Ed25519'||!looksLikeSha(integrity.sha256)
   ||!looksLikeSha(integrity.publicKeyFingerprint)
