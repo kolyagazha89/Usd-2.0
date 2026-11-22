@@ -393,21 +393,6 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
    let skipLinkedInsert=false;
    if(p.operation==='INSERT'){
     if(actual!==null)reject('duplicate central ID '+table+' '+p.recordId);
-    // A result or inspection created on the LAN may have a different UUID
-    // than an online provisional entry for the SAME stage slot. Keep the
-    // original in an audit entry and replace it inside this one transaction.
-    if(UNIQUE_STAGE_SLOTS.has(table)){
-     const displaced=await tx.findStageSlot(table,after,stageId);
-     if(displaced){
-      if(typeof tx.auditOverride!=='function'||typeof tx.removeStageSlot!=='function')
-       reject('MANUAL_REVIEW: central slot replacement requires audited adapter');
-      if(apply)await tx.auditOverride({
-       stageId,eventHash:event.hash,operator,table,recordId:p.recordId,
-       reason:'OFFLINE_STAGE_SLOT_REPLACED',before:displaced,after,
-      });
-      await tx.removeStageSlot(table,displaced,stageId);
-     }
-    }
     if(table==='Participant'){
      if(typeof tx.participantIdentityCandidates!=='function')
       reject('MANUAL_REVIEW: central identity lookup unavailable');
@@ -478,6 +463,21 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
       const protectedRow=stageWinnerRow(table,actual,after??before,stageId);
       if(p.operation!=='DELETE')after=protectedRow;
      }
+    }
+   }
+   // A stage-scoped UPDATE can also restore a row deleted centrally. If
+   // another online provisional row now occupies its unique slot, replace
+   // that row under the same audited, SERIALIZABLE transaction.
+   if(effectiveKind==='INSERT'&&UNIQUE_STAGE_SLOTS.has(table)){
+    const displaced=await tx.findStageSlot(table,after,stageId);
+    if(displaced){
+     if(typeof tx.auditOverride!=='function'||typeof tx.removeStageSlot!=='function')
+      reject('MANUAL_REVIEW: central slot replacement requires audited adapter');
+     if(apply)await tx.auditOverride({
+      stageId,eventHash:event.hash,operator,table,recordId:p.recordId,
+      reason:'OFFLINE_STAGE_SLOT_REPLACED',before:displaced,after,
+     });
+     await tx.removeStageSlot(table,displaced,stageId);
     }
    }
    if(p.table==='Registration'&&p.operation!=='DELETE'&&after.status==='ACTIVE'
