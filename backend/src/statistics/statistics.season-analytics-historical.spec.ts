@@ -3,14 +3,14 @@ import {StatisticsService} from './statistics.service';
 
 const id='00000000-0000-4000-8000-000000000001';
 const entry=(id:string,live:string|null,frozen:string|null)=>({
- id,participantId:id,carId:'car-'+id,
+ id,stageId:'stage-1',source:'PRE_REGISTRATION',participantId:id,
  participant:{id,firstName:'Test',lastName:'Athlete',middleName:null,team:live},
  teamNameAtInspection:frozen,
  configurationSnapshot:null,
 });
 
 describe('season analytics never rewrite historic affiliations',()=>{
- const db:any={season:{findUnique:jest.fn()},registration:{findMany:jest.fn()}};
+ const db:any={season:{findUnique:jest.fn()},registration:{findMany:jest.fn()},importRow:{findMany:jest.fn()}};
  const service=new StatisticsService(db);
  beforeEach(()=>{
   jest.clearAllMocks();
@@ -21,18 +21,19 @@ describe('season analytics never rewrite historic affiliations',()=>{
    entry('a','CURRENT TEAM','Original Team'),
    entry('b','Current Team',' original team '),
    entry('c','NEW TEAM',null),
-   entry('d','Team USD','-'),
+   {...entry('d','Team USD',null),teamAffiliationCapturedAt:new Date('2026-01-01')},
   ]);
   const data=await service.getSeasonAnalytics(id);
   expect(db.registration.findMany).toHaveBeenCalledWith(expect.objectContaining({
    select:expect.objectContaining({teamNameAtInspection:true}),
   }));
-  expect(data.registrations).toEqual({total:4,withTeam:2,withoutTeam:2,withoutTeamPercent:50});
+  expect(data.registrations).toEqual({total:4,withTeam:2,withoutTeam:1,withoutTeamPercent:25,unknownTeam:1,unknownTeamPercent:25,fromArchive:0});
   // Equal-count groups use locale sorting; correctness is independent of order.
-  expect(data.teams).toHaveLength(2);
+  expect(data.teams).toHaveLength(3);
   expect(data.teams).toEqual(expect.arrayContaining([
    expect.objectContaining({key:'snapshot:original team',name:'Original Team',registrations:2,participants:2,percent:50}),
-   expect.objectContaining({key:'unattributed',name:'Без команды',registrations:2,participants:2,percent:50}),
+   expect.objectContaining({key:'unattributed',name:'Без команды',registrations:1,participants:1,percent:25}),
+   expect.objectContaining({key:'unknown',name:'Нет данных о команде',registrations:1,participants:1,percent:25}),
   ]));
  });
  it('uses frozen team IDs when a renamed team spans multiple stages',async()=>{
@@ -88,6 +89,40 @@ describe('season analytics never rewrite historic affiliations',()=>{
   ]);
   const data=await service.getSeasonAnalytics(id);
   expect(data.registrations.withTeam).toBe(0);
-  expect(data.teams).toEqual([{key:'unattributed',name:'Без команды',registrations:1,participants:1,percent:100}]);
+  expect(data.teams).toEqual([{key:'unknown',name:'Нет данных о команде',registrations:1,participants:1,percent:100}]);
+  expect(db.importRow.findMany).not.toHaveBeenCalled();
  });
+ it('recovers unanimous archive teams without using current rosters or inflating registration counts',async()=>{
+  const imported = (id:string) => ({...entry(id,'Today',null),source:'IMPORT'});
+  const result = (registrationId:string,historicalTeam:unknown,stageId='stage-1')=>({
+   registrationId,normalizedData:{historicalTeam},importJob:{stageId},
+  });
+  db.registration.findMany.mockResolvedValue([
+   imported('archive'),imported('conflict'),imported('wrong-stage'),imported('missing'),
+   {...imported('frozen'),teamNameAtInspection:'Frozen team'},
+   {...imported('captured-none'),teamAffiliationCapturedAt:new Date('2026-01-01')},
+   entry('live','Current team',null),
+  ]);
+  db.importRow.findMany.mockResolvedValue([
+   result('archive','Archive  team'),result('archive','archive team'),result('archive',null),
+   result('conflict','First'),result('conflict','Second'),
+   result('wrong-stage','Different stage','stage-2'),result('missing','—'),
+   result('captured-none','Stale team'),result('live','Fake history'),
+  ]);
+  const data=await service.getSeasonAnalytics(id);
+  expect(db.importRow.findMany).toHaveBeenCalledWith(expect.objectContaining({
+   where:{
+    registrationId:{in:['archive','conflict','wrong-stage','missing']},
+    type:'RESULT',status:'COMMITTED',
+    importJob:{status:'COMMITTED',metadata:{path:['historicalResults'],equals:true}},
+   },
+  }));
+  expect(data.registrations).toMatchObject({total:7,withTeam:2,withoutTeam:1,unknownTeam:4,fromArchive:1});
+  expect(data.teams).toEqual(expect.arrayContaining([
+   expect.objectContaining({key:'snapshot:archive team',registrations:1,participants:1}),
+   expect.objectContaining({key:'snapshot:frozen team',registrations:1}),
+   expect.objectContaining({key:'unknown',registrations:4}),
+  ]));
+ });
+
 });
