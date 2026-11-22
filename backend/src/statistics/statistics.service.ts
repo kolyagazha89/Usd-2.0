@@ -1138,36 +1138,83 @@ export class StatisticsService {
       where: { stage: { seasonId }, status: 'ACTIVE' },
       select: {
         id: true,
+        stageId: true,
+        source: true,
         participantId: true,
-        carId: true,
-        // The past inspection, not today's participant.team, defines team history.
         teamIdAtInspection: true,
         teamNameAtInspection: true,
-        participant: { select: { id: true, firstName: true, lastName: true, middleName: true } },
+        teamAffiliationCapturedAt: true,
         configurationSnapshot: true,
       },
     });
 
-    const total = registrations.length;
-    const normalizeTeam = (value: string | null | undefined) => {
-      const normalized = value?.trim() ?? '';
-      if (!normalized) return null;
-      const emptyMarkers = new Set(['-', '—', 'нет', 'нет команды', 'без команды', 'n/a', 'na']);
-      return emptyMarkers.has(normalized.toLowerCase()) ? null : normalized;
+    const normalizeTeam = (value: unknown) => {
+      if (typeof value !== 'string') return null;
+      const name = value.normalize('NFKC').replace(/\s+/g, ' ').trim();
+      const emptyMarkers = ['', '-', '–', '—', 'нет', 'нет команды', 'без команды', 'не указано', 'не указана', 'n/a', 'na', 'none', 'no team'];
+      return emptyMarkers.includes(name.toLocaleLowerCase('ru')) ? null : name;
     };
-    const withTeam = registrations.filter((r) => Boolean(r.teamIdAtInspection?.trim() || normalizeTeam(r.teamNameAtInspection))).length;
+
+    // Older imports saved the verified same-stage team in the committed result
+    // preview. The inspection snapshot can be absent for these registrations.
+    const imports = new Map(registrations.filter(row =>
+      row.source === 'IMPORT' && !row.teamAffiliationCapturedAt &&
+      !row.teamIdAtInspection?.trim() && !normalizeTeam(row.teamNameAtInspection),
+    ).map(row => [row.id, row.stageId]));
+    const historicalTeams = new Map<string, Map<string, string>>();
+    if (imports.size) {
+      const rows = await this.prisma.importRow.findMany({
+        where: {
+          registrationId: { in: [...imports.keys()] },
+          type: 'RESULT',
+          status: 'COMMITTED',
+          importJob: { status: 'COMMITTED', metadata: { path: ['historicalResults'], equals: true } },
+        },
+        select: { registrationId: true, normalizedData: true, importJob: { select: { stageId: true } } },
+      });
+      for (const row of rows) {
+        const id = row.registrationId;
+        if (!id || imports.get(id) !== row.importJob.stageId) continue;
+        const snapshot = row.normalizedData;
+        if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) continue;
+        const name = normalizeTeam(snapshot.historicalTeam);
+        if (!name) continue;
+        const names = historicalTeams.get(id) ?? new Map<string, string>();
+        names.set(name.toLocaleLowerCase('ru'), name);
+        historicalTeams.set(id, names);
+      }
+    }
+
+    const total = registrations.length;
+    let withTeam = 0;
+    let withoutTeam = 0;
+    let unknownTeam = 0;
+    let fromArchive = 0;
     const teamMap = new Map<string, { key: string; name: string; registrations: number; participants: Set<string> }>();
-    for (const r of registrations) {
-      const captured = normalizeTeam(r.teamNameAtInspection);
-      const capturedId = r.teamIdAtInspection?.trim();
-      const key = capturedId ? 'id:' + capturedId
-        : captured ? 'snapshot:' + captured.toLocaleLowerCase('ru') : 'unattributed';
-      const item = teamMap.get(key) ?? {
-        key, name: captured ?? (capturedId ? 'Команда (историческая)' : 'Без команды'),
-        registrations: 0, participants: new Set<string>(),
-      };
+    for (const row of registrations) {
+      const archive = historicalTeams.get(row.id);
+      const historicalTeam = archive?.size === 1 ? archive.values().next().value : undefined;
+      const captured = normalizeTeam(row.teamNameAtInspection) ?? historicalTeam;
+      const capturedId = row.teamIdAtInspection?.trim();
+      let key: string;
+      let label: string;
+      if (capturedId || captured) {
+        withTeam += 1;
+        if (historicalTeam) fromArchive += 1;
+        key = capturedId ? 'id:' + capturedId : 'snapshot:' + captured!.toLocaleLowerCase('ru');
+        label = captured ?? 'Команда (историческая)';
+      } else if (row.teamAffiliationCapturedAt) {
+        withoutTeam += 1;
+        key = 'unattributed';
+        label = 'Без команды';
+      } else {
+        unknownTeam += 1;
+        key = 'unknown';
+        label = 'Нет данных о команде';
+      }
+      const item = teamMap.get(key) ?? { key, name: label, registrations: 0, participants: new Set<string>() };
       item.registrations += 1;
-      item.participants.add(r.participantId);
+      item.participants.add(row.participantId);
       teamMap.set(key, item);
     }
 
@@ -1196,8 +1243,11 @@ export class StatisticsService {
       registrations: {
         total,
         withTeam,
-        withoutTeam: total - withTeam,
-        withoutTeamPercent: pct(total - withTeam),
+        withoutTeam,
+        withoutTeamPercent: pct(withoutTeam),
+        unknownTeam,
+        unknownTeamPercent: pct(unknownTeam),
+        fromArchive,
       },
       teams,
       vibrationIsolation: [...isolationMap.entries()]
