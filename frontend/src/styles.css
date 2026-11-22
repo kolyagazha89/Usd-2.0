@@ -4008,12 +4008,6 @@ body:has(.modal-backdrop){overflow:hidden!important}
   }
   /* Also constrain the stage-list card; its previous full-width portrait
      poster could dominate a desktop row even though no pixels were cropped. */
-  body .usd-live .public-stage-card.usd-stage-card-approved .usd-stage-poster {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 0 !important;
-  }
   body .usd-live .public-stage-card.usd-stage-card-approved .usd-stage-poster img.public-stage-list-poster,
   .public-site .public-stage-card.usd-stage-card-approved img.public-stage-list-poster {
     display: block !important;
@@ -4023,7 +4017,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
     max-height: min(60dvh, 620px) !important;
     aspect-ratio: auto !important;
     object-fit: contain !important;
-    margin-inline: auto !important;
+    margin: 0 auto !important;
   }
 }
 
