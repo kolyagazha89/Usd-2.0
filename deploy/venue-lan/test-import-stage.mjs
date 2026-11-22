@@ -601,7 +601,7 @@ test('retained season imports newer signed equipment versions but never downgrad
   await applyVenueStageImport(plan,db,{shared:true});
   assert.equal(log.filter(x=>x.model==='carConfigurationVersion').length,1);
   assert.equal(log.find(x=>x.model==='carConfigurationVersion').data.id,nextVersion);
-  assert.equal(log.some(x=>x.model==='carConfiguration'),false,'reuse existing configuration ID');
+  assert.equal(log.some(x=>x.model==='carConfiguration'&&x.data),false,'reuse existing configuration ID');
   return log.filter(x=>x.model==='carConfiguration'&&x.update).map(x=>x.update.currentVersion);
  };
  assert.deepEqual(await run(1),[2],'advance when a newer signed version arrives');
