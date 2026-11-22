@@ -75,6 +75,16 @@ describe('Signed LAN stage export',()=>{
     {id:'person2',firstName:'Пётр',lastName:'Петров',middleName:null,city:null,team:null,isPublic:false,
      cars:[{id:'car2',participantId:'person2',brand:'Toyota',model:'Camry',registrationCountry:'RU',registrationNumber:'А222УР55',color:null,isPublic:false,isActive:true}]},
    ])},
+   carConfiguration:{findMany:jest.fn<() => Promise<any>>().mockResolvedValue([{
+    id:'config1',carId:'car1',name:'SPL',isActive:true,currentVersion:1,
+    createdAt:new Date('2026-11-01T00:00:00Z'),updatedAt:new Date('2026-11-02T00:00:00Z'),
+    versions:[{id:'version1',configurationId:'config1',version:1,vibrationIsolation:null,
+     additionalDescription:null,createdAt:new Date('2026-11-01T00:00:00Z'),
+     amplifiers:[{id:'amplifier1',versionId:'version1',brand:'Pride',catalogEntryId:null,
+      model:'Bass',quantity:1,direction:'SUB',componentLinks:[]}],
+     audioComponents:[],batteries:[],generators:[],headUnits:[],
+    }],
+   }])},
    venueSyncAuthorization:{create:jest.fn<() => Promise<any>>().mockResolvedValue({id:'grant1'})},
    auditLog:{create:jest.fn<() => Promise<any>>().mockResolvedValue({id:'log1'})},
    $transaction:async(fn:(tx:any)=>Promise<any>)=>fn(prisma),
@@ -97,6 +107,11 @@ describe('Signed LAN stage export',()=>{
    expect(pkg.snapshot.syncAuthorization?.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
    expect(pkg.snapshot.participantDirectory).toHaveLength(2);
    expect(pkg.snapshot.disqualifications).toHaveLength(1);
+   expect(pkg.snapshot.configurations).toHaveLength(1);
+   expect(pkg.snapshot.configurations?.[0].versions[0].amplifiers[0].brand).toBe('Pride');
+   expect(prisma.carConfiguration.findMany).toHaveBeenCalledWith(expect.objectContaining({
+    where:expect.objectContaining({carId:{in:expect.arrayContaining(['car1','car2'])}}),
+   }));
    expect(pkg.snapshot.disqualifications?.[0]).toMatchObject({scope:'FORMAT',stageId:null,seasonId:null});
    expect(prisma.disqualification.findMany).toHaveBeenCalledWith(expect.objectContaining({
     where:expect.objectContaining({status:'ACTIVE'}),select:expect.objectContaining({id:true,participantId:true}),
