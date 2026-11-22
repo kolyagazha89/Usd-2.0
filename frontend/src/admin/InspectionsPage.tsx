@@ -99,6 +99,8 @@ export function InspectionsPage({user,go,PageFrame,Empty,LoadingPage,SearchableS
  const initialStageId=(()=>{try{return new URLSearchParams(location.search).get('stageId')??readViewState('inspections:stage','')}catch{return ''}})();
  const[stageId,setStageId]=useViewState('inspections:stage',initialStageId),[stages,setStages]=useState<any[]>([]),[loadingStages,setLoadingStages]=useState(true),[stageError,setStageError]=useState('');
  const isPastStage=isPastStageCalendar;
+ const selectedStage=stages.find(stage=>stage.id===stageId);
+ const readOnly=!selectedStage||isPastStage(selectedStage);
  const changeStage=(next:string)=>{
   const params=new URLSearchParams(location.search);
   if(params.has('registrationId')){
@@ -119,7 +121,7 @@ export function InspectionsPage({user,go,PageFrame,Empty,LoadingPage,SearchableS
    <label>Сезон<select aria-label="Сезон инспекций" value={season} onChange={e=>{const next=e.target.value;setSeason(next);const candidates=stages.filter(s=>matchesSeason(s,next)&&(period==='PAST'?isPastStage(s):!isPastStage(s)));changeStage(candidates[0]?.id??'')}}><option value="ALL">Все сезоны</option>{seasonYears(stages).map(year=><option key={year} value={year}>{year}</option>)}</select></label><label>Период<select value={period} onChange={e=>{const next=e.target.value as 'UPCOMING'|'PAST';setPeriod(next);const nextStages=stages.filter(s=>matchesSeason(s,season)&&(next==='PAST'?isPastStage(s):!isPastStage(s)));changeStage(nextStages[0]?.id??'')}}><option value="UPCOMING">Будущие этапы</option><option value="PAST">Прошедшие этапы</option></select></label>
    </CollapsibleFilters>
   </div>
-  {loadingStages?<LoadingPage small/>:stageId?<EntryInspection key={stageId} stageId={stageId} stageName={stages.find(s=>s.id===stageId)?.name} onScanQr={()=>setScanOpen(true)} go={go} user={user} readOnly={!stages.some(s=>s.id===stageId)||isPastStage(stages.find(s=>s.id===stageId))} Empty={Empty} LoadingPage={LoadingPage} SearchableSelect={SearchableSelect} displayCarName={displayCarName} enumLabel={enumLabel}/>:<div className="panel"><Empty text="Выберите этап"/><button type="button" className="secondary-button compact" onClick={()=>setScanOpen(true)}><ScanQrCode size={15}/>Сканировать QR</button></div>}
+  {loadingStages?<LoadingPage small/>:stageId?<EntryInspection key={stageId} stageId={stageId} stageName={selectedStage?.name} onScanQr={()=>setScanOpen(true)} go={go} user={user} readOnly={readOnly} Empty={Empty} LoadingPage={LoadingPage} SearchableSelect={SearchableSelect} displayCarName={displayCarName} enumLabel={enumLabel}/>:<div className="panel"><Empty text="Выберите этап"/><button type="button" className="secondary-button compact" onClick={()=>setScanOpen(true)}><ScanQrCode size={15}/>Сканировать QR</button></div>}
   </>}
  </PageFrame>
 }
