@@ -85,6 +85,51 @@ export function postgresFullVenueAdapter(client){
        table==='CarAmplifierComponent'?[JSON.stringify(row),row.id]:[JSON.stringify(row)]);
       return rows[0].data;
      },
+
+     async findStageSlot(table,row,stageId){
+      // Only these four unique per-stage competition slots can supersede
+      // provisional online rows. Never search identity/equipment by name.
+      const sql={
+       Result:'SELECT to_jsonb(t) AS data FROM "Result" t JOIN "Registration" r ON r.id=t."registrationId" WHERE r."stageId"=$3 AND t."registrationId"=$2 AND t."registrationClassId"=$1 FOR UPDATE OF t',
+       Inspection:'SELECT to_jsonb(t) AS data FROM "Inspection" t JOIN "Registration" r ON r.id=t."registrationId" WHERE r."stageId"=$3 AND t."registrationId"=$2 FOR UPDATE OF t',
+       ParticipantStageInspection:'SELECT to_jsonb(t) AS data FROM "ParticipantStageInspection" t WHERE t."stageId"=$3 AND t."participantId"=$1 FOR UPDATE OF t',
+       RegistrationClassInspection:'SELECT to_jsonb(t) AS data FROM "RegistrationClassInspection" t JOIN "RegistrationClass" rc ON rc.id=t."registrationClassId" JOIN "Registration" r ON r.id=rc."registrationId" WHERE r."stageId"=$3 AND t."registrationClassId"=$1 FOR UPDATE OF t',
+      };
+      if(!Object.hasOwn(sql,table))throw Error('VENUE DB: unsafe stage-slot lookup');
+      const args=table==='Result'?[row.registrationClassId,row.registrationId,stageId]:
+       table==='Inspection'?[row.registrationId,row.registrationId,stageId]:
+       table==='ParticipantStageInspection'?[row.participantId,null,stageId]:
+       [row.registrationClassId,null,stageId];
+      const {rows}=await client.query(sql[table],args);
+      return rows[0]?.data??null;
+     },
+     async removeStageSlot(table,displaced,stageId){
+      // Re-check ownership under the same SERIALIZABLE transaction before
+      // deleting a different-UUID provisional stage record.
+      const row=await this.findStageSlot(table,displaced,stageId);
+      if(!row||row.id!==displaced.id)throw Error('VENUE DB: stage slot changed before replacement');
+      if(table==='Result'){
+       // A previously computed central record must not keep pointing at an
+       // obsolete measurement. Final ranking/record rebuild follows import.
+       await client.query('UPDATE "Record" SET "resultId"=NULL WHERE "resultId"=$1',[displaced.id]);
+      }
+      const allowed=new Set(['Result','Inspection','ParticipantStageInspection','RegistrationClassInspection']);
+      if(!allowed.has(table))throw Error('VENUE DB: unsafe stage-slot replacement');
+      const {rowCount}=await client.query('DELETE FROM '+ident(table)+' WHERE id=$1',[displaced.id]);
+      if(rowCount!==1)throw Error('VENUE DB: displaced stage row disappeared');
+     },
+     async auditOverride(item){
+      const {stageId,eventHash,operator,table,recordId,reason,before,after}=item;
+      if(!/^[a-f0-9]{64}$/.test(eventHash??'')||!TABLES.has(table)
+       ||!['OFFLINE_STAGE_PREVAILS','OFFLINE_STAGE_SLOT_REPLACED'].includes(reason))
+       throw Error('VENUE DB: invalid stage override audit');
+      // Store before and after in protected AuditLog as evidence. This does
+      // not grant an ADMIN the ability to overwrite participant identity.
+      await client.query(
+       'INSERT INTO "AuditLog" (id,action,entity,"entityId",metadata,"createdAt") VALUES (gen_random_uuid(),$1,$2,$3,$4::jsonb,now())',
+       ['VENUE_OFFLINE_STAGE_OVERRIDE',table,recordId,
+        JSON.stringify({stageId,eventHash,operator,reason,before,after})]);
+     },
      async stageClassAllowed(stageId,classId){
       const {rows}=await client.query(
        'SELECT 1 FROM "StageClass" sc JOIN "Class" c ON c.id=sc."classId" WHERE sc."stageId"=$1 AND sc."classId"=$2 AND sc."isActive"=true AND c."isActive"=true LIMIT 1',
