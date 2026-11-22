@@ -45,7 +45,7 @@ services:
     volumes: [venue_media:/data]
     networks: [venue_private]
   api:
-    image: ghcr.io/kolyagazha89/usd-2.0-api:${VENUE_IMAGE_TAG:?set VENUE_IMAGE_TAG}
+    image: ghcr.io/kolyagazha89/usd-2.0-api:${VENUE_API_IMAGE_TAG:-${VENUE_IMAGE_TAG:?set VENUE_IMAGE_TAG}}
     restart: unless-stopped
     command: ["node","dist/main.js"]
     environment:

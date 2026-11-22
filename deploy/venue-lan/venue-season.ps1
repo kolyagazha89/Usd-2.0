@@ -335,8 +335,9 @@ function Wait-VenueLanReady([object]$State){
     [string]$State.stageId -cnotmatch '^[0-9a-f-]{36}$'){
   throw 'Невозможно подтвердить запуск подписанного этапа USD'
  }
+ $apiRevision=Get-VenueRuntimeApiSha (Read-Env)
  for($attempt=0;$attempt -lt 40;$attempt++){
-  if((Test-VenueApiReady -ExpectedSha $State.image -ExpectedStage $State.stageId) -and
+  if((Test-VenueApiReady -ExpectedSha $apiRevision -ExpectedStage $State.stageId) -and
      (Test-VenueGatewayReady $State.ip)){
    return
   }
@@ -500,7 +501,7 @@ function Get-CachedVenueReleaseSha {
 }
 function Get-VenueReleaseSha([object]$sharedConfig){
  if($sharedConfig){
-  $local=[string]$sharedConfig['VENUE_IMAGE_TAG']
+  $local=Get-VenueRuntimeApiSha $sharedConfig
   try{
    Assert-VenueReleaseImages $local
    return $local
