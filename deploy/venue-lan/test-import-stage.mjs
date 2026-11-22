@@ -445,7 +445,8 @@ test('database failure reports a fixed import phase and safe Prisma code without
  assert.equal(importer.classifyVenueImportFailure(unsafe),'DATABASE_P2002');
 });
 test('RED: startup refusal produces safe, PII-free reason codes for clock, historical roster, trust and database',()=>{
- assert.equal(importer.classifyVenueImportFailure(new Error('Пакет просрочен или время ноутбука неверно')),'PACKAGE_EXPIRED_OR_CLOCK');
+ assert.equal(importer.classifyVenueImportFailure({venuePackageFailure:'PACKAGE_EXPIRED'}),'PACKAGE_EXPIRED');
+ assert.equal(importer.classifyVenueImportFailure({venuePackageFailure:'PACKAGE_NOT_YET_VALID'}),'PACKAGE_NOT_YET_VALID');
  assert.equal(importer.classifyVenueImportFailure(new Error('Повтор или повреждение участника справочника')),'SIGNED_DIRECTORY_INVALID');
  assert.equal(importer.classifyVenueImportFailure(new Error('Доверенный отпечаток ключа подписи не совпадает с пакетом')),'SIGNATURE_OR_TRUST');
  assert.equal(importer.classifyVenueImportFailure(new Error('Адрес локальной базы данных недопустим')),'LOCAL_DATABASE_CONFIG');

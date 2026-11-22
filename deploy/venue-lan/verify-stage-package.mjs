@@ -33,11 +33,6 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
   ||typeof integrity.sha256!=='string'||!/^[a-f0-9]{64}$/.test(integrity.sha256)
   ||typeof integrity.publicKeyFingerprint!=='string'||!/^[a-f0-9]{64}$/.test(integrity.publicKeyFingerprint))
   throw new Error('Неподдерживаемый формат или подпись пакета');
- const created=Date.parse(String(snapshot.generatedAt));
- const expiry=Date.parse(String(snapshot.expiresAt));
- if(!Number.isFinite(now)||!Number.isFinite(created)||!Number.isFinite(expiry)
-  ||expiry-created>TTL||expiry<=created||now>expiry||now<created-5*60*1000)
-  throw new Error('Пакет просрочен или время ноутбука неверно');
  const bytes=Buffer.from(JSON.stringify(snapshot),'utf8');
  if(bytes.length>MAX_BYTES||hash(bytes)!==integrity.sha256)
   throw new Error('Контрольная сумма пакета не совпадает');
@@ -46,6 +41,14 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
  if(hash(key.export({type:'spki',format:'der'}))!==integrity.publicKeyFingerprint
   ||!verify(null,bytes,key,Buffer.from(integrity.signature,'base64url')))
   throw new Error('Цифровая подпись не подтверждена');
+ const created=Date.parse(String(snapshot.generatedAt));
+ const expiry=Date.parse(String(snapshot.expiresAt));
+ if(!Number.isFinite(created)||!Number.isFinite(expiry)||expiry-created>TTL||expiry<=created)
+  throw Object.assign(new Error('Недопустимый срок действия пакета'),{venuePackageFailure:'PACKAGE_INVALID_WINDOW'});
+ if(!Number.isFinite(now)||now<created-5*60*1000)
+  throw Object.assign(new Error('Проверьте время ноутбука: пакет выпущен позже текущего времени'),{venuePackageFailure:'PACKAGE_NOT_YET_VALID'});
+ if(now>expiry)
+  throw Object.assign(new Error('Пакет просрочен по часам ноутбука'),{venuePackageFailure:'PACKAGE_EXPIRED'});
  if(snapshot.staffAccess!==undefined){
   const envelope=snapshot.staffAccess;
   fields(envelope,['format','algorithm','nonce','ciphertext','tag'],'шифр доступа сотрудников');

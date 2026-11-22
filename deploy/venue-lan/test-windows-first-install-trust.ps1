@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 # Exercises the real first-install persistence of immutable trust material.
 # Windows runner temp files only: no Docker, secrets, network or elevation.
 $ErrorActionPreference='Stop'
@@ -100,6 +100,55 @@ try {
  $originalAccess=[IO.File]::ReadAllText((Join-Path $PrivateDir 'venue-staff-access.key'))
  if($originalAccess -cne ('c'*43)){
   throw 'Signed initial staff access key was overwritten by a retry'
+ }
+ # Resume a persisted installation with an expired package. The durable
+ # state must change only after both the fresh signature and staff key pass.
+ Write-PrivateFile $EnvFile $originalEnv
+ $envHash=(Get-FileHash -LiteralPath $EnvFile).Hash
+ Set-SetupPhase $replayed 'CONFIGURED'
+ $script:FreshStaffAccepted=$false
+ $script:InstallReceiptExists=$false
+ $script:RecoveredByReceipt=$false
+ function Invoke-VenueStageCheck([array]$Mounts,[string]$Mode){
+  if($Mode -eq '--check-uninstalled' -and !$script:InstallReceiptExists){return}
+  if($Mode -eq '--check-installed' -and $script:InstallReceiptExists){return}
+  if($Mode -eq '--dry-run' -and ($Mounts -join ' ') -match 'signed-stage-[a-f0-9]{32}\.json'){return}
+  $failure=[InvalidOperationException]::new('expected test refusal')
+  $failure.Data['VenueExitCode']=$(if($Mode -eq '--check-uninstalled'){23}else{20})
+  throw $failure
+ }
+ function Create-ExistingStaff([object]$State,[array]$Mounts,[switch]$CheckOnly,[switch]$Preflight){
+  if($CheckOnly){$script:RecoveredByReceipt=$true;return}
+  if(!$Preflight -or !$script:FreshStaffAccepted){throw 'expected staff preflight refusal'}
+ }
+ function Select-VenueFile([string]$Title,[string]$Filter){
+  if($Filter -like '*json*'){return $script:stagePath}
+  return $script:staffPath
+ }
+ $oldPackage=$replayed.package
+ $oldAccess=$replayed.accessKey
+ $failed=$false
+ try{Confirm-SignedStage $replayed|Out-Null}catch{$failed=$true}
+ if(!$failed -or (Read-State).package -cne $oldPackage -or $replayed.accessKey -cne $oldAccess){
+  throw 'Failed staff preflight changed persisted package or key'
+ }
+ $script:FreshStaffAccepted=$true
+ Confirm-SignedStage $replayed|Out-Null
+ if($replayed.package -ceq $oldPackage -or (Read-State).package -cne $replayed.package -or
+    (Read-State).accessKey -cne $replayed.accessKey -or $replayed.phase -ne 'CONFIGURED' -or
+    [IO.File]::ReadAllText($replayed.accessKey) -cne ('d'*43) -or
+    (Get-FileHash -LiteralPath $EnvFile).Hash -cne $envHash -or
+    !(Test-Path -LiteralPath $oldPackage) -or !(Test-Path -LiteralPath $oldAccess)){
+  throw 'Verified replacement did not retain the setup phase, DB credentials and prior files'
+ }
+ $replayed.package=$oldPackage
+ $replayed.accessKey=$oldAccess
+ Set-SetupPhase $replayed 'STORAGE_READY'
+ Set-SetupPhase $replayed 'SCHEMA_READY'
+ $script:InstallReceiptExists=$true
+ Confirm-SignedStage $replayed|Out-Null
+ if(!$script:RecoveredByReceipt -or (Read-State).phase -ne 'IMPORTED' -or (Read-State).package -cne $oldPackage){
+  throw 'A committed package interrupted before IMPORTED must be resumed by exact receipt'
  }
  Write-Host 'USD WINDOWS INITIAL TRUST PASS: local PEM pinned, partial bootstrap replayed, download disposable'
 } finally {

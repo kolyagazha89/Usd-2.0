@@ -389,6 +389,50 @@ function Test-VenueJudgingRunning {
 function Restore-VenueStack {
  Invoke-Compose @('start') 'restore all previously installed services after cancelled stage switch'
 }
+function Update-ExpiredVenueSetupPackage([object]$State){
+ if($Silent){throw 'Срок пакета истёк. Скачайте новый пакет этого этапа и его ключ судей (.key), затем откройте USD-Install.cmd.'}
+ Write-Host 'Скачайте свежий пакет того же этапа и ключ судей (.key) из одной выгрузки админки USD.'
+ $selected=Select-VenueFile 'Свежий подписанный пакет того же этапа' 'Файл этапа (*.json)|*.json'
+ if((Get-Item -LiteralPath $selected).Length -gt (12MB+256KB)){throw 'Пакет этапа слишком большой'}
+ $raw=[IO.File]::ReadAllText($selected)
+ $payload=$raw|ConvertFrom-Json
+ if([string]$payload.snapshot.stageId -cne [string]$State.stageId -or
+    [string]$payload.integrity.publicKeyFingerprint -cne [string]$State.fingerprint){
+  throw 'Нужен свежий пакет того же этапа с прежним доверенным ключом.'
+ }
+ if([string]$payload.snapshot.syncAuthorization.token -cnotmatch '^[A-Za-z0-9_-]{43}$'){
+  throw 'Выберите новый пакет этапа для автоматической синхронизации.'
+ }
+ $selectedKey=Select-VenueFile 'Ключ судей из той же выгрузки' 'Ключ доступа (*.key)|*.key'
+ if((Get-Item -LiteralPath $selectedKey).Length -gt 512){throw 'Файл ключа судей слишком большой'}
+ $key=[IO.File]::ReadAllText($selectedKey).Trim()
+ if($key -cnotmatch '^[A-Za-z0-9_-]{43}$'){throw 'Неверный формат ключа судей'}
+ # Publish the package and key together via the state pointer only after both
+ # are verified. The old files and DB credentials survive a cancelled retry.
+ $candidate=$State.PSObject.Copy()
+ $suffix=[guid]::NewGuid().ToString('N')
+ $candidate.package=Join-Path $PrivateDir ('signed-stage-'+$suffix+'.json')
+ $candidate.accessKey=Join-Path $PrivateDir ('staff-access-'+$suffix+'.key')
+ try{
+  Write-VenueImmutableBootstrapFile $candidate.package $raw
+  Write-VenueImmutableBootstrapFile $candidate.accessKey $key
+  $mounts=Get-VenueStageMounts $candidate
+  try{Invoke-VenueStageCheck $mounts '--dry-run'}catch{
+   if($_.Exception.Data['VenueExitCode'] -eq 20){throw 'Выбранный пакет тоже просрочен. Сверьте время ноутбука и выберите свежую выгрузку этого этапа.'}
+   throw
+  }
+  Create-ExistingStaff $candidate $mounts -Preflight
+ }catch{
+  foreach($file in @($candidate.package,$candidate.accessKey)){
+   if(Test-Path -LiteralPath $file -PathType Leaf){Remove-Item -LiteralPath $file -Force}
+  }
+  throw
+ }
+ Set-SetupPhase $candidate $candidate.phase
+ $State.package=$candidate.package
+ $State.accessKey=$candidate.accessKey
+ return $mounts
+}
 function Confirm-VenueStaffKey([object]$State,[array]$Mounts){
  $isFresh=[array]::IndexOf($Phases,[string]$State.phase) -lt [array]::IndexOf($Phases,'IMPORTED')
  try{

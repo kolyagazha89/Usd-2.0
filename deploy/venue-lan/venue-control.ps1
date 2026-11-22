@@ -31,7 +31,11 @@ function Get-RandomSecret([int]$Size=32){
  return (-join ($buffer | ForEach-Object {$_.ToString('x2')}))
 }
 function Assert-Exit([string]$Purpose){
- if($LASTEXITCODE -ne 0){throw ('USD VENUE '+$Purpose+' step='+$script:VenueStep+' failed with exit '+$LASTEXITCODE)}
+ if($LASTEXITCODE -ne 0){
+  $failure=[InvalidOperationException]::new('USD VENUE '+$Purpose+' step='+$script:VenueStep+' failed with exit '+$LASTEXITCODE)
+  $failure.Data['VenueExitCode']=$LASTEXITCODE
+  throw $failure
+ }
 }
 function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
  try{
@@ -470,6 +474,26 @@ function New-InitialState {
  Complete-VenueInitialConfig $state
  return $state
 }
+function Get-VenueStageMounts([object]$State){
+ return @('--volume',($State.package+':/app/venue-stage.json:ro'),
+  '--volume',($State.publicKey+':/app/venue-signing-public.pem:ro'),
+  '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'),
+  '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'))
+}
+function Invoke-VenueStageCheck([array]$Mounts,[string]$Mode){
+ try{
+  Invoke-Compose (@('run','--rm','--no-deps')+$Mounts+
+   @('--entrypoint','node','api','/app/import-stage.mjs',
+   '/app/venue-stage.json','/app/venue-signing-public.pem',$Mode)) 'verify stage signature or exact installed receipt'
+ }catch{
+  switch($_.Exception.Data['VenueExitCode']){
+   20 {Write-Host 'Срок пакета по часам Docker истёк. Проверьте время Windows и Docker Desktop.'}
+   21 {throw 'По часам Docker пакет ещё не действует. Проверьте дату и время Windows, затем перезапустите Docker Desktop.'}
+   22 {throw 'У подписанного пакета неверный срок действия. Скачайте новый пакет этапа из админки USD.'}
+  }
+  throw
+ }
+}
 function Confirm-SignedStage([object]$State) {
  $config=Read-Env
  if($config['VENUE_STAGE_ID'] -ne $State.stageId -or
@@ -478,15 +502,28 @@ function Confirm-SignedStage([object]$State) {
  if(!(Test-Path -LiteralPath $State.package) -or !(Test-Path -LiteralPath $State.publicKey)){
   throw 'Пакет этапа или доверенный открытый ключ больше не доступны'
  }
- $mounts=@('--volume',($State.package+':/app/venue-stage.json:ro'),
-  '--volume',($State.publicKey+':/app/venue-signing-public.pem:ro'),
-  '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'),
-  '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'))
+ $mounts=Get-VenueStageMounts $State
  $preImport=[array]::IndexOf($Phases,[string]$State.phase) -lt [array]::IndexOf($Phases,'IMPORTED')
  $verificationMode=$(if($preImport){'--dry-run'}else{'--check-installed'})
- Invoke-Compose (@('run','--rm','--no-deps')+$mounts+
-  @('--entrypoint','node','api','/app/import-stage.mjs',
-  '/app/venue-stage.json','/app/venue-signing-public.pem',$verificationMode)) 'verify stage signature or exact installed receipt'
+ try{
+  Invoke-VenueStageCheck $mounts $verificationMode
+ }catch{
+  if(!$preImport -or $_.Exception.Data['VenueExitCode'] -ne 20){throw}
+  if($State.phase -eq 'SCHEMA_READY'){
+   try{
+    Invoke-VenueStageCheck $mounts '--check-uninstalled'
+   }catch{
+    if($_.Exception.Data['VenueExitCode'] -ne 23){throw}
+    # Import can commit immediately before Windows persists IMPORTED.
+    # Recover only the exact package already recorded by the database.
+    Invoke-VenueStageCheck $mounts '--check-installed'
+    Create-ExistingStaff $State $mounts -CheckOnly
+    Set-SetupPhase $State 'IMPORTED'
+    return $mounts
+   }
+  }
+  return (Update-ExpiredVenueSetupPackage $State)
+ }
  Confirm-VenueStaffKey $State $mounts
  return $mounts
 }

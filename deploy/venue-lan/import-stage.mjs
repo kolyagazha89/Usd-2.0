@@ -17,6 +17,8 @@ import {fileURLToPath} from 'node:url';
 import {createRequire} from 'node:module';
 import {verifyVenueStageHandoff} from './verify-stage-package.mjs';
 
+const packageExitCodes={PACKAGE_EXPIRED:20,PACKAGE_NOT_YET_VALID:21,PACKAGE_INVALID_WINDOW:22,STAGE_ALREADY_INSTALLED:23};
+
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_FILE=12*1024*1024+256*1024;
 const isObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -233,8 +235,8 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
  */
 export async function planInstalledVenueStageImport(signed,pem,env,prisma,now=Date.now()){
  try{return planVenueStageImport(signed,pem,env,now)}catch(error){
-  const expires=Date.parse(signed?.snapshot?.expiresAt);
-  if(!Number.isFinite(expires)||now<=expires)throw error;
+  if(error?.venuePackageFailure!=='PACKAGE_EXPIRED')throw error;
+  const expires=Date.parse(signed.snapshot.expiresAt);
   assertVenueImportEnvironment(env,signed?.snapshot?.stageId);
   const receipt=await prisma.auditLog.findFirst({
    where:{action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:signed.snapshot.stageId},
@@ -653,7 +655,7 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
  * package fields are ever copied into installer stdout. */
 export function classifyVenueImportFailure(error){
  const reason=typeof error?.message==='string'?error.message:'';
- if(/Пакет просрочен или время ноутбука неверно/.test(reason))return 'PACKAGE_EXPIRED_OR_CLOCK';
+ if(Object.hasOwn(packageExitCodes,error?.venuePackageFailure))return error.venuePackageFailure;
  if(/Повтор или повреждение участника справочника|Лишние личные поля или повтор участника справочника|Автомобиль принадлежит другому участнику или содержит запрещённые поля|Повтор или повреждение автомобиля справочника/.test(reason))return 'SIGNED_DIRECTORY_INVALID';
  if(/Цифровая подпись не подтверждена|Доверенный отпечаток ключа подписи не совпадает|Контрольная сумма пакета не совпадает|Нужен открытый ключ Ed25519/.test(reason))return 'SIGNATURE_OR_TRUST';
  if(/Адрес локальной базы данных недопустим|Импорт в публичную или постороннюю базу запрещён/.test(reason))return 'LOCAL_DATABASE_CONFIG';
@@ -679,7 +681,7 @@ export function classifyVenueImportFailure(error){
 }
 async function main(){
  const [file,keyFile,mode,confirmedId]=process.argv.slice(2);
- if(!file||!keyFile||!['--dry-run','--apply','--check-installed','--apply-directory'].includes(mode)
+ if(!file||!keyFile||!['--dry-run','--apply','--check-installed','--check-uninstalled','--apply-directory'].includes(mode)
   ||(mode==='--apply'&&!confirmedId))
   throw new Error('Usage: import-stage.mjs STAGE.json PUBLIC_KEY.pem --dry-run OR --apply STAGE_UUID');
  if((await stat(file)).size>MAX_FILE)throw new Error('Пакет слишком большой');
@@ -698,6 +700,16 @@ async function main(){
  const {PrismaClient}=require('/app/dist/generated/prisma/client.js');
  const prisma=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
  try{
+  if(mode==='--check-uninstalled'){
+   const stageId=signed.snapshot.stageId;
+   if(await prisma.stage.findUnique({where:{id:stageId},select:{id:true}}))
+    throw Object.assign(new Error('Этап уже есть в локальной базе'),{venuePackageFailure:'STAGE_ALREADY_INSTALLED'});
+   const receipt=await prisma.auditLog.findFirst({
+    where:{action:'VENUE_STAGE_PACKAGE_IMPORTED',entity:'Stage',entityId:stageId},select:{id:true},
+   });
+   if(receipt)throw Object.assign(new Error('Найдена запись об импорте этапа'),{venuePackageFailure:'STAGE_ALREADY_INSTALLED'});
+   return;
+  }
   const plan=await planInstalledVenueStageImport(signed,key,process.env,prisma);
   if(mode==='--apply-directory'){
    const imported=await applyVenueParticipantDirectory(plan,prisma,{stageId:plan.snapshot.stageId});
@@ -724,7 +736,8 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  main().catch(error=>{
   // Fixed diagnostic codes only. Never echo the underlying error string:
   // it could contain credentials, a file path, SQL or participant metadata.
-  console.error('USD VENUE IMPORT REFUSED: '+classifyVenueImportFailure(error));
-  process.exitCode=1;
+  const code=classifyVenueImportFailure(error);
+  console.error('USD VENUE IMPORT REFUSED: '+code);
+  process.exitCode=packageExitCodes[code]??1;
  });
 }
