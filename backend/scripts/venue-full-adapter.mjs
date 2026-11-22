@@ -90,13 +90,13 @@ export function postgresFullVenueAdapter(client){
       // provisional online rows. Never search identity/equipment by name.
       const sql={
        Result:'SELECT to_jsonb(t) AS data FROM "Result" t JOIN "Registration" r ON r.id=t."registrationId" WHERE r."stageId"=$3 AND t."registrationId"=$2 AND t."registrationClassId"=$1 FOR UPDATE OF t',
-       Inspection:'SELECT to_jsonb(t) AS data FROM "Inspection" t JOIN "Registration" r ON r.id=t."registrationId" WHERE r."stageId"=$3 AND t."registrationId"=$2 FOR UPDATE OF t',
+       Inspection:'SELECT to_jsonb(t) AS data FROM "Inspection" t JOIN "Registration" r ON r.id=t."registrationId" WHERE r."stageId"=$2 AND t."registrationId"=$1 FOR UPDATE OF t',
        ParticipantStageInspection:'SELECT to_jsonb(t) AS data FROM "ParticipantStageInspection" t WHERE t."stageId"=$2 AND t."participantId"=$1 FOR UPDATE OF t',
        RegistrationClassInspection:'SELECT to_jsonb(t) AS data FROM "RegistrationClassInspection" t JOIN "RegistrationClass" rc ON rc.id=t."registrationClassId" JOIN "Registration" r ON r.id=rc."registrationId" WHERE r."stageId"=$2 AND t."registrationClassId"=$1 FOR UPDATE OF t',
       };
       if(!Object.hasOwn(sql,table))throw Error('VENUE DB: unsafe stage-slot lookup');
       const args=table==='Result'?[row.registrationClassId,row.registrationId,stageId]:
-       table==='Inspection'?[row.registrationId,row.registrationId,stageId]:
+       table==='Inspection'?[row.registrationId,stageId]:
        table==='ParticipantStageInspection'?[row.participantId,stageId]:
        [row.registrationClassId,stageId];
       const {rows}=await client.query(sql[table],args);
