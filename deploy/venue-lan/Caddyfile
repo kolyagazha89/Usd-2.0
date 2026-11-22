@@ -38,6 +38,10 @@ http://{$VENUE_BIND_IP} {
     Cache-Control "no-store"
     Content-Security-Policy "default-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
   }
+  @venueTvEntry path / /venue/live/
+  handle @venueTvEntry {
+    redir * /venue/live?{http.request.uri.query} 307
+  }
   handle /venue/live {
     reverse_proxy frontend:80
   }

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {getBrowserLaunchOptions} from './browser-qa-config.mjs';
 import {isCandidateApiRequest} from './candidate-browser-qa-config.mjs';
 import {venueCertificatePage} from '../backend/src/stages/venue-certificate-page.ts';
+import {venueLiveRowsPerScreen} from '../frontend/src/public/venue-live-model.ts';
 import {X509Certificate} from 'node:crypto';
 
 const {chromium}=createRequire(path.join(process.env.USD_BROWSER_TOOLING,'package.json'))('playwright');
@@ -153,6 +154,52 @@ try{
   await main.getByRole('alert').filter({hasText:'только администратору'}).waitFor();
   assert.equal(setupCalls,callsBefore);assert.equal(await main.getByRole('link',{name:'Скачать для Windows',exact:true}).count(),0);checks++;
   assert.deepEqual(errors,[]);await context.close();
+ }
+ const venueConfig=await readFile(new URL('../deploy/venue-lan/config/venue-config.js',import.meta.url),'utf8');
+ for(const {width,height} of [{width:390,height:664},{width:667,height:366},{width:1366,height:650},{width:1920,height:1080}]){
+  const context=await browser.newContext({viewport:{width,height},isMobile:width<700,hasTouch:width<700,serviceWorkers:'block'});
+  const capacity=venueLiveRowsPerScreen(height,width);
+  let resultCount=1;
+  await context.route('**/*',async route=>{
+   const url=new URL(route.request().url());
+   if(url.origin!==base)return route.abort();
+   if(url.pathname==='/usd-venue-config.js')return route.fulfill({contentType:'text/javascript',body:venueConfig});
+   if(url.pathname==='/venue-api/results/venue-live'){
+    assert.equal(route.request().method(),'GET');
+    return route.fulfill({json:{
+     stage:{id:'live-test',name:'Тестовый этап'},updatedAt:new Date().toISOString(),
+     rows:Array.from({length:resultCount},(_,index)=>({
+      id:String(index),value:String(150-index),unit:'DB',place:index+1,number:index+1,
+      participant:'Участник '+(index+1),car:'Тестовое авто',
+      class:{id:'spl',name:'1×2',direction:{name:'SPL'}},
+     })),
+    }});
+   }
+   return route.continue();
+  });
+  const page=await context.newPage();
+  const rows=page.locator('.venue-tv-result');
+  const heading=page.locator('.venue-tv-table-head');
+  const panel=page.locator('.venue-tv-content');
+  const heights=[];
+  for(const count of [1,capacity]){
+   resultCount=count;
+   await page.goto(base+'/venue/live?screen=spl');
+   await rows.nth(count-1).waitFor();
+   assert.equal(await rows.count(),count);
+   const [header,first,last,bounds,person]=await Promise.all([
+    heading.boundingBox(),rows.first().boundingBox(),rows.last().boundingBox(),panel.boundingBox(),
+    rows.first().locator('.venue-tv-person').boundingBox(),
+   ]);
+   assert.ok(Math.abs(first.y-header.y-header.height)<1,'First LIVE row starts at the column heading');
+   assert.ok(first.height>=28&&first.height<=89,'LIVE row has a readable, capped height');
+   assert.ok(last.y+last.height<=bounds.y+bounds.height,'Last LIVE row fits on screen');
+   assert.ok(person.y>=first.y&&person.y+person.height<=first.y+first.height,'Both name and car fit inside the row');
+   heights.push(first.height);
+   checks++;
+  }
+  assert.ok(Math.abs(heights[0]-heights[1])<1,'One result and a full page use the same row height');
+  await context.close();
  }
  console.log(JSON.stringify({passed:checks,widths:[320,390,768,1440],screenshots:output,realNetworkWrites:0}));
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

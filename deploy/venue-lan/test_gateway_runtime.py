@@ -46,7 +46,7 @@ class VenueGatewayRuntime(unittest.TestCase):
             with tempfile.TemporaryDirectory(prefix='usd-gateway-') as directory:
                 folder = Path(directory)
                 source = (ROOT/'Caddyfile').read_text()
-                source = source.replace('default_sni {$VENUE_BIND_IP}', 'admin off\n  auto_https disable_redirects\n  skip_install_trust\n  default_sni 127.0.0.1')
+                source = source.replace('default_sni {$VENUE_BIND_IP}', f'admin off\n  http_port {http_port}\n  skip_install_trust\n  default_sni 127.0.0.1')
                 source = source.replace('https://{$VENUE_BIND_IP}', f'https://127.0.0.1:{tls_port}')
                 source = source.replace('http://{$VENUE_BIND_IP}', f'http://127.0.0.1:{http_port}')
                 for upstream in ('api:3000', 'frontend:80'):
@@ -88,11 +88,21 @@ class VenueGatewayRuntime(unittest.TestCase):
                         self.assertIn('SameSite=Lax', cookie)
                         response.read()
                         conn.close()
-                        for method, path, status in [('GET', '/venue/live', 200), ('GET', '/login', 403), ('POST', '/venue-api/auth/login', 403), ('POST', '/venue-api/results/venue-live', 403)]:
+                        for method, path, status in [
+                            ('GET', '/', 307),
+                            ('GET', '/venue/live/?screen=spl', 307),
+                            ('GET', '/venue/live', 200),
+                            ('GET', '/venue-api/results/venue-live', 200),
+                            ('GET', '/login', 403),
+                            ('POST', '/venue-api/auth/login', 403),
+                            ('POST', '/venue-api/results/venue-live', 403),
+                        ]:
                             conn = http.client.HTTPConnection('127.0.0.1', http_port, timeout=2)
                             conn.request(method, path)
                             response = conn.getresponse()
                             self.assertEqual(response.status, status, (method, path))
+                            if path == '/venue/live/?screen=spl':
+                                self.assertEqual(response.getheader('Location'), '/venue/live?screen=spl')
                             response.read()
                             conn.close()
                     finally:
