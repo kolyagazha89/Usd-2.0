@@ -474,8 +474,10 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
        reason:'OFFLINE_STAGE_PREVAILS',before:left,after,
       });
      }
-     if(STAGE_WINNERS.has(table)&&p.operation!=='DELETE')
-      after=stageWinnerRow(table,actual,after,stageId);
+     if(STAGE_WINNERS.has(table)){
+      const protectedRow=stageWinnerRow(table,actual,after??before,stageId);
+      if(p.operation!=='DELETE')after=protectedRow;
+     }
     }
    }
    if(p.table==='Registration'&&p.operation!=='DELETE'&&after.status==='ACTIVE'
@@ -505,7 +507,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
    if(apply){
     await tx.receipt({
      action:'VENUE_FULL_EVENT_IMPORTED',stageId,eventHash:event.hash,
-     sequence:event.sequence,journalEndHash:snapshot.journalEndHash,
+     sequence:event.sequence,operation:p.operation,journalEndHash:snapshot.journalEndHash,
      baselineSha256,entity:table,entityId:p.recordId,operator,resolutionHash,
     });
    }
