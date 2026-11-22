@@ -43,6 +43,32 @@ export const RETURN_COLUMNS=Object.freeze(Object.fromEntries(
  Object.entries(columns).map(([table,fields])=>[table,Object.freeze(fields.split(' '))])));
 const NO_USER_LINKS=new Set(['checkedByUserId','createdByUserId','verifiedByUserId','consentCapturedByUserId']);
 const CASCADE_PROTECTED=new Set(['Participant','Car','CarConfiguration','CarConfigurationVersion']);
+ // A signed venue journal for this exact stage is newer than central stage operations.
+ // Never give venue authority over shared people, vehicles, equipment or legal consent.
+const OFFLINE_STAGE_AUTHORITY=new Set([
+ 'Registration','RegistrationNumber','RegistrationClass','Inspection',
+ 'ParticipantStageInspection','RegistrationClassInspection','Result',
+]);
+const CENTRAL_REGISTRATION_CONSENTS=[
+ 'rulesAcceptedAt','rulesVersion','privacyConsentAt','privacyConsentVersion',
+ 'termsAcceptedAt','termsVersion','protocolConsentAt','protocolConsentVersion',
+ 'consentCapturedByUserId',
+];
+function stageOverrideAnchorsMatch(table,before,after,actual,stageId){
+ if(!OFFLINE_STAGE_AUTHORITY.has(table)||!before||!after||!actual)return false;
+ const anchors={
+  Registration:['stageId'],
+  RegistrationNumber:['stageId','registrationId'],
+  RegistrationClass:['registrationId'],
+  Inspection:['registrationId'],
+  ParticipantStageInspection:['stageId','participantId'],
+  RegistrationClassInspection:['registrationClassId'],
+  Result:['registrationId','registrationClassId'],
+ }[table];
+ return anchors.every(key=>before[key]===actual[key]&&before[key]===after[key])
+  &&(!['Registration','RegistrationNumber','ParticipantStageInspection'].includes(table)
+   ||actual.stageId===stageId);
+}
 const same=(left,right)=>JSON.stringify(left)===JSON.stringify(right);
 
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -305,6 +331,13 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
       delete signed[k];delete current[k];
      }
     }
+    // Online consent evidence is intentionally preserved during a venue
+    // override, and must not invalidate idempotent replay of stage data.
+    if(table==='Registration'){
+     for(const k of CENTRAL_REGISTRATION_CONSENTS){
+      delete signed[k];delete current[k];
+     }
+    }
     if(!same(signed,current))reject('CENTRAL_CHANGED: signed row modified '+table);
    }
    return {stageId,databaseSynchronized:true,alreadyApplied:true,
@@ -343,7 +376,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
       ||(table==='Car'&&linkedCars.has(p.recordId))))
     reject('MANUAL_REVIEW: cannot overwrite linked central identity');
    const before=remapRow(table,p.before&&normalize(table,p.before),linkedPeople,linkedCars);
-   const after=remapRow(table,p.after&&normalize(table,p.after),linkedPeople,linkedCars);
+   let after=remapRow(table,p.after&&normalize(table,p.after),linkedPeople,linkedCars);
    const actual=await tx.getRow(table,p.recordId);
    let skipLinkedInsert=false;
    if(p.operation==='INSERT'){
@@ -398,7 +431,34 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
     if(actual===null)reject('missing central row '+table+' '+p.recordId);
     const left=await tx.canonical(table,actual);
     const right=await tx.canonical(table,before);
-    if(!same(left,right))reject('central changed '+table+' '+p.recordId);
+    if(!same(left,right)){
+     // The signed offline change is authoritative only for the SAME competition
+     // entity in the SAME stage. A changed owner/reference or any shared entity
+     // is a real conflict, not permission to overwrite unrelated central data.
+     if(p.operation!=='UPDATE'
+      ||!stageOverrideAnchorsMatch(table,before,after,actual,stageId)
+      ||typeof tx.stageRowBelongs!=='function'
+      ||!await tx.stageRowBelongs(table,actual,stageId))
+      reject('CENTRAL_CHANGED: unsafe cross-stage or identity change '+table+' '+p.recordId);
+     // Consent evidence gathered centrally while WAN was disconnected must not
+     // be erased merely because the laptop did not observe that later consent.
+     if(table==='Registration'){
+      after={...after};
+      for(const key of CENTRAL_REGISTRATION_CONSENTS)
+       if(same(before[key]??null,after[key]??null)
+        &&Object.hasOwn(actual,key))
+        after[key]=actual[key];
+     }
+     if(apply){
+      if(typeof tx.auditVenueOverride!=='function')
+       reject('missing stage override audit adapter');
+      await tx.auditVenueOverride({
+       stageId,journalEndHash:snapshot.journalEndHash,
+       sequence:event.sequence,eventHash:event.hash,table,entityId:p.recordId,
+       centralBefore:actual,offlineAfter:after,operator,
+      });
+     }
+    }
    }
    if(p.table==='Registration'&&p.operation!=='DELETE'&&after.status==='ACTIVE'
     &&!await tx.participantEligible(after.participantId,stageId))
