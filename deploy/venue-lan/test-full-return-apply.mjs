@@ -437,6 +437,9 @@ test('signed offline inspection and result updates win over divergent central va
  const changes=[];
  const wrap=db.transaction;
  db.transaction=(cb,options)=>wrap(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set([ids.cls]),
+   configurations:new Set([ids.config]),versions:new Set([ids.version])});
   const prior=tx.auditOverride;
   tx.auditOverride=async data=>{changes.push(data);if(prior)await prior(data)};
   return cb(tx);
@@ -470,6 +473,12 @@ test('no offline changes to participant car or equipment may override their cent
  const central={...car,model:'Vesta Online'};
  const db=memoryDb({existing:{Car:[central]}});
  const change=packet([event(1,'Car','UPDATE',{...car,model:'Vesta Offline'},car)]);
+ const baseTransaction=db.transaction;
+ db.transaction=(cb,options)=>baseTransaction(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set(),configurations:new Set(),versions:new Set()});
+  return cb(tx);
+ },options);
  await assert.rejects(()=>applyCompleteVenueJournal(change,db,opts),/central changed/i);
  assert.equal(db.rows.get('Car').get(ids.car).model,'Vesta Online');
  assert.equal(db.receipt.size,0);
