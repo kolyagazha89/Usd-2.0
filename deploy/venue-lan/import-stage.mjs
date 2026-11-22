@@ -93,6 +93,13 @@ async function restoreSignedVenueConfigurations(tx,configurations,{shared=false}
    if(links.length)await tx.carAmplifierComponent.createMany({data:links});
    addedVersions++;
   }
+  // Retained seasons may discover newer central versions. Only advance the
+  // pointer; never downgrade or replace a locally edited newer version.
+  if(existing&&config.currentVersion>existing.currentVersion){
+   await tx.carConfiguration.update({
+    where:{id:config.id},data:{currentVersion:config.currentVersion},
+   });
+  }
  }
  return {addedConfigurations,addedVersions};
 }
