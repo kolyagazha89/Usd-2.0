@@ -5,7 +5,7 @@ import {isPastStageCalendar} from './stage-calendar';
 import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,AdminRelatedEntities} from './AdminEntityLink';
 import './form-journey.css';
-import {walkInNextStep,walkInStepProgress} from './walk-in-form-journey';
+import {walkInConfigurationOptions,walkInNextStep,walkInStepProgress} from './walk-in-form-journey';
 import {readViewState,useViewState,useListScroll,seasonYears,matchesSeason,stageYear} from './view-state';
 import {canOpenWalkInRegistration,filterInspections,summarizeInspections} from './event-ops-model';
 import {EventOperationsNavigation} from './EventOperationsNavigation';
@@ -299,19 +299,19 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
   finally{setCreatingCar(false)}
  };
  const selectedCar=cars.find(c=>c.id===carId);
- const configurations=(selectedCar?.configurations??[]).flatMap((cfg:any)=>(cfg.versions??[]).filter((v:any)=>v.additionalDescription!=='USD_ON_SITE_DRAFT_PENDING').map((v:any)=>({id:v.id,label:cfg.name+' · v'+v.version,version:v.version,configurationId:cfg.id})));
+ const configurations=walkInConfigurationOptions(selectedCar?.configurations??[]);
  useEffect(()=>{if(!participantId){setCars([]);setCarId('');setConfigurationVersionId('');return}let cancelled=false;setCars([]);setCarId('');setConfigurationVersionId('');apiGet<any>('/participants/'+encodeURIComponent(participantId)+'/cars').then(r=>{if(!cancelled){const items=listData(r);setCars(items);if(pendingCreatedCarId.current){const id=pendingCreatedCarId.current;pendingCreatedCarId.current='';if(items.some((car:any)=>car.id===id))setCarId(id)}}}).catch(e=>{if(!cancelled){if(pendingCreatedCarId.current){
   const id=pendingCreatedCarId.current;pendingCreatedCarId.current='';
   setCars([{id,brand:newBrand.trim(),model:newModel.trim(),registrationNumber:newPlate.trim(),configurations:[]}]);setCarId(id);
   setError('Профиль и автомобиль сохранены, но список автомобилей недоступен. Продолжайте регистрацию с выбранным автомобилем.');
  }else setError(e instanceof Error?e.message:'Не удалось загрузить автомобили участника')}});return()=>{cancelled=true}},[participantId]);
- useEffect(()=>{if(!carId){setConfigurationVersionId('');return}const first=(cars.find(c=>c.id===carId)?.configurations??[])[0]?.versions?.[0]?.id??'';setConfigurationVersionId(first)},[carId,cars]);
+ useEffect(()=>{setConfigurationVersionId(walkInConfigurationOptions(selectedCar?.configurations??[])[0]?.id??'')},[selectedCar]);
  const isBassRace=isBassRaceStageOption;
  const classDirectionId=(item:any)=>item?.class?.direction?.id??item?.class?.directionId??item?.directionId;
  const selectedDirections=new Set(classIds.map(id=>stageClasses.find((x:any)=>(x.classId??x.class?.id)===id)).filter((item:any)=>item&&!isBassRace(item)).map((item:any)=>classDirectionId(item)));
  const classGroups=Object.values(stageClasses.filter((x:any)=>x.isActive!==false).reduce((acc:Record<string,{name:string;items:any[]}>,item:any)=>{const name=item.class?.direction?.name||'Без направления';if(!acc[name])acc[name]={name,items:[]};acc[name].items.push(item);return acc},{}));
  const toggleClass=(id:string)=>{const next=nextRegistrationClassIds(classIds,id,!classIds.includes(id),stageClasses);if(next.length===classIds.length&&!classIds.includes(id)){setError('На основном номере не более 5 классов; для BassRace выделяются новые номера.');return}setError('');setClassIds(next)};
- const walkInReady=walkInStepProgress({participantId,carId,classIds,primaryClassCount:primaryNumberClassCount(classIds,stageClasses),legalReady,privacyConsent,termsAccepted,rulesAccepted});
+ const walkInReady=walkInStepProgress({participantId,carId,classIds,primaryClassCount:primaryNumberClassCount(classIds,stageClasses),legalReady,privacyConsent,termsAccepted,rulesAccepted,protocolConsent});
  const walkInSteps=['Участник и автомобиль','Классы','Подтверждение регистрации'] as const;
  const goWalkInStep=(value:0|1|2)=>{setWalkInStep(value);setError('')};
  const nextWalkInStep=()=>goWalkInStep(walkInNextStep(walkInStep,walkInReady));

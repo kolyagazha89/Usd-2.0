@@ -73,8 +73,8 @@ test('the installed stage supports walk-ins with public registration closed and 
  assert.throws(()=>markVenueStages([archived,installed,next],'incorrect'),/Активный этап не подтверждён/);
 });
 
-test('the three operator screens use the same server-confirmed LAN stage',async()=>{
- for(const name of ['EventDayPage','RegistrationsPage','InspectionsPage']){
+test('all operator screens use the same server-confirmed LAN stage',async()=>{
+ for(const name of ['EventDayPage','RegistrationsPage','InspectionsPage','ResultsPage']){
   const source=await readFile(new URL('../src/admin/'+name+'.tsx',import.meta.url),'utf8');
   assert.match(source,/loadOperationalStages(?:<[^>]+>)?\(/);
  }

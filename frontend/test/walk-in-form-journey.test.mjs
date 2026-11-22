@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {walkInStepProgress,walkInNextStep} from '../src/admin/walk-in-form-journey.ts';
-const registration={participantId:'person',carId:'car',classIds:['c1'],primaryClassCount:1,legalReady:true,privacyConsent:true,termsAccepted:true,rulesAccepted:true};
+import {walkInStepProgress,walkInNextStep,walkInConfigurationOptions} from '../src/admin/walk-in-form-journey.ts';
+const registration={participantId:'person',carId:'car',classIds:['c1'],primaryClassCount:1,legalReady:true,privacyConsent:true,termsAccepted:true,rulesAccepted:true,protocolConsent:true};
 test('on-site registration gates each stage without discarding data',()=>{
  assert.deepEqual(walkInStepProgress(registration),[true,true,true]);
  assert.deepEqual(walkInStepProgress({...registration,carId:''}),[false,true,true]);
@@ -16,5 +16,14 @@ test('BassRace allows extra numbers without treating more than five selections a
  assert.equal(walkInStepProgress({...extra,primaryClassCount:6})[1],false);
 });
 test('last step requires every legal consent and approved documents',()=>{
- for(const prop of ['legalReady','privacyConsent','termsAccepted','rulesAccepted'])assert.equal(walkInStepProgress({...registration,[prop]:false})[2],false,prop);
+ for(const prop of ['legalReady','privacyConsent','termsAccepted','rulesAccepted','protocolConsent'])assert.equal(walkInStepProgress({...registration,[prop]:false})[2],false,prop);
+});
+
+
+test('walk-in intake offers only real configurations and leaves draft-only cars unselected',()=>{
+ const draft={id:'draft',version:1,additionalDescription:'USD_ON_SITE_DRAFT_PENDING'};
+ const real={id:'saved',version:2};
+ assert.deepEqual(walkInConfigurationOptions([{name:'Черновик',versions:[draft]}]),[]);
+ assert.deepEqual(walkInConfigurationOptions([{name:'Конфигурация',versions:[draft,real]}]),
+  [{id:'saved',label:'Конфигурация · v2'}]);
 });
