@@ -563,3 +563,24 @@ test('dry-run reports overridden stage result without changing the online row or
  assert.equal(db.overrides.length,0);
  assert.equal(db.receipt.size,0);
 });
+
+test('offline UPDATE restores a centrally deleted result even if another online UUID occupies the class',async()=>{
+ const differentId='a810f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const offline=packet([event(1,'Result','UPDATE',{...result,value:'156.000'},result)]);
+ const db=memoryDb({existing:{Registration:[reg],RegistrationClass:[cls],
+  Inspection:[insp],Result:[{...result,id:differentId,value:'145.000'}]}});
+ const base=db.transaction;
+ db.transaction=(callback,options)=>base(async tx=>{
+  tx.linkedIds=async()=>({participants:new Set([ids.participant]),cars:new Set([ids.car]),
+   registrations:new Set([ids.reg]),classes:new Set([ids.cls]),
+   configurations:new Set([ids.config]),versions:new Set([ids.version])});
+  return callback(tx);
+ },options);
+ const applied=await applyCompleteVenueJournal(offline,db,opts);
+ assert.equal(applied.appliedEvents,1);
+ assert.equal(db.rows.get('Result').size,1);
+ assert.equal(db.rows.get('Result').get(ids.result).value,'156.000');
+ assert.equal(db.rows.get('Result').has(differentId),false);
+ assert.equal(db.overrides[0].reason,'OFFLINE_STAGE_SLOT_REPLACED');
+ assert.equal((await applyCompleteVenueJournal(offline,db,opts)).alreadyApplied,true);
+});
