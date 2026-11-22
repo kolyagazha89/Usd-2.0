@@ -52,14 +52,14 @@ const full=()=>packet([
 function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
  const rows=new Map(Object.entries(existing).map(([table,records])=>
   [table,new Map(records.map(r=>[r.id,structuredClone(r)]))]));
- const receipt=new Map();let begin=0;
+ const receipt=new Map(),overrides=[];let begin=0;
  return {
-  rows,receipt,
+  rows,receipt,overrides,
   transaction:async (cb,{readOnly=false}={})=>{
    begin++;
    const working=new Map([...rows].map(([t,items])=>
     [t,new Map([...items].map(([id,row])=>[id,structuredClone(row)]))]));
-   const receipts=new Map(receipt);
+   const receipts=new Map(receipt),beforeOverrides=overrides.length;
    const adapter={
     stage:async()=>({id:ids.stage,status:'PUBLISHED',isDeleted:false,
      resultsPublishedAt:published?'2026-11-11':null}),
@@ -72,6 +72,21 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
     participantIdentityCandidates:async()=>[...(working.get('Participant')?.values()??[])],
     carPlateCandidates:async()=>[...(working.get('Car')?.values()??[])],
     numberOwner:async (_stage,number)=>[...(working.get('RegistrationNumber')?.values()??[])].find(r=>r.number===number)??null,
+    findStageSlot:async (table,row,_stageId)=>{
+     const sameSlot=(existing)=>{
+      if(table==='Result')return existing.registrationId===row.registrationId&&
+       existing.registrationClassId===row.registrationClassId;
+      if(table==='Inspection')return existing.registrationId===row.registrationId;
+      if(table==='ParticipantStageInspection')return existing.participantId===row.participantId&&
+       existing.stageId===row.stageId;
+      if(table==='RegistrationClassInspection')
+       return existing.registrationClassId===row.registrationClassId;
+      throw Error('unsupported slot');
+     };
+     return structuredClone([...(working.get(table)?.values()??[])].find(sameSlot)??null);
+    },
+    removeStageSlot:async (table,displaced)=>{working.get(table)?.delete(displaced.id)},
+    auditOverride:async record=>{overrides.push(structuredClone(record))},
     write:async (table,op,row,before)=>{
      if(failAt&&Number(op.eventSequence)===failAt)throw Error('simulated db failure');
      if(!working.has(table))working.set(table,new Map());
@@ -88,7 +103,7 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
    if(!readOnly){
     rows.clear();for(const [t,entries] of working)rows.set(t,entries);
     receipt.clear();for(const [id,entry] of receipts)receipt.set(id,entry);
-   }
+   }else overrides.splice(beforeOverrides);
    return value;
   },
   get begin(){return begin},
