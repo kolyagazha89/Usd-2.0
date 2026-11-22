@@ -45,6 +45,54 @@ const NO_USER_LINKS=new Set(['checkedByUserId','createdByUserId','verifiedByUser
 const CASCADE_PROTECTED=new Set(['Participant','Car','CarConfiguration','CarConfigurationVersion']);
 const same=(left,right)=>JSON.stringify(left)===JSON.stringify(right);
 
+// The LAN journal wins only for scoped competition operations. Identity,
+// equipment and legal/consent data remain central-owned and never take the
+// venue's stale baseline as an update.
+const STAGE_WINNERS=new Set([
+ 'Registration','RegistrationNumber','RegistrationClass','Inspection',
+ 'ParticipantStageInspection','RegistrationClassInspection','Result',
+]);
+const PRESERVE_CENTRAL_REGISTRATION=[
+ 'configurationVersionId','configurationSnapshot',
+ 'privacyConsentAt','privacyConsentVersion','termsAcceptedAt','termsVersion',
+ 'rulesAcceptedAt','rulesVersion','protocolConsentAt','protocolConsentVersion',
+ 'consentCapturedByUserId','source','registeredAt','legacyId',
+];
+const STAGE_KEYS={
+ Registration:['stageId','participantId','carId'],
+ RegistrationNumber:['stageId','registrationId'],
+ RegistrationClass:['registrationId'],
+ Inspection:['registrationId'],
+ ParticipantStageInspection:['stageId','participantId'],
+ RegistrationClassInspection:['registrationClassId'],
+ Result:['registrationId','registrationClassId'],
+};
+const UNIQUE_STAGE_SLOTS=new Set(['Result','Inspection','ParticipantStageInspection','RegistrationClassInspection']);
+function stageWinnerRow(table,actual,after,stageId){
+ if(actual&&table==='Registration'&&actual.stageId!==stageId)
+  reject('MANUAL_REVIEW: registration belongs to another stage');
+ if(actual&&STAGE_KEYS[table].some(key=>!same(actual[key],after?.[key])))
+  reject('MANUAL_REVIEW: central stage identity differs for '+table);
+ if(table!=='Registration'||!actual||!after)return after;
+ // Preserve online legal confirmations and full equipment history even when
+ // the LAN imported a snapshot-only FK placeholder before the competition.
+ return {...after,...Object.fromEntries(PRESERVE_CENTRAL_REGISTRATION
+  .map(key=>[key,actual[key]]))};
+}
+function sameSignedStageState(table,signed,actual){
+ if(table==='Registration'){
+  for(const key of PRESERVE_CENTRAL_REGISTRATION){
+   delete signed[key];delete actual[key];
+  }
+ }
+ if(table==='Result'){
+  for(const key of ['place','isBest','updatedAt']){
+   delete signed[key];delete actual[key];
+  }
+ }
+ return same(signed,actual);
+}
+
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const reject=reason=>{throw new Error('USD VENUE FULL RETURN CONFLICT: '+reason)};
 function normalize(table,row){
@@ -300,12 +348,8 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
     if(actual===null)reject('CENTRAL_CHANGED: signed row disappeared '+table);
     const signed=await tx.canonical(table,remapRow(table,normalize(table,after),replayPeople,replayCars));
     const current=await tx.canonical(table,actual);
-    if(table==='Result'){
-     for(const k of ['place','isBest','updatedAt']){
-      delete signed[k];delete current[k];
-     }
-    }
-    if(!same(signed,current))reject('CENTRAL_CHANGED: signed row modified '+table);
+    if(!sameSignedStageState(table,signed,current))
+     reject('CENTRAL_CHANGED: signed row modified '+table);
    }
    return {stageId,databaseSynchronized:true,alreadyApplied:true,
     appliedEvents:0,readyEvents:0,totalEvents:snapshot.events.length,
@@ -343,11 +387,27 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
       ||(table==='Car'&&linkedCars.has(p.recordId))))
     reject('MANUAL_REVIEW: cannot overwrite linked central identity');
    const before=remapRow(table,p.before&&normalize(table,p.before),linkedPeople,linkedCars);
-   const after=remapRow(table,p.after&&normalize(table,p.after),linkedPeople,linkedCars);
+   let after=remapRow(table,p.after&&normalize(table,p.after),linkedPeople,linkedCars);
    const actual=await tx.getRow(table,p.recordId);
+   let effectiveKind=p.operation;
    let skipLinkedInsert=false;
    if(p.operation==='INSERT'){
     if(actual!==null)reject('duplicate central ID '+table+' '+p.recordId);
+    // A result or inspection created on the LAN may have a different UUID
+    // than an online provisional entry for the SAME stage slot. Keep the
+    // original in an audit entry and replace it inside this one transaction.
+    if(UNIQUE_STAGE_SLOTS.has(table)){
+     const displaced=await tx.findStageSlot(table,after,stageId);
+     if(displaced){
+      if(typeof tx.auditOverride!=='function'||typeof tx.removeStageSlot!=='function')
+       reject('MANUAL_REVIEW: central slot replacement requires audited adapter');
+      if(apply)await tx.auditOverride({
+       stageId,eventHash:event.hash,operator,table,recordId:p.recordId,
+       reason:'OFFLINE_STAGE_SLOT_REPLACED',before:displaced,after,
+      });
+      await tx.removeStageSlot(table,displaced,stageId);
+     }
+    }
     if(table==='Participant'){
      if(typeof tx.participantIdentityCandidates!=='function')
       reject('MANUAL_REVIEW: central identity lookup unavailable');
@@ -395,10 +455,28 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
      newOfflineCars.push(after);
     }
    }else{
-    if(actual===null)reject('missing central row '+table+' '+p.recordId);
-    const left=await tx.canonical(table,actual);
-    const right=await tx.canonical(table,before);
-    if(!same(left,right))reject('central changed '+table+' '+p.recordId);
+    if(actual===null){
+     if(!STAGE_WINNERS.has(table))
+      reject('missing central row '+table+' '+p.recordId);
+     // The signed local edit restores an online-deleted stage row. A locally
+     // deleted row already absent centrally needs only its signed receipt.
+     effectiveKind=p.operation==='UPDATE'?'INSERT':'NOOP';
+    }else{
+     const left=await tx.canonical(table,actual);
+     const right=await tx.canonical(table,before);
+     if(!same(left,right)){
+      if(!STAGE_WINNERS.has(table))
+       reject('central changed '+table+' '+p.recordId);
+      if(typeof tx.auditOverride!=='function')
+       reject('MANUAL_REVIEW: stage conflict cannot be imported without audit');
+      if(apply)await tx.auditOverride({
+       stageId,eventHash:event.hash,operator,table,recordId:p.recordId,
+       reason:'OFFLINE_STAGE_PREVAILS',before:left,after,
+      });
+     }
+     if(STAGE_WINNERS.has(table)&&p.operation!=='DELETE')
+      after=stageWinnerRow(table,actual,after,stageId);
+    }
    }
    if(p.table==='Registration'&&p.operation!=='DELETE'&&after.status==='ACTIVE'
     &&!await tx.participantEligible(after.participantId,stageId))
@@ -414,8 +492,8 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
     if(number&&number.id!==p.recordId)reject('номер занят: '+after.number);
    }
    // Dry-run exercises actual FK/UNIQUE checks before rolling back atomically.
-   if(!skipLinkedInsert)
-    await tx.write(table,{kind:p.operation,eventSequence:event.sequence},after,before);
+   if(!skipLinkedInsert&&effectiveKind!=='NOOP')
+    await tx.write(table,{kind:effectiveKind,eventSequence:event.sequence},after,actual??before);
    const choice=resolutions[conflictKey(table,p.recordId)];
    if(choice&&apply){
     if(typeof tx.auditResolution!=='function')
