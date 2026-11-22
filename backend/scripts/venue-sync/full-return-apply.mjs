@@ -331,6 +331,13 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
       delete signed[k];delete current[k];
      }
     }
+    // Online consent evidence is intentionally preserved during a venue
+    // override, and must not invalidate idempotent replay of stage data.
+    if(table==='Registration'){
+     for(const k of CENTRAL_REGISTRATION_CONSENTS){
+      delete signed[k];delete current[k];
+     }
+    }
     if(!same(signed,current))reject('CENTRAL_CHANGED: signed row modified '+table);
    }
    return {stageId,databaseSynchronized:true,alreadyApplied:true,
@@ -438,8 +445,9 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
      if(table==='Registration'){
       after={...after};
       for(const key of CENTRAL_REGISTRATION_CONSENTS)
-       if(same(before[key]??null,after[key]??null))
-        after[key]=actual[key]??null;
+       if(same(before[key]??null,after[key]??null)
+        &&Object.hasOwn(actual,key))
+        after[key]=actual[key];
      }
      if(apply){
       if(typeof tx.auditVenueOverride!=='function')
