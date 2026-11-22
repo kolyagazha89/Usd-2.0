@@ -58,7 +58,7 @@ function Set-VenueRuntimeEnvironment([string]$Contents){
  $temp=$EnvFile+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
  try{
   Write-PrivateFile $temp $Contents
-  [IO.File]::Replace($temp,$EnvFile,$null)
+  [IO.File]::Replace($temp,$EnvFile,[NullString]::Value)
  }finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
 }
 function Save-VenueRegistrationUpgradeBackup {
