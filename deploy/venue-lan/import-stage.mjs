@@ -519,24 +519,25 @@ export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress
   await restoreSignedVenueConfigurations(tx,plan.configurations,{shared});
   progress('REGISTRATIONS');
   for(const r of regs){
-   // Older signed stage files have only the immutable registration snapshot;
-   // preserve their historical placeholder behaviour for recovery. Fresh
-   // signed files import the real version and must never create a stub.
-   const version=shared?await tx.carConfigurationVersion.findUnique({where:{id:r.configurationVersionId},include:{configuration:true}}):null;
-   if(version&&version.configuration.carId!==r.carId)
-    throw new Error('Версия конфигурации принадлежит другому автомобилю');
-   if(!version){
-   if(plan.snapshot.configurations!==undefined)
-    throw new Error('Нет подписанной версии конфигурации регистрации: импорт остановлен');
-   const configId=randomUUID();
-   await tx.carConfiguration.create({data:{
-    id:configId,carId:r.carId,name:'USD VENUE: снимок регистрации',
-    isActive:false,
-   }});
-   await tx.carConfigurationVersion.create({data:{
-    id:r.configurationVersionId,configurationId:configId,version:1,
-    additionalDescription:'Только локальный FK. Источник оборудования: Registration.configurationSnapshot.',
-   }});
+   // New signed packages already installed the original version UUIDs and
+   // equipment above. Old signed files retain their FK-only fallback.
+   if(plan.snapshot.configurations===undefined){
+    const version=shared?await tx.carConfigurationVersion.findUnique({
+     where:{id:r.configurationVersionId},include:{configuration:true},
+    }):null;
+    if(version&&version.configuration.carId!==r.carId)
+     throw new Error('Версия конфигурации принадлежит другому автомобилю');
+    if(!version){
+     const configId=randomUUID();
+     await tx.carConfiguration.create({data:{
+      id:configId,carId:r.carId,name:'USD VENUE: снимок регистрации',
+      isActive:false,
+     }});
+     await tx.carConfigurationVersion.create({data:{
+      id:r.configurationVersionId,configurationId:configId,version:1,
+      additionalDescription:'Только локальный FK. Источник оборудования: Registration.configurationSnapshot.',
+     }});
+    }
    }
    await tx.registration.create({data:{
     id:r.id,stageId:r.stageId,participantId:r.participantId,carId:r.carId,
