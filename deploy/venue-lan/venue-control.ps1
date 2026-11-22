@@ -827,7 +827,15 @@ function Sync-VenueReturn([object]$Bundle){
  $body='{"stageId":'+(ConvertTo-Json -InputObject $Bundle.stageId -Compress)+
   ',"publicKeyPem":'+(ConvertTo-Json -InputObject $pem -Compress)+
   ',"envelope":'+$encrypted+'}'
- $SyncResult=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/stages/venue/sync' -Method POST -Headers @{Authorization=('Venue '+$token)} -Body ([Text.Encoding]::UTF8.GetBytes($body)) -ContentType 'application/json; charset=utf-8' -TimeoutSec 180
+ Set-VenueStep 'upload-encrypted-return'
+ try{
+  $SyncResult=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/stages/venue/sync' -Method POST -Headers @{Authorization=('Venue '+$token)} -Body ([Text.Encoding]::UTF8.GetBytes($body)) -ContentType 'application/json; charset=utf-8' -TimeoutSec 180
+ }catch{
+  $conflict=Get-VenueSyncConflictMessage $_
+  if($conflict){throw $conflict}
+  throw
+ }
+ Set-VenueStep 'verify-central-return-ack'
  if($SyncResult.accepted -ne $true -or
   $SyncResult.databaseSynchronized -ne $true -or
   $SyncResult.derivedRankingsRebuilt -ne $true -or
