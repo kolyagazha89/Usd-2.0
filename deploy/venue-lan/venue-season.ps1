@@ -542,3 +542,33 @@ function Get-VenueReleaseSha([object]$sharedConfig){
  }
  return $sha
 }
+
+function Get-VenueSyncConflictMessage([System.Management.Automation.ErrorRecord]$Failure){
+ if($Failure.Exception -isnot [Net.WebException] -or
+    $Failure.Exception.Response -isnot [Net.HttpWebResponse] -or
+    [int]$Failure.Exception.Response.StatusCode -ne 409){return}
+ $details=[string]$(if($Failure.ErrorDetails){$Failure.ErrorDetails.Message})
+ if(!$details){
+  try{
+   $reader=[IO.StreamReader]::new($Failure.Exception.Response.GetResponseStream(),[Text.Encoding]::UTF8)
+   try{$details=$reader.ReadToEnd()}finally{$reader.Dispose()}
+  }catch{}
+ }
+ return Format-VenueSyncConflictMessage $details
+}
+function Format-VenueSyncConflictMessage([string]$Details){
+ try{
+  $response=ConvertFrom-Json -InputObject $Details -ErrorAction Stop
+  $message=[string]$response.message
+  if($message -cmatch '^MANUAL_REVIEW: требуется решение ADMIN на основном сервере\. Заявка ([a-f0-9-]{36})\.'){
+   return ('Нужен разбор заявки '+$Matches[1]+'. Откройте https://usd-russia.ru/admin/venue-server → «Возврат данных · Конфликты». После решения повторите «USD — Онлайн».')
+  }
+  if($message -ceq 'MANUAL_REVIEW: неподдерживаемый конфликт. Локальный пакет сохранён; автоматический возврат запрещён.'){
+   return 'Этот конфликт нельзя разрешить в очереди заявок. Передайте администратору номер этапа и время попытки. Локальный пакет сохранён.'
+  }
+  if($message -ceq 'Конфликт центральных данных. Все локальные результаты сохранены.'){
+   return 'Онлайн-записи расходятся с исходным состоянием этапа. Передайте администратору номер этапа и время попытки. Локальные результаты сохранены.'
+  }
+ }catch{}
+ return 'Онлайн-сервер вернул 409. Проверьте «Возврат данных · Конфликты» на https://usd-russia.ru/admin/venue-server. Если заявки нет, передайте администратору номер этапа и время попытки.'
+}

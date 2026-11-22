@@ -126,3 +126,17 @@ try{
  if($_.Exception.Message -ne 'simulated historical sync failure'){throw}
 }
 Write-Host 'USD HISTORY: successful and failed sync left current judging unchanged'
+
+$reviewId='19c0a8ad-1560-4a7f-96ad-67348d3ef313'
+$reviewMessage=@{message="MANUAL_REVIEW: требуется решение ADMIN на основном сервере. Заявка $reviewId. Все локальные результаты и пакет сохранены."}|ConvertTo-Json
+if((Format-VenueSyncConflictMessage $reviewMessage) -notmatch ([regex]::Escape($reviewId))){
+ throw 'No online review ID was shown for a 409 that requires a decision'
+}
+if((Format-VenueSyncConflictMessage '{"message":"Конфликт центральных данных. Все локальные результаты сохранены."}') -notmatch 'исходным состоянием'){
+ throw 'A central-state conflict was not distinguished from an actionable review'
+}
+$unexpected=Format-VenueSyncConflictMessage '{"message":"Unexpected opaque server data"}'
+if($unexpected -notmatch '409' -or $unexpected -match 'Unexpected opaque'){
+ throw 'Unexpected response bodies must not be echoed'
+}
+Write-Host 'USD RETURN: review ID and conflict details are visible without exposing arbitrary server content'
