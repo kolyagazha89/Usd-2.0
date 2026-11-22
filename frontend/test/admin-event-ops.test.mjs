@@ -136,7 +136,8 @@ test('the registration desk enters the correct live stage and never offers walk-
  assert.match(inspection,/\{canDocumentEquipment&&<div className="event-ops-confirm-config">/);
  assert.match(inspection,/!confirmChoices\.length&&!confirmLoading/,'the operator sees a meaningful empty state');
  assert.match(inspection,/setConfirmChoices\(options\);setChosenConfiguration\(''\)/,'judge must explicitly select the actual saved equipment version');
- assert.match(inspection,/const configurations=\(selectedCar\?\.configurations\?\?\[\]\)\.flatMap\(\(cfg:any\)=>\(cfg\.versions\?\?\[\]\)\.filter\(\(v:any\)=>v\.additionalDescription!=='USD_ON_SITE_DRAFT_PENDING'\)/,'judge cannot accidentally select a previous event-day placeholder');
+ assert.match(inspection,/const configurations=walkInConfigurationOptions\(selectedCar\?\.configurations\?\?\[\]\)/,'the dropdown uses the verified options');
+ assert.match(inspection,/setConfigurationVersionId\(walkInConfigurationOptions\(/,'automatic selection uses the same verified options');
 
  assert.match(inspection,/Конфигурация ожидает заполнения/);
  assert.match(inspection,/configurationVersionId\?\{configurationVersionId\}:\{\}/,'on-site draft is authorized only on the API, not forged by client');
