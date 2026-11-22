@@ -52,14 +52,14 @@ const full=()=>packet([
 function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
  const rows=new Map(Object.entries(existing).map(([table,records])=>
   [table,new Map(records.map(r=>[r.id,structuredClone(r)]))]));
- const receipt=new Map();let begin=0;
+ const receipt=new Map(),overrides=[];let begin=0;
  return {
-  rows,receipt,
+  rows,receipt,overrides,
   transaction:async (cb,{readOnly=false}={})=>{
    begin++;
    const working=new Map([...rows].map(([t,items])=>
     [t,new Map([...items].map(([id,row])=>[id,structuredClone(row)]))]));
-   const receipts=new Map(receipt);
+   const receipts=new Map(receipt),pendingOverrides=[];
    const adapter={
     stage:async()=>({id:ids.stage,status:'PUBLISHED',isDeleted:false,
      resultsPublishedAt:published?'2026-11-11':null}),
@@ -82,12 +82,21 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
     },
     auditResolution:async record=>{receipts.set('decision:'+record.sourceId,record)},
     receipt:async record=>{receipts.set(record.eventHash,record)},
+    stageRowBelongs:async (table,row,stageId)=>{
+     if(['Registration','RegistrationNumber','ParticipantStageInspection'].includes(table))return row.stageId===stageId;
+     const regId=table==='RegistrationClass'?row.registrationId:
+      table==='RegistrationClassInspection'?working.get('RegistrationClass')?.get(row.registrationClassId)?.registrationId:
+      row.registrationId;
+     return working.get('Registration')?.get(regId)?.stageId===stageId;
+    },
+    auditVenueOverride:async record=>{pendingOverrides.push(structuredClone(record))},
     linkedIds:async()=>({participants:new Set(),cars:new Set(),configurations:new Set(),versions:new Set()}),
   };
    const value=await cb(adapter);
    if(!readOnly){
     rows.clear();for(const [t,entries] of working)rows.set(t,entries);
     receipt.clear();for(const [id,entry] of receipts)receipt.set(id,entry);
+    overrides.push(...pendingOverrides);
    }
    return value;
   },
@@ -417,4 +426,58 @@ test('central disqualification on a linked profile still blocks entire return',a
  })),/DISQUALIFIED/);
  assert.equal(db.receipt.size,0);
  assert.equal(db.rows.get('Car'),undefined);
+});
+
+
+test('signed post-event registration, inspection and result override divergent central rows atomically',async()=>{
+ const centralReg={...reg,status:'CANCELLED',participantNumber:46};
+ const centralInspection={...insp,status:'FAILED',notes:'Центральная инспекция до соревнований'};
+ const centralResult={...result,value:'101.000'};
+ const db=memoryDb({existing:{
+  Registration:[centralReg],RegistrationClass:[cls],
+  Inspection:[centralInspection],Result:[centralResult],
+ }});
+ const onsiteReg={...reg,participantNumber:28};
+ const onsiteInspection={...insp,notes:'Проверено на площадке',status:'PASSED'};
+ const onsiteResult={...result,value:'165.500'};
+ const signed=packet([
+  event(1,'Registration','UPDATE',onsiteReg,reg),
+  event(2,'RegistrationClass','UPDATE',cls,cls),
+  event(3,'Inspection','UPDATE',onsiteInspection,insp),
+  event(4,'Result','UPDATE',onsiteResult,result),
+ ]);
+ const outcome=await applyCompleteVenueJournal(signed,db,opts);
+ assert.equal(outcome.appliedEvents,4);
+ assert.equal(db.rows.get('Registration').get(reg.id).participantNumber,28);
+ assert.equal(db.rows.get('Registration').get(reg.id).status,'ACTIVE');
+ assert.equal(db.rows.get('Inspection').get(insp.id).status,'PASSED');
+ assert.equal(db.rows.get('Result').get(result.id).value,'165.500');
+ assert.equal(db.receipt.size,4);
+ assert.deepEqual(db.overrides.map(x=>x.table).sort(),['Inspection','Registration','Result']);
+ assert.equal(db.overrides.find(x=>x.table==='Result').centralBefore.value,'101.000');
+ const replay=await applyCompleteVenueJournal(signed,db,opts);
+ assert.equal(replay.alreadyApplied,true);
+ assert.equal(db.overrides.length,3,'replaying an acknowledged journal must not rewrite audit');
+});
+
+test('offline stage authority cannot overwrite another central stage or global participant identity',async()=>{
+ const otherStage='c520f672-79f7-44eb-8173-2a8ff94b1c0e';
+ const wrongStage=memoryDb({existing:{Registration:[{...reg,stageId:otherStage}]}});
+ await assert.rejects(()=>applyCompleteVenueJournal(packet([
+  event(1,'Registration','UPDATE',{...reg,status:'CANCELLED'},reg),
+ ]),wrongStage,opts),/central|stage|CONFLICT/i);
+ assert.equal(wrongStage.rows.get('Registration').get(reg.id).stageId,otherStage);
+ assert.equal(wrongStage.receipt.size,0);
+ assert.equal(wrongStage.overrides.length,0);
+
+ const centralIdentity={...participant,firstName:'Отредактировано онлайн'};
+ const db=memoryDb({existing:{Participant:[centralIdentity]}});
+ const altered={...participant,firstName:'Исправлено офлайн'};
+ await assert.rejects(()=>applyCompleteVenueJournal(packet([
+  event(1,'Participant','UPDATE',altered,participant),
+  event(2,'Car','INSERT',car),
+  event(3,'Registration','INSERT',reg),
+ ]),db,opts),/central changed|CONFLICT/i);
+ assert.equal(db.rows.get('Participant').get(participant.id).firstName,'Отредактировано онлайн');
+ assert.equal(db.receipt.size,0);
 });
