@@ -15,10 +15,11 @@ export function stageCalendarDay(value:Date|string|null|undefined):string|null{
  return parts.year+'-'+parts.month+'-'+parts.day;
 }
 
-export type CalendarStage={id:string;date?:string|null;status?:string|null};
+export type CalendarStage={id:string;date?:string|null;status?:string|null;venueActive?:boolean};
 
-export function isPastStageCalendar(stage:Pick<CalendarStage,'date'|'status'>|null|undefined,now=new Date()):boolean{
+export function isPastStageCalendar(stage:Pick<CalendarStage,'date'|'status'|'venueActive'>|null|undefined,now=new Date()):boolean{
  if(!stage)return false;
+ if(stage.venueActive!==undefined)return !stage.venueActive||stage.status!=='PUBLISHED';
  if(stage.status==='COMPLETED'||stage.status==='CANCELLED')return true;
  const stageDay=stageCalendarDay(stage.date),today=stageCalendarDay(now);
  return Boolean(stageDay&&today&&stageDay<today);
@@ -26,6 +27,8 @@ export function isPastStageCalendar(stage:Pick<CalendarStage,'date'|'status'>|nu
 
 /** A stage happening today must remain selectable after local midnight. */
 export function chooseInitialStage(stages:readonly CalendarStage[],now=new Date()):string{
+ const active=stages.find(stage=>stage.venueActive);
+ if(active)return active.id;
  const today=stageCalendarDay(now);
  const sorted=[...stages].filter(stage=>stage.status!=='CANCELLED')
   .sort((a,b)=>{
@@ -37,4 +40,13 @@ export function chooseInitialStage(stages:readonly CalendarStage[],now=new Date(
   const day=stageCalendarDay(stage.date);
   return Boolean(day&&today&&day>=today);
  })?.id??sorted.at(-1)?.id??stages[0]?.id??'';
+}
+
+
+/** The LAN API pins one installed stage. Retained stages are archive only. */
+export function markVenueStages<T extends CalendarStage>(stages:readonly T[],activeStageId:string):T[]{
+ if(!activeStageId||!stages.some(stage=>stage.id===activeStageId)){
+  throw new Error('Активный этап не подтверждён офлайн-сервером. Обновите страницу.');
+ }
+ return stages.map(stage=>({...stage,venueActive:stage.id===activeStageId}));
 }
