@@ -244,7 +244,7 @@ jobs:
       - name: Verify native release quoting, selected environment and non-recreating database reads
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-release-regressions.ps1
-      - name: Update installed LIVE without replacing API or stage data
+      - name: Verify LIVE and legacy registration upgrades with rollback
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-tv-upgrade.ps1
       - name: Retry Caddy root CA extraction and preserve last valid certificate

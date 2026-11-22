@@ -177,7 +177,8 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("Wait-VenueLanReady $state",startlocal)
         season=(ROOT/"venue-season.ps1").read_text(encoding="utf-8-sig")
         health=season[season.index("function Wait-VenueLanReady"):season.index("function Start-VenueDatabase")]
-        self.assertIn("Test-VenueApiReady -ExpectedSha $State.image -ExpectedStage $State.stageId",health)
+        self.assertIn("$apiRevision=Get-VenueRuntimeApiSha (Read-Env)",health)
+        self.assertIn("Test-VenueApiReady -ExpectedSha $apiRevision -ExpectedStage $State.stageId",health)
         self.assertIn("Test-VenueGatewayReady $State.ip",health)
 
     def test_real_contest_requires_independently_verified_public_fingerprint(self):

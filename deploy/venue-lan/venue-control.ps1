@@ -554,7 +554,11 @@ function Install-Local {
  Ensure-Firewall $state.ip
  Set-VenueStep 'validate-compose'
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
- if($state.phase -eq 'READY'){Update-ReadyVenueFrontend $state;Start-Local;return}
+ if($state.phase -eq 'READY'){
+  if(-not (Update-LegacyVenueRegistration $state)){Update-ReadyVenueFrontend $state}
+  Start-Local
+  return
+ }
  Set-VenueStep 'check-other-stage-ports'
  Assert-NoOtherVenueGatewayRunning
  if($state.phase -ne 'CONFIGURED'){Start-VenueDatabase}

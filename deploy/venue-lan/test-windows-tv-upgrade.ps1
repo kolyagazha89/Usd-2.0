@@ -89,6 +89,63 @@ try{
  try{Copy-VenueWebVersion $inherited @{'VENUE_WEB_IMAGE_TAG'='latest'}}catch{$rejected=$true}
  if(!$rejected -or $inherited['VENUE_WEB_IMAGE_TAG'] -cne $tv){throw 'Unpinned inherited web version was accepted'}
  Write-Host 'USD FRONTEND UPGRADE PASS: READY phase updates only spectator frontend/gateway, rollback and next stage preserve versions and secrets'
+
+ $legacy='53833411c3ce82424b8c1ac40b029f201eeed863'
+ $fixed='ff93d4957c4ca9f322a2832a511570e10ae65dcb'
+ $state.image=$legacy
+ $state|Add-Member -NotePropertyName fingerprint -NotePropertyValue ('d'*64)
+ $legacyEnv=$original.Replace($api,$legacy)+[Environment]::NewLine+
+  'VENUE_SIGNING_KEY_FINGERPRINT='+$state.fingerprint+[Environment]::NewLine
+ [IO.File]::WriteAllText($EnvFile,$legacyEnv)
+ $script:commands=@();$script:failActivation=$false;$script:failBackup=$false
+ function Test-VenueRuntimeImagesCached([string]$Sha){return $false}
+ function Assert-VenueReleaseImages([string]$Sha){if($Sha -cne $fixed){throw 'Unexpected API release'}}
+ function Assert-NoOtherVenueGatewayRunning {}
+ function Assert-VenueDatabaseVolume {}
+ function Assert-VenueVolumeRetained([string[]]$Names){}
+ function Start-VenueDatabase {}
+ function Test-IsActiveVenueStage([string]$Id){return $Id -ceq $stage}
+ function Assert-VenueDatabaseImportRole {}
+ function Save-VenueRegistrationUpgradeBackup {
+  $script:commands+='backup'
+  if($script:failBackup){throw 'Simulated backup failure'}
+ }
+ function Wait-VenueLanReady([object]$State){
+  $script:commands+=('ready '+(Get-VenueRuntimeApiSha (Read-Env)))
+ }
+ function Invoke-Compose {
+  param([string[]]$Arguments,[string]$Purpose)
+  $script:commands+=($Arguments -join ' ')
+  if($Arguments -contains 'migrate' -and $env:VENUE_API_IMAGE_TAG -cne $fixed){throw 'Migrated with the wrong API image'}
+  if($script:failActivation -and $Purpose -eq 'start fixed local registration'){throw 'Simulated API activation failure'}
+ }
+ $script:failBackup=$true
+ $rejected=$false
+ try{Update-LegacyVenueRegistration $state}catch{$rejected=$_.Exception.Message -match 'Simulated backup failure'}
+ if(!$rejected -or ($script:commands -join ';') -match 'migrate' -or [IO.File]::ReadAllText($EnvFile) -cne $legacyEnv){
+  throw 'A failed backup changed the installed environment or started a migration'
+ }
+ $script:commands=@();$script:failBackup=$false;$script:failActivation=$true
+ $rejected=$false
+ try{Update-LegacyVenueRegistration $state}catch{$rejected=$_.Exception.Message -match 'Simulated API activation failure'}
+ if(!$rejected -or [IO.File]::ReadAllText($EnvFile) -cne $legacyEnv -or $script:commands[-1] -cne ('ready '+$legacy)){
+  throw 'A failed registration upgrade did not restore the old runtime and exact configuration'
+ }
+ $script:commands=@();$script:failActivation=$false
+ if(-not(Update-LegacyVenueRegistration $state)){throw 'Affected build was left installed'}
+ $cfg=Read-Env
+ $commands=$script:commands -join ';'
+ if((Get-VenueRuntimeApiSha $cfg) -cne $fixed -or $cfg['VENUE_WEB_IMAGE_TAG'] -cne $fixed -or
+    $cfg['VENUE_IMAGE_TAG'] -cne $legacy -or $cfg['VENUE_JWT_SECRET'] -cne 'do-not-change-existing-auth-token' -or
+    $commands -notmatch 'stop api;backup;run .*migrate deploy.*;up .*api frontend gateway;ready ' -or
+    $commands -match 'down|--volumes|--apply'){
+  throw ('Registration upgrade did not preserve the installed stage and replace its running API: '+$commands)
+ }
+ $script:commands=@()
+ if((Update-LegacyVenueRegistration $state) -or $script:commands.Count -ne 0){
+  throw 'Completed registration upgrade ran twice'
+ }
+ Write-Host 'USD REGISTRATION UPGRADE PASS: download, backup gate, migrations, fixed API/frontend, exact rollback and safe retry'
 }finally{
  $Root=$oldRoot;$EnvFile=$oldEnvFile
  if(Test-Path -LiteralPath $folder){[IO.Directory]::Delete($folder,$true)}

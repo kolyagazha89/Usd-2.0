@@ -48,6 +48,121 @@ function Get-OnlineVenueReleaseSha {
  }
  return [string]$revisions[0]
 }
+function Get-VenueRuntimeApiSha([System.Collections.IDictionary]$Config){
+ $sha=[string]$Config['VENUE_API_IMAGE_TAG']
+ if(!$sha){$sha=[string]$Config['VENUE_IMAGE_TAG']}
+ if($sha -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная версия локального API USD'}
+ return $sha
+}
+function Set-VenueRuntimeEnvironment([string]$Contents){
+ $temp=$EnvFile+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+ try{
+  Write-PrivateFile $temp $Contents
+  [IO.File]::Replace($temp,$EnvFile,[NullString]::Value)
+ }finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
+}
+function Save-VenueRegistrationUpgradeBackup {
+ # Keep private archives out of the installer workspace and its shared folders.
+ $base=[Environment]::GetFolderPath('LocalApplicationData')
+ if(!$base){throw 'Защищённая папка резервных копий USD недоступна'}
+ $directory=Join-Path (Join-Path $base 'USD-Venue') 'db-backups'
+ [IO.Directory]::CreateDirectory($directory)|Out-Null
+ $acl=New-Object System.Security.AccessControl.DirectorySecurity
+ $acl.SetAccessRuleProtection($true,$false)
+ $user=[System.Security.Principal.WindowsIdentity]::GetCurrent().User
+ $grant=New-Object System.Security.AccessControl.FileSystemAccessRule($user,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
+ $acl.AddAccessRule($grant)
+ [IO.Directory]::SetAccessControl($directory,$acl)
+ # PowerShell 5.1 stdout is unsuitable for binary PostgreSQL archives.
+ $name='before-registration-upgrade-'+[guid]::NewGuid().ToString('N')+'.dump'
+ $remote='/tmp/'+$name
+ $local=Join-Path $directory $name
+ $composeArgs=Get-VenueComposeArguments
+ try{
+  Invoke-Compose @('exec','-T','db','pg_dump','-U','usd_venue_root','-d','usd_venue','--format=custom','--file',$remote) 'backup existing judging database'
+  Invoke-Compose @('exec','-T','db','pg_restore','--list',$remote) 'validate PostgreSQL archive'
+  $hash=@(& docker @composeArgs exec -T db sha256sum $remote)
+  Assert-Exit 'read PostgreSQL backup checksum'
+  if($hash.Count -ne 1 -or $hash[0] -cnotmatch '^([a-f0-9]{64})\s'){throw 'Не удалось подтвердить контрольную сумму копии PostgreSQL'}
+  $expected=$Matches[1]
+  Invoke-Compose @('cp',('db:'+$remote),$local) 'copy existing database backup'
+  if((Get-FileHash -LiteralPath $local -Algorithm SHA256).Hash -ine $expected){
+   throw 'Резервная копия на Windows не прошла проверку SHA256'
+  }
+  Write-Host ('USD VENUE BACKUP: '+$local)
+ }finally{
+  try{& docker @composeArgs exec -T db rm -f $remote 2>$null | Out-Null}catch{}
+ }
+}
+function Update-LegacyVenueRegistration([object]$State){
+ # The exact main image pair below passed publication and LAN database CI.
+ # It upgrades the known affected release via two reviewed additive migrations.
+ # Other releases still use the ordinary frontend update. Never guess a DB upgrade.
+ $legacy='53833411c3ce82424b8c1ac40b029f201eeed863'
+ $target='ff93d4957c4ca9f322a2832a511570e10ae65dcb'
+ $cfg=Read-Env
+ if((Get-VenueRuntimeApiSha $cfg) -cne $legacy){return $false}
+ if($State.phase -cne 'READY' -or $cfg['VENUE_IMAGE_TAG'] -cne $State.image -or
+    $cfg['VENUE_STAGE_ID'] -cne $State.stageId -or $cfg['VENUE_BIND_IP'] -cne $State.ip -or
+    $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -cne $State.fingerprint){
+  throw 'Данные установленного этапа не совпадают. Обновление регистрации остановлено.'
+ }
+ Set-VenueStep 'download-registration-upgrade'
+ if(-not (Test-VenueRuntimeImagesCached $target)){
+  foreach($service in @('api','frontend')){
+   Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-'+$service+':'+$target)) 'download published registration fix'
+  }
+ }
+ Assert-VenueReleaseImages $target
+ Assert-NoOtherVenueGatewayRunning
+ Assert-VenueDatabaseVolume
+ Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')
+ Start-VenueDatabase
+ if(-not(Test-IsActiveVenueStage $State.stageId)){throw 'Обновление регистрации выполняется только для текущего этапа'}
+ Assert-VenueDatabaseImportRole
+ $original=[IO.File]::ReadAllText($EnvFile)
+ $newline=[Environment]::NewLine
+ $lines=@([IO.File]::ReadAllLines($EnvFile)|Where-Object {$_ -notmatch '^VENUE_(API|WEB)_IMAGE_TAG='})
+ $updated=($lines+@(('VENUE_API_IMAGE_TAG='+$target),('VENUE_WEB_IMAGE_TAG='+$target))) -join $newline
+ $changed=$false
+ try{
+  Set-VenueStep 'backup-registration-upgrade'
+  Invoke-Compose @('stop','api') 'pause judging during registration upgrade'
+  Save-VenueRegistrationUpgradeBackup
+  Set-VenueStep 'migrate-registration-upgrade'
+  $previous=$env:VENUE_API_IMAGE_TAG
+  try{
+   $env:VENUE_API_IMAGE_TAG=$target
+   Invoke-Compose @('run','--rm','--no-deps','--pull','never','--entrypoint',
+    './node_modules/.bin/prisma','api','migrate','deploy','--config','./prisma7.config.ts') 'apply reviewed additive LAN migrations'
+  }finally{
+   if($null -eq $previous){Remove-Item Env:\VENUE_API_IMAGE_TAG -ErrorAction SilentlyContinue}
+   else{$env:VENUE_API_IMAGE_TAG=$previous}
+  }
+  Set-VenueStep 'activate-registration-upgrade'
+  Set-VenueRuntimeEnvironment ($updated+$newline)
+  $changed=$true
+  Invoke-Compose @('up','-d','--no-build','--no-deps','--pull','never','--force-recreate','api','frontend','gateway') 'start fixed local registration'
+  Wait-VenueLanReady $State
+  if(-not(Test-VenueWebRevision $target)){throw 'Экран регистрации не подтвердил версию'}
+ }catch{
+  $failure=$_.Exception.Message
+  try{
+   $services=@('api')
+   if($changed){
+    Set-VenueRuntimeEnvironment $original
+    $services=@('--force-recreate','api','frontend','gateway')
+   }
+   Invoke-Compose (@('up','-d','--no-build','--no-deps','--pull','never')+$services) 'restore previous local services'
+   Wait-VenueLanReady $State
+  }catch{
+   throw ('Ошибка обновления регистрации: '+$failure+'. Предыдущий сервер не подтвердил запуск: '+$_.Exception.Message)
+  }
+  throw ('Ошибка обновления регистрации: '+$failure+'. Предыдущие образы запущены. Данные и журнал сохранены.')
+ }
+ Write-Host ('USD VENUE: обновлены локальный API и экран регистрации '+$target)
+ return $true
+}
 function Update-ReadyVenueFrontend([object]$State) {
  if($State.phase -ne 'READY'){throw 'LIVE: установка этапа ещё не завершена'}
  $cfg=Read-Env
