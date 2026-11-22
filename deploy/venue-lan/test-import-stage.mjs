@@ -574,3 +574,36 @@ test('a signed configuration may never reference another car or invented equipme
  }];
  assert.throws(()=>planVenueStageImport(signed(data),publicPem,env,now),/связ|компонент|конфигурац/i);
 });
+
+test('retained season imports newer signed equipment versions but never downgrades local currentVersion',async()=>{
+ const data=snapshot();
+ const configId='a1111111-1111-4111-8111-111111111111';
+ const nextVersion='a2222222-2222-4222-8222-222222222222';
+ const version=(id,number)=>({id,configurationId:configId,version:number,
+  vibrationIsolation:null,additionalDescription:null,createdAt:'2026-11-01T10:00:00.000Z',
+  amplifiers:[],audioComponents:[],batteries:[],generators:[],headUnits:[]});
+ data.configurations=[{id:configId,carId:uuid.car,name:'SPL',isActive:true,currentVersion:2,
+  createdAt:'2026-11-01T10:00:00.000Z',updatedAt:'2026-11-02T10:00:00.000Z',
+  versions:[version(uuid.version,1),version(nextVersion,2)]}];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const run=async localVersion=>{
+  const {tx,db,log}=mockDb();
+  tx.$queryRawUnsafe=async sql=>sql.includes('pg_roles')?[{rolsuper:true,name:'usd_venue_root'}]:[];
+  tx.$executeRawUnsafe=async()=>1;tx.auditLog.findFirst=async()=>null;
+  tx.season.findUnique=async()=>({id:uuid.season});
+  tx.direction.findUnique=async()=>({id:uuid.direction});
+  tx.class.findUnique=async()=>({id:uuid.cls,directionId:uuid.direction});
+  tx.participant.findUnique=async()=>({id:uuid.person});
+  tx.car.findUnique=async()=>({id:uuid.car,participantId:uuid.person});
+  tx.carConfiguration.findUnique=async()=>({id:configId,carId:uuid.car,currentVersion:localVersion});
+  tx.carConfigurationVersion.findUnique=async args=>
+   args.where.id===uuid.version?{id:uuid.version,configurationId:configId}:null;
+  await applyVenueStageImport(plan,db,{shared:true});
+  assert.equal(log.filter(x=>x.model==='carConfigurationVersion').length,1);
+  assert.equal(log.find(x=>x.model==='carConfigurationVersion').data.id,nextVersion);
+  assert.equal(log.some(x=>x.model==='carConfiguration'),false,'reuse existing configuration ID');
+  return log.filter(x=>x.model==='carConfiguration'&&x.update).map(x=>x.update.currentVersion);
+ };
+ assert.deepEqual(await run(1),[2],'advance when a newer signed version arrives');
+ assert.deepEqual(await run(3),[],'never downgrade a newer local version');
+});
