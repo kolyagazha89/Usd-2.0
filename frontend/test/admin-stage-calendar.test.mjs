@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {stageCalendarDay,isPastStageCalendar,chooseInitialStage} from '../src/admin/stage-calendar.ts';
+import {stageCalendarDay,isPastStageCalendar,chooseInitialStage,markVenueStages} from '../src/admin/stage-calendar.ts';
 import {stageIsReadOnly} from '../src/admin/event-day-model.ts';
 
 test('USD stage calendar day is stable across clients in other time zones',()=>{
@@ -54,4 +54,32 @@ test('registration, inspection and event-day screens share one calendar policy',
  assert.doesNotMatch(files[1],/setHours\(0,0,0,0\)/);
  assert.doesNotMatch(files[2],/setHours\(0,0,0,0\)/);
  assert.doesNotMatch(files[3],/setHours\(0,0,0,0\)/);
+});
+
+
+test('the installed stage supports walk-ins with public registration closed and an elapsed date',()=>{
+ const now=new Date('2026-11-29T12:00:00+05:00');
+ const archived={id:'history',status:'PUBLISHED',date:'2026-11-28T10:00:00+05:00'};
+ const installed={id:'lan',status:'PUBLISHED',date:'2026-11-27T10:00:00+05:00',registrationOpen:false};
+ const next={id:'next',status:'PUBLISHED',date:'2026-11-30T10:00:00+05:00'};
+ const [past,current,future]=markVenueStages([archived,installed,next],'lan');
+ assert.equal(chooseInitialStage([past,current,future],now),'lan');
+ assert.equal(stageIsReadOnly(current,now),false);
+ assert.equal(stageIsReadOnly(installed,now),true);
+ assert.equal(stageIsReadOnly(past,now),true);
+ assert.equal(stageIsReadOnly(future,now),true);
+ assert.equal(stageIsReadOnly({...current,status:'COMPLETED'},now),true);
+ assert.equal(stageIsReadOnly({...current,status:'CANCELLED'},now),true);
+ assert.throws(()=>markVenueStages([archived,installed,next],'incorrect'),/Активный этап не подтверждён/);
+});
+
+test('all operator screens use the same server-confirmed LAN stage',async()=>{
+ for(const name of ['EventDayPage','RegistrationsPage','InspectionsPage','ResultsPage']){
+  const source=await readFile(new URL('../src/admin/'+name+'.tsx',import.meta.url),'utf8');
+  assert.match(source,/loadOperationalStages(?:<[^>]+>)?\(/);
+ }
+ const source=await readFile(new URL('../src/admin/operational-stages.ts',import.meta.url),'utf8');
+ assert.match(source,/__USD_VENUE_MODE__/);
+ assert.match(source,/\/results\/venue-live/);
+ assert.match(source,/markVenueStages\(items,live\?\.stage\?\.id/);
 });

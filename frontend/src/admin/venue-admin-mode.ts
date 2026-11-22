@@ -8,6 +8,7 @@ const MENU_PATHS=new Set([
  '/admin/results','/admin/participants','/admin/cars',
 ]);
 const WORKSPACE_ROOTS=[...MENU_PATHS];
+const VENUE_INTAKE_DOCUMENTS=new Set(['/privacy','/consent','/terms','/rules','/documents/officialProtocolConsent']);
 const STAGE_DETAIL=/^\/admin\/stages\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function routeOnly(value:string):string{
@@ -34,7 +35,7 @@ export function venueAdminMenuAllowed(path:string,mode:unknown):boolean{
 export function venueEntryPath(path:string,mode:unknown):string{
  if(mode!==true)return path;
  const route=routeOnly(path);
- if(route==='/login'||route==='/venue/live'||venueAdminRouteAllowed(path))
+ if(route==='/login'||route==='/venue/live'||VENUE_INTAKE_DOCUMENTS.has(route)||venueAdminRouteAllowed(path))
   return path;
  return VENUE_ADMIN_HOME;
 }

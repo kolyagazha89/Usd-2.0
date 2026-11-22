@@ -5,12 +5,13 @@ import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {judgingNumbers,judgingResultLink} from './results-operations-model';
 import {isPendingEquipment,walkInRegistrationPath} from './event-ops-model';
 import {canChangeDayInspection,dayPath,dayStatus,eventDayCounts,filterEventDayRows,hasDayPermission,stageIsReadOnly,type DayRow,type DayStatus} from './event-day-model';
-import {chooseInitialStage,USD_STAGE_TIME_ZONE} from './stage-calendar';
+import {loadOperationalStages} from './operational-stages';
+import {chooseInitialStage,USD_STAGE_TIME_ZONE,type CalendarStage} from './stage-calendar';
 import {buildOfflineEventPackage} from './offline-event-model';
 import {createOfflineVault} from './offline-event-vault';
 import './event-day.css';
 
-type Stage={id:string;name:string;city?:string|null;stageNumber?:number|null;date?:string|null;status?:string|null};
+type Stage=CalendarStage&{name:string;city?:string|null;stageNumber?:number|null};
 const statusLabels:Record<DayStatus,string>={ALL:'Активные',PASSED:'Допущены',PENDING:'Ожидают проверки',FAILED:'Не прошли',CANCELLED:'Отменены',EQUIPMENT:'Без конфигурации'};
 const statusClass=(status:string)=>status==='PASSED'?'is-passed':status==='FAILED'?'is-failed':status==='CANCELLED'?'is-cancelled':'is-pending';
 const participantLabel=(row:DayRow)=>[row.participant?.lastName,row.participant?.firstName,row.participant?.middleName].filter(Boolean).join(' ')||'Участник без имени';
@@ -72,9 +73,8 @@ export default function EventDayPage({path,go,user,PageFrame,Empty,LoadingPage}:
   let alive=true;
   setStagesBusy(true);setError('');
   const endpoint=hasDayPermission(user,'stages','view')?'/stages':'/stages/public';
-  apiGet(endpoint).then(value=>{
+  loadOperationalStages<Stage>(endpoint).then(items=>{
    if(!alive)return;
-   const items=listData<Stage>(value).filter(s=>s?.id);
    setStages(items);
    if(!requested&&items.length){
     const initial=chooseInitialStage(items);

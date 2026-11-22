@@ -7,6 +7,8 @@ import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Hash,Pencil,Plus,RefreshCw,Search,ShieldAlert,Trash2,Trophy,Users,XCircle,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {useViewState,useListScroll,matchesSeason,seasonYears,stageYear} from './view-state';
+import {loadOperationalStages} from './operational-stages';
+import {isPastStageCalendar} from './stage-calendar';
 import {EventOperationsNavigation} from './EventOperationsNavigation';
 import BassRaceTextImport from './BassRaceTextImport';
 import {
@@ -29,15 +31,14 @@ function StagePicker({path,go,Empty,children}:{path:string;go:Go;Empty:React.Com
  const [loading,setLoading]=useState(true),[error,setError]=useState('');
  useEffect(()=>{
   let current=true;setLoading(true);setError('');
-  void apiGet<any>('/stages').then(value=>{
+  void loadOperationalStages<any>().then(rows=>{
    if(!current)return;
-   const rows=listData<any>(value).filter(s=>s?.id);
    setStages(rows);
    const requestedStage=requested?rows.find(s=>s.id===requested):null;
    if(requested&&!requestedStage){setStageId('');setError('Этап по ссылке не найден. Выберите существующий этап.');return}
-   const currentStage=requestedStage??rows.find(s=>s.id===stageId&&matchesSeason(s,season))??rows.find(s=>matchesSeason(s,season));
+   const currentStage=requestedStage??rows.find(s=>s.venueActive)??rows.find(s=>s.id===stageId&&matchesSeason(s,season))??rows.find(s=>matchesSeason(s,season));
    setStageId(currentStage?.id??'');
-   if(requestedStage&&!matchesSeason(requestedStage,season))setSeason(stageYear(requestedStage));
+   if(currentStage&&!matchesSeason(currentStage,season))setSeason(stageYear(currentStage));
   }).catch(e=>{if(current)setError(e instanceof Error?e.message:'Не удалось загрузить календарь')})
    .finally(()=>{if(current)setLoading(false)});
   return()=>{current=false};
@@ -88,6 +89,8 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
  const [search,setSearch]=useViewState('results:'+stageId+':search','');
  const [page,setPage]=useViewState('results:'+stageId+':page',1),[pageSize,setPageSize]=useViewState('results:'+stageId+':pageSize',10);
  const handledEntry=useRef('');
+ const isVenue=stage.venueActive!==undefined;
+ const readOnly=isVenue&&isPastStageCalendar(stage);
  useListScroll('results:'+stageId,editor===null&&detail===null,!loading);
  const load=async()=>{
   setLoading(true);setError('');
@@ -102,17 +105,17 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
  };
  useEffect(()=>{void load()},[stageId]);
  useEffect(()=>{
-  if(loading||!entryId||handledEntry.current===entryId)return;
+  if(readOnly||loading||!entryId||handledEntry.current===entryId)return;
   handledEntry.current=entryId;
   const requested=registrations.find(r=>r.id===entryId);
   if(!requested){setError('Указанная регистрация не найдена на этом этапе');return}
   if(!canJudgeRegistration(requested)){setError('Результат доступен только после успешной инспекции. Проверьте допуск.');return}
   if(!remainingJudgingClasses(requested,results).length){setError('Для этой регистрации все классы уже получили результаты. Исправление доступно ADMIN.');return}
   setEditor({registrationId:entryId});setDetail(null);setEditorError('');
- },[entryId,loading,registrations,results]);
+ },[entryId,loading,registrations,results,readOnly]);
  const closeEditor=()=>{setEditor(null);setEditorError('');if(entryId)go(judgingResultLink(stageId))};
  const save=async(v:any)=>{
-  if(saving)return;
+  if(readOnly||saving)return;
   setSaving(true);setEditorError('');setNotice('');
   try{
    if(v.id){
@@ -137,6 +140,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
   finally{setSaving(false)}
  };
  const deleteResult=async(row:any)=>{
+  if(readOnly)return;
   if(!deleteReason.trim()){setError('Укажите причину удаления результата');return}
   if(user.role!=='ADMIN')return;
   setSaving(true);setError('');
@@ -158,7 +162,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
  const orderedResults=groupJudgingResults(filteredResults).flatMap(group=>group.rows);
  const pagination=paginateResourceRows(orderedResults,page,pageSize);
  const selectedRegistration=registrations.find(r=>r.id===(editor?.registrationId??entryId))??detail?.registration;
- const canCreate=registrations.some(r=>canJudgeRegistration(r)&&remainingJudgingClasses(r,results).length>0);
+ const canCreate=!readOnly&&registrations.some(r=>canJudgeRegistration(r)&&remainingJudgingClasses(r,results).length>0);
  return <>
   <EventOperationsNavigation current="results" stageId={stageId} stageName={stage.name} registrationId={selectedRegistration?.id} participantNumber={selectedRegistration?.participantNumber} showListJump={!editor&&!detail} go={go}/>
   <details className="event-ops-metrics-drawer"><summary>Сводка: {stats.admitted} допущены · {stats.remaining} классов без результатов · {stats.entered} внесено</summary><section className="judging-summary" aria-label="Сводка судейства">
@@ -173,6 +177,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
    <div><strong><AdminEntityLink kind="stage" id={stageId}>{stage.name}</AdminEntityLink></strong><p>{stats.awaiting} ожидают инспекцию · {stats.failed} не прошли · {stats.admitted} допущены</p></div>
    {stats.awaiting>0&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/inspections?stageId='+encodeURIComponent(stageId))}><ShieldAlert size={16}/>Завершить инспекции</button>}
   </section>
+  {readOnly&&<p className="notice">Этап в архиве. Результаты доступны для просмотра.</p>}
   {notice&&<div className="notice judging-notice" role="status"><CheckCircle2 size={16}/>{notice}</div>}
   {error&&<ErrorPanel message={error} retry={load}/>}
   {editor!==null?<ResultEditor value={editor} saving={saving} error={editorError}
@@ -185,11 +190,11 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
      {key:'registration.car.model',label:'Модель'},{key:'value',label:'Результат'},
      {key:'place',label:'Место'},{key:'notes',label:'Комментарий'}]}
     onClose={()=>setDetail(null)}
-    onEdit={user.role==='ADMIN'&&!detail.isHistorical?()=>{
+    onEdit={!readOnly&&user.role==='ADMIN'&&!detail.isHistorical?()=>{
      setDetail(null);setEditor({id:detail.id,value:Number(detail.value),place:detail.place??'',notes:detail.notes??''});
     }:undefined}/>:
    <>
-    {user.role === 'ADMIN' && <BassRaceTextImport stageId={stageId} stageStatus={stage.status} onImported={load}/>}
+    {!isVenue && user.role === 'ADMIN' && <BassRaceTextImport stageId={stageId} stageStatus={stage.status} onImported={load}/>}
     <div className="judging-toolbar" role="search" aria-label="Поиск результата">
      <div className="judging-search"><Search size={17} aria-hidden="true"/>
       <input aria-label="Поиск результата" type="search" value={search}
@@ -210,7 +215,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
     </div>
     <p className="judging-quick-help" role="status" aria-live="polite">
      Найдено {filteredResults.length} из {results.length} результатов.
-     {!canCreate&&!loading?' Для нового измерения требуется допуск и класс без внесённого результата.':''}
+     {!readOnly&&!canCreate&&!loading?' Для нового измерения требуется допуск и класс без внесённого результата.':''}
     </p>
     {filteredResults.length>10&&<AdminListPagination label="результатов" total={filteredResults.length} page={pagination.page} pageCount={pagination.pageCount} pageSize={pagination.pageSize} onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1)}}/>}
     <div id="event-ops-records" className="panel table-wrap judging-results" aria-busy={loading}>
@@ -231,7 +236,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
          <td data-label="Статус">{row.isHistorical?<span className="badge">Исторический</span>:
           <span className="badge good">Официальный</span>}</td>
          <td data-label="Действия" className="row-actions" onClick={e=>e.stopPropagation()}>
-          {user.role==='ADMIN'&&!row.isHistorical&&<>
+          {!readOnly&&user.role==='ADMIN'&&!row.isHistorical&&<>
            <button type="button" className="icon-button" title="Исправить результат" aria-label="Исправить результат" onClick={()=>{
             setEditor({id:row.id,value:Number(row.value),place:row.place??'',notes:row.notes??''});setEditorError('');
            }}><Pencil size={16}/></button>

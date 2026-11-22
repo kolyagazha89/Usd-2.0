@@ -44,3 +44,12 @@ test('venue navigation only shows operational work, production navigation is unc
   assert.equal(venueAdminMenuAllowed(path,true),false,path);
  assert.equal(venueAdminMenuAllowed('/admin/inbox',false),true);
 });
+
+
+test('the signed intake documents can be opened locally while other public pages remain unavailable',()=>{
+ for(const path of ['/privacy','/consent','/terms','/rules','/documents/officialProtocolConsent']){
+  assert.equal(venueEntryPath(path,true),path);
+ }
+ assert.equal(venueEntryPath('/documents/other',true),VENUE_ADMIN_HOME);
+ assert.equal(venueEntryPath('/privacy/other',true),VENUE_ADMIN_HOME);
+});

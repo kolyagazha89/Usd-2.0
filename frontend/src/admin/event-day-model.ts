@@ -44,7 +44,7 @@ export function filterEventDayRows(rows:readonly DayRow[],search:string,status:D
   ||String(a.participant?.lastName??'').localeCompare(String(b.participant?.lastName??''),'ru')
   ||a.id.localeCompare(b.id));
 }
-export function stageIsReadOnly(stage:{date?:string|null;status?:string|null}|undefined,now=new Date()):boolean{
+export function stageIsReadOnly(stage:{date?:string|null;status?:string|null;venueActive?:boolean}|undefined,now=new Date()):boolean{
  return !stage||isPastStageCalendar(stage,now);
 }
 export function hasDayPermission(user:User,module:string,action:'view'|'create'|'update'):boolean{
