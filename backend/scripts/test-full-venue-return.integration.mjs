@@ -198,3 +198,49 @@ test('PG18: incompatible new event or stolen number cannot produce partial write
  await assert.rejects(()=>applyCompleteVenueJournal(conflicting,adapter,opts),/CONFLICT/);
  assert.equal(await read('Participant',uid(99)),null);
 });
+
+test('PG18: signed LAN edits supersede changed online inspection, result and stage metadata without erasing configuration',async()=>{
+ // This disposable database already accepted a complete stage above. Emulate
+ // a fresh pre-return stage by retiring those test-only receipts, not data.
+ await query('DELETE FROM "AuditLog" WHERE action=$1 AND metadata->>\'stageId\'=$2',
+  ['VENUE_FULL_EVENT_IMPORTED',stage]);
+ const baseRegistration=await read('Registration',registration);
+ const baseInspection=await read('Inspection',inspection);
+ const baseResult=await read('Result',result);
+ assert.ok(baseRegistration&&baseInspection&&baseResult);
+ const offlineRegistration={...baseRegistration,teamNameAtInspection:'Судейский протокол'};
+ const offlineInspection={...baseInspection,status:'PASSED',notes:'Проверено в офлайне'};
+ const offlineResult={...baseResult,value:155.33,notes:'Официальный результат площадки'};
+ await query('UPDATE "Registration" SET "configurationSnapshot"=$1::jsonb,"privacyConsentVersion"=$2 WHERE id=$3',
+  [JSON.stringify({existingFullEquipment:'online'}),'privacy-v42',registration]);
+ await query('UPDATE "Inspection" SET notes=$1 WHERE id=$2',['Предварительно онлайн',inspection]);
+ await query('UPDATE "Result" SET value=$1,notes=$2 WHERE id=$3',['141.000','Предварительно онлайн',result]);
+ const draft=[
+  {table:'Registration',recordId:registration,before:baseRegistration,after:offlineRegistration},
+  {table:'Inspection',recordId:inspection,before:baseInspection,after:offlineInspection},
+  {table:'Result',recordId:result,before:baseResult,after:offlineResult},
+ ];
+ const events=draft.map((entry,index)=>{
+  const sequence=index+1;
+  return {sequence,previousHash:hash(index),hash:hash(sequence),payload:{
+   sequence,stageId:stage,table:entry.table,recordId:entry.recordId,operation:'UPDATE',
+   before:entry.before,after:entry.after,recordedAt:'2026-11-13T10:00:00.000Z',
+  }};
+ });
+ const journal={format:2,journalCoverage:{fromSequence:0,tables:FULL_RETURN_COVERAGE_TABLES},
+  stageId:stage,baselineSha256:opts.baselineSha256,journalEndHash:events.at(-1).hash,
+  eventCount:events.length,events};
+ const report=await applyCompleteVenueJournal(journal,postgresFullVenueAdapter(client),opts);
+ assert.equal(report.appliedEvents,3);
+ assert.equal((await read('Inspection',inspection)).notes,'Проверено в офлайне');
+ assert.equal((await read('Result',result)).value,155.33);
+ const imported=await read('Registration',registration);
+ assert.equal(imported.teamNameAtInspection,'Судейский протокол');
+ assert.deepEqual(imported.configurationSnapshot,{existingFullEquipment:'online'});
+ assert.equal(imported.privacyConsentVersion,'privacy-v42');
+ const audit=(await query('SELECT metadata FROM "AuditLog" WHERE action=$1 AND metadata->>\'stageId\'=$2',
+  ['VENUE_OFFLINE_STAGE_OVERRIDE',stage])).rows;
+ assert.equal(audit.length,3);
+ assert.equal(audit.find(x=>x.metadata.table==='Result')?.metadata.before.value,141);
+ assert.equal((await applyCompleteVenueJournal(journal,postgresFullVenueAdapter(client),opts)).alreadyApplied,true);
+});
