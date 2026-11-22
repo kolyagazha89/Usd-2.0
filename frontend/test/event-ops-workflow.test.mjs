@@ -20,7 +20,7 @@ test('registration and inspection share one stage-aware command desk with preser
  assert.match(registrations,/EventOperationsNavigation current="registrations"/);
  assert.match(inspections,/EventOperationsNavigation current="inspections"/);
  assert.match(registrations,/stageName=\{selectedStage\?\.name\}/);
- assert.match(inspections,/stageName=\{stages\.find\(s=>s\.id===stageId\)\?\.name\}/);
+ assert.match(inspections,/stageName=\{selectedStage\?\.name\}/);
  assert.match(inspections,/const readOnly=!selectedStage\|\|isPastStage\(selectedStage\)/);
 });
 
