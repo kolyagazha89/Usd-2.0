@@ -128,7 +128,7 @@ export function postgresFullVenueAdapter(client){
       await client.query(
        'INSERT INTO "AuditLog" (id,action,entity,"entityId",metadata,"createdAt") VALUES (gen_random_uuid(),$1,$2,$3,$4::jsonb,now())',
        ['VENUE_OFFLINE_STAGE_OVERRIDE',table,recordId,
-        JSON.stringify({stageId,eventHash,operator,reason,before,after})]);
+        JSON.stringify({stageId,eventHash,operator,table,recordId,reason,before,after})]);
      },
      async stageClassAllowed(stageId,classId){
       const {rows}=await client.query(
