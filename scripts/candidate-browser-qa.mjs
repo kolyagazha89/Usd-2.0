@@ -206,6 +206,8 @@ try{
     return route.abort('blockedbyclient');
    });
    const page=await context.newPage();page.setDefaultTimeout(10000);
+   // The competition-day fixtures must stay active when CI runs after the event.
+   await page.clock.setFixedTime(new Date(stage.date));
    for(const route of routes){
     const errors=[],onError=error=>errors.push(error.message);page.on('pageerror',onError);
     const row={role:role??'PUBLIC',width,route,reducedMotion};
