@@ -66,8 +66,9 @@ export function venueLiveRowsPerScreen(height:number,width:number):number{
  const h=Number.isFinite(height)?Math.max(0,height):720;
  const w=Number.isFinite(width)?Math.max(0,width):1280;
  const compact=w<640;
+ const rowHeight=compact?54:w<980?58:Math.max(66,Math.min(84,h*.08));
  return Math.max(2,Math.min(compact?5:10,Math.floor(
-  (h-(compact?275:w<980?300:330))/(compact?54:w<980?58:66)
+  (h-(compact?275:w<980?300:330))/rowHeight
  )));
 }
 /** Rotate through every class, then through its pages. Empty disciplines still get a screen. */
