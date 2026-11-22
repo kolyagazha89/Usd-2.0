@@ -20,13 +20,99 @@ const fields=(value,keys,context)=>{
  if(Object.keys(value).some(key=>!allowed.has(key)))
   throw new Error('Лишние/личные поля в пакете: '+context);
 };
+// Configuration graphs are signed, but the importer must validate their
+// identity graph before the first local DB write. Reject unrelated cars,
+// unknown fields, duplicated UUIDs and cross-version amplifier links.
+export function validateVenueConfigurations(configurations,carIds,registeredVersions){
+ if(configurations===undefined)return;
+ if(!Array.isArray(configurations)||configurations.length>25000)
+  throw new Error('Некорректный список конфигураций');
+ const exact=(value,keys,label)=>{
+  fields(value,keys,label);
+  if(keys.some(key=>!Object.hasOwn(value,key)))throw new Error('Не хватает полей конфигурации: '+label);
+ };
+ const date=value=>typeof value==='string'&&Number.isFinite(Date.parse(value));
+ const string=(value,max=1000)=>typeof value==='string'&&value.length<=max;
+ const optional=(value,max=1000)=>value===null||string(value,max);
+ const quantity=value=>Number.isSafeInteger(value)&&value>0&&value<=1000;
+ const direction=value=>['SUB','FRONT','REAR'].includes(value);
+ const configIds=new Set(),versionIds=new Map(),allIds=new Set();
+ let totalRows=0;
+ for(const config of configurations){
+  exact(config,['id','carId','name','isActive','currentVersion','createdAt','updatedAt','versions'],'конфигурация');
+  if(!uuid(config.id)||configIds.has(config.id)||!carIds.has(config.carId)
+   ||!string(config.name,300)||!config.name.trim()||typeof config.isActive!=='boolean'
+   ||!quantity(config.currentVersion)||!date(config.createdAt)||!date(config.updatedAt)
+   ||!Array.isArray(config.versions)||!config.versions.length||config.versions.length>250)
+   throw new Error('Неверная конфигурация или принадлежность автомобилю');
+  configIds.add(config.id);
+  const numbers=new Set();
+  for(const version of config.versions){
+   exact(version,['id','configurationId','version','vibrationIsolation','additionalDescription',
+    'createdAt','amplifiers','audioComponents','headUnits','batteries','generators'],'версия конфигурации');
+   if(!uuid(version.id)||versionIds.has(version.id)||version.configurationId!==config.id
+    ||!quantity(version.version)||numbers.has(version.version)
+    ||!optional(version.vibrationIsolation,4000)||!optional(version.additionalDescription,10000)
+    ||!date(version.createdAt))
+    throw new Error('Неверная версия конфигурации');
+   numbers.add(version.version);versionIds.set(version.id,config.carId);
+   const equipment=[
+    ['amplifiers',['id','versionId','brand','catalogEntryId','model','quantity','direction','componentLinks']],
+    ['audioComponents',['id','versionId','brand','catalogEntryId','model','quantity','type','direction']],
+    ['headUnits',['id','versionId','brand','catalogEntryId','model','direction']],
+    ['batteries',['id','versionId','brand','model','quantity']],
+    ['generators',['id','versionId','brand','model','quantity']],
+   ];
+   const ampIds=new Set(),componentIds=new Set();
+   for(const [table,keys] of equipment){
+    const rows=version[table];
+    if(!Array.isArray(rows)||rows.length>2000)throw new Error('Слишком много компонентов конфигурации');
+    totalRows+=rows.length;
+    if(totalRows>125000)throw new Error('Пакет оборудования слишком большой');
+    for(const row of rows){
+     exact(row,keys,'оборудование '+table);
+     if(!uuid(row.id)||allIds.has(row.id)||row.versionId!==version.id
+      ||!string(row.brand,300)||!string(row.model,500)
+      ||(Object.hasOwn(row,'catalogEntryId')&&!optional(row.catalogEntryId,300))
+      ||(Object.hasOwn(row,'quantity')&&!quantity(row.quantity))
+      ||(Object.hasOwn(row,'direction')&&!direction(row.direction))
+      ||(Object.hasOwn(row,'type')&&!['SUBWOOFER','MIDBASS','MIDRANGE','HORN','OTHER'].includes(row.type)))
+      throw new Error('Повреждено оборудование конфигурации');
+     allIds.add(row.id);
+     if(table==='amplifiers')ampIds.add(row.id);
+     if(table==='audioComponents')componentIds.add(row.id);
+    }
+   }
+   const links=new Set();
+   for(const amplifier of version.amplifiers){
+    if(!Array.isArray(amplifier.componentLinks)||amplifier.componentLinks.length>2000)
+     throw new Error('Неверные связи усилителя');
+    for(const link of amplifier.componentLinks){
+     exact(link,['amplifierId','componentId','quantity'],'связь усилителя с компонентом');
+     const key=link.amplifierId+'/'+link.componentId;
+     if(link.amplifierId!==amplifier.id||!ampIds.has(link.amplifierId)
+      ||!componentIds.has(link.componentId)||!quantity(link.quantity)||links.has(key))
+      throw new Error('Связь оборудования относится к чужой конфигурации');
+     links.add(key);
+    }
+   }
+  }
+  if(!numbers.has(config.currentVersion))
+   throw new Error('Текущая версия конфигурации отсутствует');
+ }
+ for(const [versionId,carId] of registeredVersions){
+  if(versionIds.get(versionId)!==carId)
+   throw new Error('Версия конфигурации регистрации отсутствует или принадлежит другому автомобилю');
+ }
+}
+
 export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
  if(!packageValue||typeof packageValue!=='object'||Array.isArray(packageValue))
   throw new Error('Некорректный пакет площадки');
  const {snapshot,integrity}=packageValue;
  fields(packageValue,['snapshot','integrity'],'контейнер');
  fields(integrity,['algorithm','sha256','signature','publicKeyFingerprint'],'подпись');
- fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy','syncAuthorization','staffAccess','participantDirectory','disqualifications'],'снимок');
+ fields(snapshot,['format','purpose','stageId','generatedAt','expiresAt','stage','registrations','venuePolicy','syncAuthorization','staffAccess','participantDirectory','disqualifications','configurations'],'снимок');
  if(snapshot.format!==1||snapshot.purpose!=='USD_VENUE_STAGE_READONLY'
   ||!uuid(snapshot.stageId)||integrity.algorithm!=='Ed25519'
   ||typeof integrity.signature!=='string'||!/^[A-Za-z0-9_-]{64,180}$/.test(integrity.signature)
@@ -190,6 +276,13 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
     throw new Error('Результат относится к чужому классу');
   }
  }
+ const allCarIds=new Set([
+  ...(snapshot.participantDirectory??[]).flatMap(person=>person.cars.map(car=>car.id)),
+  ...snapshot.registrations.map(registration=>registration.carId),
+ ]);
+ const registeredVersions=snapshot.registrations.map(registration=>
+  [registration.configurationVersionId,registration.carId]);
+ validateVenueConfigurations(snapshot.configurations,allCarIds,registeredVersions);
  return {stageId:snapshot.stageId,stageName:String(stage.name??''),
   registrations:snapshot.registrations.length,classes:stage.stageClasses.length,
   generatedAt:snapshot.generatedAt,expiresAt:snapshot.expiresAt,
