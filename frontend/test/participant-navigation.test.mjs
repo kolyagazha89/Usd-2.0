@@ -6,6 +6,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
 
 test('participant navigation and three-step registration preserve choices and submit the selected configuration',async(t)=>{
+  t.mock.timers.enable({apis:['Date'],now:new Date('2026-11-20T12:00:00Z')});
   const base=path.dirname(fileURLToPath(import.meta.url));
   const scratch=await mkdtemp(path.join(base,'.participant-navigation-'));
   const dom=new JSDOM('<div id="root"></div>',{url:'https://usd.test/participant'});
