@@ -3,7 +3,7 @@ import {USD_PROJECT_DOCUMENTS} from './usd-documents.snapshot';
 function clean(value:string):string {
  return value.toLowerCase().replace(/ё/g,'е');
 }
-const STOPWORDS=new Set(['что','как','для','это','или','где','когда','какие','какой','нужно','можно','если','уже','сейчас','будет','есть','про','эта','этот','все','usd','юсд']);
+const STOPWORDS=new Set(['что','как','для','это','или','где','когда','какие','какой','какая','нужно','можно','если','уже','сейчас','будет','есть','про','эта','этот','все','usd','юсд']);
 function words(query:string):string[]{
  return [...new Set((clean(query).match(/[\p{L}\p{N}]{3,}/gu)||[]).filter(x=>!STOPWORDS.has(x)))].slice(0,8);
 }
