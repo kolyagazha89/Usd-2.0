@@ -54,7 +54,7 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
   const text=(quick??input).trim();
   if(!text||sending)return;
   const history:AssistantChatMessage[]=messages
-   .filter(item=>item!==greeting&&item.source!=='unavailable')
+   .filter(item=>item!==greeting&&item!==designGreeting&&item.source!=='unavailable')
    .slice(-8)
    .map(item=>({role:item.role,content:item.text.slice(0,1200)}));
   setMessages(prev=>[...prev,{role:'user',text}]);
