@@ -8,6 +8,7 @@ import {USD_KNOWLEDGE_OVERVIEW} from './usd-knowledge';
 import {usdExpertRead} from './usd-expert-readers';
 import {searchUsdDocuments} from './usd-document-search';
 import {askUsdLocalExpert,checkUsdLocalModel} from './usd-local-gateway';
+import type {UsdAssistantMode} from './usd-design-mode';
 
 const TYPES = new Set(['CODE_CHANGE', 'ASSISTANT_FUNCTION', 'SYSTEM_ACTION']);
 @Injectable()
@@ -52,14 +53,18 @@ export class AssistantService {
   }
 
   /** Chat answers are read-only. No code-change ticket is silently created. */
-  async chat(message: string, userId: string, options: { history?: unknown; stageId?: unknown } = {}) {
+  async chat(message: string, userId: string, options: { history?: unknown; stageId?: unknown; mode?: unknown } = {}) {
     const text = String(message ?? '').trim();
     if (!text || text.length > 12000) throw new BadRequestException('Сообщение пустое или слишком длинное');
+    if (options.mode!==undefined && options.mode!=='ask' && options.mode!=='design') {
+      throw new BadRequestException('Неизвестный режим ассистента USD');
+    }
+    const mode:UsdAssistantMode=options.mode==='design'?'design':'ask';
     const links = (items: Array<[string, string]>) => items.map(([label, href]) => ({ label, href }));
     const stageId = typeof options.stageId === 'string' && /^[a-zA-Z0-9-]{1,80}$/.test(options.stageId)
       ? options.stageId : undefined;
 
-    if (isAssistantWriteRequest(text)) {
+    if (mode==='ask' && isAssistantWriteRequest(text)) {
       await this.audit(userId, 'ASSISTANT_CHAT_USED', 'WRITE_GUIDANCE');
       return {
         success: true,
@@ -79,12 +84,12 @@ export class AssistantService {
         const answer=isLocal
           ?await askUsdLocalExpert({
             model,baseUrl:process.env.OLLAMA_BASE_URL?.trim()||'http://ollama:11434',
-            message:text,history:options.history,stageId,knowledge:USD_KNOWLEDGE_OVERVIEW,
+            message:text,history:options.history,stageId,mode,knowledge:USD_KNOWLEDGE_OVERVIEW,
             runTool:(name,args)=>this.runUsdTool(name,args,userId),
           })
           :await askUsdExpert({
             apiKey:process.env.OPENAI_API_KEY!.trim(),
-            model,message:text,history:options.history,stageId,
+            model,message:text,history:options.history,stageId,mode,
             knowledge:USD_KNOWLEDGE_OVERVIEW,
             runTool:(name,args)=>this.runUsdTool(name,args,userId),
           });
@@ -92,7 +97,7 @@ export class AssistantService {
         return {
           success:true,action:null,reply:answer.reply,
           source:answer.scope==='other'?'guide':'ai',
-          links:[],data:{toolsUsed:answer.usedTools,stageId:stageId??null,provider},
+          links:[],data:{toolsUsed:answer.usedTools,stageId:stageId??null,provider,mode},
         };
       }catch{
         return {
@@ -106,6 +111,11 @@ export class AssistantService {
     if(provider!=='openai'){
       return {success:true,action:null,source:'unavailable',links:[],
         reply:'Неизвестный провайдер USD AI. Проверь настройку USD_AI_PROVIDER на сервере.'};
+    }
+
+    if(mode==='design'){
+      return {success:true,action:null,source:'unavailable',links:[],
+        reply:'Режим обсуждения изменений требует подключенной AI-модели USD. Без модели я не буду выдавать шаблон за архитектурный анализ. Изменений в системе не было.'};
     }
 
     const intent = classifyAssistantIntent(text);
