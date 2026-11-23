@@ -177,6 +177,39 @@ describe('USD assistant reliable operational chat', () => {
     expect(result.model).toBe('qwen3:1.7b');
   });
 
+  it('discusses a proposed USD change without creating or applying a request even for imperative phrasing',async()=>{
+    const {service,prisma}=makeService();
+    process.env.OPENAI_API_KEY='fake-secret-for-tests';
+    const resp=(content:string)=>({ok:true,json:async()=>({status:'completed',output:[
+      {type:'message',content:[{type:'output_text',text:content}]},
+    ]})} as any);
+    const mocked=jest.spyOn(global,'fetch')
+      .mockResolvedValueOnce(resp('{"in_scope":true}'))
+      .mockResolvedValueOnce(resp('1. Варианты. 2. Риски. 3. Тесты. Изменений не выполнено.'));
+    const result=await service.chat('Добавь возможность смены класса после инспекции USD','admin',{mode:'design'});
+    expect(result.source).toBe('ai');
+    expect(result.data.mode).toBe('design');
+    expect(result.reply).toContain('Риски');
+    expect(mocked).toHaveBeenCalledTimes(2);
+    expect(prisma.assistantRequest.create).not.toHaveBeenCalled();
+    const second=JSON.parse(String((mocked.mock.calls[1][1] as RequestInit).body));
+    expect(second.instructions).toMatch(/РЕЖИМ «ОБСУДИТЬ ИЗМЕНЕНИЕ»/);
+    expect(second.instructions).toContain('план');
+  });
+
+  it('fails explicitly when design discussion is selected without any AI provider',async()=>{
+    const {service,prisma}=makeService();
+    const answer=await service.chat('Предлагаю новый механизм BassRace','admin',{mode:'design'});
+    expect(answer.source).toBe('unavailable');
+    expect(answer.reply).toMatch(/модел|ИИ/i);
+    expect(prisma.assistantRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects unknown chat mode and never treats client-supplied mode as an instruction',async()=>{
+    const {service}=makeService();
+    await expect(service.chat('Что по USD?','admin',{mode:'execute'})).rejects.toThrow(/режим/i);
+  });
+
   it('lists only non-deleted stages for the stage picker', async () => {
     const {service,prisma} = makeService();
     await service.stages();
