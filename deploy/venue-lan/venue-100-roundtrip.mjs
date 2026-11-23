@@ -37,16 +37,30 @@ const numberOf=value=>Number(value);
 const stableSha=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 async function call(path,token,body,method='POST'){
- const response=await fetch(api+path,{
-  method,headers:{'Content-Type':'application/json',
-   ...(token?{Authorization:'Bearer '+token}:{})},
-  ...(body===undefined?{}:{body:JSON.stringify(body)}),
-  signal:AbortSignal.timeout(30000),
- });
- const payload=await response.json().catch(()=>null);
- if(!response.ok)throw Error(method+' '+path+' HTTP '+response.status+': '+
-  JSON.stringify(payload).slice(0,650));
- return payload;
+ // The real API enforces a shared 180 requests/minute IP budget. This stress
+ // test must respect the same Retry-After policy as an operator client; never
+ // switch off security middleware just to make a CI benchmark pass.
+ for(let attempt=0;attempt<30;attempt++){
+  const response=await fetch(api+path,{
+   method,headers:{'Content-Type':'application/json',
+    ...(token?{Authorization:'Bearer '+token}:{})},
+   ...(body===undefined?{}:{body:JSON.stringify(body)}),
+   signal:AbortSignal.timeout(30000),
+  });
+  if(response.status===429){
+   const seconds=Number(response.headers.get('Retry-After')??'60');
+   if(!Number.isSafeInteger(seconds)||seconds<1||seconds>65)
+    throw Error('API provided unsafe Retry-After: '+seconds);
+   console.log('USD CI API RATE LIMIT: wait '+seconds+'s (without bypass)');
+   await new Promise(resolve=>setTimeout(resolve,seconds*1000+300));
+   continue;
+  }
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok)throw Error(method+' '+path+' HTTP '+response.status+': '+
+   JSON.stringify(payload).slice(0,650));
+  return payload;
+ }
+ throw Error('Repeated API rate-limiting exceeded CI retry bound for '+path);
 }
 async function copyRows(table,column,ids){
  if(!ids.length)return;
