@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { DataQualityService } from '../data-quality/data-quality.service';
 import { StatisticsService } from '../statistics/statistics.service';
 import {classifyAssistantIntent,isAssistantWriteRequest} from './assistant-intent';
-import {askUsdExpert,type UsdExpertTool,type UsdToolArgs} from './usd-ai-gateway';
+import {askUsdExpert,USD_EXPERT_TOOL_NAMES,type UsdExpertTool,type UsdToolArgs} from './usd-ai-gateway';
 import {USD_KNOWLEDGE_OVERVIEW} from './usd-knowledge';
 import {usdExpertRead} from './usd-expert-readers';
 
@@ -163,6 +163,17 @@ export class AssistantService {
         ? 'Сейчас не удалось получить ответ от AI-модели. Данные USD не изменились. Встроенные проверки работают — выбери одну из них ниже.'
         : 'ИИ-модель не подключена: на сервере не задан OPENAI_API_KEY. Я могу выполнять проверенные диагностические запросы к базе USD, но не буду выдавать за AI-ответ случайную заготовку.',
       links: links([['Контроль данных', '/admin/data-quality'], ['Этапы', '/admin/stages'], ['Регистрации', '/admin/registrations']]),
+    };
+  }
+
+  status() {
+    return {
+      success:true,
+      aiConfigured:Boolean(process.env.OPENAI_API_KEY?.trim()),
+      model:process.env.OPENAI_MODEL?.trim()||'gpt-4.1-mini',
+      scope:'USD_ONLY',
+      tools:USD_EXPERT_TOOL_NAMES.length,
+      note:'Наличие ключа не подтверждает доступность внешнего API; для проверки отправь вопрос по USD.',
     };
   }
 
