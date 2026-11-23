@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,ArrowUpRight,Bot,CheckCircle2,Loader2,MessageCircle,RotateCcw,Send,ShieldCheck,UserRound} from 'lucide-react';
-import {chatAssistant,getAssistantStages,type AssistantChatResponse,type AssistantChatMessage} from '../api';
+import {chatAssistant,getAssistantStages,getAssistantAiStatus,type AssistantAiStatus,type AssistantChatResponse,type AssistantChatMessage} from '../api';
 
 type ChatEntry={role:'user'|'assistant';text:string;source?:AssistantChatResponse['source'];links?:AssistantChatResponse['links'];toolsUsed?:string[]};
 type StageChoice={id:string;name:string;date:string;city?:string|null;status:string};
@@ -26,12 +26,14 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
  const [error,setError]=useState('');
  const [stages,setStages]=useState<StageChoice[]>([]);
  const [stageId,setStageId]=useState('');
+ const [aiStatus,setAiStatus]=useState<AssistantAiStatus|null>(null);
  const bottomRef=useRef<HTMLDivElement>(null);
  const textareaRef=useRef<HTMLTextAreaElement>(null);
 
  useEffect(()=>{
   let alive=true;
   void getAssistantStages().then(result=>{if(alive)setStages(result.items??[])}).catch(()=>{});
+  void getAssistantAiStatus().then(result=>{if(alive)setAiStatus(result)}).catch(()=>{});
   return ()=>{alive=false};
  },[]);
  useEffect(()=>{bottomRef.current?.scrollIntoView({block:'end',behavior:'smooth'})},[messages,sending]);
@@ -75,7 +77,7 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
    <section className="assistant-chat panel" aria-label="Чат ассистента USD">
     <div className="assistant-chat-head">
      <div className="assistant-avatar"><Bot size={22} aria-hidden="true"/></div>
-     <div><strong>USD · Помощник администратора</strong><span>Отвечаю только по USD · проверяю факты через систему</span></div>
+     <div><strong>USD · Помощник администратора</strong><span>{aiStatus?aiStatus.aiConfigured?'USD AI · ключ настроен · модель '+aiStatus.model:'USD AI · ключ не настроен':'Отвечаю только по USD · проверяю факты через систему'}</span></div>
      <ShieldCheck className="assistant-trust-icon" size={21} aria-hidden="true"/>
     </div>
     <div className="assistant-messages" role="log" aria-live="polite" aria-relevant="additions text">
