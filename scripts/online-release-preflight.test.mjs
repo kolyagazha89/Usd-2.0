@@ -5,17 +5,19 @@ import {inspectOnlineRelease} from './online-release-preflight.mjs';
 const REVISION='942f5d9c6f7c418a9d3c2ea7fe602f184aca51fa';
 const season='085da2f9-c8ac-4f34-8374-f438f75250c9';
 const stage='f551ebf5-42db-446b-acdf-a644252ebded';
+const withoutPoster='5b0db233-5211-4a83-848c-f104fc5052cd';
+const poster='/media/public-file/SITE_ASSET/stage-poster-actual';
 const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
 const image=()=>new Response(new Uint8Array([137,80,78,71]),{status:200,headers:{'content-type':'image/png'}});
 const happy=(url)=>{
  const p=new URL(url);
  if(p.pathname==='/usd-release.json'||p.pathname==='/release')return response({revision:REVISION});
  if(p.pathname==='/seasons')return response([{id:season,year:2026}]);
- if(p.pathname==='/stages/public')return response([{id:stage,seasonId:season}]);
+ if(p.pathname==='/stages/public')return response([{id:withoutPoster,seasonId:season},{id:stage,seasonId:season}]);
  if(p.pathname==='/directions')return response([{name:'SPL'}]);
  if(p.pathname==='/records/current')return response([{id:'record-1'}]);
  if(p.pathname==='/teams/public')return response([{id:'team-1'}]);
- if(p.pathname==='/site-settings/public')return response({success:true,settings:{}});
+ if(p.pathname==='/site-settings/public')return response({success:true,settings:{homepage:{stagePosters:{[stage]:poster}}}});
  if(p.pathname==='/teams/public/standings')return response({scope:{type:'SEASON',id:season},teams:[]});
  if(p.pathname==='/statistics/overview')return response({message:'Unauthorized'},401);
  if(p.pathname.startsWith('/media/public-file/SITE_ASSET/'))return image();
@@ -34,7 +36,8 @@ test('release gate checks exactly identical SHA, public data, poster and anonymo
  assert.ok(report.checks.every(c=>c.ok));
  assert.ok(calls.some(c=>c.url.endsWith('/records/current')));
  assert.ok(calls.some(c=>c.url.includes('/teams/public/standings?seasonId=')));
- assert.ok(calls.some(c=>c.url.includes('/stage-poster-'+stage)));
+ assert.ok(calls.some(c=>c.url.endsWith(poster)));
+ assert.ok(!calls.some(c=>c.url.includes('/stage-poster-'+withoutPoster)));
  assert.ok(calls.some(c=>c.url.endsWith('/statistics/overview')));
  for(const {url,opts} of calls){
   assert.ok(url.startsWith('https://app.usd-russia.ru/')||url.startsWith('https://api.usd-russia.ru/'));
@@ -64,6 +67,30 @@ test('missing stage poster or failing records read blocks release',async()=>{
   assert.equal(report.ok,false);
   assert.ok(report.checks.some(c=>!c.ok));
  }
+});
+
+test('no configured posters does not issue an invented media request',async()=>{
+ const calls=[];
+ const report=await inspectOnlineRelease({expectedSha:REVISION,request:async url=>{
+  calls.push(url);
+  if(url.endsWith('/site-settings/public'))return response({settings:{homepage:{stagePosters:{}}}});
+  return happy(url);
+ }});
+ assert.equal(report.ok,true);
+ assert.equal(report.checks.find(c=>c.name==='stage-poster').skipped,true);
+ assert.equal(calls.some(url=>url.includes('/media/')),false);
+});
+
+test('unapproved configured poster is reported without contacting its origin',async()=>{
+ const foreign='https://other.example/media/public-file/SITE_ASSET/poster';
+ const report=await inspectOnlineRelease({expectedSha:REVISION,request:async url=>{
+  assert.notEqual(url,foreign);
+  if(url.endsWith('/site-settings/public'))return response({settings:{homepage:{stagePosters:{[stage]:foreign}}}});
+  return happy(url);
+ }});
+ assert.equal(report.ok,false);
+ assert.deepEqual(report.checks.find(c=>c.name==='stage-poster'),
+  {name:'stage-poster',ok:false,reason:'Configured poster URL is not approved'});
 });
 
 test('ADMIN endpoints must reject anonymous readers with 401 or 403',async()=>{

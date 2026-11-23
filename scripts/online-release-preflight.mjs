@@ -91,19 +91,26 @@ export async function inspectOnlineRelease({expectedSha,request=globalThis.fetch
  await json('public-directions',API+'/directions',p=>Boolean(asList(p)),{allowEmpty:false});
  await json('public-records',API+'/records/current',p=>Boolean(asList(p)));
  await json('public-teams',API+'/teams/public',p=>Boolean(asList(p)));
- await json('public-settings',API+'/site-settings/public',p=>Boolean(asRecord(p)&&asRecord(p.settings)));
+ const site=await json('public-settings',API+'/site-settings/public',p=>Boolean(asRecord(p)&&asRecord(p.settings)));
  const seasonId=seasons?.[0]?.id;
  if(safeId(seasonId)){
   await json('team-standings',API+'/teams/public/standings?seasonId='+encodeURIComponent(seasonId),
    p=>Boolean(asRecord(p)&&asRecord(p.scope)&&Array.isArray(p.teams)));
  }else checks.push({name:'team-standings',ok:false,reason:'No valid season'});
- const stageId=stages?.[0]?.id;
- if(safeId(stageId)){
-  await check('stage-poster',API+'/media/public-file/SITE_ASSET/stage-poster-'+stageId,async response=>{
-   if(response.status!==200)throw new Error('Media read failed');
-   await hasBody(response);
-  });
- }else checks.push({name:'stage-poster',ok:false,reason:'No valid stage'});
+ const posters=asRecord(site?.settings?.homepage?.stagePosters);
+ const configured=stages?.find(stage=>safeId(stage.id)&&textOf(posters?.[stage.id]));
+ if(configured){
+  const path=textOf(posters[configured.id]);
+  const url=path.startsWith('/')?API+path:path;
+  if(!/^https:\/\/api\.usd-russia\.ru\/media\/public-file\/SITE_ASSET\/[A-Za-z0-9_-][A-Za-z0-9._-]{1,179}$/.test(url)){
+   checks.push({name:'stage-poster',ok:false,reason:'Configured poster URL is not approved'});
+  }else{
+   await check('stage-poster',url,async response=>{
+    if(response.status!==200)throw new Error('Media read failed');
+    await hasBody(response);
+   });
+  }
+ }else checks.push({name:'stage-poster',ok:true,skipped:true,reason:'No published stage has a configured poster'});
  await check('admin-access-control',API+'/statistics/overview',async response=>{
   if(response.status!==401&&response.status!==403)throw new Error('ADMIN data readable anonymously');
  });
