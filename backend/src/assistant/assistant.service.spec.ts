@@ -35,7 +35,7 @@ const makeService = () => {
 
 describe('USD assistant reliable operational chat', () => {
   const oldKey = process.env.OPENAI_API_KEY;
-  beforeEach(() => { delete process.env.OPENAI_API_KEY; });
+  beforeEach(() => { delete process.env.OPENAI_API_KEY; delete process.env.USD_AI_PROVIDER; delete process.env.OLLAMA_MODEL; delete process.env.OLLAMA_BASE_URL; });
   afterEach(() => { jest.restoreAllMocks(); });
   afterAll(() => {
     if (oldKey === undefined) delete process.env.OPENAI_API_KEY;
@@ -134,6 +134,35 @@ describe('USD assistant reliable operational chat', () => {
     expect(answer.reply).toMatch(/только.*USD/i);
     expect(mock).toHaveBeenCalledTimes(1);
     expect(prisma.registration.findMany).toBeUndefined();
+  });
+
+  it('uses the local Ollama model without any OpenAI API key and rejects unrelated questions',async()=>{
+    const {service,prisma}=makeService();
+    process.env.USD_AI_PROVIDER='ollama';
+    process.env.OLLAMA_MODEL='qwen3:1.7b';
+    const mocked=jest.spyOn(global,'fetch').mockResolvedValueOnce({
+      ok:true,json:async()=>({done:true,message:{role:'assistant',content:'{"in_scope":false}'}}),
+    } as any);
+    const answer=await service.chat('Какая погода в Москве?','admin');
+    expect(answer.reply).toMatch(/только.*USD/i);
+    expect(answer.source).toBe('guide');
+    expect(mocked).toHaveBeenCalledTimes(1);
+    expect(String(mocked.mock.calls[0][0])).toBe('http://ollama:11434/api/chat');
+    expect(prisma.registration.findMany).toBeUndefined();
+  });
+
+  it('reports whether the private Ollama model is actually installed, not just configured',async()=>{
+    const {service}=makeService();
+    process.env.USD_AI_PROVIDER='ollama';
+    process.env.OLLAMA_MODEL='qwen3:1.7b';
+    jest.spyOn(global,'fetch').mockResolvedValueOnce({
+      ok:true,json:async()=>({models:[{name:'qwen3:1.7b'}]}),
+    } as any);
+    const result=await service.status();
+    expect(result.provider).toBe('ollama');
+    expect(result.aiConfigured).toBe(true);
+    expect(result.modelReady).toBe(true);
+    expect(result.model).toBe('qwen3:1.7b');
   });
 
   it('lists only non-deleted stages for the stage picker', async () => {
