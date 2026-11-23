@@ -52,7 +52,7 @@ async function copyRows(table,column,ids){
  if(!ids.length)return;
  const rows=await local.$queryRawUnsafe(
   'SELECT to_jsonb(t) AS doc FROM "'+table+'" t WHERE t."'+column+
-  '"=ANY($1::uuid[]) ORDER BY 1',[...ids]);
+  '"=ANY($1::text[]) ORDER BY 1',[...ids]);
  for(const {doc} of rows){
   await central.$executeRawUnsafe(
    'INSERT INTO "'+table+'" SELECT * FROM jsonb_populate_record(NULL::"'+
