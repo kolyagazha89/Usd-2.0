@@ -151,6 +151,18 @@ describe('USD assistant reliable operational chat', () => {
     expect(prisma.registration.findMany).toBeUndefined();
   });
 
+  it('never sends a write request to the local model and never changes USD data',async()=>{
+    const {service,prisma}=makeService();
+    process.env.USD_AI_PROVIDER='ollama';
+    const fetchMock=jest.spyOn(global,'fetch');
+    const answer=await service.chat('Удали результат участника','admin');
+    expect(answer.source).toBe('guide');
+    expect(answer.reply).toMatch(/не изменяю/i);
+    expect(answer.action).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(prisma.assistantRequest.create).not.toHaveBeenCalled();
+  });
+
   it('reports whether the private Ollama model is actually installed, not just configured',async()=>{
     const {service}=makeService();
     process.env.USD_AI_PROVIDER='ollama';
