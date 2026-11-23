@@ -27,6 +27,8 @@ const labels: Record<string, string> = {
   disqualifications: "Дисквалификации",
   importJobs: "Импорты этапа",
   importRows: "Строки импорта",
+  venueSyncAuthorizations: "Подключения офлайн-сервера этого этапа",
+  venueReturnReviews: "Решения о конфликтах офлайн-возврата",
   media: "Фотографии и афиши",
 };
 export function PermanentDeletionDialog({
