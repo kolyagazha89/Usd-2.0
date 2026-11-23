@@ -16,6 +16,7 @@ export function isAssistantWriteRequest(message: string): boolean {
 export function classifyAssistantIntent(message: string): AssistantIntent | null {
   const text = message.trim().toLowerCase();
   if (!text || isAssistantWriteRequest(text)) return null;
+  if (/(сколько.*(регистрац|участник|инспекц|результат).*этап|на.*этап.*(регистрац|инспекц|результат))/i.test(text)) return 'STAGE_READINESS';
   if (/(готовност[ьи].*этап|этап.*готов|проверь.*этап|текущ(ий|его|ем) этап|что с этапом)/i.test(text)) return 'STAGE_READINESS';
   if (/(что.*требует внимания|что.*не так|проблем.*сейчас|что.*проверить сейчас|какие.*проблем)/i.test(text)) return 'ATTENTION';
   if (/(импорт|загрузк.*(файл|данн)|предупрежден.*(импорт|загрузк)|синхронизац.*данн)/i.test(text)) return 'IMPORT_DIAGNOSTICS';
