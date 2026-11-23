@@ -327,8 +327,51 @@ integration('permanent admin deletion on isolated PostgreSQL', () => {
         expiresAt: new Date(),
       },
     });
+    // A stage that was exported to Windows has RESTRICT-linked sync grants,
+    // sometimes with completed or pending ADMIN conflict reviews. Removing the
+    // stage must remove only its own grant/review chain, not other stages'.
+    const grants = [];
+    for (const [index, linkedStage] of [stage, stage, f.stages[1]].entries()) {
+      const grant = await db.venueSyncAuthorization.create({
+        data: {
+          stageId: linkedStage.id,
+          baselineSha256: randomUUID().replaceAll('-', '').repeat(2),
+          tokenHash: randomUUID().replaceAll('-', '').repeat(2),
+          expiresAt: new Date(Date.now() + 86_400_000),
+          acceptedAt: index === 0 ? new Date() : null,
+        },
+      });
+      const review = await db.venueReturnReview.create({
+        data: {
+          authorizationId: grant.id,
+          stageId: linkedStage.id,
+          journalEndHash: randomUUID().replaceAll('-', '').repeat(2),
+          journalContentHash: randomUUID().replaceAll('-', '').repeat(2),
+          status: index === 1 ? 'PENDING' : 'APPLIED',
+          conflicts: [],
+        },
+      });
+      grants.push({ grant, review });
+    }
+    const preview = await service.preview('stage', stage.id, request);
+    expect(preview.counts).toMatchObject({
+      venueSyncAuthorizations: 2,
+      venueReturnReviews: 2,
+    });
     await remove('stage', stage.id);
     expect(await db.stage.findUnique({ where: { id: stage.id } })).toBeNull();
+    expect(await db.venueSyncAuthorization.count({
+      where: { stageId: stage.id },
+    })).toBe(0);
+    expect(await db.venueReturnReview.count({
+      where: { authorizationId: { in: grants.slice(0, 2).map(x => x.grant.id) } },
+    })).toBe(0);
+    expect(await db.venueSyncAuthorization.findUnique({
+      where: { id: grants[2].grant.id },
+    })).not.toBeNull();
+    expect(await db.venueReturnReview.findUnique({
+      where: { id: grants[2].review.id },
+    })).not.toBeNull();
     for (const model of [
       db.registration,
       db.participantStageInspection,
