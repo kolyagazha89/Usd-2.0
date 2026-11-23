@@ -1,4 +1,5 @@
 import { AdminDeletionService } from './admin-deletion.service';
+import { Prisma } from '../generated/prisma/client';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 describe('admin permanent deletion boundary', () => {
   const request = (role: string) =>
@@ -52,6 +53,26 @@ describe('admin permanent deletion boundary', () => {
       ).rejects.toThrow('активному ADMIN');
     },
   );
+  it('reports a stage-level foreign key conflict without sending ADMIN to profile links', async () => {
+    const error = new Prisma.PrismaClientKnownRequestError(
+      'Foreign key constraint',
+      { code: 'P2003', clientVersion: '7.0.0' },
+    );
+    const db = { $transaction: async () => { throw error; } };
+    const service = new AdminDeletionService(
+      db as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+    await expect(
+      service.remove(
+        'stage', 'stage-id',
+        { confirmation: 'test stage', fingerprint: 'stale' },
+        request('ADMIN'),
+      ),
+    ).rejects.toThrow('связанные данные этапа');
+  });
   it('keeps pending file cleanup durable and retries only failed object keys', async () => {
     const updates: any[] = [];
     const db = {
