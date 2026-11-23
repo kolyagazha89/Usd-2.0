@@ -2,12 +2,12 @@ import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,ArrowUpRight,Bot,CheckCircle2,Loader2,MessageCircle,RotateCcw,Send,ShieldCheck,UserRound} from 'lucide-react';
 import {chatAssistant,getAssistantStages,type AssistantChatResponse,type AssistantChatMessage} from '../api';
 
-type ChatEntry={role:'user'|'assistant';text:string;source?:AssistantChatResponse['source'];links?:AssistantChatResponse['links']};
+type ChatEntry={role:'user'|'assistant';text:string;source?:AssistantChatResponse['source'];links?:AssistantChatResponse['links'];toolsUsed?:string[]};
 type StageChoice={id:string;name:string;date:string;city?:string|null;status:string};
 
 const greeting:ChatEntry={
  role:'assistant',
- text:'Я помогу разобраться в работе USD. Могу проверить состояние этапа, качество данных и импорты по реальной базе, объяснить порядок регистрации, инспекции и судейства. Если AI-модель недоступна, скажу об этом прямо.',
+ text:'Я AI-консультант по соревнованиям USD. Спроси о правилах, классах, этапах, участниках, результатах, настройках сайта или работе судей. Для точных данных я обращаюсь к системе USD. На темы, не связанные с USD, не отвечаю.',
  source:'guide',
 };
 const suggestions=[
@@ -16,6 +16,7 @@ const suggestions=[
  'Проверь качество данных',
  'Разбери последний импорт',
  'Как судье изменить класс и добавить BassRace?',
+ 'Какие классы доступны на этапе?',
 ];
 
 function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.ComponentType<any>;enumLabel:(value:any)=>string}){
@@ -46,7 +47,7 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
   setInput('');setSending(true);setError('');
   try{
    const answer=await chatAssistant(text,{history,stageId:stageId||undefined});
-   setMessages(prev=>[...prev,{role:'assistant',text:answer.reply,source:answer.source,links:answer.links}]);
+   setMessages(prev=>[...prev,{role:'assistant',text:answer.reply,source:answer.source,links:answer.links,toolsUsed:Array.isArray((answer.data as any)?.toolsUsed)?(answer.data as any).toolsUsed:[]}]);
   }catch(e){
    const detail=e instanceof Error?e.message:'Неизвестная ошибка';
    setError('Запрос не выполнен: '+detail);
@@ -55,10 +56,10 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
  };
  const reset=()=>{if(sending)return;setMessages([greeting]);setInput('');setError('');textareaRef.current?.focus()};
  const sourceName=(source:ChatEntry['source'])=>({
-   database:'Проверено по базе USD',guide:'Инструкция',ai:'Ответ AI',unavailable:'Не удалось проверить',
+   database:'Проверено по базе USD',guide:'Инструкция',ai:'USD AI',unavailable:'Не удалось проверить',
  } as Record<string,string>)[source??'']??'';
 
- return <PageFrame title="Ассистент USD" subtitle="Реальные проверки системы и помощь с рабочими сценариями. Без ложных обещаний о выполненных изменениях.">
+ return <PageFrame title="Ассистент USD" subtitle="Специализированная AI-модель с доступом к правилам и актуальным данным USD только на чтение.">
   <div className="assistant-workspace">
    <div className="assistant-workspace-toolbar">
     <div className="assistant-workspace-context">
@@ -74,14 +75,14 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
    <section className="assistant-chat panel" aria-label="Чат ассистента USD">
     <div className="assistant-chat-head">
      <div className="assistant-avatar"><Bot size={22} aria-hidden="true"/></div>
-     <div><strong>USD · Помощник администратора</strong><span>Проверки выполняются только на чтение, данные не меняются</span></div>
+     <div><strong>USD · Помощник администратора</strong><span>Отвечаю только по USD · проверяю факты через систему</span></div>
      <ShieldCheck className="assistant-trust-icon" size={21} aria-hidden="true"/>
     </div>
     <div className="assistant-messages" role="log" aria-live="polite" aria-relevant="additions text">
      {messages.map((entry,index)=><div key={index} className={'assistant-message '+entry.role}>
       <div className="message-avatar" aria-hidden="true">{entry.role==='assistant'?<Bot size={15}/>:<UserRound size={15}/>}</div>
       <div className="message-bubble">
-       {entry.source&&<div className="assistant-source">{entry.source==='database'?<CheckCircle2 size={13}/>:<MessageCircle size={13}/>} {sourceName(entry.source)}</div>}
+       {entry.source&&<div className="assistant-source">{entry.source==='database'?<CheckCircle2 size={13}/>:<MessageCircle size={13}/>} {entry.source==='ai'&&entry.toolsUsed?.length?'AI · данные USD':sourceName(entry.source)}</div>}
        <div className="assistant-message-text">{entry.text}</div>
        {entry.links?.length?<div className="assistant-answer-links">
         {entry.links.filter(link=>/^\/admin\/[a-z0-9-/]+$/i.test(link.href)).map(link=><button type="button" key={link.href} className="assistant-answer-link" onClick={()=>go(link.href)}>{link.label}<ArrowUpRight size={13} aria-hidden="true"/></button>)}
@@ -104,7 +105,7 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
       {sending?<Loader2 size={18} className="spin"/>:<Send size={18}/>}<span>Отправить</span>
      </button>
     </form>
-    <div className="assistant-chat-note"><ShieldCheck size={14} aria-hidden="true"/>Ответы по базе помечены отдельно от ответов AI. Правки регистраций, инспекций и результатов выполняются в профильных разделах с проверкой прав.</div>
+    <div className="assistant-chat-note"><ShieldCheck size={14} aria-hidden="true"/>Я отвечаю только о USD. Для фактов использую систему и опубликованный регламент. Правки выполняются в профильных разделах с учётом прав доступа.</div>
    </section>
   </div>
  </PageFrame>
