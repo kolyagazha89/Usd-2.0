@@ -2,7 +2,7 @@ import {normalizeAssistantHistory,type AssistantHistoryItem} from './assistant-i
 
 export const USD_EXPERT_TOOL_NAMES=[
  'usd_rules','usd_stages','usd_classes','usd_stage_readiness','usd_snapshot',
- 'usd_data_quality','usd_import_diagnostics','usd_search_registrations','usd_search_results',
+ 'usd_data_quality','usd_import_diagnostics','usd_search_registrations','usd_search_results','usd_stage_results',
 ] as const;
 export type UsdExpertTool=typeof USD_EXPERT_TOOL_NAMES[number];
 export type UsdToolArgs=Record<string,unknown>;
@@ -27,6 +27,7 @@ export const USD_EXPERT_TOOLS=[
  {type:'function',name:'usd_import_diagnostics',description:'Статус импортов и предупреждений.',strict:true,parameters:noArgs},
  {type:'function',name:'usd_search_registrations',description:'Найти регистрации по имени участника или стартовому номеру, классам, автомобилю; ограниченный результат.',strict:true,parameters:searchArgs},
  {type:'function',name:'usd_search_results',description:'Найти результаты соревнований по имени, номеру или названию класса; ограниченный результат.',strict:true,parameters:searchArgs},
+ {type:'function',name:'usd_stage_results',description:'Итоговые места и измерения по классам последнего завершённого или выбранного этапа; указывать статус публикации.',strict:true,parameters:stageArgs},
 ] as const;
 
 export type UsdExpertResponse={
