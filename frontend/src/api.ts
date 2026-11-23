@@ -235,7 +235,8 @@ export async function linkHistoricalProfile(participantId:string){
 
 export type AssistantChatMessage = {role:'user'|'assistant';content:string};
 export type AssistantChatResponse = {success:boolean;reply:string;source?:'database'|'guide'|'ai'|'unavailable';action:null;links?:Array<{label:string;href:string}>;data?:unknown};
-export async function chatAssistant(message:string,options:{history?:AssistantChatMessage[];stageId?:string}={}){return apiPost<AssistantChatResponse>('/assistant/chat',{message,...options});}
+export type AssistantChatMode='ask'|'design';
+export async function chatAssistant(message:string,options:{history?:AssistantChatMessage[];stageId?:string;mode?:AssistantChatMode}={}){return apiPost<AssistantChatResponse>('/assistant/chat',{message,...options});}
 export type AssistantAiStatus={success:boolean;aiConfigured:boolean;provider:'openai'|'ollama';model:string;modelReady:boolean|null;scope:'USD_ONLY';tools:number;note:string};
 export async function getAssistantAiStatus(){return apiGet<AssistantAiStatus>('/assistant/status');}
 export async function getAssistantStages(){return apiGet<{success:boolean;items:Array<{id:string;name:string;date:string;status:string;city?:string|null}>}>('/assistant/stages');}
