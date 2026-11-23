@@ -4207,3 +4207,8 @@ body .participant-portal.usd-member.configurations-page-shell .participant-secti
  .assistant-workspace .assistant-chat-head strong{font-size:13px}
  .assistant-workspace .assistant-chat-head span{font-size:11px}
 }
+
+/* USD AI: explicit read-only question / change-discussion modes */
+.assistant-chat-mode-switch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.assistant-chat-mode-switch button{min-height:42px;white-space:nowrap}
+@media(max-width:680px){.assistant-chat-mode-switch{width:100%}.assistant-chat-mode-switch button{flex:1 1 145px}}
