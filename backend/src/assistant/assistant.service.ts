@@ -57,16 +57,6 @@ export class AssistantService {
     const stageId = typeof options.stageId === 'string' && /^[a-zA-Z0-9-]{1,80}$/.test(options.stageId)
       ? options.stageId : undefined;
 
-    if (isAssistantWriteRequest(text)) {
-      await this.audit(userId, 'ASSISTANT_CHAT_USED', 'WRITE_GUIDANCE');
-      return {
-        success: true,
-        reply: 'Я не изменяю записи и настройки через свободный текст. Это защищает результаты и историю соревнований от случайных изменений. Открой нужный раздел, внеси правку с правами администратора и проверь сохранённое значение. Запросы на изменение кода из чата автоматически не выполняются.',
-        action: null, source: 'guide',
-        links: links([['Регистрации и классы', '/admin/registrations'], ['Инспекции', '/admin/inspections'], ['Результаты', '/admin/results'], ['Этапы', '/admin/stages']]),
-      };
-    }
-
     // Configured USD AI is the primary engine, not the old keyword-script engine.
     // Scope is checked by a separate AI call before database tools become available.
     if(process.env.OPENAI_API_KEY?.trim()){
@@ -92,6 +82,16 @@ export class AssistantService {
           reply:'USD AI сейчас не смог проверить вопрос. Никакие данные не изменились. Повтори запрос позже; операции с базой доступны в профильных разделах админки.',
         };
       }
+    }
+
+    if (isAssistantWriteRequest(text)) {
+      await this.audit(userId, 'ASSISTANT_CHAT_USED', 'WRITE_GUIDANCE');
+      return {
+        success: true,
+        reply: 'Я не изменяю записи и настройки через свободный текст. Это защищает результаты и историю соревнований от случайных изменений. Открой нужный раздел, внеси правку с правами администратора и проверь сохранённое значение. Запросы на изменение кода из чата автоматически не выполняются.',
+        action: null, source: 'guide',
+        links: links([['Регистрации и классы', '/admin/registrations'], ['Инспекции', '/admin/inspections'], ['Результаты', '/admin/results'], ['Этапы', '/admin/stages']]),
+      };
     }
 
     const intent = classifyAssistantIntent(text);
