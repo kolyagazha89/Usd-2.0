@@ -56,6 +56,31 @@ services:
       options: {max-size: "10m", max-file: "3"}
     networks: [usd-internal]
 
+  ollama:
+    # Explicit opt-in. NEVER start this service from normal USD auto-deploy.
+    # With only 8 GiB in Ubuntu, start first with qwen3:1.7b and monitor RAM.
+    profiles: [local-ai]
+    image: ollama/ollama:0.40.17
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: "0.0.0.0:11434"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_CONTEXT_LENGTH: "6144"
+      OLLAMA_MAX_QUEUE: "2"
+      OLLAMA_KEEP_ALIVE: "1m"
+    volumes:
+      - ollama_models:/root/.ollama
+    expose: ["11434"]
+    mem_limit: 3g
+    cpus: "2.0"
+    pids_limit: 256
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+    networks: [usd-internal]
+
   frontend:
     image: ghcr.io/kolyagazha89/usd-2.0-frontend:${USD_IMAGE_TAG:?set USD_IMAGE_TAG}
     restart: unless-stopped
@@ -91,6 +116,7 @@ services:
 
 volumes:
   postgres18_data:
+  ollama_models:
   caddy_data:
   caddy_config:
 

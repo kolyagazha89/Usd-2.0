@@ -10,8 +10,11 @@ export class AssistantController {
 
   @Post('chat')
   chat(@Body() body: Record<string, unknown>, @Req() req: AuthenticatedRequest) {
-    return this.service.chat(String(body.message ?? ''), req.user.sub, { history: body.history, stageId: body.stageId });
+    return this.service.chat(String(body.message ?? ''), req.user.sub, { history: body.history, stageId: body.stageId, mode: body.mode });
   }
+
+  @Get('status')
+  status() {return this.service.status();}
 
   @Get('stages')
   stages() {
