@@ -1,5 +1,5 @@
 import {jest} from '@jest/globals';
-import {askUsdExpert, type UsdExpertTool} from './usd-ai-gateway';
+import {askUsdExpert,redactUsdAiText, type UsdExpertTool} from './usd-ai-gateway';
 
 const makeReply = (output:unknown[]) => ({ok:true,json:async()=>({status:'completed',output})} as Response);
 const modelText = (text:string) => [{type:'message',role:'assistant',content:[{type:'output_text',text}]}];
@@ -65,6 +65,13 @@ describe('USD specialist AI gateway',()=>{
    expect(payload.input).toContainEqual({role:'assistant',content:'Предыдущий ответ'});
  });
 
+ it('redacts pasted emails, phones and secrets before any external AI call',()=>{
+  const value=redactUsdAiText('test@example.com +7 912 345 67 89 sk-1234567890abcdefgh1234 159.9 dB');
+  expect(value).not.toContain('test@example.com');
+  expect(value).not.toContain('912 345');
+  expect(value).not.toContain('sk-123456');
+  expect(value).toContain('159.9 dB');
+ });
  it('bounds the number of model calls even when model loops forever',async()=>{
    jest.spyOn(global,'fetch').mockImplementation(async(_u,_o)=>{
      const count=numberOfCalls++;
