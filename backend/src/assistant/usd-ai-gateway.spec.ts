@@ -9,6 +9,31 @@ describe('USD specialist AI gateway',()=>{
  afterEach(()=>jest.restoreAllMocks());
  const base={apiKey:'test-only',model:'gpt-4.1-mini',message:'Какие классы у выбранного этапа?',history:[] as any[],knowledge:'USD = соревнования по автозвуку',stageId:'stage-1'};
 
+ it('design mode retrieves USD documentation after scope approval and requests comparative safe analysis',async()=>{
+  const fetchMock=jest.spyOn(global,'fetch')
+   .mockResolvedValueOnce(scope(true))
+   .mockResolvedValueOnce(makeReply(modelText('Вариант А: проверить классы, вариант Б: отдельный сценарий. Изменений не выполнено.')));
+  const called:UsdExpertTool[]=[];
+  const result=await askUsdExpert({...base,mode:'design',
+    message:'Предлагаю новый способ менять класс после инспекции USD',
+    runTool:async(name)=>{called.push(name);return {matches:[{path:'docs/USD_MASTER_PLAN.md',excerpt:'Инспекция и классы'}]};},
+  });
+  expect(called).toEqual(['usd_project_docs','usd_rules']);
+  expect(result.usedTools).toEqual(['usd_project_docs','usd_rules']);
+  expect(result.reply).toContain('Вариант');
+  const request=JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body));
+  expect(request.instructions).toMatch(/нестандартн.*сценарии/i);
+  expect(request.instructions).toMatch(/не (меняй|изменяй|выполняй)/i);
+  expect(request.instructions).toContain('docs/USD_MASTER_PLAN.md');
+  expect(request.max_output_tokens).toBeGreaterThan(1600);
+ });
+ it('design mode does not load any USD records for non-USD messages',async()=>{
+  const runTool=jest.fn<()=>Promise<unknown>>();
+  jest.spyOn(global,'fetch').mockResolvedValueOnce(scope(false));
+  const result=await askUsdExpert({...base,mode:'design',message:'Предложи новый рецепт супа',runTool});
+  expect(result.scope).toBe('other');
+  expect(runTool).not.toHaveBeenCalled();
+ });
  it('rejects unrelated questions before passing data or tools to the conversational model',async()=>{
    const mocked=jest.spyOn(global,'fetch').mockResolvedValueOnce(scope(false));
    const result=await askUsdExpert({...base,message:'Какая погода в Сочи?',runTool:async()=>({secret:'never'})});
