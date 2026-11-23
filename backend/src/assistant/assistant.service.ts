@@ -6,6 +6,7 @@ import {classifyAssistantIntent,isAssistantWriteRequest} from './assistant-inten
 import {askUsdExpert,USD_EXPERT_TOOL_NAMES,type UsdExpertTool,type UsdToolArgs} from './usd-ai-gateway';
 import {USD_KNOWLEDGE_OVERVIEW} from './usd-knowledge';
 import {usdExpertRead} from './usd-expert-readers';
+import {searchUsdDocuments} from './usd-document-search';
 
 const TYPES = new Set(['CODE_CHANGE', 'ASSISTANT_FUNCTION', 'SYSTEM_ACTION']);
 @Injectable()
@@ -202,6 +203,7 @@ export class AssistantService {
         severity:issue.severity,code:issue.code,message:issue.message,
       }))};
     }
+    if(name==='usd_project_docs')return searchUsdDocuments(typeof args.query==='string'?args.query.slice(0,180):'',typeof args.document==='string'?args.document:'all');
     return usdExpertRead(this.prisma,name,args);
   }
 
