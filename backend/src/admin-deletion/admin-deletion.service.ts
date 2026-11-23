@@ -273,6 +273,36 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
           orderBy: { id: 'asc' },
         })
       : [];
+    // Signed venue returns have stage-scoped grants and dependent ADMIN reviews.
+    // Include both in the confirmation fingerprint to reject stale previews.
+    const venueSyncAuthorizations = stage
+      ? await tx.venueSyncAuthorization.findMany({
+          where: { stageId: id },
+          select: {
+            id: true,
+            stageId: true,
+            createdAt: true,
+            revokedAt: true,
+            acceptedAt: true,
+            lastJournalHash: true,
+          },
+          orderBy: { id: 'asc' },
+        })
+      : [];
+    const venueReturnReviews = stage
+      ? await tx.venueReturnReview.findMany({
+          where: { authorizationId: { in: ids(venueSyncAuthorizations) } },
+          select: {
+            id: true,
+            authorizationId: true,
+            stageId: true,
+            status: true,
+            updatedAt: true,
+            journalEndHash: true,
+          },
+          orderBy: { id: 'asc' },
+        })
+      : [];
     const importRows = await tx.importRow.findMany({
       where: {
         OR: [
@@ -349,6 +379,8 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
       disqualifications: disqualifications.length,
       importJobs: jobs.length,
       importRows: importRows.length,
+      venueSyncAuthorizations: venueSyncAuthorizations.length,
+      venueReturnReviews: venueReturnReviews.length,
       media: media.length,
     };
     const fingerprint = createHash('sha256')
@@ -377,6 +409,8 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
           versions,
           jobs,
           importRows,
+          venueSyncAuthorizations,
+          venueReturnReviews,
           media,
         }),
       )
@@ -407,6 +441,8 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
       disqualifications,
       jobs,
       importRows,
+      venueSyncAuthorizations,
+      venueReturnReviews,
       media,
     };
   }
@@ -536,6 +572,14 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
           }
           if (plan.stage) {
             await tx.importJob.deleteMany({ where: { stageId: id } });
+            // The two RESTRICT links require deleting review rows before
+            // venue capabilities; all changes stay inside one transaction.
+            await tx.venueReturnReview.deleteMany({
+              where: { id: { in: ids(plan.venueReturnReviews) } },
+            });
+            await tx.venueSyncAuthorization.deleteMany({
+              where: { id: { in: ids(plan.venueSyncAuthorizations) } },
+            });
             await tx.stage.delete({ where: { id } });
             await lockSiteSettings(tx);
             const settings = await tx.siteSettings.findUnique({
@@ -659,6 +703,8 @@ export class AdminDeletionService implements OnModuleInit, OnModuleDestroy {
             ...ids(plan.profileLinkRequests),
             ...ids(plan.jobs),
             ...ids(plan.importRows),
+            ...ids(plan.venueSyncAuthorizations),
+            ...ids(plan.venueReturnReviews),
             ...ids(plan.media),
             ...(plan.participant ? [plan.participant.id] : []),
           ];
