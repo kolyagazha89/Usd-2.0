@@ -13,6 +13,9 @@ export class AssistantController {
     return this.service.chat(String(body.message ?? ''), req.user.sub, { history: body.history, stageId: body.stageId });
   }
 
+  @Get('status')
+  status() {return this.service.status();}
+
   @Get('stages')
   stages() {
     return this.service.stages();
