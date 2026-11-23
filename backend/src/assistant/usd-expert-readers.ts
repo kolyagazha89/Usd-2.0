@@ -103,7 +103,7 @@ export async function usdExpertRead(prisma:PrismaService,name:string,args:Args):
    groups.set(key,group);
   }
   return {stage:{name:stage.name,date:stage.date,status:stage.status,
-    published:stage.resultsPublishedAt!==null},
+    published:Boolean(stage.resultsPublishedAt)},
    classes:[...groups.entries()].map(([code,results])=>({code,results})),
    totalSample:rows.length,truncated:rows.length===100,
    note:stage.resultsPublishedAt?'Результаты опубликованы.':'Результаты ещё не опубликованы: не выдавать за официальный протокол.'};
