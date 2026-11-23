@@ -77,7 +77,7 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
    <section className="assistant-chat panel" aria-label="Чат ассистента USD">
     <div className="assistant-chat-head">
      <div className="assistant-avatar"><Bot size={22} aria-hidden="true"/></div>
-     <div><strong>USD · Помощник администратора</strong><span>{aiStatus?aiStatus.aiConfigured?'USD AI · ключ настроен · модель '+aiStatus.model:'USD AI · ключ не настроен':'Отвечаю только по USD · проверяю факты через систему'}</span></div>
+     <div><strong>USD · Помощник администратора</strong><span>{aiStatus?(aiStatus.provider==='ollama'?(aiStatus.modelReady?'Локальная модель '+aiStatus.model+' готова':'Локальная модель '+aiStatus.model+' недоступна'):(aiStatus.aiConfigured?'Облачная модель '+aiStatus.model+' · ключ настроен':'OpenAI API · ключ не настроен')):'Отвечаю только по USD · проверяю факты через систему'}</span></div>
      <ShieldCheck className="assistant-trust-icon" size={21} aria-hidden="true"/>
     </div>
     <div className="assistant-messages" role="log" aria-live="polite" aria-relevant="additions text">
