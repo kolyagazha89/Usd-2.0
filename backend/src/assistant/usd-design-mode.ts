@@ -1,4 +1,11 @@
-import {redactUsdAiText,type UsdExpertTool,type UsdToolArgs} from './usd-ai-gateway';
+import type {UsdExpertTool,UsdToolArgs} from './usd-ai-gateway';
+
+// Keep extraction independent of model provider code: both gateways import this module.
+function redactSourceText(text:string):string {
+ return text.replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,'[email скрыт]')
+  .replace(/(?<!\w)(?:\+?7|8)[\s(-]*\d{3}[\s)-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}(?!\w)/g,'[телефон скрыт]')
+  .replace(/\bsk-[a-zA-Z0-9_-]{12,}\b/g,'[ключ скрыт]');
+}
 
 /** Applied only in the explicit read-only design discussion mode. */
 export const USD_CHANGE_DESIGN_PROMPT=[
@@ -40,7 +47,7 @@ export async function loadUsdDesignEvidence(input:{
  for(const [name,args] of calls){
   try{
    const value=await input.runTool(name,args);
-   let serialized=redactUsdAiText(JSON.stringify(value)||'');
+   let serialized=redactSourceText(JSON.stringify(value)||'');
    if(serialized.length>maxChars)serialized=serialized.slice(0,maxChars-120)+'… [фрагмент ограничен]';
    snippets.push(name+': '+serialized);
    usedTools.push(name);
