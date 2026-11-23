@@ -181,6 +181,40 @@ jobs:
             --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
             -e USD_VENUE_CI_STAFF_MODE \
             --entrypoint node api /app/venue-db-acceptance.mjs probe
+      - name: Provision a second isolated PostgreSQL 18 central database for 100-entrant LAN return
+        working-directory: deploy/venue-lan
+        run: |
+          set -euo pipefail
+          docker compose -p usd-venue exec -T db sh -ec 'export PGPASSWORD="$POSTGRES_PASSWORD"; psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE usd_venue_ci"'
+          set -a
+          source .env
+          set +a
+          export VENUE_CENTRAL_TEST_DATABASE_URL="postgresql://${VENUE_DB_ROOT_USER}:${VENUE_DB_ROOT_PASSWORD}@db:5432/usd_venue_ci?schema=public"
+          docker compose -p usd-venue run --rm --no-deps \
+            -e "DATABASE_URL=$VENUE_CENTRAL_TEST_DATABASE_URL" \
+            --entrypoint ./node_modules/.bin/prisma api migrate deploy --config ./prisma7.config.ts
+      - name: Test 100 real inspections, 1-5 primary classes, BassRace extra numbers and encrypted LAN-to-central replay
+        working-directory: deploy/venue-lan
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          set -a
+          source .env
+          set +a
+          export VENUE_CENTRAL_TEST_DATABASE_URL="postgresql://${VENUE_DB_ROOT_USER}:${VENUE_DB_ROOT_PASSWORD}@db:5432/usd_venue_ci?schema=public"
+          docker compose -p usd-venue run --rm --no-deps \
+            -e VENUE_CENTRAL_TEST_DATABASE_URL \
+            -e VENUE_DB_ROOT_PASSWORD \
+            -e USD_VENUE_CI_STAFF_MODE \
+            --volume "$PWD/venue-100-roundtrip.mjs:/app/deploy/venue-lan/venue-100-roundtrip.mjs:ro" \
+            --volume "$PWD/export-venue-return.mjs:/app/deploy/venue-lan/export-venue-return.mjs:ro" \
+            --volume "$PWD/import-stage.mjs:/app/deploy/venue-lan/import-stage.mjs:ro" \
+            --volume "$PWD/verify-stage-package.mjs:/app/deploy/venue-lan/verify-stage-package.mjs:ro" \
+            --volume "$PWD/venue-return-package.mjs:/app/deploy/venue-lan/venue-return-package.mjs:ro" \
+            --volume "$PWD/full-return-apply.mjs:/app/deploy/venue-lan/full-return-apply.mjs:ro" \
+            --volume "$PWD/venue-return-review.mjs:/app/deploy/venue-lan/venue-return-review.mjs:ro" \
+            --volume "$GITHUB_WORKSPACE/backend/scripts/venue-full-adapter.mjs:/app/backend/scripts/venue-full-adapter.mjs:ro" \
+            --entrypoint node api /app/deploy/venue-lan/venue-100-roundtrip.mjs
       - name: Retain two stages in one actual PostgreSQL database and export each independently
         working-directory: deploy/venue-lan
         run: |
