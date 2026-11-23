@@ -233,7 +233,10 @@ export async function linkHistoricalProfile(participantId:string){
 }
 
 
-export async function chatAssistant(message:string){return apiPost<any>('/assistant/chat',{message});}
+export type AssistantChatMessage = {role:'user'|'assistant';content:string};
+export type AssistantChatResponse = {success:boolean;reply:string;source?:'database'|'guide'|'ai'|'unavailable';action:null;links?:Array<{label:string;href:string}>;data?:unknown};
+export async function chatAssistant(message:string,options:{history?:AssistantChatMessage[];stageId?:string}={}){return apiPost<AssistantChatResponse>('/assistant/chat',{message,...options});}
+export async function getAssistantStages(){return apiGet<{success:boolean;items:Array<{id:string;name:string;date:string;status:string;city?:string|null}>}>('/assistant/stages');}
 export async function getAssistantRequests(){return apiGet<any>('/assistant/requests');}
 export async function createAssistantRequest(body:any){return apiPost<any>('/assistant/requests',body);}
 export async function submitAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/submit',{});}
