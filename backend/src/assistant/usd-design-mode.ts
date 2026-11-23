@@ -1,4 +1,5 @@
 import type {UsdExpertTool,UsdToolArgs} from './usd-ai-gateway';
+export type UsdAssistantMode='ask'|'design';
 
 // Keep extraction independent of model provider code: both gateways import this module.
 function redactSourceText(text:string):string {
