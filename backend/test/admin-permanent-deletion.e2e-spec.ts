@@ -330,6 +330,7 @@ integration('permanent admin deletion on isolated PostgreSQL', () => {
     // A stage that was exported to Windows has RESTRICT-linked sync grants,
     // sometimes with completed or pending ADMIN conflict reviews. Removing the
     // stage must remove only its own grant/review chain, not other stages'.
+    const stalePreview = await service.preview('stage', stage.id, request);
     const grants = [];
     for (const [index, linkedStage] of [stage, stage, f.stages[1]].entries()) {
       const grant = await db.venueSyncAuthorization.create({
@@ -353,6 +354,13 @@ integration('permanent admin deletion on isolated PostgreSQL', () => {
       });
       grants.push({ grant, review });
     }
+    await expect(
+      service.remove('stage', stage.id, {
+        confirmation: stalePreview.label,
+        fingerprint: stalePreview.fingerprint,
+      }, request),
+    ).rejects.toThrow('Связанные данные изменились');
+    expect(await db.stage.findUnique({ where: { id: stage.id } })).not.toBeNull();
     const preview = await service.preview('stage', stage.id, request);
     expect(preview.counts).toMatchObject({
       venueSyncAuthorizations: 2,
