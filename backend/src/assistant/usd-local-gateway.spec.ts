@@ -6,6 +6,23 @@ const reply=(content:string,tool_calls?:unknown[])=>({ok:true,json:async()=>({me
 describe('private Ollama USD AI',()=>{
  afterEach(()=>jest.restoreAllMocks());
  const base={model:'qwen3:1.7b',baseUrl:'http://ollama:11434',message:'Какие классы на этапе USD?',stageId:'stage-1',knowledge:'USD = чемпионат по автозвуку',history:[] as unknown[]};
+ it('uses local design mode with architecture evidence, safe plans and a longer answer budget',async()=>{
+  const mocked=jest.spyOn(global,'fetch')
+   .mockResolvedValueOnce(reply('{"in_scope":true}'))
+   .mockResolvedValueOnce(reply('1. Цель. 2. Два варианта. 3. Риски. 4. Тесты.'));
+  const called:string[]=[];
+  const result=await askUsdLocalExpert({...base,mode:'design',
+   message:'Хочу изменить правила инспекции USD',
+   runTool:async(name)=>{called.push(name);return {note:'Сохранять историю результатов'};},
+  });
+  expect(result.scope).toBe('usd');
+  expect(result.usedTools).toEqual(['usd_project_docs','usd_rules']);
+  expect(called).toEqual(['usd_project_docs','usd_rules']);
+  const body=JSON.parse(String((mocked.mock.calls[1][1] as RequestInit).body));
+  expect(body.messages[0].content).toMatch(/нестандартн.*сценарии/i);
+  expect(body.messages[0].content).toContain('Сохранять историю результатов');
+  expect(body.options.num_predict).toBeGreaterThan(650);
+ });
  it('rejects non-USD questions before allowing local DB calls',async()=>{
   const fetchMock=jest.spyOn(global,'fetch').mockResolvedValueOnce(reply('{"in_scope":false}'));
   const runTool=jest.fn<()=>Promise<unknown>>();
