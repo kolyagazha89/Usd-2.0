@@ -103,7 +103,7 @@ async function prepareOnlineBaseline(){
  });
  await copyRows('RegistrationClass','registrationId',originals.map(r=>r.id));
  await copyRows('Inspection','registrationId',originals.map(r=>r.id));
- await copyRows('ParticipantStageInspection','stageId',[stageId]);
+ await copyRows('ParticipantStageInspection','participantId',people);
  await copyRows('RegistrationClassInspection','registrationClassId',
   originalsClasses.map(r=>r.id));
  assert.equal(await central.registration.count(),2);
@@ -197,12 +197,15 @@ async function enterCompetitors(stageClasses){
    const isBass=bass.some(b=>b.classId===cls.classId);
    if(!isBass)assert.equal(cls.numberId,primary.id);
    else bassNumbers.add(cls.numberId);
-   const response=await call('/inspections/class',token,{
-    registrationClassId:cls.id,status:failed?'FAILED':'PASSED',
-    ...(failed?{notes:'Отказ в классе '+cls.classId}:{}),
-   });
-   assert.ok(response.id);
-   totalClassInspections++;
+   // Only BassRace has per-class inspections; main classes use the vehicle.
+   if(isBass){
+    const response=await call('/inspections/class',token,{
+     registrationClassId:cls.id,status:failed?'FAILED':'PASSED',
+     ...(failed?{notes:'Отказ BassRace в классе '+cls.classId}:{}),
+    });
+    assert.ok(response.id);
+    totalClassInspections++;
+   }
    if(!failed){
     const value=145+(i%20)/10+selected.indexOf(cls.classId)/100;
     const measured=await call('/results',judgeToken,{
@@ -235,7 +238,7 @@ async function enterCompetitors(stageClasses){
  assert.equal(ids.length,100);
  assert.equal(totalRegular,300);
  assert.equal(totalBass,199);
- assert.equal(totalClassInspections,499);
+ assert.equal(totalClassInspections,199);
  assert.equal(failedInspections,10);
  return {ids,totalRegular,totalBass,totalClassInspections,totalResults,corrections,
   failedInspections};
