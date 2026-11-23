@@ -156,8 +156,6 @@ export class AssistantService {
       };
     }
 
-    const ai = await this.askModel(text, userId, normalizeAssistantHistory(options.history)).catch(() => null);
-    if (ai) return { ...ai, source: 'ai', links: [] };
     return {
       success: true, action: null,
       source: 'unavailable',
