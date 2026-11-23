@@ -7,6 +7,7 @@ import {askUsdExpert,USD_EXPERT_TOOL_NAMES,type UsdExpertTool,type UsdToolArgs} 
 import {USD_KNOWLEDGE_OVERVIEW} from './usd-knowledge';
 import {usdExpertRead} from './usd-expert-readers';
 import {searchUsdDocuments} from './usd-document-search';
+import {askUsdLocalExpert,checkUsdLocalModel} from './usd-local-gateway';
 
 const TYPES = new Set(['CODE_CHANGE', 'ASSISTANT_FUNCTION', 'SYSTEM_ACTION']);
 @Injectable()
@@ -58,33 +59,6 @@ export class AssistantService {
     const stageId = typeof options.stageId === 'string' && /^[a-zA-Z0-9-]{1,80}$/.test(options.stageId)
       ? options.stageId : undefined;
 
-    // Configured USD AI is the primary engine, not the old keyword-script engine.
-    // Scope is checked by a separate AI call before database tools become available.
-    if(process.env.OPENAI_API_KEY?.trim()){
-      try{
-        const model=process.env.OPENAI_MODEL?.trim()||'gpt-4.1-mini';
-        const answer=await askUsdExpert({
-          apiKey:process.env.OPENAI_API_KEY.trim(),
-          model,message:text,history:options.history,stageId,
-          knowledge:USD_KNOWLEDGE_OVERVIEW,
-          runTool:(name,args)=>this.runUsdTool(name,args,userId),
-        });
-        await this.audit(userId,'ASSISTANT_AI_USED',model);
-        return {
-          success:true,action:null,
-          reply:answer.reply,
-          source:answer.scope==='other'?'guide':'ai',
-          links:[],
-          data:{toolsUsed:answer.usedTools,stageId:stageId??null},
-        };
-      }catch{
-        return {
-          success:true,action:null,source:'unavailable',links:[],
-          reply:'USD AI сейчас не смог проверить вопрос. Никакие данные не изменились. Повтори запрос позже; операции с базой доступны в профильных разделах админки.',
-        };
-      }
-    }
-
     if (isAssistantWriteRequest(text)) {
       await this.audit(userId, 'ASSISTANT_CHAT_USED', 'WRITE_GUIDANCE');
       return {
@@ -93,6 +67,45 @@ export class AssistantService {
         action: null, source: 'guide',
         links: links([['Регистрации и классы', '/admin/registrations'], ['Инспекции', '/admin/inspections'], ['Результаты', '/admin/results'], ['Этапы', '/admin/stages']]),
       };
+    }
+
+    const provider=process.env.USD_AI_PROVIDER?.trim().toLowerCase()||'openai';
+    if(provider==='ollama'||(provider==='openai'&&process.env.OPENAI_API_KEY?.trim())){
+      try{
+        const isLocal=provider==='ollama';
+        const model=isLocal
+          ?process.env.OLLAMA_MODEL?.trim()||'qwen3:1.7b'
+          :process.env.OPENAI_MODEL?.trim()||'gpt-4.1-mini';
+        const answer=isLocal
+          ?await askUsdLocalExpert({
+            model,baseUrl:process.env.OLLAMA_BASE_URL?.trim()||'http://ollama:11434',
+            message:text,history:options.history,stageId,knowledge:USD_KNOWLEDGE_OVERVIEW,
+            runTool:(name,args)=>this.runUsdTool(name,args,userId),
+          })
+          :await askUsdExpert({
+            apiKey:process.env.OPENAI_API_KEY!.trim(),
+            model,message:text,history:options.history,stageId,
+            knowledge:USD_KNOWLEDGE_OVERVIEW,
+            runTool:(name,args)=>this.runUsdTool(name,args,userId),
+          });
+        await this.audit(userId,'ASSISTANT_AI_USED',provider+':'+model);
+        return {
+          success:true,action:null,reply:answer.reply,
+          source:answer.scope==='other'?'guide':'ai',
+          links:[],data:{toolsUsed:answer.usedTools,stageId:stageId??null,provider},
+        };
+      }catch{
+        return {
+          success:true,action:null,source:'unavailable',links:[],
+          reply:provider==='ollama'
+           ?'Локальная модель USD сейчас недоступна или не смогла проверить вопрос. Убедись, что Ollama запущена и модель загружена. Данные не изменились.'
+           :'USD AI сейчас не смог проверить вопрос. Никакие данные не изменились. Повтори запрос позже.',
+        };
+      }
+    }
+    if(provider!=='openai'){
+      return {success:true,action:null,source:'unavailable',links:[],
+        reply:'Неизвестный провайдер USD AI. Проверь настройку USD_AI_PROVIDER на сервере.'};
     }
 
     const intent = classifyAssistantIntent(text);
@@ -167,14 +180,21 @@ export class AssistantService {
     };
   }
 
-  status() {
+  async status() {
+    const provider=process.env.USD_AI_PROVIDER?.trim().toLowerCase()||'openai';
+    const local=provider==='ollama';
+    const model=local?process.env.OLLAMA_MODEL?.trim()||'qwen3:1.7b'
+      :process.env.OPENAI_MODEL?.trim()||'gpt-4.1-mini';
+    const aiConfigured=local||Boolean(provider==='openai'&&process.env.OPENAI_API_KEY?.trim());
+    const modelReady=local
+      ?await checkUsdLocalModel(process.env.OLLAMA_BASE_URL?.trim()||'http://ollama:11434',model)
+      :null;
     return {
-      success:true,
-      aiConfigured:Boolean(process.env.OPENAI_API_KEY?.trim()),
-      model:process.env.OPENAI_MODEL?.trim()||'gpt-4.1-mini',
-      scope:'USD_ONLY',
-      tools:USD_EXPERT_TOOL_NAMES.length,
-      note:'Наличие ключа не подтверждает доступность внешнего API; для проверки отправь вопрос по USD.',
+      success:true,aiConfigured,provider,model,modelReady,
+      scope:'USD_ONLY' as const,tools:USD_EXPERT_TOOL_NAMES.length,
+      note:local
+       ?modelReady?'Ollama доступна и модель загружена.':'Ollama недоступна или выбранная модель не загружена.'
+       :'API-ключ не гарантирует доступность модели; проверь запросом.',
     };
   }
 
