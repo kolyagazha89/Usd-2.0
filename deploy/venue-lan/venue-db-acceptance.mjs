@@ -119,13 +119,23 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
    cars:[{id:stableFixtureUuid('historical-car',index),participantId,brand:'Lada',model:'',
     registrationCountry:'RU',registrationNumber:'',color:null,isPublic:false,isActive:false}]};
  }));
+ // Exercise five independent primary directions and extra BassRace classes.
+ // The numbered BassRace classes have their own stickers when the primary
+ // number is full; this uses the same 19-class stage package as Windows.
+ const regularDirections=['SPL','BFSPL','Storm Wall','BDW SPL','Hurrican'];
+ const bassNames=['BassRace 129.9','BassRace 139.9','BassRace 149.9'];
  for(let i=1;i<19;i++){
   const classId=stableFixtureUuid('extra-class',i);
+  const directionName=i<5?regularDirections[i]:i>=16?'BassRace':'SPL';
+  const directionId=i<5||i>=16
+   ?stableFixtureUuid('stress-direction-'+directionName):ID.direction;
+  const name=i<5?'CI '+directionName+' '+i:
+   i>=16?bassNames[i-16]:'CI class '+i;
   snapshot.stage.stageClasses.push({
    id:stableFixtureUuid('extra-stage-class',i),stageId:ID.stage,classId,sortOrder:i,
    isActive:true,participantLimit:null,customName:null,description:null,settings:null,
-   class:{id:classId,code:'CI_EXTRA_'+i,name:'CI class '+i,unit:'DB',
-    sortOrder:i,isActive:true,direction:{id:ID.direction,name:'SPL',sortOrder:0,isActive:true}},
+   class:{id:classId,code:'CI_EXTRA_'+i,name,unit:'DB',
+    sortOrder:i,isActive:true,direction:{id:directionId,name:directionName,sortOrder:0,isActive:true}},
   });
  }
  const second=structuredClone(snapshot.registrations[0]);
