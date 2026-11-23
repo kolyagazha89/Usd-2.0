@@ -198,7 +198,7 @@ export class AssistantService {
       this.prisma.car.count({ where: { isActive: true } }),
       this.prisma.registration.count({ where: { status: 'ACTIVE' } }),
       this.prisma.result.count(),
-      this.prisma.stage.findMany({ orderBy: [{ date: 'asc' }, { stageNumber: 'asc' }], take: 8, select: { stageNumber: true, name: true, city: true, date: true, status: true, registrationOpen: true, stageClasses: { where: { isActive: true }, select: { id: true } } } }),
+      this.prisma.stage.findMany({ where: { isDeleted: false }, orderBy: [{ date: 'desc' }, { stageNumber: 'desc' }], take: 8, select: { stageNumber: true, name: true, city: true, date: true, status: true, registrationOpen: true, stageClasses: { where: { isActive: true }, select: { id: true } } } }),
       this.prisma.importJob.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { status: true, createdAt: true, rows: { select: { status: true } } } }),
       this.prisma.result.count({ where: { isHistorical: true, verificationStatus: 'PENDING' } }),
       this.prisma.disqualification.count({ where: { status: 'ACTIVE' } }),
