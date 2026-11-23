@@ -3,6 +3,7 @@ import { classifyAssistantIntent, normalizeAssistantHistory } from './assistant-
 describe('USD assistant intent routing', () => {
   it('prioritizes readiness over generic status and error phrases', () => {
     expect(classifyAssistantIntent('Проверь текущий этап: всё готово?')).toBe('STAGE_READINESS');
+    expect(classifyAssistantIntent('Сколько регистраций на этом этапе?')).toBe('STAGE_READINESS');
     expect(classifyAssistantIntent('Какие проблемы с готовностью этапа?')).toBe('STAGE_READINESS');
   });
   it('separates concrete operational diagnostics', () => {
