@@ -1,3 +1,4 @@
+import {jest} from '@jest/globals';
 import { AssistantService } from './assistant.service';
 
 const makeService = () => {
