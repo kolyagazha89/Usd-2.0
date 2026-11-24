@@ -757,7 +757,17 @@ function Export-VenueReturn {
  $originalStage=Get-Content -LiteralPath $state.package -Raw -Encoding UTF8|ConvertFrom-Json
  $syncToken=[string]$originalStage.snapshot.syncAuthorization.token
  if($originalStage.snapshot.stageId -ne $state.stageId -or
-  $syncToken -cnotmatch '^[A-Za-z0-9_-]{43}
+  $syncToken -cnotmatch '^[A-Za-z0-9_-]{43}$'){
+  throw 'Не найден действительный исходный ключ шифрования этапа. Данные ноутбука сохранены.'
+ }
+ $syncExpires=([DateTime]$originalStage.snapshot.syncAuthorization.expiresAt).ToUniversalTime()
+ if($Automatic -and -not $LocalArchive -and $syncExpires -le [DateTime]::UtcNow){
+  throw 'Право автоматической синхронизации истекло. Данные сохранены. Обновите подписанный пакет этапа.'
+ }
+ if(-not $Automatic -and $syncExpires -le [DateTime]::UtcNow){
+  Write-Warning 'Срок автоматической отправки истёк, но защищённый локальный экспорт создаётся.'
+ }
+ $secret='UsdSync!1-'+$syncToken
  $apiRunning=@(& docker @(Get-VenueComposeArguments) ps --status running -q api)
  Assert-Exit 'inspect currently running judge API'
  $apiWasRunning=(@($apiRunning|Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) -and (Test-IsActiveVenueStage $state.stageId)
