@@ -7,7 +7,7 @@ const makeService = () => {
     auditLog: {create: jest.fn().mockResolvedValue({})},
     participant: {count: jest.fn().mockResolvedValue(32)},
     car: {count: jest.fn().mockResolvedValue(20)},
-    registration: {count: jest.fn().mockResolvedValue(18)},
+    registration: {count: jest.fn().mockResolvedValue(18),groupBy:jest.fn().mockResolvedValue([{participantId:'p1'},{participantId:'p2'}])},
     result: {count: jest.fn().mockResolvedValue(9)},
     importJob: {count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([])},
     importRow: {count: jest.fn().mockResolvedValue(0)},
@@ -218,7 +218,7 @@ describe('USD assistant reliable operational chat', () => {
     }));
   });
 
-  it.each(['Дай отчет по последнему этапу','Скока на последний этап зарегано?','Сколько участников зарегистрировано на последнем этапе?'])('answers %s from the last past stage without asking Ollama',async(question)=>{
+  it.each(['Дай отчет по последнему этапу','Скока на последний этап зарегано?','Сколько участников зарегистрировано на последнем этапе?','Ну, как дела по последнему этапу?','ИИ, как дела по последнему этапу?','Бро, что там по последнему этапу?','Как прошел последний этап?','Подскажи, сколько человек на последнем этапе','Что по последнему этапу','Сколько народу зарегистрировалось на последний этап?'])('answers %s from the last past stage without asking Ollama',async(question)=>{
     const {service,prisma}=makeService();
     process.env.USD_AI_PROVIDER='ollama';
     prisma.stage.findFirst.mockResolvedValue({
@@ -248,4 +248,37 @@ describe('USD assistant reliable operational chat', () => {
     expect(prisma.stage.findFirst).not.toHaveBeenCalled();
   });
 
+  it.each(['Что там с ближайшим этапом?', 'Как дела по ближайшему этапу?', 'Покажи статистику ближайшего этапа','Сколько народу на ближайший этап?'])('answers %s using upcoming DB stage without model',async(question)=>{
+    const {service,prisma}=makeService();
+    process.env.USD_AI_PROVIDER='ollama';
+    const fetchMock=jest.spyOn(global,'fetch').mockRejectedValue(new Error('Ollama unavailable'));
+    const answer=await service.chat(question,'admin');
+    expect(answer.source).toBe('database');
+    expect(answer.reply).toContain('Уникальных участников: 2');
+    expect(prisma.stage.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where:expect.objectContaining({date:{gte:expect.any(Date)},status:{notIn:['DRAFT','CANCELLED','COMPLETED']}}),
+    }));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('answers follow-up counts for the previously requested stage',async()=>{
+    const {service,prisma}=makeService();
+    process.env.USD_AI_PROVIDER='ollama';
+    const fetchMock=jest.spyOn(global,'fetch').mockRejectedValue(new Error('Ollama unavailable'));
+    const answer=await service.chat('А сколько участников?', 'admin',{history:[
+      {role:'user',content:'Ну как дела по последнему этапу?'},
+      {role:'assistant',content:'Этап ...'},
+    ]});
+    expect(answer.source).toBe('database');
+    expect(answer.reply).toContain('Уникальных участников: 2');
+    expect(prisma.stage.findFirst).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({date:{lte:expect.any(Date)}})}));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('does not treat a named or ambiguous stage as an arbitrary latest stage',async()=>{
+    const {service,prisma}=makeService();
+    process.env.USD_AI_PROVIDER='ollama';
+    const fetchMock=jest.spyOn(global,'fetch').mockResolvedValueOnce({ok:true,json:async()=>({done:true,message:{content:'{"in_scope":false}'}})} as any);
+    await service.chat('Сколько участников на этапе в Москве?', 'admin');
+    expect(prisma.stage.findFirst).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
