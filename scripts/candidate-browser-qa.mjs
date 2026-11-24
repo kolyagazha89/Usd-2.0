@@ -74,6 +74,8 @@ function dataFor(url,role){
   result:{...result,registration:{...registration,participant}},
   stage,isCurrent:true,
  }));
+ if(p==='/assistant/status')return {success:true,aiConfigured:true,provider:'ollama',model:'qwen3:1.7b',modelReady:true,scope:'USD_ONLY',tools:10};
+ if(p==='/assistant/stages')return {success:true,items:[stage]};
  if(p==='/statistics/dashboard')return dashboard;
  if(p==='/statistics/data-quality/report')return {issues:[],counts:{total:0,error:0,warning:0,info:0},healthy:true};
  if(p==='/statistics/stages/stage1')return {stage:{...stage,resultsPublishedAt:null},stats:{registrations:1,participants:1,cars:1,appearances:1,inspections:{total:0,pending:1,passed:0,failed:0},registrationClasses:[{class:klass,registrations:1,participants:1,cars:1}],pendingConfigurations:[],inspectionDetails:[],pendingRegistrations:[{registrationId:'reg1',participantNumber:1,participant}],classResults:[{class:klass,results:[{id:'result1',place:1,value:'151.2',unit:'DB',participant,participantNumber:1,car,teamAtInspection:'USD Team'}]}]}};
@@ -180,6 +182,11 @@ try{
       if(body.decision!=='APPROVE')return route.fulfill({status:400,json:{message:'Unexpected decision'}});
       profileLinkRows=profileLinkRows.filter(item=>item.id!=='link-1');
       return route.fulfill({json:{success:true}});
+     }
+     if(role==='ADMIN'&&request.method()==='POST'&&url.pathname==='/assistant/chat'){
+      const body=JSON.parse(request.postData()||'{}');
+      if(body.message==='Повторить вопрос')return route.fulfill({status:503,json:{message:'Synthetic assistant outage'}});
+      return route.fulfill({json:{success:true,source:'database',reply:'Уникальных участников: 2\nРегистраций: 3',action:null,links:[]}});
      }
      if(!['GET','HEAD','OPTIONS'].includes(request.method())&&url.pathname!=='/auth/refresh'&&!(role==='ONBOARDING'&&request.method()==='POST'&&url.pathname==='/auth/profile/historical-candidates')){
       let source='unavailable';try{const frameUrl=new URL(request.frame().url());source=frameUrl.pathname+frameUrl.search}catch{/* keep diagnostics bounded */}blocked.push({method:request.method(),path:url.pathname,source,role,width});return route.abort('blockedbyclient');
@@ -377,6 +384,39 @@ try{
       const surface=await page.locator('.participant-portal.usd-member').evaluate(el=>getComputedStyle(el).backgroundColor);
       assert.equal(surface,'rgb(13, 19, 27)','member account must not fall back to the legacy near-black canvas');
       row.sitewideMember='graphite account and consistent form design';
+     }
+     if(role==='ADMIN'&&route==='/admin/assistant'){
+      const input=page.getByRole('textbox',{name:'Вопрос ассистенту USD'});
+      const send=page.getByRole('button',{name:'Отправить вопрос'});
+      await input.waitFor({state:'visible'});
+      const measure=()=>page.locator('.assistant-chat').evaluate(el=>{
+       const rect=el.getBoundingClientRect(),field=el.querySelector('textarea'),button=el.querySelector('.assistant-composer button'),messages=el.querySelector('.assistant-messages');
+       const f=field.getBoundingClientRect(),b=button.getBoundingClientRect(),m=messages.getBoundingClientRect();
+       return {fieldWidth:f.width,buttonWidth:b.width,buttonHeight:b.height,fieldRight:f.right,buttonLeft:b.left,
+        fieldBottom:f.bottom,buttonBottom:b.bottom,chatBottom:rect.bottom,messageHeight:m.height,
+        font:parseFloat(getComputedStyle(field).fontSize),viewport:innerWidth,scroll:document.documentElement.scrollWidth};
+      });
+      if(width<=760){
+       const geometry=await measure();
+       assert.ok(geometry.fieldWidth>=160,'assistant input must remain wide '+JSON.stringify(geometry));
+       assert.ok(geometry.buttonWidth>=44&&geometry.buttonWidth<=56&&geometry.buttonHeight>=44,'compact touch target '+JSON.stringify(geometry));
+       assert.ok(geometry.fieldRight<=geometry.buttonLeft&&geometry.fieldBottom<=geometry.chatBottom+1&&geometry.buttonBottom<=geometry.chatBottom+1,'composer cannot overlap or be clipped '+JSON.stringify(geometry));
+       assert.ok(geometry.messageHeight>=100&&geometry.font>=16&&geometry.scroll<=geometry.viewport+1,'usable mobile messages and iOS input '+JSON.stringify(geometry));
+      }
+      await input.fill('Скока на последний этап зарегано?');
+      await send.click();
+      await page.getByText('Уникальных участников: 2',{exact:false}).waitFor();
+      assert.equal(await page.locator('.assistant-chat-suggestions').count(),0,'quick suggestions disappear after sending');
+      await input.fill('Повторить вопрос');
+      await send.click();
+      await page.locator('.assistant-request-error').waitFor({state:'visible'});
+      assert.equal(await input.inputValue(),'Повторить вопрос','failed request preserves draft for retry');
+      assert.match(await page.locator('.assistant-request-error').innerText(),/Не удалось получить ответ/);
+      assert.ok(!await send.isDisabled(),'can retry without starting a new conversation');
+      await input.fill('Дай отчет по последнему этапу');
+      await send.click();
+      await page.getByText('Уникальных участников: 2',{exact:false}).last().waitFor();
+      row.assistant='responsive composer, read-only mocked report and draft recovery';
      }
      if(role==='ADMIN'&&route.startsWith('/admin/site-settings')){
       const journey=page.locator('.usd-editor-section-nav');
