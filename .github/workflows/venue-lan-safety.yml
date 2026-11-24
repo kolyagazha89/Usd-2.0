@@ -194,7 +194,7 @@ jobs:
         run: node --test scripts/test-full-venue-return.integration.mjs
 
   venue-windows-launcher:
-    name: Windows PowerShell 5.1 one-click launcher syntax
+    name: Windows PowerShell 5.1 launcher and rendered dashboard
     runs-on: windows-latest
     timeout-minutes: 8
     steps:
@@ -206,6 +206,7 @@ jobs:
             'deploy/venue-lan/USD-Control.ps1',
             'deploy/venue-lan/test-windows-operator-ui.ps1',
             'deploy/venue-lan/venue-control.ps1',
+            'deploy/venue-lan/venue-operator-status.ps1',
             'deploy/venue-lan/venue-season.ps1',
             'deploy/venue-lan/venue-coverage.ps1',
             'deploy/venue-lan/venue-directory.ps1',
@@ -226,9 +227,17 @@ jobs:
               throw "Invalid PowerShell syntax: $file"
             }
           }
-      - name: Exercise one-window ADMIN stage download and signed JSON on Windows
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Exercise ADMIN stage download and render the dashboard at three Windows scales
         shell: powershell
         run: powershell -NoProfile -STA -File deploy/venue-lan/test-windows-operator-ui.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: venue-windows-dashboard
+          path: venue-windows-render/*.png
       - name: Exercise native PowerShell helpers without Docker or administrator access
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-helpers.ps1

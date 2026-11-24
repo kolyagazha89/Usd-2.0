@@ -27,3 +27,17 @@ if($failure -notmatch 'start PostgreSQL' -or $failure -notmatch 'exit 28' -or
  throw ('Native exit failure lost context: '+$failure)
 }
 Write-Host 'USD WINDOWS TIMEOUT PASS: exact operation, step and underlying error retained'
+
+# The Compose native stderr path must preserve its process exit code.
+$shim=Join-Path ([IO.Path]::GetTempPath()) ('usd-stderr-'+[guid]::NewGuid().ToString('N')+'.cjs')
+[IO.File]::WriteAllText($shim,'console.error("Container usd-venue-db-1 Started");process.exit(Number(process.argv[2]));')
+try{
+ function docker {& node.exe $shim $script:dockerExit}
+ $script:dockerExit=0
+ Invoke-Compose @('up','-d','db') 'native Compose start'
+ $script:dockerExit=19
+ $failed=$false
+ try{Invoke-Compose @('up','-d','db') 'native Compose failure'}
+ catch{$failed=$_.Exception.Data['VenueExitCode'] -eq 19}
+ if(!$failed){throw 'Native stderr must preserve native exit success and failure'}
+}finally{Remove-Item -LiteralPath $shim -Force}

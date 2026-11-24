@@ -5,11 +5,12 @@
 #>
 [CmdletBinding()]
 param(
- [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next','certificate','directory')][string]$Action,
+ [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next','certificate','directory','status')][string]$Action,
  [string]$StageFile='',
  [string]$PublicKeyFile='',
  [string]$StaffKeyFile='',
  [string]$TrustedFingerprint='',
+ [switch]$Operator,
  [switch]$Silent
 )
 Set-StrictMode -Version Latest
@@ -41,11 +42,14 @@ function Assert-Exit([string]$Purpose){
  }
 }
 function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
+ $prior=$ErrorActionPreference
  try{
-  & docker @Arguments | Out-Host
+  # Compose reports successful pull/create/start progress on native stderr.
+  $ErrorActionPreference='Continue'
+  & docker @Arguments 2>&1 | ForEach-Object {Write-Host ([string]$_)}
  }catch{
   throw ('USD VENUE '+$Purpose+' step='+$script:VenueStep+': '+$_.Exception.Message)
- }
+ }finally{$ErrorActionPreference=$prior}
  Assert-Exit $Purpose
 }
 function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
@@ -328,55 +332,6 @@ console.log("USD VENUE API RELEASE CHECK PASSED");
  }
 }
 # Keep venue installations isolated.
-function Replace-LegacyDemo([object]$State){
- if($State.demo -ne $true -or $State.phase -ne 'READY' -or $State.accessKey){
-  throw 'Автоматически очистить можно только завершённую старую пробную установку. Данные сохранены.'
- }
- $cfg=Read-Env
- if($cfg['VENUE_STAGE_ID'] -ne $State.stageId -or
-  $cfg['VENUE_IMAGE_TAG'] -ne $State.image -or
-  $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -ne $State.fingerprint -or
-  $cfg['VENUE_BIND_IP'] -ne $State.ip){
-  throw 'Идентификаторы старой пробной установки не совпадают; очистка запрещена.'
- }
- if(Test-Path -LiteralPath (Join-Path $PrivateDir 'return-output')){
-  throw 'Найдены возвратные файлы. Установка не удалена: сохраните их и проверьте данные вручную.'
- }
- $containers=@(& docker ps -a --filter 'label=com.docker.compose.project=usd-venue' --format '{{.ID}}')
- Assert-Exit 'check venue containers before cleanup'
- foreach($id in $containers){
-  if([string]$id -cnotmatch '^[a-f0-9]{12,64}$'){throw 'Docker вернул неверный ID контейнера'}
-  $labels=Read-VenueDockerLabels 'container' ([string]$id)
-  if([string]$labels.'com.docker.compose.project' -cne 'usd-venue' -or
-   [string]$labels.'com.docker.compose.service' -cnotin @('db','api','frontend','rustfs','gateway')){
-   throw 'В проекте есть неизвестный контейнер. Очистка отменена.'
-  }
- }
- $volumes=@(& docker volume ls --filter 'label=com.docker.compose.project=usd-venue' --format '{{.Name}}')
- Assert-Exit 'check venue volumes before cleanup'
- foreach($volume in $volumes){
-  if($volume -notin @('usd-venue_venue_db','usd-venue_venue_media','usd-venue_venue_ca',
-    'usd-venue_venue_caddy_config','usd-venue_venue_return_keys')){
-   throw 'В проекте есть неизвестный Docker-том. Очистка отменена.'
-  }
- }
- if(-not(Confirm-VenueAction ('Старая пробная база USD будет удалена БЕЗ ВОССТАНОВЛЕНИЯ.'+
-  [Environment]::NewLine+'Этап: '+$State.stageId+
-  [Environment]::NewLine+'Удаляем только проект usd-venue и его тестовые данные. Основной сервер Ubuntu не затрагивается.'+
-  [Environment]::NewLine+'Продолжить и установить настоящий этап?'))){
-  throw 'Очистка отменена, старая база сохранена.'
- }
- Remove-Autostart
- Invoke-Compose @('down','--volumes') 'remove confirmed retired test volumes'
- Remove-Item -LiteralPath $EnvFile -Force
- Remove-Item -LiteralPath $PrivateDir -Recurse -Force
- foreach($legacy in @('make-demo-stage.mjs','provision-staff.mjs')){
-  $obsolete=Join-Path $Root $legacy
-  if(Test-Path -LiteralPath $obsolete -PathType Leaf){Remove-Item -LiteralPath $obsolete -Force}
- }
- New-Item -ItemType Directory -Path $PrivateDir|Out-Null
- Write-Host 'Старая пробная база удалена. Продолжаем установку подписанного этапа.'
-}
 # Store the phase marker before promoting the config. A retry may promote
 # only the exact file recorded by CONFIGURED, never regenerate DB credentials.
 function Complete-VenueInitialConfig([object]$State) {
@@ -418,7 +373,22 @@ function New-InitialState {
   $payload=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
   $stageId=[string]$payload.snapshot.stageId
   $project=Get-VenueProjectForStage $stageId
-  if($source){$project=[string]$source.project}else{Assert-NoOrphanedVenueStack $project}
+  if($source){
+   $project=[string]$source.project
+   if([string]$source.projectStageId -and $project -cne (Get-VenueProjectForStage $source.projectStageId)){
+    throw 'Прежняя база не подтверждена. Подключение нового этапа остановлено.'
+   }
+   if($Operator){Assert-VenueDatabaseVolumeForProject $project}
+  }else{
+   Assert-NoOrphanedVenueStack $project
+   if($Operator){
+    $existing=@(& docker volume ls --filter 'label=com.docker.compose.volume=venue_db' --format '{{.Name}}')
+    Assert-Exit 'check all retained USD databases'
+    if(@($existing|Where-Object {$_ -match '^usd-venue(?:-[a-f0-9]{32})?_venue_db$'}).Count){
+     throw 'На ноутбуке уже есть база USD. Откройте существующий ярлык «USD — Офлайн-сервер» или прежнюю папку программы.'
+    }
+   }
+  }
   # trusted fingerprint verified by admin.
   $fingerprint=$(if($TrustedFingerprint){$TrustedFingerprint}elseif($reuseTrust){[string]$trustedSource.fingerprint}else{(Read-VenueFingerprint).Trim()})
   if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Нет независимого доверенного отпечатка Ed25519'}
@@ -545,9 +515,7 @@ function Install-Local {
  }
  $state=Read-State
  if($state -and $state.PSObject.Properties.Name -contains 'demo' -and $state.demo -eq $true){
-  Set-VenueStep 'remove-confirmed-old-demo'
-  Replace-LegacyDemo $state
-  $state=$null
+  throw 'Найдена старая пробная база USD. Обратитесь к администратору USD для переноса на рабочий сервер. Данные сохранены.'
  }
  if(!$state){
   Set-VenueStep 'select-signed-stage-and-verify-release'
@@ -667,6 +635,7 @@ function Start-Local {
  Ensure-DockerReady
  Ensure-Firewall $state.ip
  Assert-NoOtherVenueGatewayRunning
+ Set-VenueStep 'start-local-database'
  Start-VenueDatabase
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для выгрузки используйте Экспорт в этой папке.'}
  Repair-VenueCoverageIfNeeded
@@ -675,14 +644,16 @@ function Start-Local {
  Assert-Exit 'upgrade durable amplifier link journal'
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для запуска используйте текущий ярлык USD. Для его выгрузки нажмите Экспорт в этой папке.'}
  Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')
+ Set-VenueStep 'start-local-services'
  Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never') 'start offline without Internet'
+ Set-VenueStep 'verify-lan-readiness'
  Wait-VenueLanReady $state
  Save-Autostart
  Save-DesktopShortcuts
  try{Export-VenueCA}catch{
   Write-Warning ('Локальный сервер запущен, но сертификат пока не выгружен: '+$_.Exception.Message+'. Нажмите «USD — Сертификат».')
  }
- if(-not $Silent){
+ if(-not $Silent -and -not $Operator){
   $url='https://'+$state.ip+'/login'
   Write-Host ('ОФЛАЙН USD: '+$url)
   Write-Host ('LIVE без сертификата: http://'+$state.ip+'/venue/live')
@@ -714,8 +685,8 @@ Promise.all([
 }
 function Export-VenueReturn {
  param([switch]$LeaveApiStopped,[switch]$Automatic,[switch]$LocalArchive)
- # Export is encrypted; no automatic Ubuntu sync.
  # Never use central secrets or delete local durable records.
+ Set-VenueStep 'prepare-return-backup'
  if($Silent){throw 'Экспорт требует присутствия администратора'}
  Assert-VenueCompose
  $state=Read-State
@@ -790,7 +761,14 @@ function Export-VenueReturn {
    '/app/venue-return-keys/venue-return-private.pem',
    ('/app/venue-return-output/'+$filename))
   # Password is sent over stdin ONLY, never exposed in arguments or logs.
-  $output=@($secret | & docker @args)
+  Set-VenueStep 'write-return-backup'
+  $prior=$ErrorActionPreference
+  try{
+   $ErrorActionPreference='Continue'
+   $output=@($secret | & docker @args 2>&1 | ForEach-Object {
+    if($_ -is [Management.Automation.ErrorRecord]){Write-Host ([string]$_)}else{$_}
+   })
+  }finally{$ErrorActionPreference=$prior}
   Assert-Exit 'signed encrypted USB return export'
   foreach($line in $output){Write-Host $line}
   $summaryLine=$output|Where-Object {$_ -match '^\{.*\}$'}|Select-Object -Last 1
@@ -821,6 +799,7 @@ function Export-VenueReturn {
  Write-Host ('ОТКРЫТЫЙ КЛЮЧ: '+$publicKey)
  Write-Host ('ОТПЕЧАТОК КЛЮЧА: '+$fingerprint)
  Write-Host 'ЭТО НЕ СИНХРОНИЗАЦИЯ. Данные останутся на ноутбуке до подтверждения Ubuntu.'
+ if($Operator){return}
  Show-VenueMessage ('Возвратный файл создан.'+[Environment]::NewLine+
   'Папка: '+$directory+[Environment]::NewLine+
   'Передайте шифрованный файл ответственному администратору USD.'+[Environment]::NewLine+
@@ -867,6 +846,7 @@ function Return-Online {
   try{
    $bundle=Export-VenueReturn -LeaveApiStopped -Automatic
    $frozen=$true
+   Set-VenueStep 'send-return-to-usd'
    $SyncResult=Sync-VenueReturn -Bundle $bundle
    if($SyncResult.accepted -ne $true){throw 'Нет подтверждения ACKNOWLEDGED центрального сервера'}
   }catch{
@@ -881,19 +861,31 @@ function Return-Online {
  Remove-Autostart
  if(Get-Command docker -ErrorAction SilentlyContinue){
   if((Test-DockerReady) -and (Test-Path -LiteralPath $EnvFile)){
-   Invoke-Compose @('stop') 'stop after central ACK without deleting local DB'
+   Set-VenueStep 'stop-after-ack'
+   Invoke-Compose @('stop','api','frontend','gateway','rustfs') 'stop after central ACK without deleting local DB'
   }
  }
  Write-Host 'USD ONLINE. Synchronization ACKNOWLEDGED. Local backup preserved.'
- if(-not $Silent){Start-Process $OnlineUrl}
+ if(-not $Silent -and -not $Operator){Start-Process $OnlineUrl}
 }
 . (Join-Path $Root 'venue-season.ps1')
 . (Join-Path $Root 'venue-coverage.ps1')
 . (Join-Path $Root 'venue-directory.ps1')
 . (Join-Path $Root 'venue-ca.ps1')
 . (Join-Path $Root 'venue-update.ps1')
+. (Join-Path $Root 'venue-operator-status.ps1')
 if($MyInvocation.InvocationName -eq '.'){return}
+if($Operator){[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)}
+$mutex=$null
+$ownsMutex=$false
 try{
+ if($Action -eq 'status'){
+  Write-Output ('USD STATUS: '+((Get-VenueOperatorStatus)|ConvertTo-Json -Compress))
+  return
+ }
+ $mutex=[Threading.Mutex]::new($false,'Local\USD-Venue-Operation')
+ try{$ownsMutex=$mutex.WaitOne(0)}catch [Threading.AbandonedMutexException]{$ownsMutex=$true}
+ if(!$ownsMutex){throw 'Другая операция USD уже выполняется. Дождитесь её завершения.'}
  if(-not $Silent){. (Join-Path $Root 'venue-dialogs.ps1')}
  if($Action -eq 'install'){Install-Local}
  elseif($Action -eq 'offline'){Start-Local}
@@ -904,10 +896,12 @@ try{
  else{Return-Online}
 }catch{
  Write-Host ('USD VENUE: не удалось выполнить '+$Action+'; step='+$script:VenueStep) -ForegroundColor Red
- if(!$Silent){Write-Host ('Причина: '+$_.Exception.Message)}
- if(!$Silent -and (Get-Command Show-VenueMessage -ErrorAction SilentlyContinue)){
+ if(!$Silent){Write-Host ('USD VENUE ERROR: '+$_.Exception.Message)}
+ if(!$Silent -and !$Operator -and (Get-Command Show-VenueMessage -ErrorAction SilentlyContinue)){
   Show-VenueMessage ('Действие не завершено. Шаг: '+$script:VenueStep+[Environment]::NewLine+$_.Exception.Message+[Environment]::NewLine+'Ничего не удаляйте. Устраните причину и нажмите ту же кнопку снова.')
  }
- Write-Host 'Ничего не удаляйте. После устранения причины повторите тот же запуск.'
  exit 1
+}finally{
+ if($ownsMutex){$mutex.ReleaseMutex()}
+ if($null -ne $mutex){$mutex.Dispose()}
 }
