@@ -13,7 +13,7 @@ function Import-VenueParticipantDirectory {
    $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -cne [string]$state.fingerprint){
   throw 'Локальный этап или его доверенная подпись изменились'
  }
- $file=Select-VenueFile 'Новый подписанный пакет этого же этапа со всеми участниками' 'Пакет этапа (*.json)|*.json'
+ $file=$(if($StageFile){$StageFile}else{Select-VenueFile 'Новый подписанный пакет этого же этапа со всеми участниками' 'Пакет этапа (*.json)|*.json'})
  if(!(Test-Path -LiteralPath $file -PathType Leaf)){throw 'Файл пакета отсутствует'}
  if((Get-Item -LiteralPath $file).Length -gt (12*1024*1024+256*1024)){throw 'Пакет слишком большой'}
  $signed=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
