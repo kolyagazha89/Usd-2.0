@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
+import './assistant-chat.css';
 import {AlertTriangle,ArrowUpRight,Bot,CheckCircle2,Loader2,MessageCircle,RotateCcw,Send,ShieldCheck,UserRound} from 'lucide-react';
 import {chatAssistant,getAssistantStages,getAssistantAiStatus,type AssistantAiStatus,type AssistantChatResponse,type AssistantChatMessage,type AssistantChatMode} from '../api';
 
@@ -113,16 +114,16 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
      <MessageCircle size={18} aria-hidden="true"/>
      <label htmlFor="assistant-stage-context">Контекст этапа</label>
      <select id="assistant-stage-context" value={stageId} onChange={e=>setStageId(e.target.value)} disabled={sending}>
-      <option value="">Ближайший актуальный этап</option>
+      <option value="">Авто: ближайший этап</option>
       {stages.map(stage=><option value={stage.id} key={stage.id}>{stage.name}{stage.city?' · '+stage.city:''}{stage.date?' · '+new Date(stage.date).toLocaleDateString('ru-RU'):''}</option>)}
      </select>
     </div>
-    <button type="button" className="secondary-button compact" onClick={reset} disabled={sending}><RotateCcw size={15}/><span>Новый диалог</span></button>
+    <button type="button" className="secondary-button compact assistant-reset" aria-label="Новый диалог" onClick={reset} disabled={sending}><RotateCcw size={15}/><span>Новый диалог</span></button>
    </div>
    <section className="assistant-chat panel" ref={chatRef} aria-label="Чат ассистента USD">
     <div className="assistant-chat-head">
      <div className="assistant-avatar"><Bot size={22} aria-hidden="true"/></div>
-     <div><strong>USD · Помощник администратора</strong><span>{aiStatus?(aiStatus.provider==='ollama'?(aiStatus.modelReady?'Локальная модель '+aiStatus.model+' готова':'Локальная модель '+aiStatus.model+' недоступна'):(aiStatus.aiConfigured?'Облачная модель '+aiStatus.model+' · ключ настроен':'OpenAI API · ключ не настроен')):'Отвечаю только по USD · проверяю факты через систему'}</span></div>
+     <div><strong>Ассистент USD</strong><span>{aiStatus?(aiStatus.provider==='ollama'?(aiStatus.modelReady?'Локальная модель '+aiStatus.model+' готова':'Локальная модель '+aiStatus.model+' недоступна'):(aiStatus.aiConfigured?'Облачная модель '+aiStatus.model+' · ключ настроен':'OpenAI API · ключ не настроен')):'Отвечаю только по USD · проверяю факты через систему'}</span></div>
      <ShieldCheck className="assistant-trust-icon" size={21} aria-hidden="true"/>
     </div>
     <div className="assistant-messages" ref={messagesRef} role="log" aria-live="polite" aria-relevant="additions text">
