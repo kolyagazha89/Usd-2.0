@@ -108,6 +108,10 @@ SELECT json_build_object(
   }
   if($result.activeStageId -cne $id){$result.mode='archived';return $result}
   if($api.Count){
+   $profile=Get-VenueLanProfile $state.ip
+   if([string]$profile.NetworkCategory -ne 'Private'){
+    throw 'Доступ судей по Wi-Fi требует профиля Windows «Частная». Нажмите «Запустить офлайн-сервер» и проверьте настройки сети.'
+   }
    if(!(Test-VenueApiReady (Get-VenueRuntimeApiSha $cfg) $id)){throw 'Локальный API не подтвердил текущий этап.'}
    if(!(Test-VenueGatewayReady $state.ip)){throw 'Локальное LIVE-табло по HTTP не отвечает.'}
    if(!(Test-VenueHttpsReady $state.ip $id)){throw $script:VenueHttpsProbeReason}

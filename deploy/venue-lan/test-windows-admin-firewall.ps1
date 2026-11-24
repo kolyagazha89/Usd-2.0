@@ -5,6 +5,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'venue-control.ps1') -Action install
 $Root=$PSScriptRoot
 $script:ruleIsSafe=$false
+$script:profileCategory='Private'
 $script:directCalls=0
 $script:extraUacCalls=0
 function Get-NetIPAddress {
@@ -13,7 +14,7 @@ function Get-NetIPAddress {
 }
 function Get-NetConnectionProfile {
  param([int]$InterfaceIndex,[string]$ErrorAction)
- [pscustomobject]@{NetworkCategory='Private'}
+ [pscustomobject]@{NetworkCategory=$script:profileCategory}
 }
 function Get-NetFirewallRule {
  param([string]$DisplayName,[string]$ErrorAction)
@@ -30,6 +31,7 @@ function Get-NetFirewallAddressFilter {
  process{[pscustomobject]@{LocalAddress='192.168.50.10';RemoteAddress='LocalSubnet'}}
 }
 function Test-VenueElevated {return $true}
+function Confirm-VenueAction {return $true}
 function Start-Process {$script:extraUacCalls++;throw 'Unnecessary second UAC elevation on Administrator console'}
 function powershell.exe {
  $argsNow=@($args)
@@ -39,6 +41,7 @@ function powershell.exe {
  }
  $script:directCalls++
  $script:ruleIsSafe=$true
+ if($argsNow -contains '-AllowPrivateProfile'){$script:profileCategory='Private'}
  $global:LASTEXITCODE=0
 }
 Ensure-Firewall '192.168.50.10'
@@ -46,4 +49,11 @@ Ensure-Firewall '192.168.50.10'
 if($script:extraUacCalls -ne 0 -or $script:directCalls -ne 1){
  throw 'Already-admin installer should invoke its scoped firewall helper exactly once, without UAC'
 }
-Write-Host 'USD WINDOWS FIREWALL PASS: elevated installer avoids second UAC and timeout'
+$script:profileCategory='Public'
+Ensure-Firewall '192.168.50.10'
+if($script:profileCategory -ne 'Private' -or $script:directCalls -ne 2 -or $script:extraUacCalls -ne 0){
+ throw 'An existing valid firewall rule must not skip the approved switch from Public to Private'
+}
+Ensure-Firewall '192.168.50.10'
+if($script:directCalls -ne 2){throw 'A working private network must not invoke the helper again'}
+Write-Host 'USD WINDOWS FIREWALL PASS: elevated installer avoids repeated UAC and restores an approved Private profile'

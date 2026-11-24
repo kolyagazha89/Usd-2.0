@@ -217,13 +217,17 @@ function Test-VenueElevated {
  $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
  return ([Security.Principal.WindowsPrincipal]::new($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
-function Ensure-Firewall([string]$Ip){
+function Get-VenueLanProfile([string]$Ip){
  $interface=Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
   Where-Object {$_.IPAddress -eq $Ip -and $_.AddressState -eq 'Preferred'} |
   Select-Object -First 1
- if(!$interface){throw 'Выбранный IP уже отсутствует на ноутбуке. Подключитесь к Wi-Fi роутера и повторите установку.'}
- $profile=Get-NetConnectionProfile -InterfaceIndex $interface.InterfaceIndex -ErrorAction Stop
- if(!$profile){throw 'Windows не определила профиль выбранного Wi-Fi. Подключитесь к роутеру повторно.'}
+ if(!$interface){throw ('У ноутбука больше нет адреса площадки '+$Ip+'. Подключитесь к роутеру соревнований и восстановите этот IP.')}
+ $profile=Get-NetConnectionProfile -InterfaceIndex $interface.InterfaceIndex -ErrorAction SilentlyContinue
+ if(!$profile){throw 'Windows не определила профиль сети площадки. Переподключитесь к роутеру соревнований.'}
+ return $profile
+}
+function Ensure-Firewall([string]$Ip){
+ $profile=Get-VenueLanProfile $Ip
  $approvePrivate=$false
  if([string]$profile.NetworkCategory -ne 'Private'){
   if([string]$profile.NetworkCategory -ne 'Public'){
@@ -235,7 +239,7 @@ function Ensure-Firewall([string]$Ip){
   }
   $approvePrivate=$true
  }
- if(Test-VenueFirewallRule $Ip){return}
+ if(!$approvePrivate -and (Test-VenueFirewallRule $Ip)){return}
  $script=Join-Path $Root 'venue-firewall.ps1'
  $arguments='-NoProfile -ExecutionPolicy Bypass -File "'+$script+'" -Ip "'+$Ip+'"'
  if($approvePrivate){$arguments+=' -AllowPrivateProfile'}
@@ -263,7 +267,7 @@ function Ensure-Firewall([string]$Ip){
   24 {throw 'Windows не разрешила безопасно восстановить существующее правило USD. Не удаляйте другие правила брандмауэра.'}
   default {throw 'Административная настройка брандмауэра завершилась ошибкой. Проверьте профиль сети, UAC и защиту Windows.'}
  }
- $check=Get-NetConnectionProfile -InterfaceIndex $interface.InterfaceIndex -ErrorAction Stop
+ $check=Get-VenueLanProfile $Ip
  if([string]$check.NetworkCategory -ne 'Private' -or -not(Test-VenueFirewallRule $Ip)){
   throw 'Правило было запрошено, но Windows не подтвердила безопасный доступ. Проверьте профиль «Частная» и системный брандмауэр.'
  }
