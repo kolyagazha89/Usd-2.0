@@ -78,9 +78,9 @@ function Send-UsdApi([string]$Method,[string]$Path,[object]$Body=$null,[string]$
 function Get-AdminCredentials {
  $window=New-Object System.Windows.Forms.Form
  $window.Text='Авторизация ADMIN в USD'
- $window.Size=New-Object System.Drawing.Size(490,265)
+ $window.Size=[System.Drawing.Size]::new(490,265)
  $window.StartPosition='CenterParent';$window.FormBorderStyle='FixedDialog'
- $window.MaximizeBox=$false;$window.Font=New-Object System.Drawing.Font('Segoe UI',11)
+ $window.MaximizeBox=$false;$window.Font=[System.Drawing.Font]::new('Segoe UI',11)
  $label=New-Object System.Windows.Forms.Label
  $label.Text='Доступ к пакетам этапов имеет только ADMIN. Пароль не сохраняется.'
  $label.SetBounds(20,15,435,45)
@@ -107,9 +107,9 @@ function Select-Stage([object[]]$Stages,[string]$ExcludeId=''){
  }|Sort-Object date)
  if(!$available.Count){throw 'Нет опубликованных этапов для загрузки'}
  $window=New-Object System.Windows.Forms.Form
- $window.Text='Этап USD';$window.Size=New-Object System.Drawing.Size(570,205)
+ $window.Text='Этап USD';$window.Size=[System.Drawing.Size]::new(570,205)
  $window.StartPosition='CenterParent';$window.FormBorderStyle='FixedDialog'
- $window.MaximizeBox=$false;$window.Font=New-Object System.Drawing.Font('Segoe UI',11)
+ $window.MaximizeBox=$false;$window.Font=[System.Drawing.Font]::new('Segoe UI',11)
  $label=New-Object System.Windows.Forms.Label;$label.Text='Какой этап загрузить на ноутбук?'
  $label.SetBounds(20,14,520,32)
  $options=New-Object System.Windows.Forms.ComboBox;$options.SetBounds(20,52,520,32)
@@ -294,15 +294,15 @@ function Add-OperatorButton([string]$Text,[string]$Action,[int]$X,[int]$Y,[int]$
 if($MyInvocation.InvocationName -eq '.'){return}
 $script:Form=New-Object System.Windows.Forms.Form
 $script:Form.Text='USD — Офлайн-сервер'
-$script:Form.Size=New-Object System.Drawing.Size(548,562)
+$script:Form.Size=[System.Drawing.Size]::new(548,562)
 $script:Form.MinimumSize=$script:Form.Size
 $script:Form.MaximumSize=$script:Form.Size
 $script:Form.StartPosition='CenterScreen'
-$script:Form.Font=New-Object System.Drawing.Font('Segoe UI',11)
+$script:Form.Font=[System.Drawing.Font]::new('Segoe UI',11)
 $script:Form.BackColor=[System.Drawing.Color]::White
 $title=New-Object System.Windows.Forms.Label
 $title.Text='USD  |  Управление этапом'
-$title.Font=New-Object System.Drawing.Font('Segoe UI',17,[System.Drawing.FontStyle]::Bold)
+$title.Font=[System.Drawing.Font]::new('Segoe UI',17,[System.Drawing.FontStyle]::Bold)
 $title.SetBounds(23,18,492,43)
 $script:StageStatus=New-Object System.Windows.Forms.Label
 $script:StageStatus.SetBounds(24,63,490,55)
