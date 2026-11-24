@@ -205,9 +205,7 @@ function Switch-ToNextStage {
  # A local encrypted snapshot and the original database both remain available.
  $workspace=New-VenueStageWorkspace $newId
  Repair-VenueCoverageIfNeeded
- Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
-  & docker @(Get-VenueComposeArguments) exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
- Assert-Exit 'prepare per-stage journal'
+ Invoke-VenueJournalSql (Join-Path $Root 'upgrade-journal-links.sql') 'prepare per-stage journal'
  $wasRunning=Test-VenueJudgingRunning
  try{
   $archive=Export-VenueReturn -LeaveApiStopped -Automatic -LocalArchive
@@ -273,7 +271,6 @@ function Assert-NoOrphanedVenueStack([string]$Project){
   throw 'USD уже установлен в другой папке. Не создавайте второй сервер на тех же Docker-томах. Обновите файлы программы в прежней папке, сохранив .env и local-private, затем запустите USD-Install.cmd.'
  }
 }
-# One-time replacement of an explicitly retired trial; no trial mode remains.
 
 function Get-VenueComposeArguments {
  return @('compose','--project-directory',$Root,'--env-file',$EnvFile,

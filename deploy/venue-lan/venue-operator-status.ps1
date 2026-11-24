@@ -66,6 +66,7 @@ SELECT json_build_object(
   $rows=@($sql | & docker @compose exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue 2>$null)
   Assert-Exit 'read local stage and journal'
   $local=($rows -join '')|ConvertFrom-Json -ErrorAction Stop
+  $null=Get-VenueProjectForStage ([string]$local.active)
   $result.activeStageId=[string]$local.active
   $result.stageIds=@($local.stages)
   $result.registrations=$local.registrations

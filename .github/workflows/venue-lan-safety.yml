@@ -238,6 +238,9 @@ jobs:
         with:
           name: venue-windows-dashboard
           path: venue-windows-render/*.png
+      - name: Exercise status of Docker, database, HTTPS and central journal acknowledgement
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-operator-status.ps1
       - name: Exercise native PowerShell helpers without Docker or administrator access
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-helpers.ps1

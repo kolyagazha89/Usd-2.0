@@ -92,13 +92,19 @@ try{
  function Read-Env {return @{'VENUE_STAGE_ID'=$stage;'VENUE_SIGNING_KEY_FINGERPRINT'=('b'*64)}}
  function Select-VenueFile {return $newFile}
  function Get-VenueHome {return $cancelTemp}
- function New-VenueStageWorkspace {return (Join-Path $cancelTemp 'new-workspace')}
+ $fakeWorkspace=Join-Path $cancelTemp 'new-workspace'
+ [void][IO.Directory]::CreateDirectory($fakeWorkspace)
+ [IO.File]::WriteAllText((Join-Path $fakeWorkspace 'venue-control.ps1'),'exit 1')
+ function New-VenueStageWorkspace {return $fakeWorkspace}
  function Start-VenueDatabase {}
  function Test-IsActiveVenueStage {return $true}
  function Test-VenueJudgingRunning {return $script:previouslyRunning}
  function Export-VenueReturn {return @{stageId=$stage}}
- function docker {$null=$input;$global:LASTEXITCODE=0}
- function powershell.exe {$global:LASTEXITCODE=1}
+ function docker {
+  $sql=$input -join "`n"
+  $global:LASTEXITCODE=0
+  if($sql -match 'SELECT count'){return '0'}
+ }
  function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
   $command=$Arguments -join ' '
   if($command -eq 'start'){$script:fullRestore++}

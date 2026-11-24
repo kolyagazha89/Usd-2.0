@@ -10,6 +10,7 @@ $script:Stages=@()
 $script:Worker=$null
 $script:Probe=$null
 $script:Local=$null
+$script:DashboardError=''
 $script:State=$null
 $script:Form=$null
 $script:Pending=$null
@@ -390,7 +391,8 @@ function Start-UsdNetwork($Request,[string]$Kind){
  }catch{$pipeline.Dispose();throw}
 }
 function Start-UsdChild([string]$Action,[string]$Root,$Bundle=$null){
- $manager=Join-Path $Root 'venue-control.ps1'
+ $kitRoot=if($Action -in @('export','online')){$script:LaunchRoot}else{$Root}
+ $manager=Join-Path $kitRoot 'venue-control.ps1'
  if(!(Test-Path -LiteralPath $manager -PathType Leaf)){throw 'Не удалось найти файлы управления USD. Обновите программу в рабочей папке.'}
  $logsRoot=Join-Path (Join-Path $Root 'local-private') 'operations'
  if($Action -ne 'status'){[void][IO.Directory]::CreateDirectory($logsRoot)}
@@ -399,6 +401,7 @@ function Start-UsdChild([string]$Action,[string]$Root,$Bundle=$null){
  $out=$base+'.log'
  $err=$base+'.err.log'
  $arguments='-NoProfile -ExecutionPolicy Bypass -STA -File "'+$manager+'" -Action '+$Action+' -Operator'
+ if($kitRoot -cne $Root){$arguments+=' -Workspace "'+$Root+'"'}
  if($Bundle){
   $arguments+=' -StageFile "'+$Bundle.StageFile+'" -PublicKeyFile "'+$Bundle.PublicKeyFile+'" -StaffKeyFile "'+$Bundle.StaffKeyFile+'" -TrustedFingerprint '+$Bundle.Fingerprint
  }
@@ -812,6 +815,7 @@ function Show-UsdArchive {
 }
 function Show-UsdDiagnostics {
  $entries=@('Рабочая папка: '+$script:Root,'Windows PowerShell: '+$PSVersionTable.PSVersion)
+ if($script:DashboardError){$entries+=$script:DashboardError}
  if($script:Local){
   $entries+=@('Docker отвечает: '+$script:Local.docker,'Локальный HTTPS отвечает: '+$script:Local.running)
   if($ui.StatusReason.Text){$entries+=$ui.StatusReason.Text}
@@ -862,7 +866,7 @@ $ui.Install.Add_Click({
 })
 $ui.Directory.Add_Click({Start-UsdRequest (New-UsdRequest 'directory' 'обновить участников и автомобили' $script:Root $script:State.stageId)})
 $ui.Start.Add_Click({Start-UsdRequest (New-UsdRequest 'offline' 'запустить офлайн-сервер')})
-$ui.Admin.Add_Click({Start-Process ($ui.Address.Text+'/admin/event-day')})
+$ui.Admin.Add_Click({Start-Process ($ui.Address.Text+'/admin/event-day?next=%2Fadmin%2Fevent-day')})
 $ui.Live.Add_Click({Start-Process ($ui.Address.Text.Replace('https:','http:')+'/venue/live')})
 $ui.Copy.Add_Click({
  try{[Windows.Clipboard]::SetText($ui.Address.Text);$ui.Notice.Text='Адрес скопирован.'}
@@ -886,6 +890,7 @@ $timer.Add_Tick({
   Complete-UsdWorker
   Update-UsdProbe
  }catch{
+  $script:DashboardError=$_.Exception.Message
   $ui.Notice.Text='Не удалось обновить состояние. Откройте диагностику или журнал операций.'
  }
 })

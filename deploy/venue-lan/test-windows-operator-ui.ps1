@@ -84,6 +84,12 @@ foreach($scale in 1.0,1.25,1.5){
  $window.FindName('StageMeta').Text='Белая Калитва  ·  28.11.2026  ·  Сезон 2026'
  $window.FindName('StageStats').Text='Участников 1200 · регистраций 139  ·  Последняя синхронизация 28.11.2026, 19:35'
  $window.FindName('Status').Text='Офлайн-сервер работает'
+ $list=$window.FindName('Stages')
+ [void]$list.Items.Add([pscustomobject]@{Label='Первый этап  ·  Ростов-на-Дону  ·  06.12.2026'})
+ $list.SelectedIndex=0
+ $window.FindName('StageHint').Text='Выберите опубликованный этап.'
+ $window.FindName('Address').Text='https://192.168.20.10'
+ $window.FindName('Notice').Text='Сервер проверен. Судьи могут подключиться по Wi-Fi.'
  $window.Width=$width
  $window.Height=$height
  $window.Show()
@@ -108,6 +114,18 @@ foreach($scale in 1.0,1.25,1.5){
   $png.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create($bitmap))
   $stream=[IO.File]::Create((Join-Path $visuals ('dashboard-'+[int]($scale*100)+'.png')))
   try{$png.Save($stream)}finally{$stream.Dispose()}
+  if($scale -eq 1.5){
+   $scroller.ScrollToBottom()
+   $window.UpdateLayout()
+   $bottom=[Windows.Media.Imaging.RenderTargetBitmap]::new(
+    [int][Math]::Ceiling($size.Width*$scale),[int][Math]::Ceiling($size.Height*$scale),
+    $dpi,$dpi,[Windows.Media.PixelFormats]::Pbgra32)
+   $bottom.Render($root)
+   $encoder=[Windows.Media.Imaging.PngBitmapEncoder]::new()
+   $encoder.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create($bottom))
+   $bottomFile=[IO.File]::Create((Join-Path $visuals 'dashboard-150-bottom.png'))
+   try{$encoder.Save($bottomFile)}finally{$bottomFile.Dispose()}
+  }
  }finally{$window.Close()}
 }
 Write-Host 'USD OPERATOR: WPF dashboard rendered at notebook viewports for 100%, 125%, 150%'

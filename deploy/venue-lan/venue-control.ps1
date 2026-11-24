@@ -10,12 +10,19 @@ param(
  [string]$PublicKeyFile='',
  [string]$StaffKeyFile='',
  [string]$TrustedFingerprint='',
+ [string]$Workspace='',
  [switch]$Operator,
  [switch]$Silent
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Root=$PSScriptRoot
+if($Workspace){
+ if($Action -notin @('export','online') -or ![IO.Path]::IsPathRooted($Workspace) -or !(Test-Path -LiteralPath (Join-Path $Workspace 'local-private/setup-state.json') -PathType Leaf)){
+  throw 'Рабочая папка архивного этапа недоступна.'
+ }
+ $Root=$Workspace
+}
 $PrivateDir=Join-Path $Root 'local-private'
 $StateFile=Join-Path $PrivateDir 'setup-state.json'
 $EnvFile=Join-Path $Root '.env'
@@ -54,6 +61,16 @@ function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
 }
 function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
  Invoke-Docker ((Get-VenueComposeArguments)+$Arguments) $Purpose
+}
+function Invoke-VenueJournalSql([string]$File,[string]$Purpose){
+ $sql=Get-Content -LiteralPath $File -Raw -Encoding UTF8
+ $prior=$ErrorActionPreference
+ try{
+  $ErrorActionPreference='Continue'
+  $sql | & docker @(Get-VenueComposeArguments) exec -T db psql -X -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue 2>&1 |
+   ForEach-Object {Write-Host ([string]$_)}
+ }finally{$ErrorActionPreference=$prior}
+ Assert-Exit $Purpose
 }
 function Assert-VenueCompose {
  $compose=[IO.File]::ReadAllText((Join-Path $Root 'compose.yaml'))
@@ -119,7 +136,7 @@ function Read-State {
  if(!(Test-Path -LiteralPath $StateFile)){return $null}
  $s=Get-Content -LiteralPath $StateFile -Raw -Encoding UTF8|ConvertFrom-Json
  if($s -and $s.PSObject.Properties.Name -contains 'demo' -and $s.demo -eq $true -and $Action -ne 'install'){
-  throw 'Старая пробная база больше не поддерживается. Запустите USD-Install.cmd для замены на реальный этап.'
+  throw 'Старая пробная база больше не поддерживается. Обратитесь к администратору USD, чтобы сохранить данные и подготовить рабочую установку.'
  }
  if(!$s -or $s.phase -notin $Phases -or
   $s.stageId -notmatch '^[0-9a-f-]{36}$' -or $s.fingerprint -notmatch '^[0-9a-f]{64}$'){
@@ -402,15 +419,24 @@ function New-InitialState {
   $keyValue=[IO.File]::ReadAllText($keyFile).Trim()
   if($keyValue -cnotmatch '^[A-Za-z0-9_-]{43}$'){throw 'Неверный файл ключа судей'}
   $privateAccess=Join-Path $PrivateDir 'venue-staff-access.key'
-  Write-VenueImmutableBootstrapFile $privateAccess $keyValue
-  $fileKey=$privateAccess
   $privateStage=Join-Path $PrivateDir 'signed-real-stage.json'
-  Write-VenueImmutableBootstrapFile $privateStage ([IO.File]::ReadAllText($file))
-  $file=$privateStage
-  # Do not depend on Downloads/USB after setup: pin the independently
-  # verified trust material to the same ACL-protected durable workspace.
   $privatePublicKey=Join-Path $PrivateDir 'venue-signing-public.pem'
-  Write-VenueImmutableBootstrapFile $privatePublicKey ([IO.File]::ReadAllText($key))
+  $rawStage=[IO.File]::ReadAllText($file)
+  $keyPem=[IO.File]::ReadAllText($key)
+  if($Operator -and (Test-Path -LiteralPath $privateStage -PathType Leaf) -and [IO.File]::ReadAllText($privateStage) -cne $rawStage){
+   $retained=[IO.File]::ReadAllText($privateStage)|ConvertFrom-Json
+   if($retained.snapshot.stageId -cne $stageId -or $retained.integrity.publicKeyFingerprint -cne $fingerprint){
+    throw 'Прерванная установка относится к другому этапу или ключу. Данные сохранены.'
+   }
+   $suffix=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+   $privateStage=Join-Path $PrivateDir ('signed-stage-'+$suffix+'.json')
+   $privateAccess=Join-Path $PrivateDir ('staff-access-'+$suffix+'.key')
+  }
+  Write-VenueImmutableBootstrapFile $privateStage $rawStage
+  Write-VenueImmutableBootstrapFile $privateAccess $keyValue
+  Write-VenueImmutableBootstrapFile $privatePublicKey $keyPem
+  $file=$privateStage
+  $fileKey=$privateAccess
   $key=$privatePublicKey
  if($stageId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'){
   throw 'Неверный UUID этапа'
@@ -532,6 +558,11 @@ function Install-Local {
  Set-VenueStep 'validate-compose'
  Invoke-Compose @('config','--quiet') 'Docker Compose validation'
  if($state.phase -eq 'READY'){
+  if($Operator){
+   Set-VenueStep 'start-local-database'
+   Start-VenueDatabase
+   if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап находится в архиве. Откройте ярлык с текущим этапом.'}
+  }
   if(-not (Update-LegacyVenueRegistration $state)){Update-ReadyVenueFrontend $state}
   Start-Local
   return
@@ -599,9 +630,7 @@ function Install-Local {
   Assert-Exit 'inspect journal after resumed import'
   $journalFile=$(if($installed -contains 'venue_private.operation_journal'){'upgrade-journal-links.sql'}else{'install-journal.sql'})
   if($journalFile -eq 'upgrade-journal-links.sql'){Repair-VenueCoverageIfNeeded}
-  Get-Content -LiteralPath (Join-Path $Root $journalFile) -Raw -Encoding UTF8 |
-   & docker @(Get-VenueComposeArguments) exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
-  Assert-Exit 'append-only journal'
+  Invoke-VenueJournalSql (Join-Path $Root $journalFile) 'append-only journal'
   Set-SetupPhase $state 'JOURNAL_READY'
  }
  if($state.phase -eq 'JOURNAL_READY'){
@@ -639,9 +668,7 @@ function Start-Local {
  Start-VenueDatabase
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для выгрузки используйте Экспорт в этой папке.'}
  Repair-VenueCoverageIfNeeded
- Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
-  & docker @(Get-VenueComposeArguments) exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
- Assert-Exit 'upgrade durable amplifier link journal'
+ Invoke-VenueJournalSql (Join-Path $Root 'upgrade-journal-links.sql') 'upgrade durable amplifier link journal'
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для запуска используйте текущий ярлык USD. Для его выгрузки нажмите Экспорт в этой папке.'}
  Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')
  Set-VenueStep 'start-local-services'
@@ -650,9 +677,6 @@ function Start-Local {
  Wait-VenueLanReady $state
  Save-Autostart
  Save-DesktopShortcuts
- try{Export-VenueCA}catch{
-  Write-Warning ('Локальный сервер запущен, но сертификат пока не выгружен: '+$_.Exception.Message+'. Нажмите «USD — Сертификат».')
- }
  if(-not $Silent -and -not $Operator){
   $url='https://'+$state.ip+'/login'
   Write-Host ('ОФЛАЙН USD: '+$url)
@@ -701,7 +725,7 @@ function Export-VenueReturn {
  $directory=Join-Path $PrivateDir 'return-output'
  New-Item -ItemType Directory -Path $directory -Force|Out-Null
  $volume=(Get-VenueProject)+'_venue_return_keys'
- $keyTool=Join-Path $Root 'ensure-return-keys.mjs'
+ $keyTool=Join-Path $PSScriptRoot 'ensure-return-keys.mjs'
  $keyMounts=@('--volume',($volume+':/app/venue-return-keys:rw'),
   '--volume',($directory+':/app/venue-return-output:rw'),
   '--volume',($keyTool+':/app/ensure-return-keys.mjs:ro'))
@@ -753,10 +777,10 @@ function Export-VenueReturn {
   $args=@(Get-VenueComposeArguments)+@('run','--rm','--no-deps','-T',
    '--volume',($volume+':/app/venue-return-keys:ro'),
    '--volume',($directory+':/app/venue-return-output:rw'),
-   '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
-   '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'),
-   '--volume',((Join-Path $Root 'venue-return-package.mjs')+':/app/venue-return-package.mjs:ro'),
-   '--volume',((Join-Path $Root 'export-venue-return.mjs')+':/app/export-venue-return.mjs:ro'),
+   '--volume',((Join-Path $PSScriptRoot 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
+   '--volume',((Join-Path $PSScriptRoot 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'),
+   '--volume',((Join-Path $PSScriptRoot 'venue-return-package.mjs')+':/app/venue-return-package.mjs:ro'),
+   '--volume',((Join-Path $PSScriptRoot 'export-venue-return.mjs')+':/app/export-venue-return.mjs:ro'),
    '--entrypoint','node','api','/app/export-venue-return.mjs',
    '/app/venue-return-keys/venue-return-private.pem',
    ('/app/venue-return-output/'+$filename))
@@ -840,6 +864,7 @@ function Restore-VenueApi {
 }
 function Return-Online {
  $state=Read-State
+ if(!($state -and $state.phase -eq 'READY')){throw 'Сначала завершите установку этапа. Отправка не выполнялась.'}
  if($state -and $state.phase -eq 'READY'){
   if($Silent){throw 'Синхронизация реального этапа требует нажатия администратора'}
   $frozen=$false
@@ -868,12 +893,12 @@ function Return-Online {
  Write-Host 'USD ONLINE. Synchronization ACKNOWLEDGED. Local backup preserved.'
  if(-not $Silent -and -not $Operator){Start-Process $OnlineUrl}
 }
-. (Join-Path $Root 'venue-season.ps1')
-. (Join-Path $Root 'venue-coverage.ps1')
-. (Join-Path $Root 'venue-directory.ps1')
-. (Join-Path $Root 'venue-ca.ps1')
-. (Join-Path $Root 'venue-update.ps1')
-. (Join-Path $Root 'venue-operator-status.ps1')
+. (Join-Path $PSScriptRoot 'venue-season.ps1')
+. (Join-Path $PSScriptRoot 'venue-coverage.ps1')
+. (Join-Path $PSScriptRoot 'venue-directory.ps1')
+. (Join-Path $PSScriptRoot 'venue-ca.ps1')
+. (Join-Path $PSScriptRoot 'venue-update.ps1')
+. (Join-Path $PSScriptRoot 'venue-operator-status.ps1')
 if($MyInvocation.InvocationName -eq '.'){return}
 if($Operator){[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)}
 $mutex=$null
@@ -886,7 +911,7 @@ try{
  $mutex=[Threading.Mutex]::new($false,'Local\USD-Venue-Operation')
  try{$ownsMutex=$mutex.WaitOne(0)}catch [Threading.AbandonedMutexException]{$ownsMutex=$true}
  if(!$ownsMutex){throw 'Другая операция USD уже выполняется. Дождитесь её завершения.'}
- if(-not $Silent){. (Join-Path $Root 'venue-dialogs.ps1')}
+ if(-not $Silent){. (Join-Path $PSScriptRoot 'venue-dialogs.ps1')}
  if($Action -eq 'install'){Install-Local}
  elseif($Action -eq 'offline'){Start-Local}
  elseif($Action -eq 'export'){Export-VenueReturn}

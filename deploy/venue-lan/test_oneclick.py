@@ -336,7 +336,7 @@ class VenueLauncherContracts(unittest.TestCase):
             self.assertNotIn("down -v",source,name)
         coverage=(ROOT/"venue-coverage.ps1").read_text(encoding="utf-8-sig")
         directory=(ROOT/"venue-directory.ps1").read_text(encoding="utf-8-sig")
-        self.assertLess(coverage.index("backup checksum differs"),coverage.index("Get-Content -LiteralPath $sql"))
+        self.assertLess(coverage.index("backup checksum differs"),coverage.index("Invoke-VenueJournalSql $sql"))
         self.assertLess(directory.index("backup checksum differs"),directory.index("'--apply-directory'"))
 
     def test_resume_accepts_only_the_original_installed_signed_receipt(self):
