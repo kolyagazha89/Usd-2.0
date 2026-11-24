@@ -74,8 +74,39 @@ export class AssistantService {
       };
     }
 
+    // Fully anchored reports bypass unreliable model classification.
+    const normalized=text.toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').replace(/[?!.]+$/,'').trim();
+    const report=/^(?:(?:дай |покажи |сформируй )?(?:отчет|сводку|статистику) (?:по |за )?(?:последнему|последний|последнем|прошедшему|прошедший|ближайшему|ближайший|этому|выбранному) этап(?:у|е)?|(?:сколько|скока) (?:(?:участников|регистраций)(?: зарегистрировано| зарегано)? (?:на|по) (?:последний|последнем|прошедший|прошедшем|ближайший|ближайшем|этом|выбранном) этап(?:е)?|(?:на|по) (?:последний|последнем|прошедший|прошедшем|ближайший|ближайшем|этом|выбранном) этап(?:е)? (?:зарегано|зарегистрировано(?: участников)?|участников|регистраций)))$/.test(normalized);
+    if(mode==='ask'&&report){
+      const selection=/последн|прошедш/.test(normalized)?'past':/ближайш/.test(normalized)?'upcoming':undefined;
+      try{
+        const {result}=await this.executeFunction('STAGE_READINESS',selection?{selection}:stageId?{stageId}:{},userId);
+        const participants=await this.prisma.registration.groupBy({
+          by:['participantId'],where:{stageId:result.stage.id,status:'ACTIVE'},
+        });
+        const c=result.counts;
+        return {success:true,action:null,source:'database',
+          data:{...result,counts:{...c,participants:participants.length}},
+          reply:'Этап «'+result.stage.name+'»'+(result.stage.date?' · '+new Date(result.stage.date).toLocaleDateString('ru-RU',{timeZone:'Asia/Yekaterinburg'}):'')+
+            '\nУникальных участников: '+participants.length+
+            '\nРегистраций: '+c.registrations+
+            '\nАктивных классов: '+result.stage.classes+
+            '\nИнспекции: допущено '+c.passedInspections+', отказов '+c.failedInspections+', ожидают '+c.pendingInspections+
+            '\nРезультатов: '+c.results+
+            '\nУчастники считаются без повторов; дополнительные номера могут увеличивать число регистраций.',
+          links:links([['Отчёт этапа','/admin/stage-report'],['Регистрации','/admin/registrations'],['Результаты','/admin/results']])};
+      }catch(error){
+        if(error instanceof NotFoundException)return {success:true,action:null,source:'guide',links:[],reply:'Подходящий этап не найден. Выбери этап в настройках диалога и спроси о нём.'};
+        throw error;
+      }
+    }
     const provider=process.env.USD_AI_PROVIDER?.trim().toLowerCase()||'openai';
-    if(provider==='ollama'||(provider==='openai'&&process.env.OPENAI_API_KEY?.trim())){
+    const directLocal=provider==='ollama'&&mode==='ask'&&new Set([
+      'что сейчас требует внимания','проверь готовность этапа','проверь качество данных',
+      'разбери последний импорт','как судье изменить класс и добавить bassrace',
+      'покажи состояние системы','сколько участников','сколько регистраций',
+    ]).has(normalized);
+    if(!directLocal&&(provider==='ollama'||(provider==='openai'&&process.env.OPENAI_API_KEY?.trim()))){
       try{
         const isLocal=provider==='ollama';
         const model=isLocal
@@ -108,7 +139,7 @@ export class AssistantService {
         };
       }
     }
-    if(provider!=='openai'){
+    if(provider!=='openai'&&!directLocal){
       return {success:true,action:null,source:'unavailable',links:[],
         reply:'Неизвестный провайдер USD AI. Проверь настройку USD_AI_PROVIDER на сервере.'};
     }
@@ -271,7 +302,12 @@ export class AssistantService {
       const include = { stageClasses: { where: { isActive: true }, select: { id: true } } };
       // Prefer a future/current stage, never an old completed stage by default.
       const upcoming = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const stage = stageId
+      const selection=body.selection;
+      const stage = selection==='past'
+        ? await this.prisma.stage.findFirst({where:{isDeleted:false,date:{lte:new Date()},status:{notIn:['DRAFT','CANCELLED']}},orderBy:[{date:'desc'},{createdAt:'desc'}],include})
+        : selection==='upcoming'
+        ? await this.prisma.stage.findFirst({where:{isDeleted:false,date:{gte:upcoming},status:{notIn:['DRAFT','CANCELLED','COMPLETED']}},orderBy:[{date:'asc'},{createdAt:'desc'}],include})
+        : stageId
         ? await this.prisma.stage.findUnique({ where: { id: stageId }, include })
         : await this.prisma.stage.findFirst({ where: { isDeleted: false, date: { gte: upcoming }, status: { not: 'CANCELLED' } }, orderBy: [{ date: 'asc' }], include })
           ?? await this.prisma.stage.findFirst({ where: { isDeleted: false }, orderBy: [{ date: 'desc' }], include });
@@ -300,7 +336,7 @@ export class AssistantService {
       if (pendingInspections) warnings.push('ожидают инспекции: ' + pendingInspections);
       result = {
         success: true,
-        stage: { id: stage.id, name: stage.name, status: stage.status, registrationOpen: stage.registrationOpen, classes: stage.stageClasses.length },
+        stage: { id: stage.id, name: stage.name, date: stage.date, status: stage.status, registrationOpen: stage.registrationOpen, classes: stage.stageClasses.length },
         counts: { registrations, inspections: passedInspections + failedInspections, passedInspections, failedInspections, pendingInspections, missingClasses, results },
         warnings, ready: warnings.length === 0,
       };
