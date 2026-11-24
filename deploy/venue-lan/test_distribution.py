@@ -45,7 +45,7 @@ class WindowsDistribution(unittest.TestCase):
         self.assertNotIn('<script', html)
         self.assertNotIn('src="http', html)
         self.assertIn('72 часа', html)
-        self.assertIn('не отправ', html.replace('а не отправ', 'не отправ'))
+        self.assertIn('не отправляйте файлы судей посторонним.', html.casefold())
         self.assertIn('Ctrl + P', html)
         self.assertIn('USD-Venue-CA.crt', html)
 
