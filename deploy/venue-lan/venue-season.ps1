@@ -96,7 +96,7 @@ function Initialize-VenueMediaVolume {
 function Get-VenueKitFiles {
  return @(
   'USD-Install.cmd','USD-Next-Stage.cmd','USD-Offline.cmd','USD-Online.cmd',
-  'USD-Export.cmd','USD-Certificate.cmd','USD-Participants.cmd','venue-control.ps1','venue-season.ps1','venue-ca.ps1','venue-update.ps1',
+  'USD-Export.cmd','USD-Certificate.cmd','USD-Participants.cmd','USD-Control.cmd','USD-Control.ps1','venue-control.ps1','venue-season.ps1','venue-ca.ps1','venue-update.ps1',
   'venue-dialogs.ps1','venue-firewall.ps1','venue-coverage.ps1','venue-directory.ps1','ensure-return-keys.mjs',
   'compose.yaml','Caddyfile','config/venue-config.js',
   'initdb/010-venue-api-role.sh','INSTRUCTION.html',
@@ -167,7 +167,7 @@ function Switch-ToNextStage {
   $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -cne [string]$old.fingerprint){
   throw 'Исходный этап или ключ были изменены. Ничего не изменено.'
  }
- $newFile=Select-VenueFile 'Новый подписанный этап из админки USD' 'Этап (*.json)|*.json'
+ $newFile=$(if($StageFile){$StageFile}else{Select-VenueFile 'Новый подписанный этап из админки USD' 'Этап (*.json)|*.json'})
  $signed=Get-Content -LiteralPath $newFile -Raw -Encoding UTF8 | ConvertFrom-Json
  $newId=[string]$signed.snapshot.stageId
  $null=Get-VenueProjectForStage $newId
@@ -202,7 +202,7 @@ function Switch-ToNextStage {
   Write-Host 'Резервный файл текущего этапа сохранён. Отправить его можно позже.'
   Invoke-Compose @('stop') 'pause shared server without deleting any data'
   Write-Host ('НОВАЯ ПАПКА: '+$workspace)
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $workspace 'venue-control.ps1') -Action install -StageFile $newFile | Out-Host
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $workspace 'venue-control.ps1') -Action install -StageFile $newFile -PublicKeyFile $PublicKeyFile -StaffKeyFile $StaffKeyFile -TrustedFingerprint $TrustedFingerprint | Out-Host
   Assert-Exit 'append next signed stage to shared database'
  }catch{
   # If the import committed, it is resumable from the new workspace; starting
