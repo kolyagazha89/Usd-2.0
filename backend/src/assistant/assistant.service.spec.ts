@@ -281,4 +281,29 @@ describe('USD assistant reliable operational chat', () => {
     expect(prisma.stage.findFirst).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+  it('reads the classes of the requested stage without inference',async()=>{
+    const {service,prisma}=makeService();
+    process.env.USD_AI_PROVIDER='ollama';
+    prisma.stageClass={findMany:jest.fn().mockResolvedValue([
+      {customName:'Limited 2.0',class:{direction:{name:'SPL'},code:'L20',name:'Limited',unit:'DB'}},
+    ])};
+    const mock=jest.spyOn(global,'fetch').mockRejectedValue(new Error('Ollama unavailable'));
+    const answer=await service.chat('Какие классы доступны на этапе?', 'admin');
+    expect(answer.source).toBe('database');
+    expect(answer.reply).toContain('Limited 2.0');
+    expect(mock).not.toHaveBeenCalled();
+  });
+  it('shows actual protocol leaders, explicitly distinguishes unpublished results',async()=>{
+    const {service,prisma}=makeService();
+    process.env.USD_AI_PROVIDER='ollama';
+    prisma.stage.findUnique.mockResolvedValue({id:'stage-1',name:'Тестовый этап',status:'COMPLETED',isDeleted:false,resultsPublishedAt:null});
+    prisma.result.findMany=jest.fn().mockResolvedValue([{place:1,value:151.2,unit:'DB',registration:{participantNumber:12,participant:{isPublic:true,lastName:'Иванов',firstName:'Иван'}},registrationClass:{class:{code:'L20',name:'Limited',direction:{name:'SPL'}}}}]);
+    const mock=jest.spyOn(global,'fetch').mockRejectedValue(new Error('Ollama unavailable'));
+    const answer=await service.chat('Покажи результаты последнего этапа','admin');
+    expect(answer.source).toBe('database');
+    expect(answer.reply).toContain('Иванов Иван');
+    expect(answer.reply).toContain('151.2');
+    expect(answer.reply).toMatch(/не опубликованы/);
+    expect(mock).not.toHaveBeenCalled();
+  });
 });
