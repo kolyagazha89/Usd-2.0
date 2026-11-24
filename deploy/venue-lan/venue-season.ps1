@@ -97,7 +97,7 @@ function Get-VenueKitFiles {
  return @(
   'USD-Install.cmd','USD-Next-Stage.cmd','USD-Offline.cmd','USD-Online.cmd',
   'USD-Export.cmd','USD-Certificate.cmd','USD-Participants.cmd','USD-Control.cmd','USD-Control.ps1','venue-control.ps1','venue-season.ps1','venue-ca.ps1','venue-update.ps1',
-  'venue-dialogs.ps1','venue-firewall.ps1','venue-coverage.ps1','venue-directory.ps1','ensure-return-keys.mjs',
+  'venue-operator.xaml','venue-operator-status.ps1','venue-https-probe.cs','venue-dialogs.ps1','venue-firewall.ps1','venue-coverage.ps1','venue-directory.ps1','venue-sync-http.ps1','ensure-return-keys.mjs',
   'compose.yaml','Caddyfile','config/venue-config.js',
   'initdb/010-venue-api-role.sh','INSTRUCTION.html',
   'import-stage.mjs','verify-stage-package.mjs','provision-rustfs.mjs',
@@ -107,15 +107,24 @@ function Get-VenueKitFiles {
   'preview-venue-reconciliation.mjs','preview-venue-reconciliation-cli.mjs'
  )
 }
-function New-VenueStageWorkspace([string]$StageId){
- $venueBase=Get-VenueHome
- $target=Join-Path (Join-Path $venueBase 'stage-workspaces') $StageId
+function Copy-VenueProgramFiles([string]$Source,[string]$TargetRoot){
  $files=@(Get-VenueKitFiles)
  foreach($file in $files){
-  if(!(Test-Path -LiteralPath (Join-Path $Root $file) -PathType Leaf)){
+  if(!(Test-Path -LiteralPath (Join-Path $Source $file) -PathType Leaf)){
    throw ('Обновите установщик: отсутствует '+$file)
   }
  }
+ foreach($relative in $files){
+  $destination=Join-Path $TargetRoot $relative
+  $dir=Split-Path -Path $destination -Parent
+  if(!(Test-Path -LiteralPath $dir)){New-Item -ItemType Directory -Path $dir -Force|Out-Null}
+  # NEVER copy .env, local-private, passwords or a previous stage database.
+  Copy-Item -LiteralPath (Join-Path $Source $relative) -Destination $destination -Force
+ }
+}
+function New-VenueStageWorkspace([string]$StageId){
+ $venueBase=Get-VenueHome
+ $target=Join-Path (Join-Path $venueBase 'stage-workspaces') $StageId
  if(Test-Path -LiteralPath $target){
   if(!(Test-Path -LiteralPath $target -PathType Container)){
    throw 'Папка нового этапа не является каталогом. Ничего не изменено.'
@@ -128,13 +137,7 @@ function New-VenueStageWorkspace([string]$StageId){
    }
   }
  }else{New-Item -ItemType Directory -Path $target -Force|Out-Null}
- foreach($relative in $files){
-  $destination=Join-Path $target $relative
-  $dir=Split-Path -Path $destination -Parent
-  if(!(Test-Path -LiteralPath $dir)){New-Item -ItemType Directory -Path $dir -Force|Out-Null}
-  # NEVER copy .env, local-private, passwords or a previous stage database.
-  Copy-Item -LiteralPath (Join-Path $Root $relative) -Destination $destination -Force
- }
+ Copy-VenueProgramFiles $Root $target
  $state=Read-State
  $projectStage=$(if($state.PSObject.Properties.Name -contains 'projectStageId'){[string]$state.projectStageId}else{[string]$state.stageId})
  $source=@{workspace=$Root;project=(Get-VenueProject);projectStageId=$projectStage}
@@ -187,33 +190,50 @@ function Switch-ToNextStage {
    throw 'Этап уже установлен. Повторный импорт запрещён.'
   }
  }
- # Prepare the workspace before pausing judges. No network sync gate:
- # a local encrypted snapshot and the original database both remain available.
- $workspace=New-VenueStageWorkspace $newId
+ Set-VenueStep 'check-stage-switch'
  Start-VenueDatabase
+ $priorLocated=Test-Path -LiteralPath (Join-Path $target 'local-private/setup-state.json') -PathType Leaf
+ if(-not(Test-IsActiveVenueStage $old.stageId)){
+  if($priorLocated -and (Test-IsActiveVenueStage $newId)){
+   # Refresh the program files before resuming an already committed import.
+   $workspace=New-VenueStageWorkspace $newId
+   Install-NextVenueWorkspace $workspace $newFile
+   return
+  }
+  throw 'Откройте текущий этап через ярлык USD. Исторические этапы доступны в архиве.'
+ }
+ $sql="SELECT count(*) FROM public.`"Stage`" WHERE id='$newId';"
+ $exists=@($sql | & docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue)
+ Assert-Exit 'detect an already installed stage'
+ if($exists.Count -ne 1 -or $exists[0] -cne '0'){throw 'Этап уже есть в локальной базе. Откройте архив этапов.'}
+ # A local encrypted snapshot and the original database both remain available.
+ $workspace=New-VenueStageWorkspace $newId
  Repair-VenueCoverageIfNeeded
- Get-Content -LiteralPath (Join-Path $Root 'upgrade-journal-links.sql') -Raw -Encoding UTF8 |
-  & docker @(Get-VenueComposeArguments) exec -T db psql -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
- Assert-Exit 'prepare per-stage journal'
- if(-not(Test-IsActiveVenueStage $old.stageId)){throw 'Запустите «Следующий этап» из текущей рабочей папки USD'}
+ Invoke-VenueJournalSql (Join-Path $Root 'upgrade-journal-links.sql') 'prepare per-stage journal'
  $wasRunning=Test-VenueJudgingRunning
  try{
   $archive=Export-VenueReturn -LeaveApiStopped -Automatic -LocalArchive
   Write-Host 'Резервный файл текущего этапа сохранён. Отправить его можно позже.'
   Invoke-Compose @('stop') 'pause shared server without deleting any data'
-  Write-Host ('НОВАЯ ПАПКА: '+$workspace)
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $workspace 'venue-control.ps1') -Action install -StageFile $newFile -PublicKeyFile $PublicKeyFile -StaffKeyFile $StaffKeyFile -TrustedFingerprint $TrustedFingerprint | Out-Host
-  Assert-Exit 'append next signed stage to shared database'
+  Install-NextVenueWorkspace $workspace $newFile
  }catch{
-  # If the import committed, it is resumable from the new workspace; starting
-  # an old API against that active stage is refused rather than mixing events.
   try{
    Start-VenueDatabase
    if((Test-IsActiveVenueStage $old.stageId) -and $wasRunning){Restore-VenueStack}
   }catch{Write-Host 'База сохранена.'}
-  Write-Host ('Для продолжения установки откройте USD-Install.cmd в '+$workspace)
   throw
  }
+}
+
+function Install-NextVenueWorkspace([string]$Workspace,[string]$File){
+ Set-VenueStep 'install-next-stage'
+ $previous=$LASTEXITCODE
+ $global:LASTEXITCODE=0
+ try{
+  & (Join-Path $Workspace 'venue-control.ps1') -Action install -StageFile $File -PublicKeyFile $PublicKeyFile -StaffKeyFile $StaffKeyFile -TrustedFingerprint $TrustedFingerprint -Operator:$Operator
+  Assert-Exit 'append next signed stage to shared database'
+ }finally{$global:LASTEXITCODE=$previous}
+ Write-Host ('USD VENUE WORKSPACE: '+$Workspace)
 }
 
 function Import-SharedVenueStage([object]$state,[hashtable]$cfg,[array]$mounts){
@@ -252,18 +272,24 @@ function Assert-NoOrphanedVenueStack([string]$Project){
  Assert-Exit 'inspect existing venue containers'
  $volumes=@(& docker volume ls --filter ('label=com.docker.compose.project='+$Project) --format '{{.Name}}')
  Assert-Exit 'inspect existing venue volumes'
+ $databases=@(& docker volume ls --filter 'label=com.docker.compose.volume=venue_db' --format '{{.Name}}')
+ Assert-Exit 'check all retained USD databases'
+ if(@($databases|Where-Object {$_ -match '^usd-venue(?:-[a-f0-9]{32})?_venue_db$'}).Count){
+  throw 'На ноутбуке уже есть база USD. Откройте существующий ярлык «USD — Офлайн-сервер» или прежнюю папку программы.'
+ }
  if($services.Count -gt 0 -or $volumes.Count -gt 0){
   throw 'USD уже установлен в другой папке. Не создавайте второй сервер на тех же Docker-томах. Обновите файлы программы в прежней папке, сохранив .env и local-private, затем запустите USD-Install.cmd.'
  }
 }
-# One-time replacement of an explicitly retired trial; no trial mode remains.
 
 function Get-VenueComposeArguments {
  return @('compose','--project-directory',$Root,'--env-file',$EnvFile,
   '-p',(Get-VenueProject),'-f',(Join-Path $Root 'compose.yaml'))
 }
 function Assert-VenueDatabaseVolume {
- $project=Get-VenueProject
+ Assert-VenueDatabaseVolumeForProject (Get-VenueProject)
+}
+function Assert-VenueDatabaseVolumeForProject([string]$Project){
  if($project -cnotmatch '^usd-venue-[0-9a-f]{32}$'){
   throw 'Невозможно подтвердить проект базы данных USD. Ничего не изменено.'
  }
@@ -330,20 +356,38 @@ function Assert-VenueDatabaseImportRole {
   default {throw 'DATABASE_ROLE_MISMATCH: роли локальной БД не совпадают с установкой USD. Импорт остановлен без изменения данных.'}
  }
 }
+function Start-VenueStageServices([object]$State){
+ if(-not(Test-IsActiveVenueStage $State.stageId)){throw 'В базе активен другой этап. Запуск остановлен.'}
+ Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')
+ Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never','db','rustfs') 'start existing storage for the current stage'
+ # The stopped API retains the previous stage in its container environment.
+ # Refresh only stage-bound services; keep running DB and storage containers.
+ Invoke-Compose @('up','-d','--no-build','--no-deps','--pull','never','--force-recreate','api','frontend','gateway') 'activate judging services for the imported stage'
+}
 function Wait-VenueLanReady([object]$State){
  if(!$State -or [string]$State.image -cnotmatch '^[a-f0-9]{40}$' -or
     [string]$State.stageId -cnotmatch '^[0-9a-f-]{36}$'){
   throw 'Невозможно подтвердить запуск подписанного этапа USD'
  }
  $apiRevision=Get-VenueRuntimeApiSha (Read-Env)
+ $caChecked=$false
+ $script:VenueApiProbeReason='Локальный API не отвечает.'
+ $reason=$script:VenueApiProbeReason
  for($attempt=0;$attempt -lt 40;$attempt++){
-  if((Test-VenueApiReady -ExpectedSha $apiRevision -ExpectedStage $State.stageId) -and
-     (Test-VenueGatewayReady $State.ip)){
-   return
+  if(!(Test-VenueApiReady -ExpectedSha $apiRevision -ExpectedStage $State.stageId)){
+   $reason=$script:VenueApiProbeReason
+  }elseif(!(Test-VenueGatewayReady $State.ip)){
+   $reason='API готов, но локальное LIVE-табло по HTTP не отвечает.'
+  }else{
+   if(!$caChecked){
+    try{Export-VenueCA;$caChecked=$true}catch{Write-Host ('USD VENUE TLS: '+$_.Exception.Message)}
+   }
+   if(Test-VenueHttpsReady $State.ip $State.stageId){return}
+   $reason=$script:VenueHttpsProbeReason
   }
   Start-Sleep -Seconds 2
  }
- throw 'Локальный API/HTTPS не подтвердил готовность этапа. Установка сохранена, повторите USD — Установка; база не удаляется.'
+ throw ($reason+' Установка сохранена. Нажмите «Продолжить установку».')
 }
 function Start-VenueDatabase {
  $state=Read-State
@@ -393,7 +437,8 @@ function Restore-VenueStack {
 function Update-ExpiredVenueSetupPackage([object]$State){
  if($Silent){throw 'Срок пакета истёк. Скачайте новый пакет этого этапа и его ключ судей (.key), затем откройте USD-Install.cmd.'}
  Write-Host 'Скачайте свежий пакет того же этапа и ключ судей (.key) из одной выгрузки админки USD.'
- $selected=Select-VenueFile 'Свежий подписанный пакет того же этапа' 'Файл этапа (*.json)|*.json'
+ if($Operator -and (!$StageFile -or !$StaffKeyFile)){throw 'Срок пакета истёк. Войдите в USD и нажмите «Продолжить установку».'}
+ $selected=if($StageFile){$StageFile}else{Select-VenueFile 'Свежий подписанный пакет того же этапа' 'Файл этапа (*.json)|*.json'}
  if((Get-Item -LiteralPath $selected).Length -gt (12MB+256KB)){throw 'Пакет этапа слишком большой'}
  $raw=[IO.File]::ReadAllText($selected)
  $payload=$raw|ConvertFrom-Json
@@ -404,7 +449,7 @@ function Update-ExpiredVenueSetupPackage([object]$State){
  if([string]$payload.snapshot.syncAuthorization.token -cnotmatch '^[A-Za-z0-9_-]{43}$'){
   throw 'Выберите новый пакет этапа для автоматической синхронизации.'
  }
- $selectedKey=Select-VenueFile 'Ключ судей из той же выгрузки' 'Ключ доступа (*.key)|*.key'
+ $selectedKey=if($StaffKeyFile){$StaffKeyFile}else{Select-VenueFile 'Ключ судей из той же выгрузки' 'Ключ доступа (*.key)|*.key'}
  if((Get-Item -LiteralPath $selectedKey).Length -gt 512){throw 'Файл ключа судей слишком большой'}
  $key=[IO.File]::ReadAllText($selectedKey).Trim()
  if($key -cnotmatch '^[A-Za-z0-9_-]{43}$'){throw 'Неверный формат ключа судей'}

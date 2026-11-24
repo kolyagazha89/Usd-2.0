@@ -24,7 +24,8 @@ export function postgresFullVenueAdapter(client){
    const actual=new Set(rows.map(r=>r.column_name));
    if((table!=='CarAmplifierComponent'&&!actual.has('id'))
     ||permitted.some(c=>c!=='id'&&!actual.has(c)))
-    throw Error('VENUE DB: schema incompatible with signed import: '+table);
+    throw Object.assign(Error('VENUE DB: schema incompatible with signed import: '+table),
+     {code:'RETURN_SCHEMA_MISMATCH'});
    schemaCache.set(table,actual);
   }
  }
@@ -64,8 +65,18 @@ export function postgresFullVenueAdapter(client){
      },
      async listReceipts(stageId){
       const {rows}=await client.query(
-       "SELECT action,metadata->>'eventHash' AS \"eventHash\",(metadata->>'sequence')::bigint AS sequence,metadata->>'baselineSha256' AS \"baselineSha256\",metadata->>'journalEndHash' AS \"journalEndHash\",metadata->>'resolutionHash' AS \"resolutionHash\" FROM \"AuditLog\" WHERE action='VENUE_FULL_EVENT_IMPORTED' AND metadata->>'stageId'=$1",[stageId]);
+       "SELECT action,\"entityId\",metadata->>'venueRegistrationId' AS \"venueRegistrationId\",metadata->>'eventHash' AS \"eventHash\",(metadata->>'sequence')::bigint AS sequence,metadata->>'baselineSha256' AS \"baselineSha256\",metadata->>'journalEndHash' AS \"journalEndHash\",metadata->>'resolutionHash' AS \"resolutionHash\" FROM \"AuditLog\" WHERE action='VENUE_FULL_EVENT_IMPORTED' AND metadata->>'stageId'=$1",[stageId]);
       return rows.map(r=>({...r,sequence:Number(r.sequence)}));
+     },
+     async findRegistrationForCar(stageId,carId){
+      const {rows}=await client.query(`SELECT to_jsonb(r) AS row,c."participantId" AS "carOwner",
+       (EXISTS(SELECT 1 FROM "RegistrationNumber" n WHERE n."registrationId"=r.id)
+        OR EXISTS(SELECT 1 FROM "RegistrationClass" rc WHERE rc."registrationId"=r.id)
+        OR EXISTS(SELECT 1 FROM "Inspection" i WHERE i."registrationId"=r.id)
+        OR EXISTS(SELECT 1 FROM "Result" res WHERE res."registrationId"=r.id)) AS "hasCompetitionData"
+       FROM "Registration" r JOIN "Car" c ON c.id=r."carId"
+       WHERE r."stageId"=$1 AND r."carId"=$2 FOR UPDATE OF r,c`,[stageId,carId]);
+      return rows[0]??null;
      },
      async getRow(table,id){
       if(table==='CarAmplifierComponent'){
@@ -121,7 +132,7 @@ export function postgresFullVenueAdapter(client){
      async auditOverride(item){
       const {stageId,eventHash,operator,table,recordId,reason,before,after}=item;
       if(!/^[a-f0-9]{64}$/.test(eventHash??'')||!TABLES.has(table)
-       ||!['OFFLINE_STAGE_PREVAILS','OFFLINE_STAGE_SLOT_REPLACED'].includes(reason))
+       ||!['OFFLINE_STAGE_PREVAILS','OFFLINE_STAGE_SLOT_REPLACED','OFFLINE_CANCELLED_REGISTRATION_REOPENED'].includes(reason))
        throw Error('VENUE DB: invalid stage override audit');
       // Store before and after in protected AuditLog as evidence. This does
       // not grant an ADMIN the ability to overwrite participant identity.
@@ -229,9 +240,9 @@ export function postgresFullVenueAdapter(client){
      },
      async receipt(event){
       const {stageId,eventHash,sequence,journalEndHash,
-       baselineSha256,entity,entityId,operator,operation,action,resolutionHash}=event;
+       baselineSha256,entity,entityId,operator,operation,action,resolutionHash,venueRegistrationId}=event;
       if(action!=='VENUE_FULL_EVENT_IMPORTED')throw Error('VENUE DB: unknown receipt');
-      const metadata={stageId,eventHash,sequence,journalEndHash,baselineSha256,operator,operation,resolutionHash};
+      const metadata={stageId,eventHash,sequence,journalEndHash,baselineSha256,operator,operation,resolutionHash,venueRegistrationId};
       await client.query(
        'INSERT INTO "AuditLog" (id,action,entity,"entityId",metadata,"createdAt") VALUES (gen_random_uuid(),$1,$2,$3,$4::jsonb,now())',
        [action,entity,entityId,JSON.stringify(metadata)]);

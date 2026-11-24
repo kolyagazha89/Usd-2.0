@@ -1,12 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {generateKeyPairSync,randomBytes} from 'node:crypto';
+import {createRequire} from 'node:module';
 import pg from 'pg';
 import {postgresFullVenueAdapter} from './venue-full-adapter.mjs';
 import {applyCompleteVenueJournal} from '../../deploy/venue-lan/full-return-apply.mjs';
-import {FULL_RETURN_COVERAGE_TABLES} from '../../deploy/venue-lan/venue-return-package.mjs';
+import {FULL_RETURN_COVERAGE_TABLES,encryptVenueReturn,makeVenueReturnSnapshot,signVenueReturnSnapshot} from '../../deploy/venue-lan/venue-return-package.mjs';
+import {derivedPassphrase,tokenHash} from './venue-sync/authority.mjs';
 
 const url=process.env.VENUE_CENTRAL_TEST_DATABASE_URL;
-if(!url||!url.includes('/usd_venue_ci'))throw Error('Only isolated usd_venue_ci PG18 permitted');
+if(!url||new URL(url).pathname!=='/usd_return_ci'||new URL(url).hostname!=='127.0.0.1')
+ throw Error('Only isolated usd_return_ci PG18 on loopback permitted');
 const client=new pg.Client({connectionString:url});
 const uid=n=>'c510f672-79f7-44eb-8173-'+n.toString(16).padStart(12,'0');
 const stage=uid(1),season=uid(2),direction=uid(3),cls=uid(4);
@@ -60,7 +64,7 @@ async function createFixtures(numberValue=42){
 }
 test.before(async()=>{
  await client.connect();
- assert.equal((await query('SELECT current_database() AS name')).rows[0].name,'usd_venue_ci');
+ assert.equal((await query('SELECT current_database() AS name')).rows[0].name,'usd_return_ci');
  // Prisma @updatedAt is managed by the application, not by PostgreSQL itself.
  // These isolated fixture inserts are made through raw SQL; supply its
  // ordinary application-side timestamp explicitly in the disposable test DB.
@@ -171,14 +175,80 @@ test('PG18: approved LINK transfers same signed registration, number, inspection
  }
 });
 
-test('PG18: full offline entrants, configs, number, inspection and result write atomically',async()=>{
+test('PG18 + actual Nest HTTP route: rejected requests roll back and a successful journal replays without duplicates',async()=>{
  const adapter=postgresFullVenueAdapter(client);
  const preview=await applyCompleteVenueJournal(changes,adapter,{...opts,apply:false});
  assert.equal(preview.readyEvents,9);
  assert.equal(await read('Participant',participant),null);
- const outcome=await applyCompleteVenueJournal(changes,adapter,opts);
- assert.equal(outcome.appliedEvents,9);
- assert.equal(outcome.databaseSynchronized,true);
+
+ const require=createRequire(import.meta.url);
+ const {NestFactory}=require('@nestjs/core');
+ const {Module}=require('@nestjs/common');
+ const {StagesController}=require('../dist/stages/stages.controller.js');
+ const {StagesService}=require('../dist/stages/stages.service.js');
+ const {VenueAutoSyncService}=require('../dist/stages/venue-auto-sync.service.js');
+ const {VenueStageService}=require('../dist/stages/venue-stage.service.js');
+ const {VenueCertificateService}=require('../dist/stages/venue-certificate.service.js');
+ const {VenueReturnReviewService}=require('../dist/stages/venue-return-review.service.js');
+ const {PrismaService}=require('../dist/prisma/prisma.service.js');
+ process.env.DATABASE_URL=url;
+ class ReturnTestModule {}
+ Module({controllers:[StagesController],providers:[PrismaService,VenueAutoSyncService,VenueReturnReviewService,
+  ...[StagesService,VenueStageService,VenueCertificateService].map(provide=>({provide,useValue:{}})),
+ ]})(ReturnTestModule);
+ const app=await NestFactory.create(ReturnTestModule,{logger:false,abortOnError:false});
+ try{
+  await app.listen(0,'127.0.0.1');
+  const prisma=app.get(PrismaService);
+  const token=randomBytes(32).toString('base64url');
+  const {privateKey,publicKey}=generateKeyPairSync('ed25519');
+  const publicKeyPem=publicKey.export({type:'spki',format:'pem'}).toString();
+  const privatePem=privateKey.export({type:'pkcs8',format:'pem'}).toString();
+  const grant=await prisma.venueSyncAuthorization.create({data:{stageId:stage,
+   baselineSha256:opts.baselineSha256,tokenHash:tokenHash(token),expiresAt:new Date(Date.now()+3600000)}});
+  const submit=async({events=changes.events,authorization='Venue '+token,seal=true}={})=>{
+   const snapshot=makeVenueReturnSnapshot({...changes,events});
+   const envelope=seal?encryptVenueReturn(signVenueReturnSnapshot(snapshot,privatePem),derivedPassphrase(token)):{};
+   const response=await fetch(await app.getUrl()+'/stages/venue/sync',{method:'POST',
+    body:JSON.stringify({stageId:stage,publicKeyPem,envelope}),
+    headers:{'content-type':'application/json',authorization},signal:AbortSignal.timeout(20000)});
+   return {status:response.status,body:await response.json()};
+  };
+  assert.equal((await submit({authorization:'Bearer invalid'})).status,401);
+  assert.equal((await submit({seal:false})).status,400);
+  await query('UPDATE "Stage" SET "resultsPublishedAt"=now() WHERE id=$1',[stage]);
+  const published=await submit();
+  assert.equal(published.status,409);
+  assert.equal(published.body.code,'RESULTS_ALREADY_PUBLISHED');
+  await query('UPDATE "Stage" SET "resultsPublishedAt"=NULL WHERE id=$1',[stage]);
+
+  const missingOwner=structuredClone(changes.events);
+  missingOwner.find(e=>e.payload.table==='Registration').payload.after.carId=uid(191);
+  const missing=await submit({events:missingOwner});
+  assert.equal(missing.status,409);
+  assert.equal(missing.body.code,'RETURN_REFERENCE_MISSING');
+  assert.equal(await read('Car',car),null,'foreign-key error rolls back earlier signed writes');
+
+  await query('ALTER TABLE "CarConfiguration" RENAME COLUMN name TO ci_missing_column');
+  try{
+   const drifted=await submit();
+   assert.equal(drifted.status,503);
+   assert.equal(drifted.body.code,'RETURN_DB_SCHEMA');
+   assert.match(drifted.body.reference,/^[a-f0-9]{12}$/);
+   assert.equal(drifted.body.eventSequence,3);
+   assert.doesNotMatch(JSON.stringify(drifted.body),/ci_missing_column|CarConfiguration|\bINSERT\b/);
+   assert.equal(await read('Car',car),null,'schema error rolls back earlier signed writes');
+  }finally{await query('ALTER TABLE "CarConfiguration" RENAME COLUMN ci_missing_column TO name')}
+  assert.equal((await prisma.venueSyncAuthorization.findUniqueOrThrow({where:{id:grant.id}})).acceptedAt,null);
+
+  const accepted=await submit();
+  assert.equal(accepted.status,201,JSON.stringify(accepted.body));
+  assert.equal(accepted.body.databaseSynchronized,true);
+  assert.equal(accepted.body.derivedRankingsRebuilt,true);
+  assert.equal(accepted.body.journalEndHash,changes.journalEndHash);
+  assert.deepEqual(await submit(),accepted,'valid retry must return the same receipt');
+  assert.equal((await prisma.venueSyncAuthorization.findUniqueOrThrow({where:{id:grant.id}})).lastJournalHash,changes.journalEndHash);
+ }finally{await app.close()}
  assert.equal((await read('RegistrationNumber',number)).number,42);
  assert.equal((await read('Result',result)).value,154.12);
  assert.equal((await query('SELECT count(*)::int AS n FROM "AuditLog" WHERE action=$1',
@@ -269,4 +339,50 @@ test('PG18: new LAN result UUID replaces provisional central score in the same r
  assert.equal(audit[0].metadata.before.id,result);
  assert.equal(audit[0].metadata.reason,'OFFLINE_STAGE_SLOT_REPLACED');
  assert.equal((await applyCompleteVenueJournal(journal,postgresFullVenueAdapter(client),opts)).alreadyApplied,true);
+});
+
+test('PG18: a legacy offline package reopens the cancelled central car entry and keeps one registration on replay',async()=>{
+ const secondStage=uid(500),retained=uid(501),signedRegistration=uid(502);
+ const otherProfile=uid(510),otherCar=uid(511);
+ await query('INSERT INTO "Stage"(id,"seasonId","stageNumber",name,date,status) VALUES ($1,$2,2,$3,$4,$5)',
+  [secondStage,season,'New independent stage','2026-11-21','PUBLISHED']);
+ await query('INSERT INTO "StageClass"(id,"stageId","classId") VALUES ($1,$2,$3)',[uid(503),secondStage,cls]);
+ await query('INSERT INTO "Registration"(id,"stageId","participantId","carId","configurationVersionId","configurationSnapshot","participantNumber",source,status,"privacyConsentVersion") VALUES ($1,$2,$3,$4,$5,$6::jsonb,-1,$7,$8,$9)',
+  [retained,secondStage,participant,car,version,'{"onlineHistory":true}','PRE_REGISTRATION','CANCELLED','privacy-preserved']);
+ const initial=changes.events.map(e=>e.payload.after);
+ const draft=[
+  ['Registration',{...initial[4],id:signedRegistration,stageId:secondStage}],
+  ['RegistrationNumber',{...initial[5],id:uid(504),stageId:secondStage,registrationId:signedRegistration}],
+  ['RegistrationClass',{...initial[6],id:uid(505),registrationId:signedRegistration,numberId:uid(504)}],
+  ['Inspection',{...initial[7],id:uid(506),registrationId:signedRegistration}],
+  ['Result',{...initial[8],id:uid(507),registrationId:signedRegistration,registrationClassId:uid(505)}],
+  ['Participant',{...initial[0],id:otherProfile,firstName:'Гость',lastName:'НоваяЗапись'}],
+  ['Car',{...initial[1],id:otherCar,participantId:otherProfile,registrationNumber:'А321АА181'}],
+ ];
+ const events=draft.map(([table,after],index)=>({sequence:index+1,previousHash:hash(index),hash:hash(index+1),
+  payload:{sequence:index+1,stageId:secondStage,table,recordId:after.id,operation:'INSERT',
+   before:null,after,recordedAt:'2026-11-21T12:00:00.000Z'}}));
+ const journal={...changes,stageId:secondStage,events,eventCount:events.length,journalEndHash:events.at(-1).hash};
+ const options={...opts,stageId:secondStage};
+ const adapter=postgresFullVenueAdapter(client);
+ await query('UPDATE "Registration" SET status=\'ACTIVE\' WHERE id=$1',[retained]);
+ await assert.rejects(()=>applyCompleteVenueJournal(journal,adapter,options),{code:'CAR_REGISTRATION_EXISTS'});
+ assert.equal(await read('Car',otherCar),null);
+ await query('UPDATE "Registration" SET status=\'CANCELLED\' WHERE id=$1',[retained]);
+ assert.equal((await applyCompleteVenueJournal(journal,adapter,{...options,apply:false})).readyEvents,events.length);
+ assert.equal((await read('Registration',retained)).status,'CANCELLED');
+ assert.equal((await applyCompleteVenueJournal(journal,adapter,options)).appliedEvents,events.length);
+ assert.equal(await read('Registration',signedRegistration),null);
+ const saved=await read('Registration',retained);
+ assert.equal(saved.status,'ACTIVE');
+ assert.equal(saved.participantNumber,42);
+ assert.equal(saved.privacyConsentVersion,'privacy-preserved');
+ assert.deepEqual(saved.configurationSnapshot,{onlineHistory:true});
+ assert.equal((await read('RegistrationNumber',uid(504))).registrationId,retained);
+ assert.equal((await read('Inspection',uid(506))).registrationId,retained);
+ assert.equal((await read('Result',uid(507))).registrationId,retained);
+ assert.equal((await read('Car',otherCar)).participantId,otherProfile);
+ assert.equal((await query('SELECT count(*)::int AS n FROM "AuditLog" WHERE "entityId"=$1 AND metadata->>\'reason\'=$2',
+  [retained,'OFFLINE_CANCELLED_REGISTRATION_REOPENED'])).rows[0].n,1);
+ assert.equal((await applyCompleteVenueJournal(journal,adapter,options)).alreadyApplied,true);
 });

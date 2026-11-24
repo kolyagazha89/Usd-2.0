@@ -78,8 +78,8 @@ function Import-VenueParticipantDirectory {
   else{$env:DATABASE_URL=$originalDb}
   if($null -eq $originalPass){Remove-Item Env:\VENUE_DB_PASSWORD -ErrorAction SilentlyContinue}
   else{$env:VENUE_DB_PASSWORD=$originalPass}
-  $null=& docker @(Get-VenueComposeArguments) exec -T db rm -f $dump 2>$null
+  try{Invoke-Compose @('exec','-T','db','rm','-f',$dump) 'remove temporary database dump'}catch{Write-Warning 'В контейнере осталась временная копия базы.'}
   if($paused){Restore-VenueApi}
  }
- Show-VenueMessage 'Все профили и автомобили из подписанного справочника загружены. ID сохранены, результаты и регистрации не изменены.'
+ if(!$Operator){Show-VenueMessage 'Все профили и автомобили из подписанного справочника загружены. ID сохранены, результаты и регистрации не изменены.'}
 }

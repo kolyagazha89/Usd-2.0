@@ -16,7 +16,7 @@ test('no online switch until signed ACK includes exact journal hash and derived 
  assert.match(ctl,/SyncResult\.journalEndHash -ne \$Bundle\.journalEndHash/);
  assert.match(ctl,/SyncResult\.derivedRankingsRebuilt -ne \$true/);
  assert.match(section,/Restore-VenueApi/);
- assert.match(ctl,/function Replace-LegacyDemo/);
+ assert.doesNotMatch(ctl,/'down','--volumes'/);
 });
 test('signed grant is protected on Windows and central secrets never copied to venue',async()=>{
  const ctl=await read('venue-control.ps1');

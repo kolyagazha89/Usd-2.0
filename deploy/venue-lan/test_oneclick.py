@@ -82,18 +82,12 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertNotIn("operator1",source)
         self.assertNotIn("judge-01",source)
 
-    def test_legacy_trial_install_is_destroyed_only_with_explicit_confirmation(self):
+    def test_legacy_trial_install_is_preserved(self):
         source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')
-        self.assertIn("function Replace-LegacyDemo",source)
-        replace=source[source.index("function Replace-LegacyDemo"):source.index("function New-InitialState")]
-        self.assertIn("Confirm-VenueAction",replace)
-        self.assertIn("Read-Env",replace)
-        self.assertIn("VENUE_STAGE_ID",replace)
-        self.assertIn("Invoke-Compose @('down','--volumes')",replace)
-        self.assertIn("Remove-Item -LiteralPath $EnvFile",replace)
-        self.assertNotIn("usd-home",replace)
+        self.assertNotIn("Replace-LegacyDemo", source)
+        self.assertNotIn("'down','--volumes'", source)
         installer=source[source.index('function Install-Local'):]
-        self.assertLess(installer.index('Replace-LegacyDemo $state'),installer.index('$state=New-InitialState'))
+        self.assertLess(installer.index('Найдена старая пробная база USD'),installer.index('$state=New-InitialState'))
 
     def test_operator_sees_exact_install_step_and_native_timeout_cause(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8-sig")
@@ -101,7 +95,6 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("USD VENUE STEP:",source)
         self.assertIn("step='+$script:VenueStep",source)
         self.assertIn("Set-VenueStep 'check-docker'",source)
-        self.assertIn("Set-VenueStep 'remove-confirmed-old-demo'",source)
         self.assertIn("Set-VenueStep 'download-images'",source)
         self.assertIn("Set-VenueStep 'configure-firewall'",source)
         self.assertIn("Set-VenueStep 'start-lan-services'",source)
@@ -133,7 +126,6 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn("function Read-VenueDockerLabels",control)
         self.assertIn("{{json .Config.Labels}}",control)
         self.assertIn("Read-VenueDockerLabels 'image' $ref",control)
-        self.assertIn("Read-VenueDockerLabels 'container'",control)
         self.assertIn("Read-VenueDockerLabels 'container'",season)
 
     def test_operator_can_retry_local_ca_export_without_touching_docker_volumes(self):
@@ -237,7 +229,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('Export-VenueReturn',section)
         self.assertIn("$state.phase -eq 'READY'",section)
         self.assertLess(section.index('Export-VenueReturn'),section.index('Remove-Autostart'))
-        self.assertLess(section.index('Export-VenueReturn'),section.index("Invoke-Compose @('stop')"))
+        self.assertLess(section.index('Export-VenueReturn'),section.index("Invoke-Compose @('stop','api','frontend','gateway','rustfs')"))
         self.assertIn('if($Silent)',section)
         self.assertIn('ACKNOWLEDGED',section)
 
@@ -249,14 +241,14 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('[switch]$LeaveApiStopped',export)
         self.assertIn('ps --status running -q api',export)
         self.assertIn("Invoke-Compose @('stop','api')",export)
-        self.assertIn("Invoke-Compose @('up','-d','--no-build','--pull','never','api')",export)
+        self.assertIn('Restore-VenueApi',export)
         self.assertLess(export.index("Invoke-Compose @('stop','api')"), export.index("'/app/export-venue-return.mjs'"))
         self.assertIn('finally{',export)
         self.assertIn('$apiWasRunning',export)
         online=source[end:source.index('if($MyInvocation.InvocationName',end)]
         self.assertIn('Export-VenueReturn -LeaveApiStopped',online)
         self.assertNotIn("Invoke-Compose @('stop','api')",online)
-        self.assertIn("Invoke-Compose @('stop')",online)
+        self.assertIn("Invoke-Compose @('stop','api','frontend','gateway','rustfs')",online)
 
     def test_back_online_never_automatically_imports_or_deletes_offline_data(self):
         source=(ROOT/"venue-control.ps1").read_text(encoding="utf-8")
@@ -344,7 +336,7 @@ class VenueLauncherContracts(unittest.TestCase):
             self.assertNotIn("down -v",source,name)
         coverage=(ROOT/"venue-coverage.ps1").read_text(encoding="utf-8-sig")
         directory=(ROOT/"venue-directory.ps1").read_text(encoding="utf-8-sig")
-        self.assertLess(coverage.index("backup checksum differs"),coverage.index("Get-Content -LiteralPath $sql"))
+        self.assertLess(coverage.index("backup checksum differs"),coverage.index("Invoke-VenueJournalSql $sql"))
         self.assertLess(directory.index("backup checksum differs"),directory.index("'--apply-directory'"))
 
     def test_resume_accepts_only_the_original_installed_signed_receipt(self):

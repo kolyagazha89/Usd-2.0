@@ -121,8 +121,9 @@ export class StagesController {
   @Post('venue/:id/staff-export')
   @Header('Cache-Control', 'private, no-store, max-age=0')
   @Header('Pragma', 'no-cache')
-  exportVenueStageWithStaff(@Param('id') id:string,@Req() request:AuthenticatedRequest){
-    return this.venueStageService.exportStage(id,request,true);
+  exportVenueStageWithStaff(@Param('id') id:string,@Req() request:AuthenticatedRequest,
+    @Body() options?:{includeCancelled?:boolean}){
+    return this.venueStageService.exportStage(id,request,true,options?.includeCancelled===true);
   }
 
   @Roles('ADMIN')

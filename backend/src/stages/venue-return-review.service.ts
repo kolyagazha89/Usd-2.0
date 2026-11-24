@@ -76,7 +76,8 @@ export class VenueReturnReviewService {
   if(found.journalContentHash!==journalContentHash)
    throw new ConflictException('Подписанный пакет отличается от проверенного');
   if(found.status!=='APPROVED'&&found.status!=='APPLIED')
-   throw new ConflictException('MANUAL_REVIEW: решение администратора ещё не принято. Заявка '+found.id);
+   throw new ConflictException({code:'RETURN_REVIEW_PENDING',reviewId:found.id,
+    message:'Заявка ожидает решения в разделе «Офлайн-сервер».'});
   const decisions=found.decisions;
   if(!Array.isArray(decisions)||!decisions.length||!uuid.test(found.reviewedByUserId??''))
    throw new ConflictException('MANUAL_REVIEW: неполное решение администратора');

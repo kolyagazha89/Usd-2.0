@@ -68,24 +68,6 @@ if(args[0]==="ps"){
     $parsed['VENUE_SIGNING_KEY_FINGERPRINT'] -cne $fingerprint -or $parsed['VENUE_BIND_IP'] -cne $ip){
   throw 'Synthetic old DEMO .env fixture did not round-trip'
  }
- $initial=[IO.File]::ReadAllText($EnvFile)
- $script:declinedRemoval=$false
- function Confirm-VenueAction {
-  $script:declinedRemoval=$true
-  return $false
- }
- try{
-  Replace-LegacyDemo $state
-  throw 'Unexpectedly removed legacy USD without confirmation'
- }catch{
-  if(!$script:declinedRemoval -or $_.Exception.Message -notmatch 'Очистка отменена'){
-   throw ('Legacy cleanup failed before user confirmation: '+$_.Exception.Message)
-  }
- }
- if([IO.File]::ReadAllText($EnvFile) -cne $initial){
-  throw 'Legacy cleanup mutated existing configuration before permission'
- }
- Write-Host 'USD WINDOWS LABELS: legacy operator reaches consent without Docker format failure'
  function Read-State {return $script:MockState}
  $script:MockState=[pscustomobject]@{stageId=$stage;project='usd-venue';projectStageId=$stage}
  $env:USD_TEST_GATEWAY_PROJECT='usd-venue'
