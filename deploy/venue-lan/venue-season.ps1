@@ -222,6 +222,7 @@ function Switch-ToNextStage {
 }
 
 function Install-NextVenueWorkspace([string]$Workspace,[string]$File){
+ Set-VenueStep 'install-next-stage'
  $previous=$LASTEXITCODE
  $global:LASTEXITCODE=0
  try{

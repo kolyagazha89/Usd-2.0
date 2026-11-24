@@ -373,6 +373,12 @@ function Get-UsdFailure([string]$Reason,[int]$Http=0){
  if($Http -ge 500 -or $Reason -match '(?i)\b(500|502|503|504)\b'){
   return @('Сайт USD временно не смог обработать запрос.', 'Подождите несколько минут и повторите. При повторной ошибке отправьте подробности администратору USD.')
  }
+ if($Reason -eq 'CONFIGURATION_VERSION_CONFLICT'){
+  return @('Одна из версий оборудования уже привязана к другой конфигурации.','Локальные данные сохранены. Передайте технические подробности администратору USD для сверки.')
+ }
+ if($Reason -match '^DATABASE_(P[0-9]{4}_)?CONFIGURATIONS$'){
+  return @('Локальная база отклонила импорт оборудования этапа.','Откройте технические подробности и передайте код администратору USD. Смена этапа не завершилась.')
+ }
  if($Reason -match '(?i)том|volume|база уже|база USD|БД|postgres|локальная база'){
   return @($Reason,'Откройте существующую установку USD. Если ошибка повторится, передайте подробности администратору USD.')
  }
@@ -425,6 +431,8 @@ function Start-UsdChild([string]$Action,[string]$Root,$Bundle=$null){
   $arguments+=' -StageFile "'+$Bundle.StageFile+'" -PublicKeyFile "'+$Bundle.PublicKeyFile+'" -StaffKeyFile "'+$Bundle.StaffKeyFile+'" -TrustedFingerprint '+$Bundle.Fingerprint
  }
  $proc=Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList $arguments -WorkingDirectory $Root -PassThru -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err
+ # Keep a process handle so Windows PowerShell can read its exit code after exit.
+ try{[void]$proc.Handle}catch{}
  return [pscustomobject]@{Process=$proc;Output=$out;Errors=$err;Root=$Root;Started=[DateTime]::UtcNow}
 }
 function Get-UsdLog($Job,[int]$Tail=100){
@@ -525,6 +533,7 @@ $script:StepLabels=@{
  'start-lan-services'='Запускаем админку и LIVE-табло'
  'authorize-staff'='Настраиваем вход судей'
  'check-stage-switch'='Проверяем текущий и следующий этапы'
+ 'install-next-stage'='Готовим следующий этап'
  'start-local-database'='Проверяем сохранённую локальную базу'
  'start-local-services'='Запускаем админку и LIVE-табло'
  'verify-first-lan-readiness'='Проверяем API и защищённый вход'
@@ -551,7 +560,9 @@ $script:StatusLabels=@{
 
 function Format-UsdLog([object[]]$Lines){
  # Keep opaque auth values and connection strings out of copied diagnostics.
- $safe=($Lines -join [Environment]::NewLine) -replace '(?i)(Bearer|Venue|UsdSync!1-)\s*[A-Za-z0-9_.-]{40,}','$1 [скрыто]'
+ $safe=(($Lines|Where-Object {$_ -cne 'System.Management.Automation.RemoteException'}) -join [Environment]::NewLine)
+ $safe=$safe -replace '(?i)\b(Bearer|Venue)\s+[A-Za-z0-9_.-]{40,}','$1 [скрыто]'
+ $safe=$safe -replace '(?i)(UsdSync!1-)[A-Za-z0-9_.-]{40,}','$1[скрыто]'
  return ($safe -replace '(?i)postgres(?:ql)?://\S+','[адрес базы скрыт]')
 }
 function Complete-UsdWorker {
@@ -613,6 +624,7 @@ function Complete-UsdWorker {
   }
   return
  }
+ $job.Process.WaitForExit()
  $code=$job.Process.ExitCode
  $job.Process.Dispose()
  $script:Worker=$null
@@ -645,8 +657,12 @@ function Complete-UsdWorker {
   }
  }else{
   $reasons=@($lines|Where-Object {$_ -match '^USD VENUE ERROR: '})
-  $reason=if($reasons.Count){$reasons[0].Substring('USD VENUE ERROR: '.Length)}else{($lines|Select-Object -Last 4) -join ' '}
-  Show-UsdOperationFailure $request $reason (Format-UsdLog (@('Код завершения: '+$code)+$lines))
+  $refused=@($lines|Where-Object {$_ -cmatch '^USD VENUE IMPORT REFUSED: (CONFIGURATION_VERSION_CONFLICT|DATABASE_(P[0-9]{4}_)?CONFIGURATIONS)$'})
+  $reason=if($refused.Count){$refused[-1].Substring('USD VENUE IMPORT REFUSED: '.Length)}
+   elseif($reasons.Count){$reasons[0].Substring('USD VENUE ERROR: '.Length)}
+   else{($lines|Select-Object -Last 4) -join ' '}
+  $exitText=if($null -eq $code){'Код завершения процесса не получен'}else{'Код завершения: '+$code}
+  Show-UsdOperationFailure $request $reason (Format-UsdLog (@($exitText)+$lines))
  }
  $script:NextProbe=[DateTime]::MinValue
  Update-UsdDashboard

@@ -63,6 +63,22 @@ try{
  try{Connect-UsdAdmin $credentials|Out-Null}
  catch{if($_.Exception.Message -notmatch 'ADMIN'){throw};$rejected=$true}
  if(!$rejected){throw 'Non-ADMIN downloaded a stage'}
+ $containerLine='Container usd-venue-5b0db23352114a83848cf104fc5052cd-api-1 Stopping'
+ $secret='s'*43
+ $details=Format-UsdLog @($containerLine,('Authorization: Venue '+$secret),'System.Management.Automation.RemoteException')
+ if(!$details.Contains($containerLine) -or $details.Contains($secret) -or $details.Contains('RemoteException')){
+  throw 'Operator diagnostics masked container names, leaked a token or retained error noise'
+ }
+ [IO.File]::WriteAllText((Join-Path $temp 'venue-control.ps1'),"Write-Output 'USD VENUE IMPORT REFUSED: CONFIGURATION_VERSION_CONFLICT'; exit 17")
+ $testJob=Start-UsdChild 'next' $temp
+ try{
+  if(!$testJob.Process.WaitForExit(10000) -or $testJob.Process.ExitCode -ne 17){
+   throw 'Windows stage worker must retain its nonzero exit code'
+  }
+  if((Get-UsdLog $testJob) -notcontains 'USD VENUE IMPORT REFUSED: CONFIGURATION_VERSION_CONFLICT'){
+   throw 'Windows stage worker lost the specific import reason'
+  }
+ }finally{$testJob.Process.Dispose()}
  Write-Host 'USD OPERATOR: signed JSON, ADMIN guard and protected files passed'
 }finally{
  $script:Root=$originalRoot
