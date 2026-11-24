@@ -67,14 +67,14 @@ function Get-UsdStageName($State){
  return 'Название этапа недоступно'
 }
 function Get-UsdHome {
- $home=[string](Get-UsdProperty $script:State 'home')
- if($home -and (Test-Path -LiteralPath $home -PathType Container)){return $home}
+ $venueRoot=[string](Get-UsdProperty $script:State 'home')
+ if($venueRoot -and (Test-Path -LiteralPath $venueRoot -PathType Container)){return $venueRoot}
  return $script:LaunchRoot
 }
 function Get-LocalWorkspaces {
- $home=Get-UsdHome
- $roots=@($home,$script:Root,$script:LaunchRoot)
- $folder=Join-Path $home 'stage-workspaces'
+ $venueRoot=Get-UsdHome
+ $roots=@($venueRoot,$script:Root,$script:LaunchRoot)
+ $folder=Join-Path $venueRoot 'stage-workspaces'
  if(Test-Path -LiteralPath $folder -PathType Container){
   $roots+=@(Get-ChildItem -LiteralPath $folder -Directory | Where-Object {$_.Name -cmatch $script:StagePattern} | ForEach-Object {$_.FullName})
  }
