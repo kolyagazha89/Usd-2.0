@@ -398,12 +398,14 @@ try{
       });
       if(width<=760){
        const geometry=await measure();
+       assert.ok(geometry.messageHeight>=Math.min(350,960*0.35),'chat must use a substantial part of mobile screen '+JSON.stringify(geometry));
+       assert.ok(await page.locator('.assistant-page > .admin-page-guide').count()===0,'duplicate help is removed');
        assert.ok(geometry.fieldWidth>=160,'assistant input must remain wide '+JSON.stringify(geometry));
        assert.ok(geometry.buttonWidth>=44&&geometry.buttonWidth<=56&&geometry.buttonHeight>=44,'compact touch target '+JSON.stringify(geometry));
        assert.ok(geometry.fieldRight<=geometry.buttonLeft&&geometry.fieldBottom<=geometry.chatBottom+1&&geometry.buttonBottom<=geometry.chatBottom+1,'composer cannot overlap or be clipped '+JSON.stringify(geometry));
        assert.ok(geometry.messageHeight>=100&&geometry.font>=16&&geometry.scroll<=geometry.viewport+1,'usable mobile messages and iOS input '+JSON.stringify(geometry));
       }
-      await input.fill('Скока на последний этап зарегано?');
+      await input.fill('Ну, как дела по последнему этапу?');
       await send.click();
       await page.getByText('Уникальных участников: 2',{exact:false}).waitFor();
       assert.equal(await page.locator('.assistant-chat-suggestions').count(),0,'quick suggestions disappear after sending');
