@@ -11,7 +11,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 PREFIXES = ("docs/", "backend/src/", "frontend/src/", "deploy/venue-lan/", "deploy/home-pc/")
 EXT = {".md", ".ts", ".tsx", ".css", ".prisma", ".mjs", ".ps1", ".sh", ".yaml", ".yml", ".html", ".js"}
-LIMIT = 300_000
+LIMIT = 500_000
 MAX_CORPUS = 23_000_000
 
 def allowed(name):
