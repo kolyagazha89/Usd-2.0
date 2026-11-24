@@ -83,5 +83,5 @@ function Import-VenueParticipantDirectory {
   try{Invoke-Compose @('exec','-T','db','rm','-f',$dump) 'remove temporary database dump'}catch{Write-Warning 'В контейнере осталась временная копия базы.'}
   if($paused){Restore-VenueApi}
  }
- if(!$Operator){Show-VenueMessage 'Все профили и автомобили из подписанного справочника загружены. ID сохранены, результаты и регистрации не изменены.'}
+ if(!$Operator -and !$PrepareRoster){Show-VenueMessage 'Все профили и автомобили из подписанного справочника загружены. ID сохранены, результаты и регистрации не изменены.'}
 }

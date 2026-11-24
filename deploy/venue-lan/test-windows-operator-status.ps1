@@ -17,6 +17,8 @@ try{
  $script:activeId=$stage
  $script:journal='0'*64
  $script:servedStage=$stage
+ $script:addressPresent=$true
+ $script:profileCategory='Private'
  function Read-State {return $script:state}
  function Read-Env {return @{VENUE_STAGE_ID=$stage;VENUE_BIND_IP='192.168.20.10';VENUE_IMAGE_TAG=('a'*40)}}
  function Test-DockerReady {return $script:dockerReady}
@@ -25,6 +27,14 @@ try{
  function Get-VenueComposeArguments {return @('compose')}
  function Test-VenueApiReady {return $true}
  function Test-VenueGatewayReady {return $true}
+ function Get-NetIPAddress {
+  param([string]$AddressFamily,[string]$ErrorAction)
+  if($script:addressPresent){[pscustomobject]@{IPAddress='192.168.20.10';InterfaceIndex=18;AddressState='Preferred'}}
+ }
+ function Get-NetConnectionProfile {
+  param([int]$InterfaceIndex,[string]$ErrorAction)
+  if($script:profileCategory){[pscustomobject]@{NetworkCategory=$script:profileCategory}}
+ }
  function docker {
   $global:LASTEXITCODE=0
   $command=$args -join ' '
@@ -64,6 +74,17 @@ try{
  Assert-Mode 'working'
  $status=Get-VenueOperatorStatus
  if($status.registrations -ne 11 -or $status.participants -ne 32){throw 'DB counts were not surfaced'}
+ $script:profileCategory='Public'
+ Assert-Mode 'attention'
+ $status=Get-VenueOperatorStatus
+ if($status.running -or $status.reason -notmatch 'Частная'){throw 'Public Wi-Fi must explain why judges cannot connect'}
+ $script:profileCategory='Private'
+ $script:addressPresent=$false
+ Assert-Mode 'attention'
+ $status=Get-VenueOperatorStatus
+ if($status.running -or $status.reason -notmatch '192\.168\.20\.10'){throw 'Missing IP must identify the expected router address'}
+ $script:addressPresent=$true
+ Assert-Mode 'working'
  $script:servedStage=$other
  Assert-Mode 'attention'
  $script:servedStage=$stage
