@@ -8,6 +8,7 @@ import {USD_KNOWLEDGE_OVERVIEW} from './usd-knowledge';
 import {usdExpertRead} from './usd-expert-readers';
 import {searchUsdDocuments} from './usd-document-search';
 import {loadProjectCorpus,searchProjectCorpus,readProjectCorpus} from './usd-project-research';
+import {queryUsdResearchData} from './usd-research-data';
 import {askUsdLocalExpert,checkUsdLocalModel} from './usd-local-gateway';
 import type {UsdAssistantMode} from './usd-design-mode';
 
@@ -238,6 +239,8 @@ export class AssistantService {
         severity:issue.severity,code:issue.code,message:issue.message,
       }))};
     }
+    if(name==='usd_query_data')return queryUsdResearchData(this.prisma,args);
+    if((name==='usd_project_search'||name==='usd_project_read')&&process.env.USD_AI_PROVIDER?.trim().toLowerCase()!=='ollama')return {error:'Исходный код доступен только локальной модели USD.'};
     if(name==='usd_project_search')return searchProjectCorpus(loadProjectCorpus(),typeof args.query==='string'?args.query:'');
     if(name==='usd_project_read')return readProjectCorpus(loadProjectCorpus(),typeof args.path==='string'?args.path:'',typeof args.startLine==='number'?args.startLine:1,typeof args.lineCount==='number'?args.lineCount:40);
     if(name==='usd_project_docs')return searchUsdDocuments(typeof args.query==='string'?args.query.slice(0,180):'',typeof args.document==='string'?args.document:'all');
