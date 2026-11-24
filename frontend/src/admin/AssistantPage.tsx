@@ -133,7 +133,7 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
        {entry.source&&<div className="assistant-source">{entry.source==='database'?<CheckCircle2 size={13}/>:<MessageCircle size={13}/>} {entry.source==='ai'&&entry.mode==='design'?'AI · анализ предложения':entry.source==='ai'&&entry.toolsUsed?.length?'AI · данные USD':sourceName(entry.source)}</div>}
        <div className="assistant-message-text">{entry.text}</div>
        {entry.links?.length?<div className="assistant-answer-links">
-        {entry.links.filter(link=>/^\/admin\/[a-z0-9-/]+$/i.test(link.href)).map(link=><button type="button" key={link.href} className="assistant-answer-link" onClick={()=>go(link.href)}>{link.label}<ArrowUpRight size={13} aria-hidden="true"/></button>)}
+        {entry.links.filter(link=>/^\/admin\/[a-z0-9-/]+$/i.test(link.href)||/^\/admin\/stage-report\?stageId=[a-z0-9-]{1,80}$/i.test(link.href)).map(link=><button type="button" key={link.href} className="assistant-answer-link" onClick={()=>go(link.href)}>{link.label}<ArrowUpRight size={13} aria-hidden="true"/></button>)}
        </div>:null}
       </div>
      </div>)}
