@@ -91,10 +91,10 @@ export class AssistantService {
             '\nУникальных участников: '+participants.length+
             '\nРегистраций: '+c.registrations+
             '\nАктивных классов: '+result.stage.classes+
-            '\nИнспекции: допущено '+c.passedInspections+', отказов '+c.failedInspections+', ожидают '+c.pendingInspections+
+            '\nРегистрации по инспекции: допущено '+c.passedInspections+', отказов '+c.failedInspections+', ожидают '+c.pendingInspections+
             '\nРезультатов: '+c.results+
-            '\nУчастники считаются без повторов; дополнительные номера могут увеличивать число регистраций.',
-          links:links([['Отчёт этапа','/admin/stage-report'],['Регистрации','/admin/registrations'],['Результаты','/admin/results']])};
+            '\nУчастники считаются без повторов. Регистрация и стартовый номер — разные показатели.',
+          links:links([['Отчёт этапа','/admin/stage-report?stageId='+encodeURIComponent(result.stage.id)],['Регистрации','/admin/registrations'],['Результаты','/admin/results']])};
       }catch(error){
         if(error instanceof NotFoundException)return {success:true,action:null,source:'guide',links:[],reply:'Подходящий этап не найден. Выбери этап в настройках диалога и спроси о нём.'};
         throw error;
