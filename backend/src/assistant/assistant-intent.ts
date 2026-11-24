@@ -40,9 +40,8 @@ export function normalizeAssistantHistory(value: unknown): AssistantHistoryItem[
 
 export type StageQuestion={selection?:'past'|'upcoming';kind:'report'|'classes'|'results'};
 
-/** Deliberately recognise complete read-only questions, not isolated keywords.
- * Additional unknown clauses, named stages and write instructions are not
- * silently interpreted as a report about the latest stage. */
+/** Recognise complete read-only questions, not isolated keywords. Unknown
+ * clauses, named stages and write instructions are not silently reinterpreted. */
 export function normalizeOperationalQuestion(message:string):string{
  return message.toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim()
   .replace(/^(?:(?:ну|бро|ии|ассистент|usd|юсд|пожалуйста|подскажи|скажи|расскажи|а)[,\s:]+)+/,'')
@@ -56,7 +55,8 @@ const registered='(?:зарегано|зарегалось|зарегистри�
 const reportPatterns=[
  '^(?:(?:дай|покажи|сформируй|сделай|выведи) )?(?:отчет|сводку|статистику|информацию) '+stageContext+'$',
  '^(?:(?:как дела|как там дела|что там|че там|че|что|как обстоят дела|какая ситуация|какие новости|какой статус|какие итоги|как все) (?:по|с|на|у) '+stage+'|как (?:прошел|проходит|готовится) '+stage+'|'+stage+' (?:как прошел|как дела|готов ли|готовность)|проверь (?:готовность )?'+stageContext+')$',
- '^(?:когда|где)(?: будет| пройдет| состоится| прошел)? '+stage+'+'(?: '+registered+')?|'+registered+'(?: '+counts+')?) '+stageContext+'|'+stageContext+' (?:'+counts+'|'+registered+'(?: '+counts+')?)|'+counts+' '+stageContext+' '+registered+')$',
+ '^(?:когда|где)(?: будет| пройдет| состоится| прошел)? '+stage+'$',
+ '^(?:сколько|скока) (?:(?:'+counts+'(?: '+registered+')?|'+registered+'(?: '+counts+')?) '+stageContext+'|'+stageContext+' (?:'+counts+'|'+registered+'(?: '+counts+')?)|'+counts+' '+stageContext+' '+registered+')$',
 ].map(pattern=>new RegExp(pattern));
 function stageSelection(text:string):StageQuestion['selection']{
  if(/последн|прошедш|предыдущ|прошл/.test(text))return 'past';
@@ -71,34 +71,7 @@ export function classifyStageQuestion(message:string,history?:unknown):StageQues
  if(new RegExp('^(?:какие|какие есть|список|покажи) классы(?: доступны| подключены| есть)? '+stageContext+'$').test(text)){
   return {kind:'classes',selection:stageSelection(text)};
  }
- if(new RegExp('^(?:покажи |дай )?(?:результаты|итоги|победителей|протокол) '+stageContext+'$').test(text)){
-  return {kind:'results',selection:stageSelection(text)};
- }
- // Inherit context only from the immediately previous user question, never a
- // model-generated claim or a caller-supplied system message.
- if(new RegExp('^(?:сколько|скока) (?:'+counts+'(?: '+registered+')?|'+registered+')$').test(text)){
-  const last=normalizeAssistantHistory(history).filter(item=>item.role==='user').slice(-1)[0];
-  const prior=last?classifyStageQuestion(last.content):null;
-  if(prior)return {kind:'report',selection:prior.selection};
- }
- return null;
-}
-,
- '^(?:сколько|скока) (?:(?:'+counts+'(?: '+registered+')?|'+registered+'(?: '+counts+')?) '+stageContext+'|'+stageContext+' (?:'+counts+'|'+registered+'(?: '+counts+')?)|'+counts+' '+stageContext+' '+registered+')$',
-].map(pattern=>new RegExp(pattern));
-function stageSelection(text:string):StageQuestion['selection']{
- if(/последн|прошедш|предыдущ|прошл/.test(text))return 'past';
- if(/ближайш|следующ|предстоящ/.test(text))return 'upcoming';
- return undefined;
-}
-export function classifyStageQuestion(message:string,history?:unknown):StageQuestion|null{
- const text=normalizeOperationalQuestion(message);
- if(text.length>220)return null;
- if(reportPatterns.some(pattern=>pattern.test(text)))return {kind:'report',selection:stageSelection(text)};
- if(new RegExp('^(?:какие|какие есть|список|покажи) классы(?: доступны| подключены| есть)? '+stageContext+'$').test(text)){
-  return {kind:'classes',selection:stageSelection(text)};
- }
- if(new RegExp('^(?:покажи |дай )?(?:результаты|итоги|победителей|протокол) '+stageContext+'$').test(text)){
+ if(new RegExp('^(?:(?:покажи |дай )?(?:результаты|итоги|победителей|протокол) '+stageContext+'|кто (?:выиграл|победил) '+stageContext+')$').test(text)){
   return {kind:'results',selection:stageSelection(text)};
  }
  // Inherit context only from the immediately previous user question, never a
