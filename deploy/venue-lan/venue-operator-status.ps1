@@ -28,14 +28,6 @@ function Get-VenueOperatorStatus {
   if(!$state){return $result}
   if($state.phase -ne 'READY'){$result.mode='preparing';return $result}
   $result.mode='attention'
-  if(!$result.docker){
-   $result.reason='Запустите Docker Desktop и дождитесь его готовности.'
-   return $result
-  }
-  $cfg=Read-Env
-  if($cfg['VENUE_STAGE_ID'] -cne $state.stageId -or $cfg['VENUE_BIND_IP'] -cne $state.ip){throw 'Файлы локального этапа не совпадают с настройками сервера.'}
-  Assert-VenueDatabaseVolume
-  Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')
   $signed=Get-Content -LiteralPath $state.package -Raw -Encoding UTF8 | ConvertFrom-Json
   $result.expiredSync=([DateTimeOffset]$signed.snapshot.syncAuthorization.expiresAt) -le [DateTimeOffset]::UtcNow
   $acks=@(Get-ChildItem -LiteralPath $PrivateDir -Filter 'sync-ack-*.json' -File | Sort-Object LastWriteTimeUtc -Descending)
@@ -45,6 +37,14 @@ function Get-VenueOperatorStatus {
     if(!$result.syncedAt){$result.syncedAt=[string]$ack.at}
    }
   }
+  if(!$result.docker){
+   $result.reason='Запустите Docker Desktop и дождитесь его готовности.'
+   return $result
+  }
+  $cfg=Read-Env
+  if($cfg['VENUE_STAGE_ID'] -cne $state.stageId -or $cfg['VENUE_BIND_IP'] -cne $state.ip){throw 'Файлы локального этапа не совпадают с настройками сервера.'}
+  Assert-VenueDatabaseVolume
+  Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')
   $ErrorActionPreference='Continue'
   $compose=Get-VenueComposeArguments
   $db=@(& docker @compose ps --status running -q db 2>$null)

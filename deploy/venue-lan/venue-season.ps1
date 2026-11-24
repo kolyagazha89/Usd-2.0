@@ -267,6 +267,11 @@ function Assert-NoOrphanedVenueStack([string]$Project){
  Assert-Exit 'inspect existing venue containers'
  $volumes=@(& docker volume ls --filter ('label=com.docker.compose.project='+$Project) --format '{{.Name}}')
  Assert-Exit 'inspect existing venue volumes'
+ $databases=@(& docker volume ls --filter 'label=com.docker.compose.volume=venue_db' --format '{{.Name}}')
+ Assert-Exit 'check all retained USD databases'
+ if(@($databases|Where-Object {$_ -match '^usd-venue(?:-[a-f0-9]{32})?_venue_db$'}).Count){
+  throw 'На ноутбуке уже есть база USD. Откройте существующий ярлык «USD — Офлайн-сервер» или прежнюю папку программы.'
+ }
  if($services.Count -gt 0 -or $volumes.Count -gt 0){
   throw 'USD уже установлен в другой папке. Не создавайте второй сервер на тех же Docker-томах. Обновите файлы программы в прежней папке, сохранив .env и local-private, затем запустите USD-Install.cmd.'
  }

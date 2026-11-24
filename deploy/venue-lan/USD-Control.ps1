@@ -15,6 +15,7 @@ $script:State=$null
 $script:Form=$null
 $script:Pending=$null
 $script:Archive=@()
+$script:StageMetadata=@{}
 $script:LaunchRoot=$PSScriptRoot
 
 function Read-UsdJson([string]$File){
@@ -41,10 +42,21 @@ function Get-InstalledStage([string]$Root=$script:Root){
  if($null -eq $state){return}
  if([string]$state.stageId -cnotmatch $script:StagePattern){throw 'Файлы локального этапа повреждены.'}
  $snapshot=$null
- if(Get-UsdProperty $state 'package'){
-  $signed=Read-UsdJson ([string]$state.package)
-  if($signed -and $signed.snapshot.stageId -ceq $state.stageId -and
-     $signed.integrity.publicKeyFingerprint -ceq $state.fingerprint){$snapshot=$signed.snapshot}
+ if((Get-UsdProperty $state 'package') -and (Test-Path -LiteralPath $state.package -PathType Leaf)){
+  $file=Get-Item -LiteralPath $state.package
+  $cached=$script:StageMetadata[$file.FullName]
+  if(!$cached -or $cached.Length -ne $file.Length -or $cached.LastWrite -ne $file.LastWriteTimeUtc){
+   $signed=Read-UsdJson $file.FullName
+   $cached=[pscustomobject]@{
+    Length=$file.Length;LastWrite=$file.LastWriteTimeUtc
+    Id=[string]$signed.snapshot.stageId;Fingerprint=[string]$signed.integrity.publicKeyFingerprint
+    Stage=$signed.snapshot.stage
+    Registrations=@(Get-UsdProperty $signed.snapshot 'registrations'|Where-Object {$_}).Count
+    Participants=@(Get-UsdProperty $signed.snapshot 'participantDirectory'|Where-Object {$_}).Count
+   }
+   $script:StageMetadata[$file.FullName]=$cached
+  }
+  if($cached.Id -ceq $state.stageId -and $cached.Fingerprint -ceq $state.fingerprint){$snapshot=$cached}
  }
  $state|Add-Member -NotePropertyName Snapshot -NotePropertyValue $snapshot
  return $state
@@ -82,6 +94,7 @@ function Send-UsdApi([string]$Method,[string]$Path,[object]$Body=$null,[string]$
   throw 'Недопустимый запрос к онлайн-USD'
  }
  if(!$Token -and $Path -ne '/auth/login'){throw 'Требуется вход администратора'}
+ [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
  $handler=[System.Net.Http.HttpClientHandler]::new()
  $handler.AllowAutoRedirect=$false
  $handler.UseCookies=$false
@@ -702,8 +715,8 @@ function Update-UsdDashboard {
  $reg=Get-UsdProperty $local 'registrations'
  $people=Get-UsdProperty $local 'participants'
  if($state -and $state.Snapshot -and $null -eq $reg){
-  $reg=@(Get-UsdProperty $state.Snapshot 'registrations'|Where-Object {$_}).Count
-  $people=@(Get-UsdProperty $state.Snapshot 'participantDirectory'|Where-Object {$_}).Count
+  $reg=$state.Snapshot.Registrations
+  $people=$state.Snapshot.Participants
   $stats="В пакете: участников $people · регистраций $reg"
  }elseif($null -ne $reg){$stats="Участников $people · регистраций $reg"}else{$stats=''}
  $sync=Format-UsdDate (Get-UsdProperty $local 'syncedAt') 'dd.MM.yyyy, HH:mm'

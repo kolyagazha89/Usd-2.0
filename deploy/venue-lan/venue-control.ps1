@@ -395,17 +395,8 @@ function New-InitialState {
    if([string]$source.projectStageId -and $project -cne (Get-VenueProjectForStage $source.projectStageId)){
     throw 'Прежняя база не подтверждена. Подключение нового этапа остановлено.'
    }
-   if($Operator){Assert-VenueDatabaseVolumeForProject $project}
-  }else{
-   Assert-NoOrphanedVenueStack $project
-   if($Operator){
-    $existing=@(& docker volume ls --filter 'label=com.docker.compose.volume=venue_db' --format '{{.Name}}')
-    Assert-Exit 'check all retained USD databases'
-    if(@($existing|Where-Object {$_ -match '^usd-venue(?:-[a-f0-9]{32})?_venue_db$'}).Count){
-     throw 'На ноутбуке уже есть база USD. Откройте существующий ярлык «USD — Офлайн-сервер» или прежнюю папку программы.'
-    }
-   }
-  }
+   Assert-VenueDatabaseVolumeForProject $project
+  }else{Assert-NoOrphanedVenueStack $project}
   # trusted fingerprint verified by admin.
   $fingerprint=$(if($TrustedFingerprint){$TrustedFingerprint}elseif($reuseTrust){[string]$trustedSource.fingerprint}else{(Read-VenueFingerprint).Trim()})
   if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Нет независимого доверенного отпечатка Ed25519'}
@@ -582,6 +573,10 @@ function Install-Local {
   if(!($state.PSObject.Properties.Name -contains 'shared' -and $state.shared)){
    Set-VenueStep 'prepare-media-volume'
    Initialize-VenueMediaVolume
+  }
+  if($state.PSObject.Properties.Name -contains 'shared' -and $state.shared){
+   Assert-VenueDatabaseVolume
+   Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')
   }
   Set-VenueStep 'start-storage'
   Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never','db','rustfs') 'start storage'
@@ -900,7 +895,10 @@ function Return-Online {
 . (Join-Path $PSScriptRoot 'venue-update.ps1')
 . (Join-Path $PSScriptRoot 'venue-operator-status.ps1')
 if($MyInvocation.InvocationName -eq '.'){return}
-if($Operator){[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)}
+if($Operator){
+ [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
+ [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
+}
 $mutex=$null
 $ownsMutex=$false
 try{

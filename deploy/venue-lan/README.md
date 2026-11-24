@@ -61,27 +61,19 @@ fails. Validate the exact router, phones and Ubuntu sync before official use.
 
 ## Windows real-stage installation and repeatable season lifecycle
 
-Download the current operator ZIP from the authenticated USD admin, and prepare three
-files: centrally signed stage JSON, independent one-time staff unlock `.key`,
-and the public Ed25519 verification `.pem`. Confirm the signing fingerprint on
-the authenticated admin page. The installer no longer generates synthetic
-participants or test accounts; it refuses untrusted stages and outdated images.
+Download the Windows ZIP from the USD admin, extract it and open
+`USD-Control.cmd`. Sign in as ADMIN, select a published stage, and choose
+«Загрузить этап». The app downloads the signed snapshot, the public
+verification key and the separate staff unlock key over HTTPS. Login
+credentials and the access token live only in memory.
 
-If an older **test-only** Windows installation is already present:
-copy all files from the new ZIP **into the existing operator folder**, replacing
-program files while **retaining** `.env` and `local-private`. Run `USD-Install.cmd`.
-The installer checks that the existing state explicitly identifies a completed
-retired trial, verifies that Compose project `usd-venue` contains only its known
-containers and volumes, then requires a separate Windows confirmation before it
-destroys **only that retired local project**. It will never silently remove
-results from a signed real stage. Starting from a second folder while existing
-`usd-venue` volumes exist is refused.
+To update the app, close the window and copy the files from the ZIP into the
+existing shortcut's working folder. Keep `.env`, `local-private`, stage
+workspaces and all Docker volumes. Opening the shortcut picks up the new UI.
+«Установить или обновить сервер» checks the server version. Installation stops
+if it finds an older trial or another retained venue DB in the Docker project.
 
-Once the old trial is removed, `USD-Install.cmd` requires the three live-stage
-files and installs the signed event with existing online staff credentials. If
-operator data is uncertain or a return export exists, it **refuses cleanup**.
-
-For subsequent events use `USD-Next-Stage.cmd`. The installer retains the
+For subsequent events choose a different published stage and select «Загрузить этап». The installer retains the
 **same Compose project, PostgreSQL database, RustFS and Caddy CA**, archives the
 previous journal locally, and imports the newly signed stage in one transaction.
 No central ACK or WAN is required for switching a prepared stage with cached
