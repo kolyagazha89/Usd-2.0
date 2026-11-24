@@ -6,7 +6,7 @@ $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Net.Http
-[System.Windows.Forms.Application]::EnableVisualStyles()
+[System.System.Windows.Forms.Application]::EnableVisualStyles()
 $script:Root=$PSScriptRoot
 $script:ApiRoot='https://api.usd-russia.ru'
 $script:Worker=$null
@@ -16,7 +16,7 @@ $script:StageStatus=$null
 $script:Buttons=@()
 
 function Show-UsdError([string]$Message){
- [void][System.Windows.Forms.MessageBox]::Show($Message,'USD — Офлайн-сервер','OK','Warning')
+ [void][System.System.Windows.Forms.MessageBox]::Show($Message,'USD — Офлайн-сервер','OK','Warning')
 }
 function Get-InstalledStage {
  $file=Join-Path (Join-Path $script:Root 'local-private') 'setup-state.json'
@@ -27,7 +27,7 @@ function Get-InstalledStage {
  }
  return $state
 }
-function Send-UsdApi([string]$Method,[string]$Path,[object]$Body=$null,[string]$Token=''){
+function Send-UsdApi([string]$Method,[string]$Path,[object]$Body=$null,[string]$Token='',[switch]$Raw){
  # Fixed official TLS origin: no arbitrary URLs, proxies selected from data, or HTTP redirects.
  if($Path -cnotmatch '^/(auth/login|stages|stages/venue/setup|stages/venue/[0-9a-f-]{36}/staff-export)$' -or
     $Method -cnotin @('GET','POST') -or
@@ -64,7 +64,9 @@ function Send-UsdApi([string]$Method,[string]$Path,[object]$Body=$null,[string]$
    if($bufferStream.Length+$read -gt $maxSize){throw 'Пакет превысил лимит размера'}
    $bufferStream.Write($buffer,0,$read)
   }
-  return ([Text.Encoding]::UTF8.GetString($bufferStream.ToArray())|ConvertFrom-Json)
+  $responseText=[Text.Encoding]::UTF8.GetString($bufferStream.ToArray())
+  if($Raw){return $responseText}
+  return ($responseText|ConvertFrom-Json)
  }finally{
   if($null -ne $bufferStream){$bufferStream.Dispose()}
   if($null -ne $inputStream){$inputStream.Dispose()}
@@ -74,20 +76,20 @@ function Send-UsdApi([string]$Method,[string]$Path,[object]$Body=$null,[string]$
  }
 }
 function Get-AdminCredentials {
- $window=New-Object Windows.Forms.Form
+ $window=New-Object System.Windows.Forms.Form
  $window.Text='Авторизация ADMIN в USD'
- $window.Size=New-Object Drawing.Size(490,265)
+ $window.Size=New-Object System.Drawing.Size(490,265)
  $window.StartPosition='CenterParent';$window.FormBorderStyle='FixedDialog'
- $window.MaximizeBox=$false;$window.Font=New-Object Drawing.Font('Segoe UI',11)
- $label=New-Object Windows.Forms.Label
+ $window.MaximizeBox=$false;$window.Font=New-Object System.Drawing.Font('Segoe UI',11)
+ $label=New-Object System.Windows.Forms.Label
  $label.Text='Доступ к пакетам этапов имеет только ADMIN. Пароль не сохраняется.'
  $label.SetBounds(20,15,435,45)
- $email=New-Object Windows.Forms.TextBox;$email.SetBounds(20,70,435,32)
- $password=New-Object Windows.Forms.TextBox;$password.SetBounds(20,111,435,32)
+ $email=New-Object System.Windows.Forms.TextBox;$email.SetBounds(20,70,435,32)
+ $password=New-Object System.Windows.Forms.TextBox;$password.SetBounds(20,111,435,32)
  $password.UseSystemPasswordChar=$true
- $ok=New-Object Windows.Forms.Button;$ok.Text='Войти';$ok.SetBounds(200,164,120,38)
+ $ok=New-Object System.Windows.Forms.Button;$ok.Text='Войти';$ok.SetBounds(200,164,120,38)
  $ok.DialogResult='OK'
- $cancel=New-Object Windows.Forms.Button;$cancel.Text='Отмена';$cancel.SetBounds(335,164,120,38)
+ $cancel=New-Object System.Windows.Forms.Button;$cancel.Text='Отмена';$cancel.SetBounds(335,164,120,38)
  $cancel.DialogResult='Cancel'
  $window.Controls.AddRange(@($label,$email,$password,$ok,$cancel))
  $window.AcceptButton=$ok;$window.CancelButton=$cancel
@@ -104,21 +106,21 @@ function Select-Stage([object[]]$Stages,[string]$ExcludeId=''){
   [string]$_.id -cmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
  }|Sort-Object date)
  if(!$available.Count){throw 'Нет опубликованных этапов для загрузки'}
- $window=New-Object Windows.Forms.Form
- $window.Text='Этап USD';$window.Size=New-Object Drawing.Size(570,205)
+ $window=New-Object System.Windows.Forms.Form
+ $window.Text='Этап USD';$window.Size=New-Object System.Drawing.Size(570,205)
  $window.StartPosition='CenterParent';$window.FormBorderStyle='FixedDialog'
- $window.MaximizeBox=$false;$window.Font=New-Object Drawing.Font('Segoe UI',11)
- $label=New-Object Windows.Forms.Label;$label.Text='Какой этап загрузить на ноутбук?'
+ $window.MaximizeBox=$false;$window.Font=New-Object System.Drawing.Font('Segoe UI',11)
+ $label=New-Object System.Windows.Forms.Label;$label.Text='Какой этап загрузить на ноутбук?'
  $label.SetBounds(20,14,520,32)
- $options=New-Object Windows.Forms.ComboBox;$options.SetBounds(20,52,520,32)
+ $options=New-Object System.Windows.Forms.ComboBox;$options.SetBounds(20,52,520,32)
  $options.DropDownStyle='DropDownList';$options.DisplayMember='Name'
  foreach($stage in $available){
   $day=try{([DateTime]$stage.date).ToString('dd.MM.yyyy')}catch{'Дата не указана'}
   [void]$options.Items.Add([pscustomobject]@{Id=[string]$stage.id;Name=([string]$stage.name+' · '+$day+' · '+[string]$stage.city)})
  }
  $options.SelectedIndex=0
- $ok=New-Object Windows.Forms.Button;$ok.Text='Скачать';$ok.SetBounds(275,104,120,35);$ok.DialogResult='OK'
- $cancel=New-Object Windows.Forms.Button;$cancel.Text='Отмена';$cancel.SetBounds(410,104,130,35);$cancel.DialogResult='Cancel'
+ $ok=New-Object System.Windows.Forms.Button;$ok.Text='Скачать';$ok.SetBounds(275,104,120,35);$ok.DialogResult='OK'
+ $cancel=New-Object System.Windows.Forms.Button;$cancel.Text='Отмена';$cancel.SetBounds(410,104,130,35);$cancel.DialogResult='Cancel'
  $window.Controls.AddRange(@($label,$options,$ok,$cancel))
  $window.AcceptButton=$ok;$window.CancelButton=$cancel
  try{
@@ -149,6 +151,34 @@ function Write-PrivateBundleFile([string]$Path,[string]$Value){
  [IO.File]::SetAccessControl($Path,$acl)
  [IO.File]::WriteAllText($Path,$Value,[Text.UTF8Encoding]::new($false))
 }
+# Preserve the exact JSON.stringify(snapshot) property order and ISO timestamps.
+# PowerShell ConvertFrom-Json/ConvertTo-Json can change signed dates and break Ed25519.
+function Extract-SignedJson([string]$Raw){
+ if($Raw -cnotmatch '^\s*\{\s*"signed"\s*:'){
+  throw 'Неверный формат ответа с подписанным этапом'
+ }
+ $colon=$Raw.IndexOf(':',$Raw.IndexOf('"signed"',[StringComparison]::Ordinal))
+ $start=$colon+1
+ while($start -lt $Raw.Length -and [char]::IsWhiteSpace($Raw[$start])){$start++}
+ if($start -ge $Raw.Length -or $Raw[$start] -cne '{'){throw 'Нет подписанного JSON'}
+ $depth=0;$quoted=$false;$escaped=$false
+ for($i=$start;$i -lt $Raw.Length;$i++){
+  $char=$Raw[$i]
+  if($quoted){
+   if($escaped){$escaped=$false}
+   elseif($char -ceq '\'){$escaped=$true}
+   elseif($char -ceq '"'){$quoted=$false}
+   continue
+  }
+  if($char -ceq '"'){$quoted=$true}
+  elseif($char -ceq '{'){$depth++}
+  elseif($char -ceq '}'){
+   $depth--
+   if($depth -eq 0){return $Raw.Substring($start,$i-$start+1)}
+  }
+ }
+ throw 'Подписанный JSON неполный'
+}
 function Get-OnlineStageBundle([string]$RequestedId='',[string]$ExcludeId=''){
  $credentials=Get-AdminCredentials
  $token=''
@@ -172,7 +202,9 @@ function Get-OnlineStageBundle([string]$RequestedId='',[string]$ExcludeId=''){
   }
   $published=@($stages|Where-Object {[string]$_.id -ceq $id -and $_.status -in @('PUBLISHED','COMPLETED')})
   if($published.Count -ne 1){throw 'Выбранный этап ещё не опубликован'}
-  $bundle=Send-UsdApi 'POST' ('/stages/venue/'+$id+'/staff-export') @{} $token
+  $rawBundle=Send-UsdApi 'POST' ('/stages/venue/'+$id+'/staff-export') @{} $token -Raw
+  $signedRaw=Extract-SignedJson $rawBundle
+  $bundle=$rawBundle|ConvertFrom-Json
   if([string]$bundle.signed.snapshot.stageId -cne $id -or
      [string]$bundle.signed.integrity.algorithm -cne 'Ed25519' -or
      [string]$bundle.signed.integrity.publicKeyFingerprint -cne [string]$setup.signing.fingerprint -or
@@ -190,7 +222,7 @@ function Get-OnlineStageBundle([string]$RequestedId='',[string]$ExcludeId=''){
   $json=Join-Path $folder 'stage.json'
   $pem=Join-Path $folder 'key.pem'
   $staff=Join-Path $folder 'staff.key'
-  Write-PrivateBundleFile $json (ConvertTo-Json -InputObject $bundle.signed -Depth 100 -Compress)
+  Write-PrivateBundleFile $json $signedRaw
   Write-PrivateBundleFile $pem ([string]$setup.signing.publicKeyPem)
   Write-PrivateBundleFile $staff ([string]$bundle.staffKey)
   return [pscustomobject]@{Id=$id;StageFile=$json;PublicKeyFile=$pem;StaffKeyFile=$staff;Fingerprint=[string]$setup.signing.fingerprint;Folder=$folder}
@@ -249,10 +281,10 @@ function Invoke-OperatorAction([string]$Action){
  }
 }
 function Add-OperatorButton([string]$Text,[string]$Action,[int]$X,[int]$Y,[int]$Width=229){
- $button=New-Object Windows.Forms.Button
+ $button=New-Object System.Windows.Forms.Button
  $button.Text=$Text;$button.Tag=$Action
  $button.SetBounds($X,$Y,$Width,45)
- $button.BackColor=[Drawing.Color]::FromArgb(236,238,241)
+ $button.BackColor=[System.Drawing.Color]::FromArgb(236,238,241)
  $button.FlatStyle='Flat'
  $button.Add_Click({Invoke-OperatorAction ([string]$this.Tag)})
  $script:Form.Controls.Add($button)
@@ -260,21 +292,21 @@ function Add-OperatorButton([string]$Text,[string]$Action,[int]$X,[int]$Y,[int]$
 }
 # Native regression tests can dot-source without displaying a form.
 if($MyInvocation.InvocationName -eq '.'){return}
-$script:Form=New-Object Windows.Forms.Form
+$script:Form=New-Object System.Windows.Forms.Form
 $script:Form.Text='USD — Офлайн-сервер'
-$script:Form.Size=New-Object Drawing.Size(548,562)
+$script:Form.Size=New-Object System.Drawing.Size(548,562)
 $script:Form.MinimumSize=$script:Form.Size
 $script:Form.MaximumSize=$script:Form.Size
 $script:Form.StartPosition='CenterScreen'
-$script:Form.Font=New-Object Drawing.Font('Segoe UI',11)
-$script:Form.BackColor=[Drawing.Color]::White
-$title=New-Object Windows.Forms.Label
+$script:Form.Font=New-Object System.Drawing.Font('Segoe UI',11)
+$script:Form.BackColor=[System.Drawing.Color]::White
+$title=New-Object System.Windows.Forms.Label
 $title.Text='USD  |  Управление этапом'
-$title.Font=New-Object Drawing.Font('Segoe UI',17,[Drawing.FontStyle]::Bold)
+$title.Font=New-Object System.Drawing.Font('Segoe UI',17,[System.Drawing.FontStyle]::Bold)
 $title.SetBounds(23,18,492,43)
-$script:StageStatus=New-Object Windows.Forms.Label
+$script:StageStatus=New-Object System.Windows.Forms.Label
 $script:StageStatus.SetBounds(24,63,490,55)
-$script:Status=New-Object Windows.Forms.Label
+$script:Status=New-Object System.Windows.Forms.Label
 $script:Status.Text='Готово к работе'
 $script:Status.SetBounds(24,466,484,52)
 $script:Form.Controls.AddRange(@($title,$script:StageStatus,$script:Status))
@@ -287,11 +319,11 @@ Add-OperatorButton 'Следующий этап' 'next' 270 254
 Add-OperatorButton 'Сертификат для судей' 'certificate' 24 315
 Add-OperatorButton 'Открыть LIVE' 'live' 270 315
 Add-OperatorButton 'Инструкция' 'help' 24 376 475
-$info=New-Object Windows.Forms.Label
+$info=New-Object System.Windows.Forms.Label
 $info.Text='Регистрации этого этапа не обновляются кнопкой «Профили». Новый этап загружается целиком.'
 $info.SetBounds(24,427,484,42)
 $script:Form.Controls.Add($info)
-$script:Timer=New-Object Windows.Forms.Timer
+$script:Timer=New-Object System.Windows.Forms.Timer
 $script:Timer.Interval=1000
 $script:Timer.Add_Tick({
  if($null -eq $script:Worker){return}
