@@ -33,6 +33,22 @@ foreach($body in @('<html>'+ $privateText +'</html>','{"code":"'+$privateText+'"
  $errorText=Get-VenueSyncHttpError 409 $body
  if(!$errorText.Contains('HTTP 409') -or $errorText.Contains($privateText)){throw 'Unknown server error was not sanitized'}
 }
+foreach($fixture in @(
+ @{Body=@{message='Центральная база недоступна'};Code='RETURN_DB_UNAVAILABLE';Text='подключиться к центральной базе'},
+ @{Body=@{message='Безопасный импорт не завершён; повторите попытку'};Code='RETURN_WRITE_FAILED';Text='запись журнала'},
+ @{Body=@{message='Неполная сверка журнала; локальные данные сохранены'};Code='RETURN_RECEIPT_MISMATCH';Text='всех операций'},
+ @{Body=@{message='База сохранена, пересчёт не подтверждён; повторите синхронизацию'};Code='RETURN_FINALIZE_FAILED';Text='пересчёт'},
+ @{Body=@{code='RETURN_ACK_FAILED';message=$privateText};Code='RETURN_ACK_FAILED';Text='результаты пересчитаны'}
+)){
+ $errorText=Get-VenueSyncHttpError 503 (ConvertTo-Json $fixture.Body -Compress)
+ if(!$errorText.Contains($fixture.Code) -or !$errorText.Contains('HTTP 503') -or
+  $errorText.Contains($privateText) -or (Get-UsdFailure $errorText)[0] -notmatch $fixture.Text){
+  throw ('Sync failure phase was not preserved: '+$fixture.Code)
+ }
+}
+$safeCode=Get-VenueSyncHttpError 503 '{"code":"RETURN_WRITE_FAILED","databaseCode":"23503"}'
+$unsafeCode=Get-VenueSyncHttpError 503 ('{"code":"RETURN_WRITE_FAILED","databaseCode":"'+$privateText+'"}')
+if(!$safeCode.Contains('23503') -or $unsafeCode.Contains($privateText)){throw 'Unsafe database diagnostics'}
 
 $Silent=$false
 function Read-State {return [pscustomobject]@{phase='READY';stageId=$review}}

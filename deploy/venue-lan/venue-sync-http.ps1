@@ -2,11 +2,28 @@
 
 function Get-VenueSyncHttpError([int]$Status,[string]$ResponseText){
  $failure='Сайт USD вернул HTTP '+$Status+'. Резервная копия сохранена.'
- if($Status -ne 409){return $failure}
+ if($Status -notin @(409,503)){return $failure}
  try{$response=$ResponseText|ConvertFrom-Json -ErrorAction Stop}catch{return $failure}
  if(!$response){return $failure}
  $code=if($response.PSObject.Properties['code']){[string]$response.code}else{''}
  $reviewId=if($response.PSObject.Properties['reviewId']){[string]$response.reviewId}else{''}
+ if($Status -eq 503){
+  $legacy=@{
+   'Центральная база недоступна'='RETURN_DB_UNAVAILABLE'
+   'Безопасный импорт не завершён; повторите попытку'='RETURN_WRITE_FAILED'
+   'Неполная сверка журнала; локальные данные сохранены'='RETURN_RECEIPT_MISMATCH'
+   'База сохранена, пересчёт не подтверждён; повторите синхронизацию'='RETURN_FINALIZE_FAILED'
+  }
+  if(!$code -and $response.PSObject.Properties['message'] -and $response.message -is [string]){
+   $code=$legacy[$response.message]
+  }
+  if($code -cin @('RETURN_DB_UNAVAILABLE','RETURN_WRITE_FAILED','RETURN_RECEIPT_MISMATCH','RETURN_FINALIZE_FAILED','RETURN_ACK_FAILED')){
+   $failure+=' ['+$code+']'
+   if($response.PSObject.Properties['databaseCode'] -and $response.databaseCode -is [string] -and
+      $response.databaseCode -cmatch '^[A-Z0-9]{5}$'){$failure+=' Код БД '+$response.databaseCode+'.'}
+  }
+  return $failure
+ }
  # Accept only known codes and an opaque review reference. The HTTP error body may contain private data.
  if(!$code -and $response.PSObject.Properties['message'] -and $response.message -is [string]){
   if($response.message -cmatch '^MANUAL_REVIEW:.*Заявка ([0-9a-f-]{36})(?:\.|$)'){
@@ -16,7 +33,7 @@ function Get-VenueSyncHttpError([int]$Status,[string]$ResponseText){
  if($code -ceq 'RESULTS_ALREADY_PUBLISHED'){
   return '[RESULTS_ALREADY_PUBLISHED] Результаты этапа уже опубликованы. Скройте результаты в карточке этапа на сайте и повторите отправку.'
  }
- if($code -cin @('STAGE_UNAVAILABLE','JOURNAL_MISMATCH','PARTICIPANT_NOT_ELIGIBLE','CLASS_UNAVAILABLE','RESULT_ADMISSION_MISSING','START_NUMBER_TAKEN','RETURN_REVIEW_PENDING','RETURN_REVIEW_REQUIRED','RETURN_CONFLICT')){
+ if($code -cin @('STAGE_UNAVAILABLE','JOURNAL_MISMATCH','PARTICIPANT_NOT_ELIGIBLE','CLASS_UNAVAILABLE','RESULT_ADMISSION_MISSING','START_NUMBER_TAKEN','CAR_REGISTRATION_EXISTS','RETURN_REVIEW_PENDING','RETURN_REVIEW_REQUIRED','RETURN_CONFLICT')){
   $failure+=' ['+$code+']'
   if($code -ceq 'RETURN_REVIEW_PENDING' -and $reviewId -cmatch '^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$'){
    $failure+=' Заявка '+$reviewId+'.'

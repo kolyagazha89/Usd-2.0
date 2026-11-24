@@ -361,7 +361,7 @@ function Confirm-UsdAction([string]$Title,[string]$Message){
 }
 
 function Get-UsdFailure([string]$Reason,[int]$Http=0){
- if($Reason -cmatch '\[(RESULTS_ALREADY_PUBLISHED|STAGE_UNAVAILABLE|JOURNAL_MISMATCH|PARTICIPANT_NOT_ELIGIBLE|CLASS_UNAVAILABLE|RESULT_ADMISSION_MISSING|START_NUMBER_TAKEN|RETURN_REVIEW_PENDING|RETURN_REVIEW_REQUIRED)\]'){
+ if($Reason -cmatch '\[(RESULTS_ALREADY_PUBLISHED|STAGE_UNAVAILABLE|JOURNAL_MISMATCH|PARTICIPANT_NOT_ELIGIBLE|CLASS_UNAVAILABLE|RESULT_ADMISSION_MISSING|START_NUMBER_TAKEN|CAR_REGISTRATION_EXISTS|RETURN_[A-Z_]+)\]'){
   switch($Matches[1]){
    'RESULTS_ALREADY_PUBLISHED' {return @('На сайте уже опубликованы результаты этого этапа.','В онлайн-админке откройте «Этапы», выберите этот этап и нажмите «Скрыть результаты». Затем повторите отправку. Копия сохранена на ноутбуке.')}
    'STAGE_UNAVAILABLE' {return @('Этап недоступен на основном сайте.','Проверьте состояние этапа в онлайн-админке. Резервная копия сохранена.')}
@@ -370,8 +370,14 @@ function Get-UsdFailure([string]$Reason,[int]$Http=0){
    'CLASS_UNAVAILABLE' {return @('Один из классов недоступен на этапе.','Проверьте классы этапа в онлайн-админке и повторите отправку.')}
    'RESULT_ADMISSION_MISSING' {return @('Сайт не подтвердил инспекцию или допуск для одного из результатов.','Передайте подробности администратору USD. Копия сохранена.')}
    'START_NUMBER_TAKEN' {return @('Один из стартовых номеров уже занят на сайте.','Попросите администратора USD сверить локальные и онлайн-регистрации. Копия сохранена.')}
+   'CAR_REGISTRATION_EXISTS' {return @('У одного автомобиля уже есть заявка на этот этап на сайте.','Попросите администратора USD сверить две заявки. Резервная копия сохранена.')}
    'RETURN_REVIEW_PENDING' {return @('Заявка на сверку участников или автомобилей ожидает решения.','Откройте «Офлайн-сервер» в онлайн-админке USD. После решения по заявке повторите отправку.')}
    'RETURN_REVIEW_REQUIRED' {return @('Нужна ручная сверка данных администратором USD.','Передайте резервную копию и технические подробности администратору.')}
+   'RETURN_DB_UNAVAILABLE' {return @('Сайт USD не смог подключиться к центральной базе.','Резервная копия на ноутбуке. Повторите отправку, когда сайт восстановит работу.')}
+   'RETURN_WRITE_FAILED' {return @('Сайт не подтвердил запись журнала в базу.','Копия сохранена на ноутбуке. Передайте технические подробности администратору USD, если ошибка повторится.')}
+   'RETURN_RECEIPT_MISMATCH' {return @('Сайт не подтвердил приём всех операций этапа.','Резервная копия сохранена. Нужна проверка журнала на основном сервере USD.')}
+   'RETURN_FINALIZE_FAILED' {return @('Журнал записан на сайте, пересчёт результатов не подтверждён.','Повторите отправку того же журнала после восстановления сайта. Храните резервную копию до подтверждения.')}
+   'RETURN_ACK_FAILED' {return @('Журнал записан и результаты пересчитаны. Подтверждение не дошло до ноутбука.','Повторите отправку того же журнала. Резервная копия сохранена.')}
   }
  }
  if($Http -eq 401 -or $Reason -match '(?i)\bHTTP\s+401\b|Unauthorized'){
