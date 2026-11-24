@@ -7,6 +7,7 @@ import {askUsdExpert,USD_EXPERT_TOOL_NAMES,type UsdExpertTool,type UsdToolArgs} 
 import {USD_KNOWLEDGE_OVERVIEW} from './usd-knowledge';
 import {usdExpertRead} from './usd-expert-readers';
 import {searchUsdDocuments} from './usd-document-search';
+import {loadProjectCorpus,searchProjectCorpus,readProjectCorpus} from './usd-project-research';
 import {askUsdLocalExpert,checkUsdLocalModel} from './usd-local-gateway';
 import type {UsdAssistantMode} from './usd-design-mode';
 
@@ -74,39 +75,8 @@ export class AssistantService {
       };
     }
 
-    // Fully anchored reports bypass unreliable model classification.
-    const normalized=text.toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').replace(/[?!.]+$/,'').trim();
-    const report=/^(?:(?:дай |покажи |сформируй )?(?:отчет|сводку|статистику) (?:по |за )?(?:последнему|последний|последнем|прошедшему|прошедший|ближайшему|ближайший|этому|выбранному) этап(?:у|е)?|(?:сколько|скока) (?:(?:участников|регистраций)(?: зарегистрировано| зарегано)? (?:на|по) (?:последний|последнем|прошедший|прошедшем|ближайший|ближайшем|этом|выбранном) этап(?:е)?|(?:на|по) (?:последний|последнем|прошедший|прошедшем|ближайший|ближайшем|этом|выбранном) этап(?:е)? (?:зарегано|зарегистрировано(?: участников)?|участников|регистраций)))$/.test(normalized);
-    if(mode==='ask'&&report){
-      const selection=/последн|прошедш/.test(normalized)?'past':/ближайш/.test(normalized)?'upcoming':undefined;
-      try{
-        const {result}=await this.executeFunction('STAGE_READINESS',selection?{selection}:stageId?{stageId}:{},userId);
-        const participants=await this.prisma.registration.groupBy({
-          by:['participantId'],where:{stageId:result.stage.id,status:'ACTIVE'},
-        });
-        const c=result.counts;
-        return {success:true,action:null,source:'database',
-          data:{...result,counts:{...c,participants:participants.length}},
-          reply:'Этап «'+result.stage.name+'»'+(result.stage.date?' · '+new Date(result.stage.date).toLocaleDateString('ru-RU',{timeZone:'Asia/Yekaterinburg'}):'')+
-            '\nУникальных участников: '+participants.length+
-            '\nРегистраций: '+c.registrations+
-            '\nАктивных классов: '+result.stage.classes+
-            '\nРегистрации по инспекции: допущено '+c.passedInspections+', отказов '+c.failedInspections+', ожидают '+c.pendingInspections+
-            '\nРезультатов: '+c.results+
-            '\nУчастники считаются без повторов. Регистрация и стартовый номер — разные показатели.',
-          links:links([['Отчёт этапа','/admin/stage-report?stageId='+encodeURIComponent(result.stage.id)],['Регистрации','/admin/registrations'],['Результаты','/admin/results']])};
-      }catch(error){
-        if(error instanceof NotFoundException)return {success:true,action:null,source:'guide',links:[],reply:'Подходящий этап не найден. Выбери этап в настройках диалога и спроси о нём.'};
-        throw error;
-      }
-    }
     const provider=process.env.USD_AI_PROVIDER?.trim().toLowerCase()||'openai';
-    const directLocal=provider==='ollama'&&mode==='ask'&&new Set([
-      'что сейчас требует внимания','проверь готовность этапа','проверь качество данных',
-      'разбери последний импорт','как судье изменить класс и добавить bassrace',
-      'покажи состояние системы','сколько участников','сколько регистраций',
-    ]).has(normalized);
-    if(!directLocal&&(provider==='ollama'||(provider==='openai'&&process.env.OPENAI_API_KEY?.trim()))){
+    if(provider==='ollama'||(provider==='openai'&&process.env.OPENAI_API_KEY?.trim())){
       try{
         const isLocal=provider==='ollama';
         const model=isLocal
@@ -139,7 +109,7 @@ export class AssistantService {
         };
       }
     }
-    if(provider!=='openai'&&!directLocal){
+    if(provider!=='openai'){
       return {success:true,action:null,source:'unavailable',links:[],
         reply:'Неизвестный провайдер USD AI. Проверь настройку USD_AI_PROVIDER на сервере.'};
     }
@@ -255,7 +225,11 @@ export class AssistantService {
     if(name==='usd_stage_readiness'){
       const stageId=typeof args.stageId==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(args.stageId)
         ?args.stageId:undefined;
-      return (await this.executeFunction('STAGE_READINESS',stageId?{stageId}:{},userId)).result;
+      const selection=args.selection==='past'||args.selection==='upcoming'?args.selection:undefined;
+      const result=(await this.executeFunction('STAGE_READINESS',stageId?{stageId}:selection?{selection}:{},userId)).result;
+      const participants=await this.prisma.registration.groupBy({by:['participantId'],where:{stageId:result.stage.id,status:'ACTIVE'}});
+      return {...result,counts:{...result.counts,participants:participants.length}};
+
     }
     if(name==='usd_import_diagnostics')return (await this.executeFunction('IMPORT_DIAGNOSTICS',{},userId)).result;
     if(name==='usd_data_quality'){
@@ -264,6 +238,8 @@ export class AssistantService {
         severity:issue.severity,code:issue.code,message:issue.message,
       }))};
     }
+    if(name==='usd_project_search')return searchProjectCorpus(loadProjectCorpus(),typeof args.query==='string'?args.query:'');
+    if(name==='usd_project_read')return readProjectCorpus(loadProjectCorpus(),typeof args.path==='string'?args.path:'',typeof args.startLine==='number'?args.startLine:1,typeof args.lineCount==='number'?args.lineCount:40);
     if(name==='usd_project_docs')return searchUsdDocuments(typeof args.query==='string'?args.query.slice(0,180):'',typeof args.document==='string'?args.document:'all');
     return usdExpertRead(this.prisma,name,args);
   }
