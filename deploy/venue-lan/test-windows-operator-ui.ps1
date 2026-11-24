@@ -32,11 +32,12 @@ try{
   if($Path -eq '/stages'){
    return @([pscustomobject]@{id=$stage;status='PUBLISHED';name='Test';city='Test';date='2026-12-01'})
   }
-  if($Path -eq ('/stages/venue/'+$stage+'/staff-export')){return $raw}
+  if($Path -eq ('/stages/venue/'+$stage+'/staff-export')){return $script:FixtureJson}
   throw 'Unexpected online request'
  }
  $fresh=[DateTime]::UtcNow.AddHours(5).ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
  $raw=$raw.Replace('2099-01-01T00:00:00.000Z',$fresh)
+ $script:FixtureJson=$raw
  $download=Get-OnlineStageBundle
  if($download.Id -cne $stage){throw 'Wrong stage selected'}
  if([IO.File]::ReadAllText($download.StageFile) -cne (Extract-SignedJson $raw)){
