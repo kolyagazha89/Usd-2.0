@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { DataQualityService } from '../data-quality/data-quality.service';
 import { StatisticsService } from '../statistics/statistics.service';
-import {classifyAssistantIntent,isAssistantWriteRequest} from './assistant-intent';
+import {classifyAssistantIntent,isAssistantWriteRequest,classifyStageQuestion,normalizeOperationalQuestion} from './assistant-intent';
 import {askUsdExpert,USD_EXPERT_TOOL_NAMES,type UsdExpertTool,type UsdToolArgs} from './usd-ai-gateway';
 import {USD_KNOWLEDGE_OVERVIEW} from './usd-knowledge';
 import {usdExpertRead} from './usd-expert-readers';
@@ -64,7 +64,8 @@ export class AssistantService {
     const stageId = typeof options.stageId === 'string' && /^[a-zA-Z0-9-]{1,80}$/.test(options.stageId)
       ? options.stageId : undefined;
 
-    if (mode==='ask' && isAssistantWriteRequest(text)) {
+    const stageQuestion=mode==='ask'?classifyStageQuestion(text,options.history):null;
+    if (mode==='ask' && !stageQuestion && isAssistantWriteRequest(text)) {
       await this.audit(userId, 'ASSISTANT_CHAT_USED', 'WRITE_GUIDANCE');
       return {
         success: true,
@@ -74,27 +75,38 @@ export class AssistantService {
       };
     }
 
-    // Fully anchored reports bypass unreliable model classification.
-    const normalized=text.toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').replace(/[?!.]+$/,'').trim();
-    const report=/^(?:(?:дай |покажи |сформируй )?(?:отчет|сводку|статистику) (?:по |за )?(?:последнему|последний|последнем|прошедшему|прошедший|ближайшему|ближайший|этому|выбранному) этап(?:у|е)?|(?:сколько|скока) (?:(?:участников|регистраций)(?: зарегистрировано| зарегано)? (?:на|по) (?:последний|последнем|прошедший|прошедшем|ближайший|ближайшем|этом|выбранном) этап(?:е)?|(?:на|по) (?:последний|последнем|прошедший|прошедшем|ближайший|ближайшем|этом|выбранном) этап(?:е)? (?:зарегано|зарегистрировано(?: участников)?|участников|регистраций)))$/.test(normalized);
-    if(mode==='ask'&&report){
-      const selection=/последн|прошедш/.test(normalized)?'past':/ближайш/.test(normalized)?'upcoming':undefined;
+    // The common operational path never enters the local inference queue.
+    const normalized=normalizeOperationalQuestion(text);
+    if(stageQuestion){
+      const {selection,kind}=stageQuestion;
       try{
         const {result}=await this.executeFunction('STAGE_READINESS',selection?{selection}:stageId?{stageId}:{},userId);
-        const participants=await this.prisma.registration.groupBy({
-          by:['participantId'],where:{stageId:result.stage.id,status:'ACTIVE'},
-        });
+        const date=result.stage.date?' · '+new Date(result.stage.date).toLocaleDateString('ru-RU',{timeZone:'Asia/Yekaterinburg'}):'';
+        const heading='Этап «'+result.stage.name+'»'+date;
+        const reportUrl='/admin/stage-report?stageId='+encodeURIComponent(result.stage.id);
+        if(kind==='classes'){
+          const classes=await usdExpertRead(this.prisma,'usd_classes',{stageId:result.stage.id}) as Array<{direction:string;name:string;code:string}>;
+          return {success:true,action:null,source:'database',reply:heading+'\n'+(classes.length?'Подключённые классы (до 100):\n'+classes.map(c=>c.direction+' — '+c.name).join('\n'):'Нет активных классов.'),links:links([['Отчёт этапа',reportUrl]]),data:{stage:result.stage,classes}};
+        }
+        if(kind==='results'){
+          const protocol=await usdExpertRead(this.prisma,'usd_stage_results',{stageId:result.stage.id}) as {error?:string;note?:string;classes?:Array<{code:string;results:Array<{participant:string;number:number;place:number|null;value:unknown;unit:string}>}>};
+          if(protocol.error)return {success:true,action:null,source:'guide',reply:protocol.error,links:[]};
+          const leaders=(protocol.classes??[]).flatMap(group=>group.results.filter(r=>r.place===1).map(r=>group.code+': '+r.participant+' (№'+r.number+') — '+String(r.value)+' '+r.unit));
+          return {success:true,action:null,source:'database',reply:heading+'\n'+(protocol.note??'')+'\n'+(leaders.length?'Первые места в доступной выборке (до 100 результатов):\n'+leaders.slice(0,30).join('\n'):'В доступной выборке нет подтверждённых записей с первым местом.')+'\nПолный протокол открой в отчёте этапа.',links:links([['Отчёт этапа',reportUrl],['Результаты','/admin/results']]),data:{stage:result.stage,protocol}};
+        }
+        const participants=await this.prisma.registration.groupBy({by:['participantId'],where:{stageId:result.stage.id,status:'ACTIVE'}});
         const c=result.counts;
+        const status=result.stage.status==='COMPLETED'?'завершён':result.stage.status==='PUBLISHED'?'опубликован':result.stage.status==='DRAFT'?'черновик':result.stage.status==='CANCELLED'?'отменён':'уточни статус в отчёте';
         return {success:true,action:null,source:'database',
           data:{...result,counts:{...c,participants:participants.length}},
-          reply:'Этап «'+result.stage.name+'»'+(result.stage.date?' · '+new Date(result.stage.date).toLocaleDateString('ru-RU',{timeZone:'Asia/Yekaterinburg'}):'')+
+          reply:heading+'\nСтатус: '+status+'. Онлайн-регистрация '+(result.stage.registrationOpen?'открыта':'закрыта')+'.'+
             '\nУникальных участников: '+participants.length+
             '\nРегистраций: '+c.registrations+
             '\nАктивных классов: '+result.stage.classes+
             '\nРегистрации по инспекции: допущено '+c.passedInspections+', отказов '+c.failedInspections+', ожидают '+c.pendingInspections+
             '\nРезультатов: '+c.results+
             '\nУчастники считаются без повторов. Регистрация и стартовый номер — разные показатели.',
-          links:links([['Отчёт этапа','/admin/stage-report?stageId='+encodeURIComponent(result.stage.id)],['Регистрации','/admin/registrations'],['Результаты','/admin/results']])};
+          links:links([['Отчёт этапа',reportUrl],['Регистрации','/admin/registrations'],['Результаты','/admin/results']])};
       }catch(error){
         if(error instanceof NotFoundException)return {success:true,action:null,source:'guide',links:[],reply:'Подходящий этап не найден. Выбери этап в настройках диалога и спроси о нём.'};
         throw error;
