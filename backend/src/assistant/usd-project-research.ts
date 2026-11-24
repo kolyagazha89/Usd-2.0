@@ -3,7 +3,7 @@ import {resolve} from 'node:path';
 import {redactUsdAiText} from './usd-ai-gateway';
 
 export type ProjectCorpus={revision:string;files:Array<{path:string;text:string}>};
-const MAX_FILE=300000;
+const MAX_FILE=500000;
 const safePath=(path:string)=>/^(docs\/|backend\/src\/|backend\/prisma\/schema\.prisma$|frontend\/src\/|deploy\/(?:venue-lan|home-pc)\/)/.test(path)&&!path.split('/').some(part=>part==='..'||part.startsWith('.'))&&/\.(?:md|ts|tsx|css|prisma|mjs|ps1|sh|yaml|yml|html|js)$/.test(path);
 let loaded:ProjectCorpus|undefined;
 export function loadProjectCorpus():ProjectCorpus{
