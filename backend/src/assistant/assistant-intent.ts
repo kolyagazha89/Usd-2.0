@@ -36,3 +36,49 @@ export function normalizeAssistantHistory(value: unknown): AssistantHistoryItem[
     .filter((item) => item.content.length > 0 && item.content.length <= 1200)
     .slice(-8);
 }
+
+
+export type StageQuestion={selection?:'past'|'upcoming';kind:'report'|'classes'|'results'};
+
+/** Deliberately recognise complete read-only questions, not isolated keywords.
+ * Additional unknown clauses, named stages and write instructions are not
+ * silently interpreted as a report about the latest stage. */
+export function normalizeOperationalQuestion(message:string):string{
+ return message.toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim()
+  .replace(/^(?:(?:ну|бро|ии|ассистент|usd|юсд|пожалуйста|подскажи|скажи|расскажи|а)[,\s:]+)+/,'')
+  .replace(/[?!.]+$/,'').trim();
+}
+const stageReference='(?:последн(?:ий|его|ем|ему|им)|прошедш(?:ий|его|ем|ему|им)|предыдущ(?:ий|его|ем|ему|им)|прошл(?:ый|ого|ом|ому|ым)|ближайш(?:ий|его|ем|ему|им)|следующ(?:ий|его|ем|ему|им)|предстоящ(?:ий|его|ем|ему|им)|текущ(?:ий|его|ем|ему|им)|эт(?:от|ом|ому|им|ого)|выбранн(?:ый|ого|ом|ому|ым))';
+const stage=stageReference+' этап(?:а|у|е|ом)?';
+const stageContext='(?:(?:на|по|за|с|у) )?(?:'+stage+'|этап(?:а|у|е|ом)?)';
+const counts='(?:участников|человек|людей|народу|регистраций|заявок|машин|автомобилей|результатов|инспекций)';
+const registered='(?:зарегано|зарегалось|зарегистрировано|зарегистрировалось|записалось|заявилось|подали заявки)';
+const reportPatterns=[
+ '^(?:(?:дай|покажи|сформируй|сделай|выведи) )?(?:отчет|сводку|статистику|информацию) '+stageContext+'$',
+ '^(?:(?:как дела|что там|что|как обстоят дела|какая ситуация|какие новости|какой статус|какие итоги|как все) (?:по|с|на|у) '+stage+'|как (?:прошел|проходит|готовится) '+stage+'|'+stage+' (?:как прошел|как дела|готов ли|готовность)|проверь (?:готовность )?'+stageContext+')$',
+ '^(?:сколько|скока) (?:(?:'+counts+'(?: '+registered+')?|'+registered+'(?: '+counts+')?) '+stageContext+'|'+stageContext+' (?:'+counts+'|'+registered+'(?: '+counts+')?)|'+counts+' '+stageContext+' '+registered+')$',
+].map(pattern=>new RegExp(pattern));
+function stageSelection(text:string):StageQuestion['selection']{
+ if(/последн|прошедш|предыдущ|прошл/.test(text))return 'past';
+ if(/ближайш|следующ|предстоящ/.test(text))return 'upcoming';
+ return undefined;
+}
+export function classifyStageQuestion(message:string,history?:unknown):StageQuestion|null{
+ const text=normalizeOperationalQuestion(message);
+ if(text.length>220)return null;
+ if(reportPatterns.some(pattern=>pattern.test(text)))return {kind:'report',selection:stageSelection(text)};
+ if(new RegExp('^(?:какие|какие есть|список|покажи) классы(?: доступны| подключены| есть)? '+stageContext+'$').test(text)){
+  return {kind:'classes',selection:stageSelection(text)};
+ }
+ if(new RegExp('^(?:покажи |дай )?(?:результаты|итоги|победителей|протокол) '+stageContext+'$').test(text)){
+  return {kind:'results',selection:stageSelection(text)};
+ }
+ // Inherit context only from the immediately previous user question, never a
+ // model-generated claim or a caller-supplied system message.
+ if(new RegExp('^(?:сколько|скока) (?:'+counts+'(?: '+registered+')?|'+registered+')$').test(text)){
+  const last=normalizeAssistantHistory(history).filter(item=>item.role==='user').slice(-1)[0];
+  const prior=last?classifyStageQuestion(last.content):null;
+  if(prior)return {kind:'report',selection:prior.selection};
+ }
+ return null;
+}
