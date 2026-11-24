@@ -4,7 +4,7 @@ import { DataQualityService } from '../data-quality/data-quality.service';
 import { StatisticsService } from '../statistics/statistics.service';
 import {classifyAssistantIntent,isAssistantWriteRequest,classifyStageQuestion,normalizeOperationalQuestion} from './assistant-intent';
 import {askUsdExpert,USD_EXPERT_TOOL_NAMES,type UsdExpertTool,type UsdToolArgs} from './usd-ai-gateway';
-import {USD_KNOWLEDGE_OVERVIEW} from './usd-knowledge';
+import {USD_KNOWLEDGE_OVERVIEW,usdHelpTopic} from './usd-knowledge';
 import {usdExpertRead} from './usd-expert-readers';
 import {searchUsdDocuments} from './usd-document-search';
 import {askUsdLocalExpert,checkUsdLocalModel} from './usd-local-gateway';
@@ -82,7 +82,7 @@ export class AssistantService {
       try{
         const {result}=await this.executeFunction('STAGE_READINESS',selection?{selection}:stageId?{stageId}:{},userId);
         const date=result.stage.date?' · '+new Date(result.stage.date).toLocaleDateString('ru-RU',{timeZone:'Asia/Yekaterinburg'}):'';
-        const heading='Этап «'+result.stage.name+'»'+date;
+        const heading='Этап «'+result.stage.name+'»'+(result.stage.city?' · '+result.stage.city:'')+date;
         const reportUrl='/admin/stage-report?stageId='+encodeURIComponent(result.stage.id);
         if(kind==='classes'){
           const classes=await usdExpertRead(this.prisma,'usd_classes',{stageId:result.stage.id}) as Array<{direction:string;name:string;code:string}>;
@@ -110,6 +110,23 @@ export class AssistantService {
       }catch(error){
         if(error instanceof NotFoundException)return {success:true,action:null,source:'guide',links:[],reply:'Подходящий этап не найден. Выбери этап в настройках диалога и спроси о нём.'};
         throw error;
+      }
+    }
+    // The operational handbook is verified local text. Do not make a CPU
+    // model paraphrase instructions or wait for inference to become available.
+    if(mode==='ask'){
+      const helpTopics:Array<[RegExp,string,string,string]>=[
+        [/^как (?:провести|пройти|оформить|исправить|сделать) инспекцию(?: на этапе| участника)?(?: usd| юсд)?$/,'inspection','Инспекции','/admin/inspections'],
+        [/^как (?:добавить|изменить|поменять) (?:класс |номер )?(?:bassrace|бассрейс|басрейс)(?: участнику)?(?: usd| юсд)?$/,'bassrace','Регистрации','/admin/registrations'],
+        [/^как (?:работает|запустить|устроен) (?:офлайн[- ]сервер|офлайн|lan[- ]сервер)(?: usd| юсд)?$/,'offline','Офлайн-сервер','/admin/venue-server'],
+        [/^как зарегистрировать участника(?: на месте| на этапе)?(?: usd| юсд)?$/,'registration','Регистрации','/admin/registrations'],
+        [/^как (?:внести|исправить|изменить|удалить) результат(?: участника| замера)?(?: usd| юсд)?$/,'results','Результаты','/admin/results'],
+      ];
+      const help=helpTopics.find(([pattern])=>pattern.test(normalized));
+      if(help){
+        const [,topic,label,url]=help;
+        await this.audit(userId,'ASSISTANT_CHAT_USED','HANDBOOK:'+topic);
+        return {success:true,action:null,source:'guide',reply:usdHelpTopic(topic),links:links([[label,url]])};
       }
     }
     const provider=process.env.USD_AI_PROVIDER?.trim().toLowerCase()||'openai';
@@ -348,7 +365,7 @@ export class AssistantService {
       if (pendingInspections) warnings.push('ожидают инспекции: ' + pendingInspections);
       result = {
         success: true,
-        stage: { id: stage.id, name: stage.name, date: stage.date, status: stage.status, registrationOpen: stage.registrationOpen, classes: stage.stageClasses.length },
+        stage: { id: stage.id, name: stage.name, city:stage.city, date: stage.date, status: stage.status, registrationOpen: stage.registrationOpen, classes: stage.stageClasses.length },
         counts: { registrations, inspections: passedInspections + failedInspections, passedInspections, failedInspections, pendingInspections, missingClasses, results },
         warnings, ready: warnings.length === 0,
       };
