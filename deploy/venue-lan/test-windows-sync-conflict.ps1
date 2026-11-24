@@ -111,7 +111,8 @@ server.listen(0, '127.0.0.1', () => fs.writeFileSync(process.argv[2], String(ser
 '@)
 $process=$null;$client=$null
 try{
- $process=Start-Process -FilePath (Get-Command node -CommandType Application).Source -ArgumentList ('"'+$scriptFile+'" "'+$portFile+'"') -PassThru
+ $node=(Get-Command node -CommandType Application | Select-Object -First 1).Source
+ $process=Start-Process -FilePath $node -ArgumentList ('"'+$scriptFile+'" "'+$portFile+'"') -PassThru
  for($tick=0;$tick -lt 100 -and !(Test-Path -LiteralPath $portFile);$tick++){Start-Sleep -Milliseconds 100}
  if(!(Test-Path -LiteralPath $portFile)){throw 'Fixture did not start'}
  $base='http://127.0.0.1:'+([IO.File]::ReadAllText($portFile))
