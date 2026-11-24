@@ -85,7 +85,8 @@ foreach($scale in 1.0,1.25,1.5){
  $window.FindName('StageStats').Text='Участников 1200 · регистраций 139  ·  Последняя синхронизация 28.11.2026, 19:35'
  $window.FindName('Status').Text='Офлайн-сервер работает'
  $list=$window.FindName('Stages')
- [void]$list.Items.Add([pscustomobject]@{Label='Первый этап  ·  Ростов-на-Дону  ·  06.12.2026'})
+ $option=[pscustomobject]@{Id=$stage;Label='Первый этап  ·  Ростов-на-Дону  ·  06.12.2026'}
+ Add-UsdChoice $list $option
  $list.SelectedIndex=0
  $window.FindName('StageHint').Text='Выберите опубликованный этап.'
  $window.FindName('Address').Text='https://192.168.20.10'
@@ -95,6 +96,10 @@ foreach($scale in 1.0,1.25,1.5){
  $window.Show()
  try{
   $window.UpdateLayout()
+  $selection=$list.Template.FindName('SelectedStageLabel',$list)
+  if($selection.Text -cne $option.Label -or $selection.Text -match $stage){
+   throw 'Stage selector must show the label without exposing the internal stage ID'
+  }
   $size=$root.RenderSize
   $scroller=$window.FindName('Body')
   if($size.Width -lt 540 -or $size.Height -lt 370){throw 'Dashboard could not lay out at a notebook viewport'}

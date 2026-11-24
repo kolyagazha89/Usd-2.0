@@ -234,6 +234,12 @@ function Get-OnlineStageBundle([string]$Id,[string]$Token){
 function New-UsdWindow {
  return [Windows.Markup.XamlReader]::Parse([IO.File]::ReadAllText((Join-Path $script:LaunchRoot 'venue-operator.xaml')))
 }
+function Add-UsdChoice($List,$Choice){
+ $item=if($List -is [Windows.Controls.ComboBox]){[Windows.Controls.ComboBoxItem]::new()}else{[Windows.Controls.ListBoxItem]::new()}
+ $item.Content=[string]$Choice.Label
+ $item.Tag=$Choice
+ [void]$List.Items.Add($item)
+}
 function New-UsdButton([string]$Text){
  $button=[Windows.Controls.Button]::new()
  $button.Content=$Text
@@ -732,16 +738,17 @@ function Update-UsdDashboard {
  $script:Archive=@($allLocal|Where-Object {$state -and $_.Id -cne $state.stageId -and $_.State.phase -eq 'READY'})
  $exclude=@($allLocal|Where-Object {$_.State.phase -eq 'READY'}|ForEach-Object {$_.Id})
  $exclude+=@(Get-UsdProperty $local 'stageIds')
- $selected=if($ui.Stages.SelectedItem){$ui.Stages.SelectedItem.Id}else{''}
+ $selected=if($ui.Stages.SelectedItem){$ui.Stages.SelectedItem.Tag.Id}else{''}
  $items=@(foreach($stage in ($script:Stages|Sort-Object date)){
   if($stage.status -eq 'PUBLISHED' -and $stage.id -cmatch $script:StagePattern -and $exclude -notcontains $stage.id -and (!$state -or $stage.id -cne $state.stageId)){
    [pscustomobject]@{Id=[string]$stage.id;Label=($stage.name+'  ·  '+(Get-StageMeta $stage))}
   }
  })
- $current=@($ui.Stages.Items|ForEach-Object {$_.Id})
+ $current=@($ui.Stages.Items|ForEach-Object {$_.Tag.Id})
  if(($current -join '|') -cne (($items|ForEach-Object {$_.Id}) -join '|')){
-  $ui.Stages.ItemsSource=[object[]]$items
-  $match=@($items|Where-Object {$_.Id -ceq $selected})
+  $ui.Stages.Items.Clear()
+  foreach($choice in $items){Add-UsdChoice $ui.Stages $choice}
+  $match=@($ui.Stages.Items|Where-Object {$_.Tag.Id -ceq $selected})
   if($match.Count){$ui.Stages.SelectedItem=$match[0]}
  }
  $ui.Stages.IsEnabled=($items.Count -gt 0) -and !$script:Worker -and !$pending -and (!$state -or $active)
@@ -786,7 +793,7 @@ function Invoke-UsdLoad {
   return
  }
  if(!$ui.Stages.SelectedItem){return}
- $choice=$ui.Stages.SelectedItem
+ $choice=$ui.Stages.SelectedItem.Tag
  if($script:State -and !(Confirm-UsdAction 'Загрузить другой этап' ('Текущий этап «'+(Get-UsdStageName $script:State)+'» будет закрыт для судейского ввода. Программа сохранит его зашифрованную копию и откроет «'+$choice.Label+'». Продолжить?'))){return}
  $action=if($script:State){'next'}else{'install'}
  Start-UsdRequest (New-UsdRequest $action 'загрузить этап' $script:Root $choice.Id)
@@ -797,8 +804,7 @@ function Show-UsdArchive {
  $panel=$dialog.Panel
  $null=Add-UsdText $panel 'Предыдущие этапы на этом ноутбуке' 19
  $list=[Windows.Controls.ListBox]::new()
- $list.DisplayMemberPath='Label'
- $list.ItemsSource=$script:Archive
+ foreach($item in $script:Archive){Add-UsdChoice $list $item}
  $list.MinHeight=120
  $list.MaxHeight=240
  $list.SelectedIndex=0
@@ -810,7 +816,7 @@ function Show-UsdArchive {
   $button=New-UsdButton $pair[0]
   $button.Tag=$pair[1]
   $button.Add_Click({
-   if($list.SelectedItem){$window.Tag=[pscustomobject]@{Action=[string]$this.Tag;Item=$list.SelectedItem};$window.DialogResult=$true}
+   if($list.SelectedItem){$window.Tag=[pscustomobject]@{Action=[string]$this.Tag;Item=$list.SelectedItem.Tag};$window.DialogResult=$true}
   }.GetNewClosure())
   [void]$actions.Children.Add($button)
  }
