@@ -1,57 +1,45 @@
 ﻿#requires -Version 5.1
 
-function Invoke-VenueHttpsProbe([string]$Url,[string]$Ca){
- $previous=$ErrorActionPreference
- try{
-  $ErrorActionPreference='Continue'
-  # The LAN CA is pinned explicitly and has no online revocation service.
-  $options=@('--disable','--silent','--show-error','--fail','--ssl-no-revoke',
-   '--max-time','4','--noproxy','*','--cacert',$Ca)
-  $records=@(& curl.exe @options $Url 2>&1)
-  $code=$LASTEXITCODE
-  $diagnostic=@($records|ForEach-Object {[string]$_}|Where-Object {$_ -match '^curl: \([0-9]+\) '}|Select-Object -First 1)
-  return [pscustomobject]@{
-   Code=$code
-   Body=(($records|Where-Object {$_ -isnot [Management.Automation.ErrorRecord]}) -join "`n")
-   Diagnostic=($diagnostic -join '')
-  }
- }finally{$ErrorActionPreference=$previous}
+function Invoke-VenueHttpsProbe([string]$Ip,[int]$Port,[string]$Path,[string]$Ca){
+ if(-not ('UsdVenue.HttpsProbe' -as [type])){
+  Add-Type -Path (Join-Path $PSScriptRoot 'venue-https-probe.cs')
+ }
+ return [UsdVenue.HttpsProbe]::Get($Ip,$Port,$Path,$Ca)
 }
 
 function Test-VenueHttpsReady([string]$Ip,[string]$StageId,[int]$Port=443){
  $ca=Join-Path $PrivateDir 'USD-Venue-CA.crt'
  $script:VenueHttpsProbeReason='На ноутбуке отсутствует корневой сертификат площадки.'
  if(!(Test-Path -LiteralPath $ca -PathType Leaf)){return $false}
- if(!(Get-Command curl.exe -ErrorAction SilentlyContinue)){
-  $script:VenueHttpsProbeReason='Windows не нашла curl.exe для проверки HTTPS.'
-  return $false
- }
- $origin='https://'+$Ip
- if($Port -ne 443){$origin+=':'+$Port}
+
+ $endpoint='/venue-api/results/venue-live'
  try{
-  $probe=Invoke-VenueHttpsProbe ($origin+'/venue-api/results/venue-live') $ca
-  if($probe.Code -ne 0){
-   $script:VenueHttpsProbeReason='HTTPS API не ответил (curl '+$probe.Code+'). '+$probe.Diagnostic
-   return $false
-  }
-  $stage=($probe.Body|ConvertFrom-Json -ErrorAction Stop).stage
+  $data=Invoke-VenueHttpsProbe $Ip $Port $endpoint $ca
+  $stage=($data|ConvertFrom-Json -ErrorAction Stop).stage
   if(!$stage -or $stage.id -cne $StageId){
    $script:VenueHttpsProbeReason='HTTPS API вернул другой этап.'
    return $false
   }
-  $probe=Invoke-VenueHttpsProbe ($origin+'/login') $ca
-  if($probe.Code -ne 0){
-   $script:VenueHttpsProbeReason='Страница входа по HTTPS не ответила (curl '+$probe.Code+'). '+$probe.Diagnostic
-   return $false
-  }
-  if($probe.Body -notmatch '(?i)<(?:!doctype|html)'){
+
+  $endpoint='/login'
+  $html=Invoke-VenueHttpsProbe $Ip $Port $endpoint $ca
+  if($html -notmatch '(?i)<(?:!doctype|html)'){
    $script:VenueHttpsProbeReason='HTTPS вернул неожиданный ответ страницы входа.'
    return $false
   }
   $script:VenueHttpsProbeReason=''
   return $true
  }catch{
-  $script:VenueHttpsProbeReason='HTTPS вернул неожиданный ответ шлюза.'
+  $errorDetail=$_.Exception.GetBaseException().Message
+  $reason=switch($errorDetail){
+   'TLS_IP_MISMATCH' {'Сертификат шлюза выписан на другой IP.'}
+   'TLS_CA_MISMATCH' {'Сертификат шлюза не подтверждён корневым сертификатом площадки.'}
+   'TLS_INVALID_CA' {'Корневой сертификат площадки повреждён.'}
+   'TLS_NO_CERTIFICATE' {'Шлюз не предоставил сертификат.'}
+   'Timeout' {'Шлюз не ответил за отведённое время.'}
+   default {'HTTPS-запрос не завершился.'}
+  }
+  $script:VenueHttpsProbeReason=$reason+' '+$endpoint+' ['+$errorDetail+']'
   return $false
  }
 }

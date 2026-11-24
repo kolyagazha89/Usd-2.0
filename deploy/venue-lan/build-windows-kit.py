@@ -9,7 +9,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT.parent.parent / "frontend/public/downloads"
 FILES = (
-    "USD-Control.cmd", "USD-Control.ps1", "venue-operator.xaml", "venue-operator-status.ps1",
+    "USD-Control.cmd", "USD-Control.ps1", "venue-operator.xaml", "venue-operator-status.ps1", "venue-https-probe.cs",
     "USD-Install.cmd", "USD-Next-Stage.cmd", "USD-Offline.cmd", "USD-Online.cmd", "USD-Export.cmd", "USD-Certificate.cmd", "USD-Participants.cmd",
     "venue-control.ps1", "venue-season.ps1", "venue-ca.ps1", "venue-update.ps1", "venue-dialogs.ps1", "venue-firewall.ps1", "venue-coverage.ps1", "venue-directory.ps1", "ensure-return-keys.mjs",
     "compose.yaml", "Caddyfile", "config/venue-config.js",

@@ -35,10 +35,9 @@ try{
    @{active=$script:activeId;stages=@($stage,$other);registrations=11;participants=32;hash=$script:journal}|ConvertTo-Json -Compress
   }
  }
- function curl.exe {
-  $global:LASTEXITCODE=0
-  if($args -notcontains '--cacert' -or $args -notcontains '--ssl-no-revoke' -or $args -contains '--insecure'){throw 'Untrusted HTTPS probe'}
-  if($args[-1] -like '*/results/venue-live'){return (@{stage=@{id=$script:servedStage}}|ConvertTo-Json -Compress)}
+ function Invoke-VenueHttpsProbe([string]$Ip,[int]$Port,[string]$Path,[string]$Ca){
+  if($Ca -cne (Join-Path $PrivateDir 'USD-Venue-CA.crt')){throw 'HTTPS probe must pin the local CA'}
+  if($Path -like '*/results/venue-live'){return (@{stage=@{id=$script:servedStage}}|ConvertTo-Json -Compress)}
   return '<!DOCTYPE html><html>'
  }
  function Assert-Mode([string]$Expected){
