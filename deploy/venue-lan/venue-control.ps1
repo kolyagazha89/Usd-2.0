@@ -818,13 +818,13 @@ function Export-VenueReturn {
  }finally{
   $secret=$null
   if($apiStopped -and ((-not $LeaveApiStopped) -or (-not $exportSucceeded))){
-   Invoke-Compose @('up','-d','--no-build','--pull','never','api') 'restore judging after return export'
+   Restore-VenueApi
   }
  }
  if($Automatic){
   return [pscustomobject]@{
    path=$returnFile;publicKey=$publicKey;stageId=$state.stageId
-   journalEndHash=[string]$summary.journalEndHash
+   journalEndHash=[string]$summary.journalEndHash;apiPaused=$apiStopped
   }
  }
  Write-Host ('ЗАШИФРОВАННЫЙ ФАЙЛ: '+$returnFile)
@@ -853,7 +853,7 @@ function Sync-VenueReturn([object]$Bundle){
  $body='{"stageId":'+(ConvertTo-Json -InputObject $Bundle.stageId -Compress)+
   ',"publicKeyPem":'+(ConvertTo-Json -InputObject $pem -Compress)+
   ',"envelope":'+$encrypted+'}'
- $SyncResult=Invoke-RestMethod -Uri 'https://api.usd-russia.ru/stages/venue/sync' -Method POST -Headers @{Authorization=('Venue '+$token)} -Body ([Text.Encoding]::UTF8.GetBytes($body)) -ContentType 'application/json; charset=utf-8' -TimeoutSec 180
+ $SyncResult=Send-VenueSyncPackage $body $token
  if($SyncResult.accepted -ne $true -or
   $SyncResult.databaseSynchronized -ne $true -or
   $SyncResult.derivedRankingsRebuilt -ne $true -or
@@ -868,7 +868,7 @@ function Sync-VenueReturn([object]$Bundle){
  return $SyncResult
 }
 function Restore-VenueApi {
- Invoke-Compose @('up','-d','--no-build','--pull','never','api') 'restore local judging after failed sync'
+ Invoke-Compose @('up','-d','--no-deps','--no-build','--pull','never','api') 'restore local judging without touching storage'
 }
 function Return-Online {
  $state=Read-State
@@ -878,7 +878,7 @@ function Return-Online {
   $frozen=$false
   try{
    $bundle=Export-VenueReturn -LeaveApiStopped -Automatic
-   $frozen=$true
+   $frozen=$bundle.apiPaused
    Set-VenueStep 'send-return-to-usd'
    $SyncResult=Sync-VenueReturn -Bundle $bundle
    if($SyncResult.accepted -ne $true){throw 'Нет подтверждения ACKNOWLEDGED центрального сервера'}
@@ -907,6 +907,7 @@ function Return-Online {
 . (Join-Path $PSScriptRoot 'venue-ca.ps1')
 . (Join-Path $PSScriptRoot 'venue-update.ps1')
 . (Join-Path $PSScriptRoot 'venue-operator-status.ps1')
+. (Join-Path $PSScriptRoot 'venue-sync-http.ps1')
 if($MyInvocation.InvocationName -eq '.'){return}
 if($Operator){
  [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)

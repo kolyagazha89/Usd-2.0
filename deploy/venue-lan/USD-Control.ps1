@@ -361,6 +361,19 @@ function Confirm-UsdAction([string]$Title,[string]$Message){
 }
 
 function Get-UsdFailure([string]$Reason,[int]$Http=0){
+ if($Reason -cmatch '\[(RESULTS_ALREADY_PUBLISHED|STAGE_UNAVAILABLE|JOURNAL_MISMATCH|PARTICIPANT_NOT_ELIGIBLE|CLASS_UNAVAILABLE|RESULT_ADMISSION_MISSING|START_NUMBER_TAKEN|RETURN_REVIEW_PENDING|RETURN_REVIEW_REQUIRED)\]'){
+  switch($Matches[1]){
+   'RESULTS_ALREADY_PUBLISHED' {return @('На сайте уже опубликованы результаты этого этапа.','В онлайн-админке откройте «Этапы», выберите этот этап и нажмите «Скрыть результаты». Затем повторите отправку. Копия сохранена на ноутбуке.')}
+   'STAGE_UNAVAILABLE' {return @('Этап недоступен на основном сайте.','Проверьте состояние этапа в онлайн-админке. Резервная копия сохранена.')}
+   'JOURNAL_MISMATCH' {return @('Сайт уже получил другой журнал этапа.','Передайте резервную копию администратору USD для сверки.')}
+   'PARTICIPANT_NOT_ELIGIBLE' {return @('Один из участников не допущен к этапу на сайте.','Попросите администратора USD сверить допуск. Копия сохранена.')}
+   'CLASS_UNAVAILABLE' {return @('Один из классов недоступен на этапе.','Проверьте классы этапа в онлайн-админке и повторите отправку.')}
+   'RESULT_ADMISSION_MISSING' {return @('Сайт не подтвердил инспекцию или допуск для одного из результатов.','Передайте подробности администратору USD. Копия сохранена.')}
+   'START_NUMBER_TAKEN' {return @('Один из стартовых номеров уже занят на сайте.','Попросите администратора USD сверить локальные и онлайн-регистрации. Копия сохранена.')}
+   'RETURN_REVIEW_PENDING' {return @('Заявка на сверку участников или автомобилей ожидает решения.','Откройте «Офлайн-сервер» в онлайн-админке USD. После решения по заявке повторите отправку.')}
+   'RETURN_REVIEW_REQUIRED' {return @('Нужна ручная сверка данных администратором USD.','Передайте резервную копию и технические подробности администратору.')}
+  }
+ }
  if($Http -eq 401 -or $Reason -match '(?i)\bHTTP\s+401\b|Unauthorized'){
   return @('USD не подтвердил вход.', 'Проверьте почту и пароль. Если сеанс истёк, войдите снова.')
  }

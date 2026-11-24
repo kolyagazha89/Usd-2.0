@@ -5,7 +5,7 @@ import {apiGet,apiPost,listData,venueCertificateDownloadUrl,venueCertificateInst
 import {QRCodeSVG} from 'qrcode.react';
 import {saveVenueFile,trustedVenueKey,validateVenueStaffExport,type VenueSetup} from './venue-setup-model';
 import './venue-server.css';
-type Stage={id:string;name:string;date?:string;city?:string;status?:string};
+type Stage={id:string;name:string;date?:string;city?:string;status?:string;resultsPublishedAt?:string|null};
 type VenueCertificateInfo={available:boolean;sha256?:string;notAfter?:string;updatedAt?:string};
 export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(p:string)=>void;path:string;PageFrame:React.ComponentType<any>}){
  const [setup,setSetup]=useState<VenueSetup|null>(null),[stages,setStages]=useState<Stage[]>([]);
@@ -150,6 +150,7 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
     {loading?<p role="status">Проверяем возможность скачивания…</p>:setup?.signing.ready?<>
      <label className="venue-server-stage">Этап<select value={stageId} disabled={busy} onChange={e=>{setStageId(e.target.value);setStaffKey('');setNotice('')}}><option value="">Выберите этап</option>{stages.map(s=><option key={s.id} value={s.id}>{s.name}{s.city?' · '+s.city:''}{s.date?' · '+new Date(s.date).toLocaleDateString('ru-RU'):''}</option>)}</select></label>
      {!stages.length&&<p>Опубликованных этапов пока нет. Сначала опубликуйте нужный этап в разделе «Этапы».</p>}
+     {stages.find(stage=>stage.id===stageId)?.resultsPublishedAt&&<p role="status">Результаты этого этапа уже опубликованы. Перед отправкой данных с ноутбука откройте карточку этапа в разделе «Этапы» и нажмите «Скрыть результаты».</p>}
      <div className="venue-server-actions"><button className="primary-button" type="button" disabled={!stageId||busy} onClick={()=>void downloadStage()}><Download size={18}/>{busy?'Готовим файл…':'Скачать файл этапа'}</button><button className="secondary-button" type="button" disabled={busy} onClick={downloadKey}>Скачать открытый ключ</button>{staffKey&&<button className="secondary-button" type="button" onClick={()=>{saveVenueFile('usd-venue-access-'+stageId+'.key',staffKey+'\n','application/octet-stream');setNotice('Отдельный ключ судей скачан. Сохраните JSON и .key в защищённой папке ноутбука; ещё нужен открытый PEM.')}}>Скачать ключ судей (.key)</button>}</div>
      <p>Файл действует 72 часа. При подготовке одного реального этапа будут скачаны два файла: подписанный список участников с <strong>зашифрованными</strong> данными доступа судей и отдельный одноразовый ключ. Не пересылайте их вместе в общий чат. Дополнительно скачайте открытый ключ подписи, затем перенесите все три файла на ноутбук. Пароли сотрудников не меняются.</p><p>Отпечаток ключа для сверки при установке:</p><code className="venue-server-fingerprint">{setup.signing.fingerprint}</code>
     </>:setup?<p>Для загрузки настоящего этапа требуется настройка ключа подписи на основной Ubuntu. Обратитесь к ответственному за сайт. Без подписанного пакета установка офлайн-этапа недоступна.</p>:null}

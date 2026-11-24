@@ -208,6 +208,8 @@ jobs:
             'deploy/venue-lan/test-windows-operator-launcher.ps1',
             'deploy/venue-lan/venue-control.ps1',
             'deploy/venue-lan/venue-operator-status.ps1',
+            'deploy/venue-lan/venue-sync-http.ps1',
+            'deploy/venue-lan/test-windows-sync-conflict.ps1',
             'deploy/venue-lan/test-windows-venue-https.ps1',
             'deploy/venue-lan/venue-season.ps1',
             'deploy/venue-lan/venue-coverage.ps1',
@@ -249,6 +251,9 @@ jobs:
       - name: Exercise status of Docker, database, HTTPS and central journal acknowledgement
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-operator-status.ps1
+      - name: Report return conflicts and restore only the paused judging API
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-sync-conflict.ps1
       - name: Exercise native PowerShell helpers without Docker or administrator access
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-helpers.ps1

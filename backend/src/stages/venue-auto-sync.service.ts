@@ -8,6 +8,16 @@ import pg from 'pg';
 import {createHash} from 'node:crypto';
 import {VenueReturnReviewService} from './venue-return-review.service';
 
+const returnConflictMessages={
+ RESULTS_ALREADY_PUBLISHED:'Результаты этапа уже опубликованы. Администратор может скрыть результаты в карточке этапа и повторить отправку.',
+ STAGE_UNAVAILABLE:'Этап на сайте недоступен. Проверьте его состояние в онлайн-админке USD.',
+ JOURNAL_MISMATCH:'Сайт уже получил другой журнал этого этапа. Передайте резервную копию администратору USD для сверки.',
+ PARTICIPANT_NOT_ELIGIBLE:'Один из участников не допущен к этапу на сайте. Нужна проверка администратора USD.',
+ CLASS_UNAVAILABLE:'Один из классов больше не доступен на этапе. Проверьте классы в онлайн-админке USD.',
+ RESULT_ADMISSION_MISSING:'Для одного из результатов сайт не подтвердил инспекцию или допуск к классу.',
+ START_NUMBER_TAKEN:'Стартовый номер из локального журнала уже занят на сайте. Администратору нужно сверить регистрации и номера.',
+};
+
 /** Device authentication uses a per-stage ADMIN-signed capability; no central
  * database credentials or user session are copied to the offline laptop. */
 @Injectable()
@@ -75,12 +85,17 @@ export class VenueAutoSyncService {
     if(conflicts.length){
      const pending=await this.reviews.pending(grant.id,body.stageId as string,
       snapshot.journalEndHash,journalContentHash,conflicts);
-     throw new ConflictException('MANUAL_REVIEW: требуется решение ADMIN на основном сервере. Заявка '+pending.id+'. Все локальные результаты и пакет сохранены.');
+     throw new ConflictException({code:'RETURN_REVIEW_PENDING',reviewId:pending.id,
+      message:'Требуется решение администратора в разделе «Офлайн-сервер».'});
     }
-    throw new ConflictException('MANUAL_REVIEW: неподдерживаемый конфликт. Локальный пакет сохранён; автоматический возврат запрещён.');
+    throw new ConflictException({code:'RETURN_REVIEW_REQUIRED',
+     message:'Нужна ручная сверка журнала администратором USD. Локальный пакет сохранён.'});
    }
+   const code=error instanceof Error&&'code' in error?error.code:undefined;
+   if(typeof code==='string'&&Object.hasOwn(returnConflictMessages,code))
+    throw new ConflictException({code,message:returnConflictMessages[code as keyof typeof returnConflictMessages]});
    if(error instanceof Error&&/CONFLICT|central changed|number.*owner/i.test(error.message))
-    throw new ConflictException('Конфликт центральных данных. Все локальные результаты сохранены.');
+    throw new ConflictException({code:'RETURN_CONFLICT',message:'Конфликт центральных данных. Все локальные результаты сохранены.'});
    throw new ServiceUnavailableException('Безопасный импорт не завершён; повторите попытку');
   }finally{await client.end().catch(()=>undefined)}
   // A future adapter must not accidentally acknowledge a partial import.

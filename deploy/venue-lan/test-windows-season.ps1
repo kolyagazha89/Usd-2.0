@@ -110,7 +110,7 @@ $script:MockState|Add-Member -NotePropertyName phase -NotePropertyValue 'READY'
 function Export-VenueReturn {
  param([switch]$LeaveApiStopped,[switch]$Automatic)
  if(!$LeaveApiStopped -or !$Automatic){throw 'Historical sync lost automatic export options'}
- return [pscustomobject]@{stageId=$stage}
+ return [pscustomobject]@{stageId=$stage;apiPaused=$false}
 }
 function Test-IsActiveVenueStage([string]$StageId){return $false}
 function Sync-VenueReturn([object]$Bundle){return [pscustomobject]@{accepted=$true}}

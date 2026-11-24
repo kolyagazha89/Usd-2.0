@@ -94,7 +94,11 @@ function sameSignedStageState(table,signed,actual){
 }
 
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
-const reject=reason=>{throw new Error('USD VENUE FULL RETURN CONFLICT: '+reason)};
+const reject=(reason,code)=>{
+ const error=new Error('USD VENUE FULL RETURN CONFLICT: '+reason);
+ if(code)error.code=code;
+ throw error;
+};
 function normalize(table,row){
  if(!plain(row)||!UUID.test(row.id??''))reject('invalid row id');
  const permitted=RETURN_COLUMNS[table],seen=new Set(permitted);
@@ -305,7 +309,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
  return adapter.transaction(async tx=>{
   const stage=await tx.stage(stageId);
   if(!stage||stage.isDeleted||!['PUBLISHED','COMPLETED'].includes(stage.status))
-   reject('central stage missing or inactive');
+   reject('central stage missing or inactive','STAGE_UNAVAILABLE');
   const previous=await tx.listReceipts(stageId);
   const list=previous.filter(r=>r.action==='VENUE_FULL_EVENT_IMPORTED');
   if(list.length){
@@ -315,7 +319,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
      ||snapshot.events.some(e=>!list.some(r=>r.eventHash===e.hash
        &&r.sequence===e.sequence&&r.baselineSha256===baselineSha256
        &&r.journalEndHash===snapshot.journalEndHash)))
-    reject('partial, unknown or different journal receipts');
+    reject('partial, unknown or different journal receipts','JOURNAL_MISMATCH');
    // Audit receipts alone do not prove the current DB still matches the
    // signed event. Admins may have changed or deleted rows after import.
    // Inspect FINAL states (not intermediate UPDATEs), with one exception:
@@ -355,7 +359,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
     appliedEvents:0,readyEvents:0,totalEvents:snapshot.events.length,
     journalEndHash:snapshot.journalEndHash,mediaSynchronized:false,mediaTransferRequired:false};
   }
-  if(stage.resultsPublishedAt)reject('central results are published');
+  if(stage.resultsPublishedAt)reject('central results are published','RESULTS_ALREADY_PUBLISHED');
   const original=await tx.linkedIds(stageId);
   const scope=buildScope(snapshot,original);
   // A new car for an unregistered competitor must have an existing central
@@ -482,16 +486,16 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
    }
    if(p.table==='Registration'&&p.operation!=='DELETE'&&after.status==='ACTIVE'
     &&!await tx.participantEligible(after.participantId,stageId))
-    reject('DISQUALIFIED central participant');
+    reject('DISQUALIFIED central participant','PARTICIPANT_NOT_ELIGIBLE');
    if(p.table==='RegistrationClass'&&p.operation!=='DELETE'
     &&!await tx.stageClassAllowed(stageId,after.classId))
-    reject('class not active on this stage');
+    reject('class not active on this stage','CLASS_UNAVAILABLE');
    if(p.table==='Result'&&p.operation!=='DELETE'
     &&!await tx.resultAdmission(after,stageId))
-    reject('result without central inspection and class admission');
+    reject('result without central inspection and class admission','RESULT_ADMISSION_MISSING');
    if(p.table==='RegistrationNumber'&&p.operation!=='DELETE'){
     const number=await tx.numberOwner(stageId,after.number);
-    if(number&&number.id!==p.recordId)reject('номер занят: '+after.number);
+    if(number&&number.id!==p.recordId)reject('номер занят: '+after.number,'START_NUMBER_TAKEN');
    }
    // Dry-run exercises actual FK/UNIQUE checks before rolling back atomically.
    if(!skipLinkedInsert&&effectiveKind!=='NOOP')

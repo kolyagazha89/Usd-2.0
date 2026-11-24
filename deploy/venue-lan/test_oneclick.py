@@ -241,7 +241,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('[switch]$LeaveApiStopped',export)
         self.assertIn('ps --status running -q api',export)
         self.assertIn("Invoke-Compose @('stop','api')",export)
-        self.assertIn("Invoke-Compose @('up','-d','--no-build','--pull','never','api')",export)
+        self.assertIn('Restore-VenueApi',export)
         self.assertLess(export.index("Invoke-Compose @('stop','api')"), export.index("'/app/export-venue-return.mjs'"))
         self.assertIn('finally{',export)
         self.assertIn('$apiWasRunning',export)
