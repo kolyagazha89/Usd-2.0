@@ -85,6 +85,19 @@ test('dry-run validates signed scoped package without touching any database',()=
  assert.equal(plan.packageHash.length,64);
  assert.equal(plan.registrations[0].car.registrationNumber,'А123ВС55');
 });
+test('signed cancelled registration keeps its ID without an active place or number',()=>{
+ const data=snapshot();
+ const cancelled=data.registrations[0];
+ Object.assign(cancelled,{status:'CANCELLED',participantNumber:-1,numbers:[],classes:[],
+  inspection:null,stageInspection:null,results:[]});
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ assert.equal(plan.summary.registrations,0);
+ assert.equal(plan.registrations[0].id,uuid.reg);
+ assert.equal(plan.registrations[0].status,'CANCELLED');
+ assert.throws(()=>planVenueStageImport(signed({...data,registrations:[{...cancelled,participantNumber:6}]}),publicPem,env,now),/Отменённая/);
+ const leakedHistory={...cancelled,results:snapshot().registrations[0].results};
+ assert.throws(()=>planVenueStageImport(signed({...data,registrations:[leakedHistory]}),publicPem,env,now),/Отменённая/);
+});
 test('reject invalid origin, wrong key, expired package, wrong stage and external database',()=>{
  const p=signed();
  assert.throws(()=>planVenueStageImport(p,generateKeyPairSync('ed25519').publicKey.export({type:'spki',format:'pem'}).toString(),env,now),/подпись/);

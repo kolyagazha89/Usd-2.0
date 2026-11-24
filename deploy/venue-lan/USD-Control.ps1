@@ -51,7 +51,7 @@ function Get-InstalledStage([string]$Root=$script:Root){
     Length=$file.Length;LastWrite=$file.LastWriteTimeUtc
     Id=[string]$signed.snapshot.stageId;Fingerprint=[string]$signed.integrity.publicKeyFingerprint
     Stage=$signed.snapshot.stage
-    Registrations=@(Get-UsdProperty $signed.snapshot 'registrations'|Where-Object {$_}).Count
+    Registrations=@(Get-UsdProperty $signed.snapshot 'registrations'|Where-Object {(Get-UsdProperty $_ 'status') -ne 'CANCELLED'}).Count
     Participants=@(Get-UsdProperty $signed.snapshot 'participantDirectory'|Where-Object {$_}).Count
    }
    $script:StageMetadata[$file.FullName]=$cached
@@ -205,7 +205,7 @@ function Get-OnlineStageBundle([string]$Id,[string]$Token){
     [string]$setup.signing.fingerprint -cnotmatch '^[a-f0-9]{64}$'){
   throw 'На сайте USD не настроена подпись пакетов этапов.'
  }
- $rawBundle=Send-UsdApi 'POST' ('/stages/venue/'+$id+'/staff-export') @{} $Token -Raw
+ $rawBundle=Send-UsdApi 'POST' ('/stages/venue/'+$id+'/staff-export') @{includeCancelled=$true} $Token -Raw
  $signedRaw=Extract-SignedJson $rawBundle
  $bundle=$rawBundle|ConvertFrom-Json
  if([string]$bundle.signed.snapshot.stageId -cne $id -or
@@ -371,13 +371,24 @@ function Get-UsdFailure([string]$Reason,[int]$Http=0){
    'RESULT_ADMISSION_MISSING' {return @('Сайт не подтвердил инспекцию или допуск для одного из результатов.','Передайте подробности администратору USD. Копия сохранена.')}
    'START_NUMBER_TAKEN' {return @('Один из стартовых номеров уже занят на сайте.','Попросите администратора USD сверить локальные и онлайн-регистрации. Копия сохранена.')}
    'CAR_REGISTRATION_EXISTS' {return @('У одного автомобиля уже есть заявка на этот этап на сайте.','Попросите администратора USD сверить две заявки. Резервная копия сохранена.')}
+   'RETURN_ROW_ALREADY_EXISTS' {return @('Одна из записей журнала пересекается с данными на сайте.','Нужна сверка записей администратором USD. Резервная копия сохранена.')}
+   'RETURN_REFERENCE_MISSING' {return @('На сайте не найдена запись, связанная с журналом площадки.','Нужна сверка этапа администратором USD. Резервная копия сохранена.')}
    'RETURN_REVIEW_PENDING' {return @('Заявка на сверку участников или автомобилей ожидает решения.','Откройте «Офлайн-сервер» в онлайн-админке USD. После решения по заявке повторите отправку.')}
    'RETURN_REVIEW_REQUIRED' {return @('Нужна ручная сверка данных администратором USD.','Передайте резервную копию и технические подробности администратору.')}
    'RETURN_DB_UNAVAILABLE' {return @('Сайт USD не смог подключиться к центральной базе.','Резервная копия на ноутбуке. Повторите отправку, когда сайт восстановит работу.')}
+   'RETURN_DB_BUSY' {return @('Центральная база занята другой операцией.','Повторите отправку позже. Резервная копия находится на ноутбуке.')}
+   'RETURN_DB_SCHEMA' {return @('Структура базы на сайте не соответствует журналу.','Передайте администратору USD код из технических подробностей. Резервная копия сохранена.')}
+   'RETURN_DB_PERMISSIONS' {return @('Сайту не удалось записать данные из-за настроек доступа к базе.','Нужна проверка основного сервера администратором USD. Резервная копия сохранена.')}
+   'RETURN_ROW_INVALID' {return @('База на сайте отклонила запись журнала.','Передайте технические подробности администратору USD. Резервная копия сохранена.')}
    'RETURN_WRITE_FAILED' {return @('Сайт не подтвердил запись журнала в базу.','Копия сохранена на ноутбуке. Передайте технические подробности администратору USD, если ошибка повторится.')}
    'RETURN_RECEIPT_MISMATCH' {return @('Сайт не подтвердил приём всех операций этапа.','Резервная копия сохранена. Нужна проверка журнала на основном сервере USD.')}
    'RETURN_FINALIZE_FAILED' {return @('Журнал записан на сайте, пересчёт результатов не подтверждён.','Повторите отправку того же журнала после восстановления сайта. Храните резервную копию до подтверждения.')}
    'RETURN_ACK_FAILED' {return @('Журнал записан и результаты пересчитаны. Подтверждение не дошло до ноутбука.','Повторите отправку того же журнала. Резервная копия сохранена.')}
+   'RETURN_PACKAGE_REJECTED' {return @('Сайт не принял защищённый пакет этапа.','Передайте технические подробности администратору USD для проверки пакета. Копия сохранена.')}
+   'RETURN_ACCESS_REFUSED' {return @('Сайт не подтвердил доступ ноутбука к этому этапу.','Попросите администратора USD проверить разрешение на отправку этапа. Копия сохранена.')}
+   'RETURN_PACKAGE_TOO_LARGE' {return @('Пакет этапа больше допустимого размера для отправки.','Резервная копия сохранена. Обратитесь к администратору USD для переноса журнала.')}
+   'RETURN_RATE_LIMITED' {return @('Сайт временно ограничил число запросов.','Подождите минуту и повторите отправку. Копия сохранена.')}
+   'RETURN_TIMEOUT' {return @('Сайт не подтвердил отправку вовремя.','Повторите отправку того же журнала. Сайт проверит, какие операции уже приняты.')}
   }
  }
  if($Http -eq 401 -or $Reason -match '(?i)\bHTTP\s+401\b|Unauthorized'){

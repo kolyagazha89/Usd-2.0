@@ -2,6 +2,8 @@
 
 function Get-VenueSyncHttpError([int]$Status,[string]$ResponseText){
  $failure='Сайт USD вернул HTTP '+$Status+'. Резервная копия сохранена.'
+ $requestErrors=@{400='RETURN_PACKAGE_REJECTED';401='RETURN_ACCESS_REFUSED';403='RETURN_ACCESS_REFUSED';413='RETURN_PACKAGE_TOO_LARGE';429='RETURN_RATE_LIMITED';504='RETURN_TIMEOUT'}
+ if($requestErrors.ContainsKey($Status)){return $failure+' ['+$requestErrors[$Status]+']'}
  if($Status -notin @(409,503)){return $failure}
  try{$response=$ResponseText|ConvertFrom-Json -ErrorAction Stop}catch{return $failure}
  if(!$response){return $failure}
@@ -17,10 +19,14 @@ function Get-VenueSyncHttpError([int]$Status,[string]$ResponseText){
   if(!$code -and $response.PSObject.Properties['message'] -and $response.message -is [string]){
    $code=$legacy[$response.message]
   }
-  if($code -cin @('RETURN_DB_UNAVAILABLE','RETURN_WRITE_FAILED','RETURN_RECEIPT_MISMATCH','RETURN_FINALIZE_FAILED','RETURN_ACK_FAILED')){
+  if($code -cin @('RETURN_DB_UNAVAILABLE','RETURN_WRITE_FAILED','RETURN_DB_BUSY','RETURN_DB_SCHEMA','RETURN_DB_PERMISSIONS','RETURN_ROW_INVALID','RETURN_RECEIPT_MISMATCH','RETURN_FINALIZE_FAILED','RETURN_ACK_FAILED')){
    $failure+=' ['+$code+']'
    if($response.PSObject.Properties['databaseCode'] -and $response.databaseCode -is [string] -and
       $response.databaseCode -cmatch '^[A-Z0-9]{5}$'){$failure+=' Код БД '+$response.databaseCode+'.'}
+   if($response.PSObject.Properties['reference'] -and $response.reference -is [string] -and
+      $response.reference -cmatch '^[a-f0-9]{12}$'){$failure+=' Запрос '+$response.reference+'.'}
+   if($response.PSObject.Properties['eventSequence'] -and ($response.eventSequence -is [int] -or $response.eventSequence -is [long]) -and
+      $response.eventSequence -gt 0){$failure+=' Запись журнала '+$response.eventSequence+'.'}
   }
   return $failure
  }
@@ -33,7 +39,7 @@ function Get-VenueSyncHttpError([int]$Status,[string]$ResponseText){
  if($code -ceq 'RESULTS_ALREADY_PUBLISHED'){
   return '[RESULTS_ALREADY_PUBLISHED] Результаты этапа уже опубликованы. Скройте результаты в карточке этапа на сайте и повторите отправку.'
  }
- if($code -cin @('STAGE_UNAVAILABLE','JOURNAL_MISMATCH','PARTICIPANT_NOT_ELIGIBLE','CLASS_UNAVAILABLE','RESULT_ADMISSION_MISSING','START_NUMBER_TAKEN','CAR_REGISTRATION_EXISTS','RETURN_REVIEW_PENDING','RETURN_REVIEW_REQUIRED','RETURN_CONFLICT')){
+ if($code -cin @('STAGE_UNAVAILABLE','JOURNAL_MISMATCH','PARTICIPANT_NOT_ELIGIBLE','CLASS_UNAVAILABLE','RESULT_ADMISSION_MISSING','START_NUMBER_TAKEN','CAR_REGISTRATION_EXISTS','RETURN_ROW_ALREADY_EXISTS','RETURN_REFERENCE_MISSING','RETURN_REVIEW_PENDING','RETURN_REVIEW_REQUIRED','RETURN_CONFLICT')){
   $failure+=' ['+$code+']'
   if($code -ceq 'RETURN_REVIEW_PENDING' -and $reviewId -cmatch '^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$'){
    $failure+=' Заявка '+$reviewId+'.'

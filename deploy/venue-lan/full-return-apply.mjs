@@ -256,13 +256,15 @@ function validateSnapshot(snapshot,options){
   &&snapshot.eventCount!==undefined)reject('incomplete journal');
 }
 
-function remapRow(table,row,people,cars){
+function remapRow(table,row,people,cars,registrations){
  if(!row)return row;
  const result={...row};
  if(['Car','Registration','ParticipantStageInspection'].includes(table)&&result.participantId)
   result.participantId=people.get(result.participantId)??result.participantId;
  if(['Registration','CarConfiguration'].includes(table)&&result.carId)
   result.carId=cars.get(result.carId)??result.carId;
+ if(table==='Registration')result.id=registrations.get(result.id)??result.id;
+ if(result.registrationId)result.registrationId=registrations.get(result.registrationId)??result.registrationId;
  return result;
 }
 function reviewApproval(resolutions,table,sourceId,candidates,apply,reviewId,approvedBy,reasonCode){
@@ -313,25 +315,37 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
   const previous=await tx.listReceipts(stageId);
   const list=previous.filter(r=>r.action==='VENUE_FULL_EVENT_IMPORTED');
   if(list.length){
+   const byHash=new Map(list.map(receipt=>[receipt.eventHash,receipt]));
    if(list.length!==snapshot.events.length
+     ||byHash.size!==list.length
      ||resolutionHash&&list.some(r=>r.resolutionHash!==resolutionHash)
      ||!resolutionHash&&list.some(r=>r.resolutionHash)
-     ||snapshot.events.some(e=>!list.some(r=>r.eventHash===e.hash
-       &&r.sequence===e.sequence&&r.baselineSha256===baselineSha256
-       &&r.journalEndHash===snapshot.journalEndHash)))
+     ||snapshot.events.some(e=>{
+      const receipt=byHash.get(e.hash);
+      return !receipt||receipt.sequence!==e.sequence||receipt.baselineSha256!==baselineSha256
+       ||receipt.journalEndHash!==snapshot.journalEndHash;
+     }))
     reject('partial, unknown or different journal receipts','JOURNAL_MISMATCH');
    // Audit receipts alone do not prove the current DB still matches the
    // signed event. Admins may have changed or deleted rows after import.
    // Inspect FINAL states (not intermediate UPDATEs), with one exception:
    // rank and best flags are derived centrally and may legitimately change.
    const finalStates=new Map();
-   const replayPeople=new Map(),replayCars=new Map();
+   const replayPeople=new Map(),replayCars=new Map(),replayRegistrations=new Map();
    for(const decision of Object.values(resolutions)){
     if(decision.action==='LINK')
      (decision.table==='Participant'?replayPeople:replayCars).set(decision.sourceId,decision.targetId);
    }
    for(const event of snapshot.events){
     const p=event.payload;
+    const receipt=byHash.get(event.hash);
+    if(receipt.venueRegistrationId){
+     if(p.table!=='Registration'||receipt.venueRegistrationId!==p.recordId
+       ||!UUID.test(receipt.entityId??'')||receipt.entityId===p.recordId
+       ||(replayRegistrations.has(p.recordId)&&replayRegistrations.get(p.recordId)!==receipt.entityId))
+      reject('invalid registration reconciliation receipt','JOURNAL_MISMATCH');
+     replayRegistrations.set(p.recordId,receipt.entityId);
+    }
     finalStates.set(p.table+':'+p.recordId,{table:p.table,id:p.recordId,after:p.after});
    }
    for(const {table,id,after} of finalStates.values()){
@@ -344,13 +358,13 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
       reject('CENTRAL_CHANGED: approved car ownership changed');
      continue;
     }
-    const actual=await tx.getRow(table,id);
+    const actual=await tx.getRow(table,table==='Registration'?(replayRegistrations.get(id)??id):id);
     if(after===null){
      if(actual!==null)reject('CENTRAL_CHANGED: deleted signed row restored '+table);
      continue;
     }
     if(actual===null)reject('CENTRAL_CHANGED: signed row disappeared '+table);
-    const signed=await tx.canonical(table,remapRow(table,normalize(table,after),replayPeople,replayCars));
+    const signed=await tx.canonical(table,remapRow(table,normalize(table,after),replayPeople,replayCars,replayRegistrations));
     const current=await tx.canonical(table,actual);
     if(!sameSignedStageState(table,signed,current))
      reject('CENTRAL_CHANGED: signed row modified '+table);
@@ -375,7 +389,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
   for(const e of snapshot.events)stageRefs(e,scope);
   let readyEvents=0;
   const newOfflinePeople=[],newOfflineCars=[];
-  const linkedPeople=new Map(),linkedCars=new Map(),approvedKeys=new Set();
+  const linkedPeople=new Map(),linkedCars=new Map(),linkedRegistrations=new Map(),approvedKeys=new Set();
   const signedCarsByOwner=new Map();
   for(const signedEvent of snapshot.events){
    if(signedEvent.payload.table==='Car'&&signedEvent.payload.operation==='INSERT'){
@@ -390,12 +404,31 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
     &&((table==='Participant'&&linkedPeople.has(p.recordId))
       ||(table==='Car'&&linkedCars.has(p.recordId))))
     reject('MANUAL_REVIEW: cannot overwrite linked central identity');
-   const before=remapRow(table,p.before&&normalize(table,p.before),linkedPeople,linkedCars);
-   let after=remapRow(table,p.after&&normalize(table,p.after),linkedPeople,linkedCars);
-   const actual=await tx.getRow(table,p.recordId);
+   const before=remapRow(table,p.before&&normalize(table,p.before),linkedPeople,linkedCars,linkedRegistrations);
+   let after=remapRow(table,p.after&&normalize(table,p.after),linkedPeople,linkedCars,linkedRegistrations);
+   let actual=await tx.getRow(table,(after??before).id);
    let effectiveKind=p.operation;
    let skipLinkedInsert=false;
-   if(p.operation==='INSERT'){
+   let reopened=false;
+   if(table==='Registration'&&p.operation==='DELETE'&&linkedRegistrations.has(p.recordId))
+    reject('cannot delete the retained central registration','CAR_REGISTRATION_EXISTS');
+   if(table==='Registration'&&p.operation==='INSERT'&&actual===null&&typeof tx.findRegistrationForCar==='function'){
+    const retained=await tx.findRegistrationForCar(stageId,after.carId);
+    if(retained){
+     if(retained.row.status!=='CANCELLED'||after.status!=='ACTIVE'||retained.hasCompetitionData
+       ||retained.row.participantId!==after.participantId||retained.carOwner!==after.participantId)
+      reject('competing central registration for this car cannot be reopened safely','CAR_REGISTRATION_EXISTS');
+     if(typeof tx.auditOverride!=='function')reject('registration reopening requires audit','CAR_REGISTRATION_EXISTS');
+     linkedRegistrations.set(p.recordId,retained.row.id);
+     actual=retained.row;
+     after=stageWinnerRow(table,actual,{...after,id:actual.id},stageId);
+     if(apply)await tx.auditOverride({stageId,eventHash:event.hash,operator,table,recordId:actual.id,
+      reason:'OFFLINE_CANCELLED_REGISTRATION_REOPENED',before:actual,after});
+     effectiveKind='UPDATE';
+     reopened=true;
+    }
+   }
+   if(p.operation==='INSERT'&&!reopened){
     if(actual!==null)reject('duplicate central ID '+table+' '+p.recordId);
     if(table==='Participant'){
      if(typeof tx.participantIdentityCandidates!=='function')
@@ -443,7 +476,7 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
      }
      newOfflineCars.push(after);
     }
-   }else{
+   }else if(!reopened){
     if(actual===null){
      if(!STAGE_WINNERS.has(table))
       reject('missing central row '+table+' '+p.recordId);
@@ -498,8 +531,13 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
     if(number&&number.id!==p.recordId)reject('номер занят: '+after.number,'START_NUMBER_TAKEN');
    }
    // Dry-run exercises actual FK/UNIQUE checks before rolling back atomically.
-   if(!skipLinkedInsert&&effectiveKind!=='NOOP')
-    await tx.write(table,{kind:effectiveKind,eventSequence:event.sequence},after,actual??before);
+   if(!skipLinkedInsert&&effectiveKind!=='NOOP'){
+    try{await tx.write(table,{kind:effectiveKind,eventSequence:event.sequence},after,actual??before)}
+    catch(error){
+     if(error instanceof Error)error.venueSequence=event.sequence;
+     throw error;
+    }
+   }
    const choice=resolutions[conflictKey(table,p.recordId)];
    if(choice&&apply){
     if(typeof tx.auditResolution!=='function')
@@ -512,7 +550,8 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
     await tx.receipt({
      action:'VENUE_FULL_EVENT_IMPORTED',stageId,eventHash:event.hash,
      sequence:event.sequence,operation:p.operation,journalEndHash:snapshot.journalEndHash,
-     baselineSha256,entity:table,entityId:p.recordId,operator,resolutionHash,
+     baselineSha256,entity:table,entityId:(after??before).id,operator,resolutionHash,
+     venueRegistrationId:table==='Registration'&&linkedRegistrations.has(p.recordId)?p.recordId:undefined,
     });
    }
    readyEvents++;

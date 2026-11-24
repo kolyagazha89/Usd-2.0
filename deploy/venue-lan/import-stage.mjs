@@ -236,8 +236,8 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
  let resultCount=0;
  for(const reg of snapshot.registrations){
   addUnique(registrations,assertUuid(reg.id,'регистрация'),'регистрации');
-  if(reg.stageId!==snapshot.stageId||reg.status!=='ACTIVE')throw new Error('Регистрация чужого этапа');
-  requiredCount(reg.participantNumber,'участник');
+  if(reg.stageId!==snapshot.stageId)throw new Error('Регистрация чужого этапа');
+  if(reg.status==='ACTIVE')requiredCount(reg.participantNumber,'участник');
   const person=reg.participant,car=reg.car;
   if(!isObject(person)||!isObject(car)||reg.participantId!==person.id||reg.carId!==car.id
     ||car.participantId!==person.id)
@@ -302,7 +302,7 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
   registrations:snapshot.registrations,
   participantDirectory:snapshot.participantDirectory,
   configurations:snapshot.configurations??[],
-  summary:{stageId:verified.stageId,registrations:registrations.size,
+  summary:{stageId:verified.stageId,registrations:verified.registrations,
    classes:classIds.size,results:resultCount},
  };
 }
@@ -568,7 +568,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress
     id:r.id,stageId:r.stageId,participantId:r.participantId,carId:r.carId,
     configurationVersionId:r.configurationVersionId,
     configurationSnapshot:r.configurationSnapshot,participantNumber:r.participantNumber,
-    source:r.source,status:'ACTIVE',registeredAt:parsedDate(r.registeredAt,'регистрация'),
+    source:r.source,status:r.status,registeredAt:parsedDate(r.registeredAt,'регистрация'),
     teamIdAtInspection:r.teamIdAtInspection??null,
     teamNameAtInspection:r.teamNameAtInspection??null,
    }});

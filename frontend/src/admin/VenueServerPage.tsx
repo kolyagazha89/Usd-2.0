@@ -38,7 +38,7 @@ export default function VenueServerPage({user,go,path,PageFrame}:{user:User;go:(
   if(!setup||!stageId||busy)return;
   const selected=stageId;setBusy(true);setError('');setNotice('');setStaffKey('');
   try{
-   const data=await apiPost('/stages/venue/'+encodeURIComponent(selected)+'/staff-export',{});
+   const data=await apiPost('/stages/venue/'+encodeURIComponent(selected)+'/staff-export',{includeCancelled:true});
    const file=validateVenueStaffExport(data,selected,setup);
    saveVenueFile('usd-venue-stage-'+selected+'.json',file.text,'application/json');
    setStaffKey(file.staffKey);

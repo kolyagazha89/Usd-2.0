@@ -132,6 +132,16 @@ describe('Signed LAN stage export',()=>{
    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
     data:expect.objectContaining({action:'VENUE_STAGE_PACKAGE_EXPORTED',entityId:stageId}),
    }));
+   const storedStage=await prisma.stage.findFirst();
+   const cancelled={...storedStage.registrations[0],status:'CANCELLED',participantNumber:8,
+    numbers:[{number:8}],results:[{id:'not-exported'}],inspection:{notes:'not-exported'}};
+   prisma.stage.findFirst.mockResolvedValueOnce({...storedStage,registrations:[cancelled]});
+   const capable=await service.exportStage(stageId,admin as any,false,true);
+   expect(capable.snapshot.registrations).toEqual([expect.objectContaining({
+    id:cancelled.id,status:'CANCELLED',participantNumber:-1,numbers:[],classes:[],results:[],inspection:null,
+   })]);
+   prisma.stage.findFirst.mockResolvedValueOnce({...storedStage,registrations:[cancelled]});
+   expect((await service.exportStage(stageId,admin as any)).snapshot.registrations).toEqual([]);
   }finally{if(old===undefined)delete process.env.VENUE_STAGE_SIGNING_KEY_B64;else process.env.VENUE_STAGE_SIGNING_KEY_B64=old}
  });
 });
