@@ -1,19 +1,59 @@
 ﻿#requires -Version 5.1
 
-function Test-VenueHttpsReady([string]$Ip,[string]$StageId){
- $ca=Join-Path $PrivateDir 'USD-Venue-CA.crt'
- if(!(Test-Path -LiteralPath $ca -PathType Leaf) -or !(Get-Command curl.exe -ErrorAction SilentlyContinue)){return $false}
+function Invoke-VenueHttpsProbe([string]$Url,[string]$Ca){
  $previous=$ErrorActionPreference
  try{
   $ErrorActionPreference='Continue'
-  $origin='https://'+$Ip
-  $options=@('--silent','--fail','--max-time','4','--noproxy','*','--cacert',$ca)
-  $data=(& curl.exe @options ($origin+'/venue-api/results/venue-live') 2>$null) -join "`n"
-  if($LASTEXITCODE -ne 0 -or ($data|ConvertFrom-Json -ErrorAction Stop).stage.id -cne $StageId){return $false}
-  $html=(& curl.exe @options ($origin+'/login') 2>$null) -join "`n"
-  return $LASTEXITCODE -eq 0 -and $html -match '(?i)<(?:!doctype|html)'
- }catch{return $false}
- finally{$ErrorActionPreference=$previous}
+  # The LAN CA is pinned explicitly and has no online revocation service.
+  $options=@('--disable','--silent','--show-error','--fail','--ssl-no-revoke',
+   '--max-time','4','--noproxy','*','--cacert',$Ca)
+  $records=@(& curl.exe @options $Url 2>&1)
+  $code=$LASTEXITCODE
+  $diagnostic=@($records|ForEach-Object {[string]$_}|Where-Object {$_ -match '^curl: \([0-9]+\) '}|Select-Object -First 1)
+  return [pscustomobject]@{
+   Code=$code
+   Body=(($records|Where-Object {$_ -isnot [Management.Automation.ErrorRecord]}) -join "`n")
+   Diagnostic=($diagnostic -join '')
+  }
+ }finally{$ErrorActionPreference=$previous}
+}
+
+function Test-VenueHttpsReady([string]$Ip,[string]$StageId,[int]$Port=443){
+ $ca=Join-Path $PrivateDir 'USD-Venue-CA.crt'
+ $script:VenueHttpsProbeReason='На ноутбуке отсутствует корневой сертификат площадки.'
+ if(!(Test-Path -LiteralPath $ca -PathType Leaf)){return $false}
+ if(!(Get-Command curl.exe -ErrorAction SilentlyContinue)){
+  $script:VenueHttpsProbeReason='Windows не нашла curl.exe для проверки HTTPS.'
+  return $false
+ }
+ $origin='https://'+$Ip
+ if($Port -ne 443){$origin+=':'+$Port}
+ try{
+  $probe=Invoke-VenueHttpsProbe ($origin+'/venue-api/results/venue-live') $ca
+  if($probe.Code -ne 0){
+   $script:VenueHttpsProbeReason='HTTPS API не ответил (curl '+$probe.Code+'). '+$probe.Diagnostic
+   return $false
+  }
+  $stage=($probe.Body|ConvertFrom-Json -ErrorAction Stop).stage
+  if(!$stage -or $stage.id -cne $StageId){
+   $script:VenueHttpsProbeReason='HTTPS API вернул другой этап.'
+   return $false
+  }
+  $probe=Invoke-VenueHttpsProbe ($origin+'/login') $ca
+  if($probe.Code -ne 0){
+   $script:VenueHttpsProbeReason='Страница входа по HTTPS не ответила (curl '+$probe.Code+'). '+$probe.Diagnostic
+   return $false
+  }
+  if($probe.Body -notmatch '(?i)<(?:!doctype|html)'){
+   $script:VenueHttpsProbeReason='HTTPS вернул неожиданный ответ страницы входа.'
+   return $false
+  }
+  $script:VenueHttpsProbeReason=''
+  return $true
+ }catch{
+  $script:VenueHttpsProbeReason='HTTPS вернул неожиданный ответ шлюза.'
+  return $false
+ }
 }
 
 function Get-VenueOperatorStatus {
@@ -80,9 +120,10 @@ SELECT json_build_object(
   }
   if($result.activeStageId -cne $id){$result.mode='archived';return $result}
   if($api.Count){
-   $result.running=(Test-VenueApiReady (Get-VenueRuntimeApiSha $cfg) $id) -and
-    (Test-VenueGatewayReady $state.ip) -and (Test-VenueHttpsReady $state.ip $id)
-   if(!$result.running){throw 'Службы Docker запущены, но API или защищённый вход USD не ответили.'}
+   if(!(Test-VenueApiReady (Get-VenueRuntimeApiSha $cfg) $id)){throw 'Локальный API не подтвердил текущий этап.'}
+   if(!(Test-VenueGatewayReady $state.ip)){throw 'Локальное LIVE-табло по HTTP не отвечает.'}
+   if(!(Test-VenueHttpsReady $state.ip $id)){throw $script:VenueHttpsProbeReason}
+   $result.running=$true
   }
   $result.mode=if($result.confirmed -and !$result.running){'synced'}
    elseif(!$result.confirmed -and $local.hash -cne ('0'*64)){'pending'}

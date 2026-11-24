@@ -383,7 +383,7 @@ function Wait-VenueLanReady([object]$State){
     try{Export-VenueCA;$caChecked=$true}catch{Write-Host ('USD VENUE TLS: '+$_.Exception.Message)}
    }
    if(Test-VenueHttpsReady $State.ip $State.stageId){return}
-   $reason='API и LIVE готовы, но HTTPS не подтвердил вход с сертификатом площадки.'
+   $reason=$script:VenueHttpsProbeReason
   }
   Start-Sleep -Seconds 2
  }

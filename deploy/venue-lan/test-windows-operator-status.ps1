@@ -37,7 +37,7 @@ try{
  }
  function curl.exe {
   $global:LASTEXITCODE=0
-  if($args -notcontains '--cacert' -or $args -contains '--insecure'){throw 'Untrusted HTTPS probe'}
+  if($args -notcontains '--cacert' -or $args -notcontains '--ssl-no-revoke' -or $args -contains '--insecure'){throw 'Untrusted HTTPS probe'}
   if($args[-1] -like '*/results/venue-live'){return (@{stage=@{id=$script:servedStage}}|ConvertTo-Json -Compress)}
   return '<!DOCTYPE html><html>'
  }

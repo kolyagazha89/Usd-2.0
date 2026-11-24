@@ -208,6 +208,7 @@ jobs:
             'deploy/venue-lan/test-windows-operator-launcher.ps1',
             'deploy/venue-lan/venue-control.ps1',
             'deploy/venue-lan/venue-operator-status.ps1',
+            'deploy/venue-lan/test-windows-venue-https.ps1',
             'deploy/venue-lan/venue-season.ps1',
             'deploy/venue-lan/venue-coverage.ps1',
             'deploy/venue-lan/venue-directory.ps1',
@@ -242,6 +243,9 @@ jobs:
         with:
           name: venue-windows-dashboard
           path: venue-windows-render/*.png
+      - name: Verify real Windows TLS against a pinned local certificate chain
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-venue-https.ps1
       - name: Exercise status of Docker, database, HTTPS and central journal acknowledgement
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-operator-status.ps1
