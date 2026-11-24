@@ -92,7 +92,7 @@ export class AssistantService {
           const protocol=await usdExpertRead(this.prisma,'usd_stage_results',{stageId:result.stage.id}) as {error?:string;note?:string;classes?:Array<{code:string;results:Array<{participant:string;number:number;place:number|null;value:unknown;unit:string}>}>};
           if(protocol.error)return {success:true,action:null,source:'guide',reply:protocol.error,links:[]};
           const leaders=(protocol.classes??[]).flatMap(group=>group.results.filter(r=>r.place===1).map(r=>group.code+': '+r.participant+' (№'+r.number+') — '+String(r.value)+' '+r.unit));
-          return {success:true,action:null,source:'database',reply:heading+'\n'+(protocol.note??'')+'\n'+(leaders.length?'Первые места в доступной выборке (до 100 результатов):\n'+leaders.slice(0,30).join('\n'):'В доступной выборке нет подтверждённых записей с первым местом.')+'\nПолный протокол открой в отчёте этапа.',links:links([['Отчёт этапа',reportUrl],['Результаты','/admin/results']]),data:{stage:result.stage,protocol}};
+          return {success:true,action:null,source:'database',reply:heading+'\n'+(protocol.note??'')+'\n'+(leaders.length?'Первые места в доступной выборке (до 100 результатов):\n'+leaders.slice(0,30).join('\n'):'В доступной выборке нет записей с первым местом.')+'\nПолный протокол открой в отчёте этапа.',links:links([['Отчёт этапа',reportUrl],['Результаты','/admin/results']]),data:{stage:result.stage,protocol}};
         }
         const participants=await this.prisma.registration.groupBy({by:['participantId'],where:{stageId:result.stage.id,status:'ACTIVE'}});
         const c=result.counts;
@@ -106,7 +106,7 @@ export class AssistantService {
             '\nРегистрации по инспекции: допущено '+c.passedInspections+', отказов '+c.failedInspections+', ожидают '+c.pendingInspections+
             '\nРезультатов: '+c.results+
             '\nУчастники считаются без повторов. Регистрация и стартовый номер — разные показатели.',
-          links:links([['Отчёт этапа',reportUrl],['Регистрации','/admin/registrations'],['Результаты','/admin/results']])};
+          links:links([['Отчёт этапа',reportUrl],['Регистрации','/admin/registrations'],['Инспекции','/admin/inspections'],['Результаты','/admin/results']])};
       }catch(error){
         if(error instanceof NotFoundException)return {success:true,action:null,source:'guide',links:[],reply:'Подходящий этап не найден. Выбери этап в настройках диалога и спроси о нём.'};
         throw error;
