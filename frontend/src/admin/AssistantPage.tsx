@@ -22,6 +22,8 @@ const designSuggestions=[
  'Как изменить регистрацию на месте, не нарушая существующие номера?',
 ];
 const suggestions=[
+ 'Дай отчёт по последнему этапу',
+ 'Сколько участников на ближайшем этапе?',
  'Что сейчас требует внимания?',
  'Проверь готовность этапа',
  'Проверь качество данных',
@@ -39,7 +41,9 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
  const [stages,setStages]=useState<StageChoice[]>([]);
  const [stageId,setStageId]=useState('');
  const [aiStatus,setAiStatus]=useState<AssistantAiStatus|null>(null);
- const bottomRef=useRef<HTMLDivElement>(null);
+ const messagesRef=useRef<HTMLDivElement>(null);
+ const chatRef=useRef<HTMLElement>(null);
+ const toolbarRef=useRef<HTMLDivElement>(null);
  const textareaRef=useRef<HTMLTextAreaElement>(null);
 
  useEffect(()=>{
@@ -48,7 +52,26 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
   void getAssistantAiStatus().then(result=>{if(alive)setAiStatus(result)}).catch(()=>{});
   return ()=>{alive=false};
  },[]);
- useEffect(()=>{bottomRef.current?.scrollIntoView({block:'end',behavior:'smooth'})},[messages,sending]);
+ useEffect(()=>{const el=messagesRef.current;if(el)el.scrollTop=el.scrollHeight},[messages,sending,error]);
+ useEffect(()=>{
+  const chat=chatRef.current;if(!chat)return;
+  const resize=()=>{
+   const viewport=window.visualViewport;
+   const top=chat.getBoundingClientRect().top+window.scrollY;
+   const available=(viewport?.height??window.innerHeight)-Math.max(0,top)-12;
+   chat.style.setProperty('--assistant-mobile-height',Math.max(320,available)+'px');
+  };
+  resize();
+  const observer=new ResizeObserver(resize);
+  if(toolbarRef.current)observer.observe(toolbarRef.current);
+  window.addEventListener('resize',resize);
+  window.visualViewport?.addEventListener('resize',resize);
+  return ()=>{observer.disconnect();window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize)};
+ },[]);
+ useEffect(()=>{
+  const el=textareaRef.current;if(!el)return;
+  el.style.height='auto';el.style.height=Math.min(112,Math.max(48,el.scrollHeight+2))+'px';
+ },[input]);
 
  const send=async(quick?:string)=>{
   const text=(quick??input).trim();
@@ -63,10 +86,10 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
    const answer=await chatAssistant(text,{history,stageId:stageId||undefined,mode});
    setMessages(prev=>[...prev,{role:'assistant',text:answer.reply,source:answer.source,links:answer.links,toolsUsed:Array.isArray((answer.data as any)?.toolsUsed)?(answer.data as any).toolsUsed:[],mode}]);
   }catch(e){
-   const detail=e instanceof Error?e.message:'Неизвестная ошибка';
-   setError('Запрос не выполнен: '+detail);
-   setMessages(prev=>[...prev,{role:'assistant',text:'Не удалось связаться с API USD. Никаких изменений в системе не выполнено.',source:'unavailable'}]);
-  }finally{setSending(false);textareaRef.current?.focus()}
+   setError(e instanceof Error&&e.name==='AbortError'?'Модель не успела ответить. Повторите вопрос.':'Не удалось получить ответ. Проверьте соединение и повторите вопрос.');
+   setInput(text);
+   setMessages(prev=>prev.slice(0,-1));
+  }finally{setSending(false)}
  };
  const reset=()=>{if(sending)return;setMessages([mode==='design'?designGreeting:greeting]);setInput('');setError('');textareaRef.current?.focus()};
  const chooseMode=(next:AssistantChatMode)=>{
@@ -79,7 +102,7 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
 
  return <PageFrame title="Ассистент USD" subtitle="Вопросы по USD и обсуждение новых изменений — только чтение, без автоматического внесения правок.">
   <div className="assistant-workspace">
-   <div className="assistant-workspace-toolbar">
+   <div className="assistant-workspace-toolbar" ref={toolbarRef}>
     <div className="assistant-chat-mode-switch" role="group" aria-label="Режим ассистента">
      <button type="button" className={mode==='ask'?'primary-button compact':'secondary-button compact'}
       aria-pressed={mode==='ask'} onClick={()=>chooseMode('ask')} disabled={sending}>Вопросы по USD</button>
@@ -94,15 +117,15 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
       {stages.map(stage=><option value={stage.id} key={stage.id}>{stage.name}{stage.city?' · '+stage.city:''}{stage.date?' · '+new Date(stage.date).toLocaleDateString('ru-RU'):''}</option>)}
      </select>
     </div>
-    <button type="button" className="secondary-button compact" onClick={reset} disabled={sending}><RotateCcw size={15}/>Новый диалог</button>
+    <button type="button" className="secondary-button compact" onClick={reset} disabled={sending}><RotateCcw size={15}/><span>Новый диалог</span></button>
    </div>
-   <section className="assistant-chat panel" aria-label="Чат ассистента USD">
+   <section className="assistant-chat panel" ref={chatRef} aria-label="Чат ассистента USD">
     <div className="assistant-chat-head">
      <div className="assistant-avatar"><Bot size={22} aria-hidden="true"/></div>
      <div><strong>USD · Помощник администратора</strong><span>{aiStatus?(aiStatus.provider==='ollama'?(aiStatus.modelReady?'Локальная модель '+aiStatus.model+' готова':'Локальная модель '+aiStatus.model+' недоступна'):(aiStatus.aiConfigured?'Облачная модель '+aiStatus.model+' · ключ настроен':'OpenAI API · ключ не настроен')):'Отвечаю только по USD · проверяю факты через систему'}</span></div>
      <ShieldCheck className="assistant-trust-icon" size={21} aria-hidden="true"/>
     </div>
-    <div className="assistant-messages" role="log" aria-live="polite" aria-relevant="additions text">
+    <div className="assistant-messages" ref={messagesRef} role="log" aria-live="polite" aria-relevant="additions text">
      {messages.map((entry,index)=><div key={index} className={'assistant-message '+entry.role}>
       <div className="message-avatar" aria-hidden="true">{entry.role==='assistant'?<Bot size={15}/>:<UserRound size={15}/>}</div>
       <div className="message-bubble">
@@ -113,18 +136,16 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
        </div>:null}
       </div>
      </div>)}
-     {sending&&<div className="assistant-message assistant"><div className="message-avatar"><Bot size={15}/></div><div className="message-bubble assistant-typing"><Loader2 size={15} className="spin"/>Проверяю запрос…</div></div>}
-     <div ref={bottomRef}/>
+     {sending&&<div className="assistant-message assistant"><div className="message-avatar"><Bot size={15}/></div><div className="message-bubble assistant-typing"><Loader2 size={15} className="spin"/>Проверяю запрос… Первый ответ модели может занять до двух минут.</div></div>}
     </div>
-    <div className="assistant-chat-suggestions" aria-label={mode==='design'?'Идеи для обсуждения':'Быстрые проверки'}>
+    {messages.length===1&&!sending&&<div className="assistant-chat-suggestions" aria-label={mode==='design'?'Идеи для обсуждения':'Быстрые проверки'}>
      {(mode==='design'?designSuggestions:suggestions).map(text=><button type="button" key={text} onClick={()=>void send(text)} disabled={sending}>{text}</button>)}
-    </div>
+    </div>}
     {error&&<div className="form-error assistant-request-error" role="alert"><AlertTriangle size={15}/>{error}</div>}
     <form className="assistant-composer" onSubmit={e=>{e.preventDefault();void send()}}>
-     <label htmlFor="assistant-input" className="visually-hidden">Вопрос ассистенту USD</label>
-     <textarea id="assistant-input" ref={textareaRef} value={input} onChange={e=>setInput(e.target.value)}
+     <textarea aria-label="Вопрос ассистенту USD" id="assistant-input" ref={textareaRef} value={input} onChange={e=>setInput(e.target.value)}
       onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();void send()}}}
-      placeholder={mode==='design'?'Опиши идею или изменение USD, которое нужно обсудить…':'Спроси о данных, ошибках, этапах или порядке работы…'} rows={2} maxLength={12000} disabled={sending}/>
+      placeholder={mode==='design'?'Опиши идею или изменение USD, которое нужно обсудить…':'Напиши вопрос по USD…'} rows={1} maxLength={12000} disabled={sending}/>
      <button className="primary-button" type="submit" disabled={!input.trim()||sending} aria-label="Отправить вопрос">
       {sending?<Loader2 size={18} className="spin"/>:<Send size={18}/>}<span>Отправить</span>
      </button>
