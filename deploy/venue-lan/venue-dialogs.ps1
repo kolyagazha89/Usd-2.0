@@ -45,6 +45,6 @@ function Select-VenueFile([string]$Title,[string]$Filter){
 function Read-VenueFingerprint {
  Add-Type -AssemblyName Microsoft.VisualBasic
  return [Microsoft.VisualBasic.Interaction]::InputBox(
-  'Скопируйте отпечаток из админки USD: Офлайн-сервер → Подготовка файла настоящего этапа. Не берите его из файла этапа.',
+  'Скопируйте отпечаток из админки USD: Офлайн-сервер → Пакет этапа. Не берите его из файла этапа.',
   'USD — Доверенный ключ','')
 }

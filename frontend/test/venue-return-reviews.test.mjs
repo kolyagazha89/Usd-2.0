@@ -7,7 +7,8 @@ test('offline conflict review appears only on central ADMIN venue page',async()=
   readFile(new URL('../src/admin/VenueReturnReviews.tsx',import.meta.url),'utf8'),
   readFile(new URL('../../backend/src/stages/stages.controller.ts',import.meta.url),'utf8'),
  ]);
- assert.match(page,/!localMode&&<VenueReturnReviews/);
+ assert.match(page,/user\.role!=='ADMIN'\|\|localMode/);
+ assert.match(page,/localMode\?\s*<section[\s\S]+<\/section>:<>[\s\S]+<VenueReturnReviews\/>/);
  assert.match(page,/user.role!=='ADMIN'/);
  assert.match(component,/\/stages\/venue\/returns\?page=/);
  assert.match(component,/\/stages\/venue\/returns\//);

@@ -100,19 +100,15 @@ try{
   assert.equal(await installPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
   await installPage.screenshot({path:path.join(output,'certificate-'+width+'.png'),fullPage:true});
   await installPage.close();checks++;
-  await main.getByRole('heading',{name:'Сохраните результаты в защищённый файл'}).waitFor();
-  await main.getByText('USD-Export.cmd',{exact:true}).waitFor();
-  await main.getByText('Подготовка файла настоящего этапа',{exact:true}).click();
+  await main.getByRole('heading',{name:'Пакет этапа'}).waitFor();
   await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).waitFor();
   assert.equal(await page.locator('select option').filter({hasText:'Черновик'}).count(),0);
-  for(const name of ['Скачать для Windows','Скачать инструкцию']){
-   const downloaded=page.waitForEvent('download');await main.getByRole('link',{name,exact:true}).click();
-   const file=await downloaded;
-   const bytes=await readFile(await file.path());
-   if(name==='Скачать для Windows'){assert.equal(bytes.subarray(0,2).toString(),'PK');assert.equal(file.suggestedFilename(),'USD-Offline-Windows.zip');}
-   else assert.ok(bytes.toString().includes('Доверие сертификатам'));
-   checks++;
-  }
+  assert.equal(await main.getByRole('link',{name:'Скачать инструкцию',exact:true}).count(),0);
+  const windowsDownload=page.waitForEvent('download');
+  await main.getByRole('link',{name:'Скачать для Windows',exact:true}).click();
+  const zip=await windowsDownload;
+  assert.equal((await readFile(await zip.path())).subarray(0,2).toString(),'PK');
+  assert.equal(zip.suggestedFilename(),'USD-Offline-Windows.zip');checks++;
   let downloaded=page.waitForEvent('download');await main.getByRole('button',{name:'Скачать открытый ключ',exact:true}).click();
   assert.equal(await readFile(await (await downloaded).path(),'utf8'),publicKeyPem);checks++;
   downloaded=page.waitForEvent('download');await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).click();
@@ -136,7 +132,7 @@ try{
    assert.deepEqual(submittedReview?.decisions?.map(d=>({key:d.key,action:d.action,targetId:d.targetId})),
     [{key:reviewKey,action:'LINK',targetId}]);checks++;
    mode='ready';await page.reload();
-   await main.getByText('Подготовка файла настоящего этапа',{exact:true}).click();
+   await main.getByRole('heading',{name:'Пакет этапа'}).waitFor();
   }
   mode='tamper';await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).click();
   await main.getByRole('alert').filter({hasText:'не прошёл проверку'}).waitFor();checks++;
@@ -144,14 +140,14 @@ try{
   assert.equal(overflow,false,'horizontal overflow at '+width);
   await page.screenshot({path:path.join(output,'venue-'+width+'.png'),fullPage:true});checks++;
   for(const state of ['missing','error','empty']){
-   mode=state;await page.reload();await main.getByText('Подготовка файла настоящего этапа',{exact:true}).click();
-   if(state==='missing')await main.getByText('Для загрузки настоящего этапа требуется настройка ключа подписи на основной Ubuntu.',{exact:false}).waitFor();
+   mode=state;await page.reload();await main.getByRole('heading',{name:'Пакет этапа'}).waitFor();
+   if(state==='missing')await main.getByText('Ключ подписи этапов недоступен.',{exact:false}).waitFor();
    if(state==='error')await main.getByRole('alert').filter({hasText:'Сервер временно недоступен'}).waitFor();
    if(state==='empty')assert.equal(await main.getByRole('button',{name:'Скачать файл этапа',exact:true}).isDisabled(),true);
    assert.equal(await main.getByRole('link',{name:'Скачать для Windows',exact:true}).count(),1);checks++;
   }
   role='PARTICIPANT';const callsBefore=setupCalls;await page.reload();
-  await main.getByRole('alert').filter({hasText:'только администратору'}).waitFor();
+  await main.getByRole('alert').filter({hasText:'Нужны права администратора USD.'}).waitFor();
   assert.equal(setupCalls,callsBefore);assert.equal(await main.getByRole('link',{name:'Скачать для Windows',exact:true}).count(),0);checks++;
   assert.deepEqual(errors,[]);await context.close();
  }
