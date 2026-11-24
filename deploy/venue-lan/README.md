@@ -1,8 +1,10 @@
 # USD venue LAN hub — same USD admin, event-only Wi-Fi workspace (field acceptance pending)
 
-> **Windows 10/11:** двойной щелчок по `USD-Install.cmd` (первый раз),
-> `USD-Offline.cmd` (включить LAN) и `USD-Online.cmd` (вернуться к
-> основному сайту). Автостарт после входа в Windows. Подробности:
+> **Windows 10/11:** одно окно `USD-Control.cmd`, в нём установка,
+> запуск и остановка LAN, импорт профилей, новый этап, экспорт, LIVE и сертификат.
+> Первичная загрузка этапа проходит через вход ADMIN по HTTPS без ручных ключей.
+> Старые CMD-команды сохранены для восстановления, но на рабочем столе один ярлык.
+> Автостарт после входа в Windows. Подробности:
 > **[START-WINDOWS.md](./START-WINDOWS.md)**. Для настоящего этапа «USD — Онлайн»
 > сначала синхронизирует подписанный журнал с Ubuntu и ждёт подтверждения;
 > без подтверждения переноса локальные данные сохраняются.
@@ -338,7 +340,7 @@ bash deploy/venue-lan/export-venue-return.sh \
   ~/usd-venue-private/venue-return-private.pem ~/usd-venue-private/return-output
 ```
 
-The interactive command takes a separate strong passphrase twice. It
+The Windows operator export derives the encryption secret from the signed stage's random sync capability, without asking for a password. The standalone Linux USB helper retains its own passphrase flow. It
 reads one transactionally consistent journal snapshot (REPEATABLE READ),
 checks the complete PostgreSQL SHA-256 chain and the original signed
 stage import's `sha256`, signs the snapshot using Ed25519 and encrypts
@@ -346,7 +348,7 @@ the entire payload with **scrypt + AES-256-GCM**. It writes a new
 `usd-venue-return-*.json` at mode `0600`, refusing overwrites. All
 participant names, vehicle details and measurements remain hidden
 inside the ciphertext. Only a short non-personal summary is printed.
-Use encrypted media; send the encryption passphrase separately.
+The Windows backup remains encrypted; do not send the signed stage capability token or private files to anyone. For transfer and recovery, use the authenticated online synchronization.
 
 The central administrator can check the file **without a database**.
 Use Node 22+ and the trusted public key, stage UUID, central signed

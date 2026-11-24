@@ -28,6 +28,8 @@ class WindowsDistribution(unittest.TestCase):
             self.assertNotIn("make-demo-stage.mjs", kit.FILES)
             self.assertNotIn("provision-staff.mjs", kit.FILES)
             self.assertIn("USD-Next-Stage.cmd", kit.FILES)
+            self.assertIn("USD-Control.cmd", kit.FILES)
+            self.assertIn("USD-Control.ps1", kit.FILES)
             self.assertIn("venue-season.ps1", kit.FILES)
             self.assertIn("venue-judge-permissions.mjs", kit.FILES)
             for module in extracted.glob("*.mjs"):
@@ -43,7 +45,7 @@ class WindowsDistribution(unittest.TestCase):
         self.assertNotIn('<script', html)
         self.assertNotIn('src="http', html)
         self.assertIn('72 часа', html)
-        self.assertIn('не отправ', html.replace('а не отправ', 'не отправ'))
+        self.assertIn('не отправляйте файлы судей посторонним.', html.casefold())
         self.assertIn('Ctrl + P', html)
         self.assertIn('USD-Venue-CA.crt', html)
 

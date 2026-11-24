@@ -7,6 +7,9 @@
 param(
  [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next','certificate','directory')][string]$Action,
  [string]$StageFile='',
+ [string]$PublicKeyFile='',
+ [string]$StaffKeyFile='',
+ [string]$TrustedFingerprint='',
  [switch]$Silent
 )
 Set-StrictMode -Version Latest
@@ -259,16 +262,22 @@ function Remove-Autostart {
 }
 function Save-DesktopShortcuts {
  $desktop=[Environment]::GetFolderPath('Desktop')
- $shell=New-Object -ComObject WScript.Shell
- foreach($item in @(@('USD — Офлайн','offline'),@('USD — Онлайн','online'),@('USD — Экспорт','export'),@('USD — Профили','directory'),@('USD — Следующий этап','next'),@('USD — Сертификат','certificate'))){
-  $shortcut=$shell.CreateShortcut((Join-Path $desktop ($item[0]+'.lnk')))
-  $shortcut.TargetPath=(Join-Path $PSHOME 'powershell.exe')
-  $shortcut.Arguments='-NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $Root 'venue-control.ps1')+'" -Action '+$item[1]
-  $shortcut.WorkingDirectory=$Root;$shortcut.Save()
+ # Remove only superseded USD shortcuts created by older releases; never other links.
+ foreach($old in @('USD — Офлайн.lnk','USD — Онлайн.lnk','USD — Экспорт.lnk',
+                  'USD — Профили.lnk','USD — Следующий этап.lnk',
+                  'USD — Сертификат.lnk','USD — Инструкция.lnk')){
+  $path=Join-Path $desktop $old
+  if(Test-Path -LiteralPath $path -PathType Leaf){Remove-Item -LiteralPath $path -Force}
  }
- $help=$shell.CreateShortcut((Join-Path $desktop 'USD — Инструкция.lnk'))
- $help.TargetPath=(Join-Path $Root 'INSTRUCTION.html');$help.Save()
+ $shell=New-Object -ComObject WScript.Shell
+ $shortcut=$shell.CreateShortcut((Join-Path $desktop 'USD — Офлайн-сервер.lnk'))
+ $shortcut.TargetPath=(Join-Path $PSHOME 'powershell.exe')
+ $shortcut.Arguments='-NoProfile -STA -ExecutionPolicy Bypass -File "'+(Join-Path $Root 'USD-Control.ps1')+'"'
+ $shortcut.WorkingDirectory=$Root
+ $shortcut.Description='USD — единое окно управления офлайн-сервером'
+ $shortcut.Save()
 }
+
 # PS5.1 native Go templates.
 function Read-VenueDockerLabels([ValidateSet('container','image')][string]$Kind,[string]$Identity){
  if([string]::IsNullOrWhiteSpace($Identity)){throw 'Docker object ID is missing'}
@@ -405,13 +414,13 @@ function New-InitialState {
   $payload=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
   $trustedSource=$(if($source){Get-Content -LiteralPath (Join-Path ([string]$source.workspace) 'local-private/setup-state.json') -Raw -Encoding UTF8|ConvertFrom-Json}else{$null})
   $reuseTrust=$trustedSource -and (Test-Path -LiteralPath ([string]$trustedSource.publicKey)) -and ([string]$payload.integrity.publicKeyFingerprint -ceq [string]$trustedSource.fingerprint)
-  $key=$(if($reuseTrust){[string]$trustedSource.publicKey}else{Select-VenueFile 'Выберите открытый ключ из админки USD' 'Открытый ключ (*.pem)|*.pem'})
+  $key=$(if($PublicKeyFile){$PublicKeyFile}elseif($reuseTrust){[string]$trustedSource.publicKey}else{Select-VenueFile 'Выберите открытый ключ из админки USD' 'Открытый ключ (*.pem)|*.pem'})
   $payload=Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
   $stageId=[string]$payload.snapshot.stageId
   $project=Get-VenueProjectForStage $stageId
   if($source){$project=[string]$source.project}else{Assert-NoOrphanedVenueStack $project}
   # trusted fingerprint verified by admin.
-  $fingerprint=$(if($reuseTrust){[string]$trustedSource.fingerprint}else{(Read-VenueFingerprint).Trim()})
+  $fingerprint=$(if($TrustedFingerprint){$TrustedFingerprint}elseif($reuseTrust){[string]$trustedSource.fingerprint}else{(Read-VenueFingerprint).Trim()})
   if($fingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Нет независимого доверенного отпечатка Ed25519'}
   if([string]$payload.snapshot.syncAuthorization.token -cnotmatch '^[A-Za-z0-9_-]{43}$'){
    throw 'Скачайте новый подписанный пакет этапа для автоматической синхронизации'
@@ -419,7 +428,7 @@ function New-InitialState {
   if([string]$payload.snapshot.staffAccess.algorithm -cne 'AES-256-GCM'){
    throw 'Скачайте новый пакет этапа с существующими аккаунтами судей'
   }
-  $keyFile=Select-VenueFile 'Выберите отдельный ключ входа судей из админки USD' 'Ключ доступа (*.key)|*.key'
+  $keyFile=$(if($StaffKeyFile){$StaffKeyFile}else{Select-VenueFile 'Выберите отдельный ключ входа судей из админки USD' 'Ключ доступа (*.key)|*.key'})
   $keyValue=[IO.File]::ReadAllText($keyFile).Trim()
   if($keyValue -cnotmatch '^[A-Za-z0-9_-]{43}$'){throw 'Неверный файл ключа судей'}
   $privateAccess=Join-Path $PrivateDir 'venue-staff-access.key'
@@ -707,7 +716,7 @@ function Export-VenueReturn {
  param([switch]$LeaveApiStopped,[switch]$Automatic,[switch]$LocalArchive)
  # Export is encrypted; no automatic Ubuntu sync.
  # Never use central secrets or delete local durable records.
- if($Silent){throw 'Экспорт требует присутствия администратора и пароль'}
+ if($Silent){throw 'Экспорт требует присутствия администратора'}
  Assert-VenueCompose
  $state=Read-State
  if(!$state -or $state.phase -ne 'READY'){throw 'Сначала завершите установку сервера USD'}
@@ -741,18 +750,24 @@ function Export-VenueReturn {
  Start-VenueDatabase
  $date=[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
  $filename=('usd-venue-return-'+$state.stageId+'-'+$date+'-'+[guid]::NewGuid().ToString('N').Substring(0,8)+'.json')
- $secret=$null
- if($Automatic){
-  if(!(Test-Path -LiteralPath $state.package -PathType Leaf)){throw 'Нет исходного подписанного этапа'}
-  $originalStage=Get-Content -LiteralPath $state.package -Raw -Encoding UTF8|ConvertFrom-Json
-  $syncToken=[string]$originalStage.snapshot.syncAuthorization.token
-  if($originalStage.snapshot.stageId -ne $state.stageId -or
-   $syncToken -cnotmatch '^[A-Za-z0-9_-]{43}$' -or
-   (-not $LocalArchive -and ([DateTime]$originalStage.snapshot.syncAuthorization.expiresAt).ToUniversalTime() -le [DateTime]::UtcNow)){
-   throw 'Пакет не разрешает автоматическую синхронизацию. Загрузите новый подписанный этап.'
-  }
-  $secret='UsdSync!1-'+$syncToken
- }else{$secret=Read-VenuePassword 'шифрования возвратного файла'}
+ # One stage-scoped high-entropy encryption secret, provided by the signed stage.
+ # No human-generated password is required for manual backups or online sync.
+ # The key is never printed or passed via Docker arguments; only via stdin.
+ if(!(Test-Path -LiteralPath $state.package -PathType Leaf)){throw 'Нет исходного подписанного этапа'}
+ $originalStage=Get-Content -LiteralPath $state.package -Raw -Encoding UTF8|ConvertFrom-Json
+ $syncToken=[string]$originalStage.snapshot.syncAuthorization.token
+ if($originalStage.snapshot.stageId -ne $state.stageId -or
+  $syncToken -cnotmatch '^[A-Za-z0-9_-]{43}$'){
+  throw 'Не найден действительный исходный ключ шифрования этапа. Данные ноутбука сохранены.'
+ }
+ $syncExpires=([DateTime]$originalStage.snapshot.syncAuthorization.expiresAt).ToUniversalTime()
+ if($Automatic -and -not $LocalArchive -and $syncExpires -le [DateTime]::UtcNow){
+  throw 'Право автоматической синхронизации истекло. Данные сохранены. Обновите подписанный пакет этапа.'
+ }
+ if(-not $Automatic -and $syncExpires -le [DateTime]::UtcNow){
+  Write-Warning 'Срок автоматической отправки истёк, но защищённый локальный экспорт создаётся.'
+ }
+ $secret='UsdSync!1-'+$syncToken
  $apiRunning=@(& docker @(Get-VenueComposeArguments) ps --status running -q api)
  Assert-Exit 'inspect currently running judge API'
  $apiWasRunning=(@($apiRunning|Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) -and (Test-IsActiveVenueStage $state.stageId)
@@ -810,7 +825,7 @@ function Export-VenueReturn {
   'Папка: '+$directory+[Environment]::NewLine+
   'Передайте шифрованный файл ответственному администратору USD.'+[Environment]::NewLine+
   'Открытый ключ и его отпечаток сверяются отдельно.'+[Environment]::NewLine+
-  'Пароль сообщайте отдельно. Синхронизация НЕ завершена.'+[Environment]::NewLine+
+  'Пароль создавать не нужно: шифрование выполнено автоматически. Синхронизация НЕ завершена.'+[Environment]::NewLine+
   'НЕ УДАЛЯЙТЕ ДАННЫЕ НОУТБУКА.')
 }
 function Sync-VenueReturn([object]$Bundle){
