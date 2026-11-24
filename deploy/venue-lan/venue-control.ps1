@@ -854,13 +854,7 @@ function Sync-VenueReturn([object]$Bundle){
   ',"publicKeyPem":'+(ConvertTo-Json -InputObject $pem -Compress)+
   ',"envelope":'+$encrypted+'}'
  $SyncResult=Send-VenueSyncPackage $body $token
- if($SyncResult.accepted -ne $true -or
-  $SyncResult.databaseSynchronized -ne $true -or
-  $SyncResult.derivedRankingsRebuilt -ne $true -or
-  [string]$SyncResult.stageId -ne $Bundle.stageId -or
-  [string]$SyncResult.journalEndHash -ne $Bundle.journalEndHash){
-  throw 'Центральная Ubuntu не подтвердила все записи и пересчёт. Попробуйте ещё раз.'
- }
+ Assert-VenueSyncAck $SyncResult $Bundle
  $ack=Join-Path $PrivateDir ('sync-ack-'+$Bundle.journalEndHash+'.json')
  if(!(Test-Path -LiteralPath $ack)){
   Write-PrivateFile $ack ((@{accepted=$true;stageId=$Bundle.stageId;journalEndHash=$Bundle.journalEndHash;at=[DateTime]::UtcNow.ToString('o')}|ConvertTo-Json -Compress)+[Environment]::NewLine)

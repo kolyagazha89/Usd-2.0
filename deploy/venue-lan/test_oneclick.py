@@ -219,7 +219,7 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('Get-VenueProject',export)
         self.assertIn('venue_return_keys',export)
         self.assertNotIn("$volume='usd-venue_venue_return_keys'",export)
-        self.assertIn("SyncResult.journalEndHash -ne $Bundle.journalEndHash",ctl)
+        self.assertIn("Assert-VenueSyncAck $SyncResult $Bundle",ctl)
 
     def test_real_stage_online_button_exports_signed_journal_before_stopping_local(self):
         source=(ROOT/'venue-control.ps1').read_text(encoding='utf-8')

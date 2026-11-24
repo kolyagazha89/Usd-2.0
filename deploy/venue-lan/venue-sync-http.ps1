@@ -48,6 +48,82 @@ function Get-VenueSyncHttpError([int]$Status,[string]$ResponseText){
  return $failure
 }
 
+function Get-VenueSyncTransportCode([Exception]$Failure){
+ $fallback='RETURN_CONNECTION_LOST'
+ for($cause=$Failure;$null -ne $cause;$cause=$cause.InnerException){
+  if($cause -is [OperationCanceledException] -or $cause -is [TimeoutException]){return 'RETURN_TIMEOUT'}
+  if($cause -is [Security.Authentication.AuthenticationException]){return 'RETURN_NETWORK_TLS'}
+  if($cause -is [Net.WebException]){
+   switch([string]$cause.Status){
+    'NameResolutionFailure' {return 'RETURN_NETWORK_DNS'}
+    'ProxyNameResolutionFailure' {return 'RETURN_NETWORK_PROXY'}
+    {$_ -in @('SecureChannelFailure','TrustFailure')} {return 'RETURN_NETWORK_TLS'}
+    'Timeout' {return 'RETURN_TIMEOUT'}
+    'ConnectFailure' {$fallback='RETURN_NETWORK_UNAVAILABLE'}
+   }
+  }
+  if($cause -is [Net.Sockets.SocketException]){
+   switch([string]$cause.SocketErrorCode){
+    {$_ -in @('HostNotFound','NoData','NoRecovery','TryAgain')} {return 'RETURN_NETWORK_DNS'}
+    {$_ -in @('ConnectionRefused','HostUnreachable','NetworkDown','NetworkUnreachable')} {return 'RETURN_NETWORK_UNAVAILABLE'}
+    'TimedOut' {return 'RETURN_TIMEOUT'}
+   }
+  }
+  # Newer .NET exposes the transport category directly. Windows PowerShell
+  # 5.1 reports it through WebException or SocketException instead.
+  if($cause.PSObject.Properties['HttpRequestError']){
+   switch([string]$cause.HttpRequestError){
+    'SecureConnectionError' {return 'RETURN_NETWORK_TLS'}
+    'NameResolutionError' {$fallback='RETURN_NETWORK_DNS'}
+    'ProxyTunnelError' {$fallback='RETURN_NETWORK_PROXY'}
+   }
+  }
+ }
+ return $fallback
+}
+
+function Invoke-VenueSyncTransport([Net.Http.HttpClient]$Client,[Uri]$Endpoint,[string]$Body,[string]$Token){
+ # Retry the same signed envelope. The server matches its journal hash and
+ # can return the existing receipt when the first response was lost.
+ $budget=[Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(180))
+ try{
+  for($attempt=1;$attempt -le 2;$attempt++){
+   if($attempt -gt 1){Start-Sleep -Milliseconds 750}
+   $request=[Net.Http.HttpRequestMessage]::new([Net.Http.HttpMethod]::Post,$Endpoint)
+   $request.Headers.Authorization=[Net.Http.Headers.AuthenticationHeaderValue]::new('Venue',$Token)
+   $request.Headers.ExpectContinue=$false
+   $request.Headers.ConnectionClose=$true
+   $request.Content=[Net.Http.StringContent]::new($Body,[Text.Encoding]::UTF8,'application/json')
+   $response=$null
+   try{
+    try{
+     $response=$Client.SendAsync($request,$budget.Token).GetAwaiter().GetResult()
+     $responseText=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    }catch{
+     $code=Get-VenueSyncTransportCode $_.Exception
+     if($attempt -eq 1 -and !$budget.IsCancellationRequested -and
+      $code -in @('RETURN_CONNECTION_LOST','RETURN_NETWORK_UNAVAILABLE','RETURN_NETWORK_DNS','RETURN_TIMEOUT')){
+      Write-Host 'USD VENUE STEP: retry-return-to-usd'
+      continue
+     }
+     throw ('['+$code+'] Сайт не подтвердил получение журнала. Резервная копия сохранена.')
+    }
+    $status=[int]$response.StatusCode
+    if($attempt -eq 1 -and !$budget.IsCancellationRequested -and $status -in @(408,502,504)){
+     Write-Host 'USD VENUE STEP: retry-return-to-usd'
+     continue
+    }
+    if(!$response.IsSuccessStatusCode){throw (Get-VenueSyncHttpError $status $responseText)}
+    try{return ($responseText|ConvertFrom-Json -ErrorAction Stop)}
+    catch{throw '[RETURN_BAD_ACK] Ответ сайта не содержит подтверждение в ожидаемом формате. Резервная копия сохранена.'}
+   }finally{
+    if($response){$response.Dispose()}
+    $request.Dispose()
+   }
+  }
+ }finally{$budget.Dispose()}
+}
+
 function Send-VenueSyncPackage([string]$Body,[string]$Token){
  Add-Type -AssemblyName System.Net.Http
  [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
@@ -55,20 +131,21 @@ function Send-VenueSyncPackage([string]$Body,[string]$Token){
  $handler.AllowAutoRedirect=$false
  $handler.UseCookies=$false
  $client=[Net.Http.HttpClient]::new($handler)
- $client.Timeout=[TimeSpan]::FromSeconds(180)
  $client.MaxResponseContentBufferSize=64KB
- $request=[Net.Http.HttpRequestMessage]::new([Net.Http.HttpMethod]::Post,'https://api.usd-russia.ru/stages/venue/sync')
- $request.Headers.Authorization=[Net.Http.Headers.AuthenticationHeaderValue]::new('Venue',$token)
- $request.Content=[Net.Http.StringContent]::new($body,[Text.Encoding]::UTF8,'application/json')
- $response=$null
- try{
-  $response=$client.SendAsync($request).GetAwaiter().GetResult()
-  $responseText=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-  if(!$response.IsSuccessStatusCode){throw (Get-VenueSyncHttpError ([int]$response.StatusCode) $responseText)}
-  return ($responseText|ConvertFrom-Json -ErrorAction Stop)
- }finally{
-  if($response){$response.Dispose()}
-  $request.Dispose()
-  $client.Dispose()
+ $client.Timeout=[Threading.Timeout]::InfiniteTimeSpan
+ try{return (Invoke-VenueSyncTransport $client 'https://api.usd-russia.ru/stages/venue/sync' $Body $Token)}
+ finally{$client.Dispose()}
+}
+
+function Assert-VenueSyncAck($Result,$Bundle){
+ $failure='[RETURN_BAD_ACK] Сайт не подтвердил журнал этого этапа и пересчёт результатов. Резервная копия сохранена.'
+ if($null -eq $Result){throw $failure}
+ foreach($field in @('accepted','databaseSynchronized','derivedRankingsRebuilt')){
+  $property=$Result.PSObject.Properties[$field]
+  if(!$property -or $property.Value -isnot [bool] -or !$property.Value){throw $failure}
+ }
+ foreach($field in @('stageId','journalEndHash')){
+  $property=$Result.PSObject.Properties[$field]
+  if(!$property -or $property.Value -isnot [string] -or $property.Value -cne $Bundle.$field){throw $failure}
  }
 }
