@@ -203,6 +203,8 @@ jobs:
         shell: powershell
         run: |
           $files = @(
+            'deploy/venue-lan/USD-Control.ps1',
+            'deploy/venue-lan/test-windows-operator-ui.ps1',
             'deploy/venue-lan/venue-control.ps1',
             'deploy/venue-lan/venue-season.ps1',
             'deploy/venue-lan/venue-coverage.ps1',
@@ -224,6 +226,9 @@ jobs:
               throw "Invalid PowerShell syntax: $file"
             }
           }
+      - name: Exercise one-window ADMIN stage download and signed JSON on Windows
+        shell: powershell
+        run: powershell -NoProfile -STA -File deploy/venue-lan/test-windows-operator-ui.ps1
       - name: Exercise native PowerShell helpers without Docker or administrator access
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-helpers.ps1
