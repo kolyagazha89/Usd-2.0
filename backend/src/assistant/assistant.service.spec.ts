@@ -306,4 +306,13 @@ describe('USD assistant reliable operational chat', () => {
     expect(answer.reply).toMatch(/не опубликованы/);
     expect(mock).not.toHaveBeenCalled();
   });
+  it.each(['Как провести инспекцию?', 'Как добавить класс BassRace?', 'Как работает офлайн-сервер USD?'])('answers ordinary handbook questions without model: %s',async(question)=>{
+    const {service}=makeService();
+    process.env.USD_AI_PROVIDER='ollama';
+    const mock=jest.spyOn(global,'fetch').mockRejectedValue(new Error('Ollama unavailable'));
+    const answer=await service.chat(question,'admin');
+    expect(answer.source).toBe('guide');
+    expect(answer.reply.length).toBeGreaterThan(80);
+    expect(mock).not.toHaveBeenCalled();
+  });
 });
