@@ -28,6 +28,8 @@ class WindowsDistribution(unittest.TestCase):
             self.assertNotIn("make-demo-stage.mjs", kit.FILES)
             self.assertNotIn("provision-staff.mjs", kit.FILES)
             self.assertIn("USD-Next-Stage.cmd", kit.FILES)
+            self.assertIn("USD-Control.cmd", kit.FILES)
+            self.assertIn("USD-Control.ps1", kit.FILES)
             self.assertIn("venue-season.ps1", kit.FILES)
             self.assertIn("venue-judge-permissions.mjs", kit.FILES)
             for module in extracted.glob("*.mjs"):
