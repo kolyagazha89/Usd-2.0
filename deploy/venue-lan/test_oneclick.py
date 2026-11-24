@@ -281,12 +281,24 @@ class VenueLauncherContracts(unittest.TestCase):
         self.assertIn('venue-return-package.mjs',ctl)
         self.assertIn('USD-Export.cmd',kit)
         self.assertIn('ensure-return-keys.mjs',kit)
-        self.assertIn('Read-VenuePassword',ctl)
+        self.assertNotIn("Read-VenuePassword 'шифрования возвратного файла'",ctl)
+        self.assertIn("$secret='UsdSync!1-'+$syncToken",ctl)
         self.assertNotIn('if($state.demo)',ctl)
         section=ctl[ctl.index('function Export-VenueReturn'):]
         self.assertNotIn('down -v',section)
         self.assertNotIn('prune',section)
         self.assertIn('Sync-VenueReturn',section)
+
+    def test_windows_export_never_asks_for_a_new_sixteen_character_password(self):
+        control=(ROOT/'venue-control.ps1').read_text(encoding='utf-8-sig')
+        dialogs=(ROOT/'venue-dialogs.ps1').read_text(encoding='utf-8-sig')
+        exporter=control[control.index('function Export-VenueReturn'):control.index('function Sync-VenueReturn')]
+        self.assertNotIn('Read-VenuePassword',exporter)
+        self.assertNotIn("if($Automatic){",exporter[:exporter.index('$apiRunning=')], 'Encryption key must be identical for manual and automatic exports')
+        self.assertIn("$secret='UsdSync!1-'+$syncToken",exporter)
+        self.assertNotIn('Пароль сообщайте отдельно',exporter)
+        self.assertNotIn('function Read-VenuePassword',dialogs)
+        self.assertIn('if(-not $Automatic -and',exporter, 'Manual export must preserve backup even if sync authority expired')
 
     def test_signed_participant_directory_refresh_keeps_competition_history(self):
         source=(ROOT/"venue-directory.ps1").read_text(encoding="utf-8-sig")
