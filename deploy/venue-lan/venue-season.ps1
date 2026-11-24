@@ -107,15 +107,24 @@ function Get-VenueKitFiles {
   'preview-venue-reconciliation.mjs','preview-venue-reconciliation-cli.mjs'
  )
 }
-function New-VenueStageWorkspace([string]$StageId){
- $venueBase=Get-VenueHome
- $target=Join-Path (Join-Path $venueBase 'stage-workspaces') $StageId
+function Copy-VenueProgramFiles([string]$Source,[string]$Destination){
  $files=@(Get-VenueKitFiles)
  foreach($file in $files){
-  if(!(Test-Path -LiteralPath (Join-Path $Root $file) -PathType Leaf)){
+  if(!(Test-Path -LiteralPath (Join-Path $Source $file) -PathType Leaf)){
    throw ('Обновите установщик: отсутствует '+$file)
   }
  }
+ foreach($relative in $files){
+  $destination=Join-Path $Destination $relative
+  $dir=Split-Path -Path $destination -Parent
+  if(!(Test-Path -LiteralPath $dir)){New-Item -ItemType Directory -Path $dir -Force|Out-Null}
+  # NEVER copy .env, local-private, passwords or a previous stage database.
+  Copy-Item -LiteralPath (Join-Path $Source $relative) -Destination $destination -Force
+ }
+}
+function New-VenueStageWorkspace([string]$StageId){
+ $venueBase=Get-VenueHome
+ $target=Join-Path (Join-Path $venueBase 'stage-workspaces') $StageId
  if(Test-Path -LiteralPath $target){
   if(!(Test-Path -LiteralPath $target -PathType Container)){
    throw 'Папка нового этапа не является каталогом. Ничего не изменено.'
@@ -128,13 +137,7 @@ function New-VenueStageWorkspace([string]$StageId){
    }
   }
  }else{New-Item -ItemType Directory -Path $target -Force|Out-Null}
- foreach($relative in $files){
-  $destination=Join-Path $target $relative
-  $dir=Split-Path -Path $destination -Parent
-  if(!(Test-Path -LiteralPath $dir)){New-Item -ItemType Directory -Path $dir -Force|Out-Null}
-  # NEVER copy .env, local-private, passwords or a previous stage database.
-  Copy-Item -LiteralPath (Join-Path $Root $relative) -Destination $destination -Force
- }
+ Copy-VenueProgramFiles $Root $target
  $state=Read-State
  $projectStage=$(if($state.PSObject.Properties.Name -contains 'projectStageId'){[string]$state.projectStageId}else{[string]$state.stageId})
  $source=@{workspace=$Root;project=(Get-VenueProject);projectStageId=$projectStage}
@@ -192,8 +195,9 @@ function Switch-ToNextStage {
  $priorLocated=Test-Path -LiteralPath (Join-Path $target 'local-private/setup-state.json') -PathType Leaf
  if(-not(Test-IsActiveVenueStage $old.stageId)){
   if($priorLocated -and (Test-IsActiveVenueStage $newId)){
-   # The signed import committed before the previous install finished.
-   Install-NextVenueWorkspace $target $newFile
+   # Refresh the program files before resuming an already committed import.
+   $workspace=New-VenueStageWorkspace $newId
+   Install-NextVenueWorkspace $workspace $newFile
    return
   }
   throw 'Откройте текущий этап через ярлык USD. Исторические этапы доступны в архиве.'
@@ -352,6 +356,14 @@ function Assert-VenueDatabaseImportRole {
   default {throw 'DATABASE_ROLE_MISMATCH: роли локальной БД не совпадают с установкой USD. Импорт остановлен без изменения данных.'}
  }
 }
+function Start-VenueStageServices([object]$State){
+ if(-not(Test-IsActiveVenueStage $State.stageId)){throw 'В базе активен другой этап. Запуск остановлен.'}
+ Assert-VenueVolumeRetained @('venue_media','venue_ca','venue_caddy_config')
+ Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never','db','rustfs') 'start existing storage for the current stage'
+ # The stopped API retains the previous stage in its container environment.
+ # Refresh only stage-bound services; keep running DB and storage containers.
+ Invoke-Compose @('up','-d','--no-build','--no-deps','--pull','never','--force-recreate','api','frontend','gateway') 'activate judging services for the imported stage'
+}
 function Wait-VenueLanReady([object]$State){
  if(!$State -or [string]$State.image -cnotmatch '^[a-f0-9]{40}$' -or
     [string]$State.stageId -cnotmatch '^[0-9a-f-]{36}$'){
@@ -359,17 +371,23 @@ function Wait-VenueLanReady([object]$State){
  }
  $apiRevision=Get-VenueRuntimeApiSha (Read-Env)
  $caChecked=$false
+ $script:VenueApiProbeReason='Локальный API не отвечает.'
+ $reason=$script:VenueApiProbeReason
  for($attempt=0;$attempt -lt 40;$attempt++){
-  if((Test-VenueApiReady -ExpectedSha $apiRevision -ExpectedStage $State.stageId) -and
-     (Test-VenueGatewayReady $State.ip)){
+  if(!(Test-VenueApiReady -ExpectedSha $apiRevision -ExpectedStage $State.stageId)){
+   $reason=$script:VenueApiProbeReason
+  }elseif(!(Test-VenueGatewayReady $State.ip)){
+   $reason='API готов, но локальное LIVE-табло по HTTP не отвечает.'
+  }else{
    if(!$caChecked){
     try{Export-VenueCA;$caChecked=$true}catch{Write-Host ('USD VENUE TLS: '+$_.Exception.Message)}
    }
    if(Test-VenueHttpsReady $State.ip $State.stageId){return}
+   $reason='API и LIVE готовы, но HTTPS не подтвердил вход с сертификатом площадки.'
   }
   Start-Sleep -Seconds 2
  }
- throw 'Локальный API/HTTPS не подтвердил готовность этапа. Установка сохранена, повторите USD — Установка; база не удаляется.'
+ throw ($reason+' Установка сохранена. Нажмите «Продолжить установку».')
 }
 function Start-VenueDatabase {
  $state=Read-State

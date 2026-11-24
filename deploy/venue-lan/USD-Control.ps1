@@ -416,7 +416,7 @@ function Start-UsdNetwork($Request,[string]$Kind){
  }catch{$pipeline.Dispose();throw}
 }
 function Start-UsdChild([string]$Action,[string]$Root,$Bundle=$null){
- $kitRoot=if($Action -in @('export','online')){$script:LaunchRoot}else{$Root}
+ $kitRoot=if($Action -in @('export','online','install')){$script:LaunchRoot}else{$Root}
  $manager=Join-Path $kitRoot 'venue-control.ps1'
  if(!(Test-Path -LiteralPath $manager -PathType Leaf)){throw 'Не удалось найти файлы управления USD. Обновите программу в рабочей папке.'}
  $logsRoot=Join-Path (Join-Path $Root 'local-private') 'operations'

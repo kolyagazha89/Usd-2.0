@@ -233,7 +233,13 @@ jobs:
             --volume "$PWD/venue-return-package.mjs:/app/venue-return-package.mjs:ro" \
             --volume "$PWD/export-venue-return.mjs:/app/export-venue-return.mjs:ro" \
             --entrypoint node api /app/venue-db-acceptance.mjs season
-          VENUE_STAGE_ID=c520f672-79f7-44eb-8173-2a8ff94b1c0e docker compose -p usd-venue up -d api
+          db_before=$(docker compose -p usd-venue ps -q db)
+          api_before=$(docker compose -p usd-venue ps -aq api)
+          test -n "$db_before" && test -n "$api_before"
+          VENUE_STAGE_ID=c520f672-79f7-44eb-8173-2a8ff94b1c0e docker compose -p usd-venue \
+            up -d --no-build --no-deps --pull never --force-recreate api
+          test "$(docker compose -p usd-venue ps -q db)" = "$db_before"
+          test "$(docker compose -p usd-venue ps -q api)" != "$api_before"
           docker compose -p usd-venue run --rm --no-deps --entrypoint node api -e '
             (async()=>{
               for(let i=0;i<60;i++){

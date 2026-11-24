@@ -18,8 +18,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Root=$PSScriptRoot
 if($Workspace){
- if($Action -notin @('export','online') -or ![IO.Path]::IsPathRooted($Workspace) -or !(Test-Path -LiteralPath (Join-Path $Workspace 'local-private/setup-state.json') -PathType Leaf)){
-  throw 'Рабочая папка архивного этапа недоступна.'
+ if(($Action -notin @('export','online') -and !($Operator -and $Action -eq 'install')) -or ![IO.Path]::IsPathRooted($Workspace) -or !(Test-Path -LiteralPath (Join-Path $Workspace 'local-private/setup-state.json') -PathType Leaf)){
+  throw 'Рабочая папка этапа недоступна.'
  }
  $Root=$Workspace
 }
@@ -639,8 +639,11 @@ function Install-Local {
  if($state.phase -eq 'STAFF_READY'){
   Set-VenueStep 'start-lan-services'
   Assert-NoOtherVenueGatewayRunning
-  Assert-VenueVolumeRetained @('venue_media')
-  Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never') 'start HTTPS API and LIVE'
+  if($state.PSObject.Properties.Name -contains 'shared' -and $state.shared){Start-VenueStageServices $state
+  }else{
+   Assert-VenueVolumeRetained @('venue_media')
+   Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never') 'start HTTPS API and LIVE'
+  }
   Set-VenueStep 'verify-first-lan-readiness'
   Wait-VenueLanReady $state
   Set-SetupPhase $state 'READY'
@@ -692,13 +695,22 @@ Promise.all([
 ]).then(async ([release,live])=>{
  if(!release.ok||!live.ok)process.exit(2);
  const [releaseInfo,liveInfo]=await Promise.all([release.json(),live.json()]);
- process.exit(releaseInfo.revision===sha && liveInfo.stage?.id===stageId?0:3);
+ const releaseMatches=releaseInfo.revision===sha;
+ if(!releaseMatches)process.exit(5);
+ process.exit(liveInfo.stage?.id===stageId?0:3);
 }).catch(()=>process.exit(4));
 '@
  try{
   # JS via stdin for PS5.1.
   $program | & docker @(Get-VenueComposeArguments) exec -T api node - $ExpectedSha $ExpectedStage 2>$null | Out-Null
-  return ($LASTEXITCODE -eq 0)
+  $result=$LASTEXITCODE
+  $script:VenueApiProbeReason=switch($result){
+   2 {'Локальный API запустился, но endpoint этапа вернул ошибку.'}
+   3 {'Локальный API сообщает другой ID активного этапа.'}
+   5 {'Локальный API сообщает другую версию программы.'}
+   default {'Локальный API не отвечает.'}
+  }
+  return ($result -eq 0)
  }catch{return $false}
  finally{$ErrorActionPreference=$prior}
 }
@@ -910,7 +922,10 @@ try{
  try{$ownsMutex=$mutex.WaitOne(0)}catch [Threading.AbandonedMutexException]{$ownsMutex=$true}
  if(!$ownsMutex){throw 'Другая операция USD уже выполняется. Дождитесь её завершения.'}
  if(-not $Silent){. (Join-Path $PSScriptRoot 'venue-dialogs.ps1')}
- if($Action -eq 'install'){Install-Local}
+ if($Action -eq 'install'){
+  if($Workspace){Copy-VenueProgramFiles $PSScriptRoot $Root}
+  Install-Local
+ }
  elseif($Action -eq 'offline'){Start-Local}
  elseif($Action -eq 'export'){Export-VenueReturn}
  elseif($Action -eq 'certificate'){Download-VenueCertificate}
