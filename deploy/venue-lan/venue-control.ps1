@@ -639,7 +639,8 @@ function Install-Local {
  if($state.phase -eq 'STAFF_READY'){
   Set-VenueStep 'start-lan-services'
   Assert-NoOtherVenueGatewayRunning
-  if($state.PSObject.Properties.Name -contains 'shared' -and $state.shared){Start-VenueStageServices $state
+  if($state.PSObject.Properties.Name -contains 'shared' -and $state.shared){
+   Start-VenueStageServices $state
   }else{
    Assert-VenueVolumeRetained @('venue_media')
    Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never') 'start HTTPS API and LIVE'

@@ -107,7 +107,7 @@ function Get-VenueKitFiles {
   'preview-venue-reconciliation.mjs','preview-venue-reconciliation-cli.mjs'
  )
 }
-function Copy-VenueProgramFiles([string]$Source,[string]$Destination){
+function Copy-VenueProgramFiles([string]$Source,[string]$TargetRoot){
  $files=@(Get-VenueKitFiles)
  foreach($file in $files){
   if(!(Test-Path -LiteralPath (Join-Path $Source $file) -PathType Leaf)){
@@ -115,7 +115,7 @@ function Copy-VenueProgramFiles([string]$Source,[string]$Destination){
   }
  }
  foreach($relative in $files){
-  $destination=Join-Path $Destination $relative
+  $destination=Join-Path $TargetRoot $relative
   $dir=Split-Path -Path $destination -Parent
   if(!(Test-Path -LiteralPath $dir)){New-Item -ItemType Directory -Path $dir -Force|Out-Null}
   # NEVER copy .env, local-private, passwords or a previous stage database.
