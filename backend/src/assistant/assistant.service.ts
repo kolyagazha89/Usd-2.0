@@ -243,7 +243,16 @@ export class AssistantService {
     if((name==='usd_project_search'||name==='usd_project_read')&&process.env.USD_AI_PROVIDER?.trim().toLowerCase()!=='ollama')return {error:'Исходный код доступен только локальной модели USD.'};
     if(name==='usd_project_search')return searchProjectCorpus(loadProjectCorpus(),typeof args.query==='string'?args.query:'');
     if(name==='usd_project_read')return readProjectCorpus(loadProjectCorpus(),typeof args.path==='string'?args.path:'',typeof args.startLine==='number'?args.startLine:1,typeof args.lineCount==='number'?args.lineCount:40);
-    if(name==='usd_project_docs')return searchUsdDocuments(typeof args.query==='string'?args.query.slice(0,180):'',typeof args.document==='string'?args.document:'all');
+    if(name==='usd_project_docs'){
+      const query=typeof args.query==='string'?args.query.slice(0,180):'';
+      const document=typeof args.document==='string'?args.document:'all';
+      const corpus=loadProjectCorpus();
+      const selected:Record<string,string>={master_plan:'docs/USD_MASTER_PLAN.md',offline:'docs/OFFLINE_MODE.md',architecture:'docs/PRODUCT_ARCHITECTURE.md'};
+      if(process.env.USD_AI_PROVIDER?.trim().toLowerCase()==='ollama'&&corpus.files.length){
+        return searchProjectCorpus({revision:corpus.revision,files:corpus.files.filter(f=>f.path.startsWith('docs/')&&(document==='all'||f.path===selected[document]))},query);
+      }
+      return searchUsdDocuments(query,document);
+    }
     return usdExpertRead(this.prisma,name,args);
   }
 
