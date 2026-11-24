@@ -1,6 +1,7 @@
 ﻿#requires -Version 5.1
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+Add-Type -AssemblyName System.Net.Http
 
 # Load the actual script functions without opening WPF or reaching Docker.
 foreach($source in @('venue-control.ps1','venue-sync-http.ps1','USD-Control.ps1')){
@@ -8,7 +9,7 @@ foreach($source in @('venue-control.ps1','venue-sync-http.ps1','USD-Control.ps1'
  $tree=[Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot $source),[ref]$tokens,[ref]$errors)
  if($errors.Count){throw ($errors -join "`n")}
  $definitions=$tree.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
-  $node.Name -in @('Get-VenueSyncHttpError','Restore-VenueApi','Return-Online','Get-UsdFailure')},$false)
+  $node.Name -in @('Get-VenueSyncHttpError','Get-VenueSyncTransportCode','Assert-VenueSyncAck','Invoke-VenueSyncTransport','Restore-VenueApi','Return-Online','Get-UsdFailure')},$false)
  foreach($definition in $definitions){. ([scriptblock]::Create($definition.Extent.Text))}
 }
 
@@ -49,6 +50,87 @@ foreach($fixture in @(
 $safeCode=Get-VenueSyncHttpError 503 '{"code":"RETURN_WRITE_FAILED","databaseCode":"23503"}'
 $unsafeCode=Get-VenueSyncHttpError 503 ('{"code":"RETURN_WRITE_FAILED","databaseCode":"'+$privateText+'"}')
 if(!$safeCode.Contains('23503') -or $unsafeCode.Contains($privateText)){throw 'Unsafe database diagnostics'}
+
+$expectedAck=@{stageId=$review;journalEndHash=('a'*64)}
+$correctAck=[pscustomobject]@{accepted=$true;databaseSynchronized=$true;derivedRankingsRebuilt=$true;
+ stageId=$review;journalEndHash=('a'*64)}
+Assert-VenueSyncAck $correctAck $expectedAck
+foreach($badAck in @($null,[pscustomobject]@{accepted=$true},
+ [pscustomobject]@{accepted='true';databaseSynchronized=$true;derivedRankingsRebuilt=$true;stageId=$review;journalEndHash=('a'*64)},
+ [pscustomobject]@{accepted=$true;databaseSynchronized=$true;derivedRankingsRebuilt=$true;stageId=$review;journalEndHash=('b'*64)})){
+ try{Assert-VenueSyncAck $badAck $expectedAck;throw 'An invalid ACK was accepted'}
+ catch{if($_.Exception.Message -notmatch '^\[RETURN_BAD_ACK\]'){throw}}
+}
+
+foreach($sample in @(
+ @{Status='NameResolutionFailure';Code='RETURN_NETWORK_DNS'},
+ @{Status='TrustFailure';Code='RETURN_NETWORK_TLS'},
+ @{Status='ProxyNameResolutionFailure';Code='RETURN_NETWORK_PROXY'},
+ @{Status='ReceiveFailure';Code='RETURN_CONNECTION_LOST'}
+)){
+ $inner=[Net.WebException]::new($privateText,([Net.WebExceptionStatus]$sample.Status))
+ $wrapper=[InvalidOperationException]::new($privateText,[Net.Http.HttpRequestException]::new($privateText,$inner))
+ if((Get-VenueSyncTransportCode $wrapper) -ne $sample.Code){throw ('Lost Windows network classification '+$sample.Status)}
+}
+
+# Use an actual HTTP connection. The first server connection receives the
+# complete encrypted payload and closes without sending an acknowledgement.
+$work=Join-Path ([IO.Path]::GetTempPath()) ('usd-venue-sync-'+[guid]::NewGuid().ToString('N'))
+[void][IO.Directory]::CreateDirectory($work)
+$scriptFile=Join-Path $work 'server.cjs'
+$portFile=Join-Path $work 'port'
+[IO.File]::WriteAllText($scriptFile,@'
+const http = require('node:http');
+const fs = require('node:fs');
+const counts = new Map();
+const payloads = new Map();
+const server = http.createServer((req, res) => {
+ const chunks = [];
+ req.on('data', chunk => chunks.push(chunk));
+ req.on('end', () => {
+  const body = Buffer.concat(chunks).toString('utf8');
+  const attempts = (counts.get(req.url) ?? 0) + 1;
+  counts.set(req.url, attempts);
+  if (req.method !== 'POST' || req.headers.authorization !== 'Venue ' + 'x'.repeat(43)
+   || req.headers.expect || (payloads.has(req.url) && payloads.get(req.url) !== body)) {
+   res.writeHead(500).end('unexpected request');
+   return;
+  }
+  payloads.set(req.url, body);
+  if (req.url === '/drop' && attempts === 1) { req.socket.destroy(); return; }
+  if (req.url === '/gateway' && attempts === 1) { res.writeHead(502).end(); return; }
+  if (req.url === '/conflict') {
+   res.writeHead(attempts === 1 ? 409 : 500).end('{"code":"CAR_REGISTRATION_EXISTS"}');
+   return;
+  }
+  if (req.url === '/malformed') { res.writeHead(200).end('<html>gateway</html>'); return; }
+  res.writeHead(201, {'Content-Type': 'application/json'}).end(JSON.stringify({attempts}));
+ });
+});
+server.listen(0, '127.0.0.1', () => fs.writeFileSync(process.argv[2], String(server.address().port)));
+'@)
+$process=$null;$client=$null
+try{
+ $node=(Get-Command node -CommandType Application | Select-Object -First 1).Source
+ $process=Start-Process -FilePath $node -ArgumentList ('"'+$scriptFile+'" "'+$portFile+'"') -PassThru
+ for($tick=0;$tick -lt 100 -and !(Test-Path -LiteralPath $portFile);$tick++){Start-Sleep -Milliseconds 100}
+ if(!(Test-Path -LiteralPath $portFile)){throw 'Fixture did not start'}
+ $base='http://127.0.0.1:'+([IO.File]::ReadAllText($portFile))
+ $client=[Net.Http.HttpClient]::new()
+ $body='{"envelope":"'+('a'*70000)+'"}'
+ foreach($path in @('/drop','/gateway')){
+  if((Invoke-VenueSyncTransport $client ($base+$path) $body ('x'*43)).attempts -ne 2){throw 'Retry did not send the same envelope exactly twice'}
+ }
+ foreach($fixture in @(@{Path='/conflict';Code='CAR_REGISTRATION_EXISTS'},@{Path='/malformed';Code='RETURN_BAD_ACK'})){
+  try{Invoke-VenueSyncTransport $client ($base+$fixture.Path) $body ('x'*43);throw 'Invalid response accepted'}
+  catch{if(!$_.Exception.Message.Contains('['+$fixture.Code+']')){throw}}
+ }
+}finally{
+ if($client){$client.Dispose()}
+ if($process -and !$process.HasExited){$process.Kill();$process.WaitForExit()}
+ if($process){$process.Dispose()}
+ Remove-Item -LiteralPath $work -Recurse -Force
+}
 
 $Silent=$false
 function Read-State {return [pscustomobject]@{phase='READY';stageId=$review}}
