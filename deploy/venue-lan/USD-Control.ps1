@@ -6,7 +6,7 @@ $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Net.Http
-[System.System.Windows.Forms.Application]::EnableVisualStyles()
+[System.Windows.Forms.Application]::EnableVisualStyles()
 $script:Root=$PSScriptRoot
 $script:ApiRoot='https://api.usd-russia.ru'
 $script:Worker=$null
@@ -16,7 +16,7 @@ $script:StageStatus=$null
 $script:Buttons=@()
 
 function Show-UsdError([string]$Message){
- [void][System.System.Windows.Forms.MessageBox]::Show($Message,'USD — Офлайн-сервер','OK','Warning')
+ [void][System.Windows.Forms.MessageBox]::Show($Message,'USD — Офлайн-сервер','OK','Warning')
 }
 function Get-InstalledStage {
  $file=Join-Path (Join-Path $script:Root 'local-private') 'setup-state.json'
