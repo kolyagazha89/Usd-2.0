@@ -49,7 +49,7 @@ const full=()=>packet([
  event(8,'Inspection','INSERT',insp),
  event(9,'Result','INSERT',result),
 ]);
-function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
+function memoryDb({conflict=false,failAt=0,existing={},published=false,completed=[]}={}){
  const rows=new Map(Object.entries(existing).map(([table,records])=>
   [table,new Map(records.map(r=>[r.id,structuredClone(r)]))]));
  const receipt=new Map(),overrides=[];let begin=0;
@@ -65,6 +65,7 @@ function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
    const adapter={
     stage:async()=>stage,
     listReceipts:async()=>[...receipts.values()].filter(x=>x.action==='VENUE_FULL_EVENT_IMPORTED'),
+    completedReturnsBefore:async (_stage,issuedAt)=>completed.filter(x=>x.acceptedAt<issuedAt),
     getRow:async (table,id)=>structuredClone(working.get(table)?.get(id)??null),
     canonical:async (_table,row)=>structuredClone(row),
     stageClassAllowed:async()=>true,
@@ -136,6 +137,26 @@ test('signed on-site profile and car left unregistered at gate do not poison the
  assert.equal(db.rows.get('Participant').get(ids.participant).id,ids.participant);
  assert.equal(db.rows.get('Car').get(ids.car).participantId,ids.participant);
  assert.equal(db.receipt.size,2);
+});
+test('a new laptop baseline can follow an acknowledged return on the same stage',async()=>{
+ const first=full();
+ const acceptedAt=new Date('2026-11-12T11:00:00Z');
+ const db=memoryDb({completed:[{baselineSha256:baseline,lastJournalHash:first.journalEndHash,acceptedAt}]});
+ await applyCompleteVenueJournal(first,db,opts);
+ const newcomer={...participant,id:'ea10f672-79f7-44eb-8173-2a8ff94b1c0e',firstName:'Другой'};
+ const newcomerCar={...car,id:'ba10f672-79f7-44eb-8173-2a8ff94b1c0e',participantId:newcomer.id};
+ const fresh={...packet([
+  {...event(1,'Participant','INSERT',newcomer),hash:h(101)},
+  {...event(2,'Car','INSERT',newcomerCar),previousHash:h(101),hash:h(102)},
+ ]),baselineSha256:'b'.repeat(64)};
+ const options={...opts,baselineSha256:fresh.baselineSha256};
+ await assert.rejects(()=>applyCompleteVenueJournal(fresh,db,{...options,baselineIssuedAt:new Date('2026-11-12T10:59:00Z')}),{code:'JOURNAL_MISMATCH'});
+ assert.equal(db.receipt.size,9);
+ const newer={...options,baselineIssuedAt:new Date('2026-11-12T11:01:00Z')};
+ assert.equal((await applyCompleteVenueJournal(fresh,db,newer)).appliedEvents,2);
+ assert.equal(db.receipt.size,11);
+ assert.equal((await applyCompleteVenueJournal(fresh,db,newer)).alreadyApplied,true);
+ assert.equal((await applyCompleteVenueJournal(first,db,opts)).alreadyApplied,true);
 });
 test('published protocol blocks mixed intake atomically; same journal succeeds after unpublishing',async()=>{
  const newcomer={...participant,id:'ea10f672-79f7-44eb-8173-2a8ff94b1c0e',firstName:'Новый'};

@@ -313,7 +313,8 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
   if(!stage||stage.isDeleted||!['PUBLISHED','COMPLETED'].includes(stage.status))
    reject('central stage missing or inactive','STAGE_UNAVAILABLE');
   const previous=await tx.listReceipts(stageId);
-  const list=previous.filter(r=>r.action==='VENUE_FULL_EVENT_IMPORTED');
+  const returns=previous.filter(r=>r.action==='VENUE_FULL_EVENT_IMPORTED');
+  const list=returns.filter(r=>r.baselineSha256===baselineSha256);
   if(list.length){
    const byHash=new Map(list.map(receipt=>[receipt.eventHash,receipt]));
    if(list.length!==snapshot.events.length
@@ -372,6 +373,18 @@ export async function applyCompleteVenueJournal(snapshot,adapter,options={}){
    return {stageId,databaseSynchronized:true,alreadyApplied:true,
     appliedEvents:0,readyEvents:0,totalEvents:snapshot.events.length,
     journalEndHash:snapshot.journalEndHash,mediaSynchronized:false,mediaTransferRequired:false};
+  }
+  if(returns.length){
+   // A later centrally issued snapshot can start a new journal for the same
+   // stage only after completed acknowledgements for all earlier journals.
+   const issuedAt=options.baselineIssuedAt;
+   if(!(issuedAt instanceof Date)||!Number.isFinite(issuedAt.getTime())
+     ||typeof tx.completedReturnsBefore!=='function')
+    reject('a new baseline requires a previously acknowledged return','JOURNAL_MISMATCH');
+   const acknowledged=await tx.completedReturnsBefore(stageId,issuedAt);
+   const known=new Set(acknowledged.map(r=>r.baselineSha256+':'+r.lastJournalHash));
+   if(returns.some(r=>!known.has(r.baselineSha256+':'+r.journalEndHash)))
+    reject('a historical journal is unfinished or newer than this baseline','JOURNAL_MISMATCH');
   }
   if(stage.resultsPublishedAt)reject('central results are published','RESULTS_ALREADY_PUBLISHED');
   const original=await tx.linkedIds(stageId);

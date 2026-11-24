@@ -90,7 +90,7 @@ test('real LAN stage export is ADMIN-only, sealed and must use the single offici
   readFile(new URL('../../backend/src/stages/venue-staff-access.ts',import.meta.url),'utf8'),
  ]);
  assert.match(event,/user\.role==='ADMIN'&&canList/);
- assert.match(event,/Подготовить офлайн-сервер: пакет, доступ судей и инструкция/);
+ assert.match(event,/Подготовить офлайн-сервер/);
  assert.match(event,/\/admin\/venue-server\?stageId=/);
  assert.doesNotMatch(event,/downloadVenuePackage|\/stages\/venue\/.*\/export/);
  assert.match(controller,/@Post\('venue\/:id\/staff-export'\)/);

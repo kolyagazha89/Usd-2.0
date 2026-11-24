@@ -35,7 +35,7 @@ export async function finalizeVenueStage(stageId: string, connectionString: stri
     // result. Only the LAST operation per UUID defines the final state. Never
     // demand that an intentionally deleted result still exist in PostgreSQL.
     const receipts=await prisma.$queryRawUnsafe<Array<{id:string;operation:string|null}>>(
-      'SELECT DISTINCT ON ("entityId") "entityId" AS id,metadata->>\'operation\' AS operation FROM "AuditLog" WHERE action IN ($1,$2) AND entity=$3 AND metadata->>\'stageId\'=$4 AND "entityId" IS NOT NULL ORDER BY "entityId",(metadata->>\'sequence\')::bigint DESC NULLS LAST',
+      'SELECT DISTINCT ON ("entityId") "entityId" AS id,metadata->>\'operation\' AS operation FROM "AuditLog" WHERE action IN ($1,$2) AND entity=$3 AND metadata->>\'stageId\'=$4 AND "entityId" IS NOT NULL ORDER BY "entityId","createdAt" DESC,(metadata->>\'sequence\')::bigint DESC NULLS LAST',
       'VENUE_RESULT_IMPORTED','VENUE_FULL_EVENT_IMPORTED','Result',stageId);
     const ids:string[]=[];
     for (const receipt of receipts) {

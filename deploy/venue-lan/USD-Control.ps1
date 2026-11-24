@@ -361,6 +361,18 @@ function Confirm-UsdAction([string]$Title,[string]$Message){
 }
 
 function Get-UsdFailure([string]$Reason,[int]$Http=0){
+ if($Reason -eq 'ROSTER_ALREADY_USED'){
+  return @('На этом этапе уже есть изменения площадки.','Продолжите с действующим списком через «Запустить офлайн-сервер». Заявки, инспекции и результаты сохранены.')
+ }
+ if($Reason -eq 'ROSTER_COMPETITION_DATA'){
+  return @('В изменившейся заявке уже есть инспекция или результат.','Сверьте заявки с администратором USD. Можно запустить сервер с действующим списком.')
+ }
+ if($Reason -eq 'ROSTER_RESULTS_PUBLISHED'){
+  return @('Результаты этапа уже опубликованы на сайте.','Проверьте публикацию результатов в онлайн-админке перед запуском площадки.')
+ }
+ if($Reason -in @('ROSTER_STAGE_CLASSES_CHANGED','ROSTER_SIGNED_REGISTRATION_MISSING','ROSTER_REGISTRATION_OWNER_CHANGED')){
+  return @('Состав этапа или привязка заявки изменились на сайте.','Нужна сверка с администратором USD. Данные ноутбука сохранены.')
+ }
  if($Reason -cmatch '\[(RESULTS_ALREADY_PUBLISHED|STAGE_UNAVAILABLE|JOURNAL_MISMATCH|PARTICIPANT_NOT_ELIGIBLE|CLASS_UNAVAILABLE|RESULT_ADMISSION_MISSING|START_NUMBER_TAKEN|CAR_REGISTRATION_EXISTS|RETURN_[A-Z_]+)\]'){
   switch($Matches[1]){
    'RESULTS_ALREADY_PUBLISHED' {return @('На сайте уже опубликованы результаты этого этапа.','В онлайн-админке откройте «Этапы», выберите этот этап и нажмите «Скрыть результаты». Затем повторите отправку. Копия сохранена на ноутбуке.')}
@@ -452,7 +464,7 @@ function Start-UsdNetwork($Request,[string]$Kind){
  }catch{$pipeline.Dispose();throw}
 }
 function Start-UsdChild([string]$Action,[string]$Root,$Bundle=$null){
- $kitRoot=if($Action -in @('export','online','install')){$script:LaunchRoot}else{$Root}
+ $kitRoot=if($Action -in @('export','online','install','prepare')){$script:LaunchRoot}else{$Root}
  $manager=Join-Path $kitRoot 'venue-control.ps1'
  if(!(Test-Path -LiteralPath $manager -PathType Leaf)){throw 'Не удалось найти файлы управления USD. Обновите программу в рабочей папке.'}
  $logsRoot=Join-Path (Join-Path $Root 'local-private') 'operations'
@@ -675,6 +687,7 @@ function Complete-UsdWorker {
    offline='Офлайн-сервер работает. Судьи могут подключиться по Wi-Fi.'
    next='Этап загружен. Результаты предыдущего этапа сохранены в архиве.'
    directory='Профили и автомобили обновлены. Регистрации остались прежними.'
+   prepare='Заявки сверены с сайтом. Офлайн-сервер работает.'
    export='Зашифрованная резервная копия сохранена. Сайт её ещё не получил.'
    online='Сайт подтвердил получение результатов.'
    certificate='Сертификат для судей сохранён в папке программы.'
@@ -694,7 +707,7 @@ function Complete-UsdWorker {
   }
  }else{
   $reasons=@($lines|Where-Object {$_ -match '^USD VENUE ERROR: '})
-  $refused=@($lines|Where-Object {$_ -cmatch '^USD VENUE IMPORT REFUSED: (CONFIGURATION_VERSION_CONFLICT|DATABASE_(P[0-9]{4}_)?CONFIGURATIONS)$'})
+  $refused=@($lines|Where-Object {$_ -cmatch '^USD VENUE IMPORT REFUSED: (CONFIGURATION_VERSION_CONFLICT|DATABASE_(P[0-9]{4}_)?CONFIGURATIONS|ROSTER_(ALREADY_USED|STAGE_CLASSES_CHANGED|SIGNED_REGISTRATION_MISSING|REGISTRATION_OWNER_CHANGED|COMPETITION_DATA|RESULTS_PUBLISHED))$'})
   $reason=if($refused.Count){$refused[-1].Substring('USD VENUE IMPORT REFUSED: '.Length)}
    elseif($reasons.Count){$reasons[0].Substring('USD VENUE ERROR: '.Length)}
    else{($lines|Select-Object -Last 4) -join ' '}
@@ -764,7 +777,7 @@ function Update-UsdDashboard {
  $pending=$script:Pending
  $mode=if($stateProblem){'attention'}
  elseif($script:Worker -and $script:Worker.Request.Action -eq 'online'){'sending'}
- elseif($script:Worker -and $script:Worker.Request.Action -in @('install','next','offline')){'preparing'}
+ elseif($script:Worker -and $script:Worker.Request.Action -in @('install','next','offline','prepare')){'preparing'}
  elseif($local){$local.mode}
  elseif($ready){''}
  elseif($state -or $pending){'preparing'}else{'empty'}
@@ -826,6 +839,7 @@ function Update-UsdDashboard {
  Set-UsdAction 'Load' ([bool](!$stateProblem -and !$historical -and ($pending -or ($ui.Stages.IsEnabled -and $ui.Stages.SelectedItem)))) 'Войдите в USD и выберите доступный этап.'
  Set-UsdAction 'Install' ([bool](!$stateProblem -and !$historical -and ($pending -or $state -or ($ui.Stages.IsEnabled -and $ui.Stages.SelectedItem)))) $setupReason
  Set-UsdAction 'Directory' ([bool]($active -and $script:Token)) $(if($active){'Войдите в USD, чтобы скачать свежий справочник.'}else{$setupReason})
+ Set-UsdAction 'PrepareRoster' ([bool]($active -and $script:Token)) $(if($active){'Войдите в USD с интернетом, чтобы сверить заявки перед запуском.'}else{$setupReason})
  Set-UsdAction 'Start' ([bool]$active) $setupReason
  foreach($name in 'Admin','Live','Certificate','Copy'){Set-UsdAction $name ([bool]($active -and $running -and $address)) $workingReason}
  Set-UsdAction 'Backup' ([bool]$ready) $setupReason
@@ -913,7 +927,7 @@ function Show-UsdJournal {
 if($MyInvocation.InvocationName -eq '.'){return}
 $script:Form=New-UsdWindow
 $ui=@{}
-foreach($name in 'Account','Body','Notice','Progress','Status','StageTitle','StageMeta','StageStats','StatusReason','Stages','Load','StageHint','Install','Directory','Start','Admin','Live','Certificate','Address','Copy','Backup','Send','Archive','Help','Diagnostics','Journal'){
+foreach($name in 'Account','Body','Notice','Progress','Status','StageTitle','StageMeta','StageStats','StatusReason','Stages','Load','StageHint','Install','Directory','PrepareRoster','Start','Admin','Live','Certificate','Address','Copy','Backup','Send','Archive','Help','Diagnostics','Journal'){
  $ui[$name]=$script:Form.FindName($name)
 }
 $script:NextProbe=[DateTime]::MinValue
@@ -937,6 +951,7 @@ $ui.Install.Add_Click({
  Start-UsdRequest (New-UsdRequest 'install' 'установить или обновить сервер' $script:Root $(if($script:State.phase -ne 'READY' -and $script:Token){$script:State.stageId}else{''}))
 })
 $ui.Directory.Add_Click({Start-UsdRequest (New-UsdRequest 'directory' 'обновить участников и автомобили' $script:Root $script:State.stageId)})
+$ui.PrepareRoster.Add_Click({Start-UsdRequest (New-UsdRequest 'prepare' 'обновить заявки и запустить сервер' $script:Root $script:State.stageId)})
 $ui.Start.Add_Click({Start-UsdRequest (New-UsdRequest 'offline' 'запустить офлайн-сервер')})
 $ui.Admin.Add_Click({Start-Process ($ui.Address.Text+'/admin/event-day?next=%2Fadmin%2Fevent-day')})
 $ui.Live.Add_Click({Start-Process ($ui.Address.Text.Replace('https:','http:')+'/venue/live')})

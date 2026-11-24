@@ -378,6 +378,42 @@ test('append-only directory refresh requires local root, matching stage and pres
  await assert.rejects(()=>importer.applyVenueParticipantDirectory(plan,untrusted,{stageId:uuid.stage}),/root|установ|роль/i);
 });
 
+test('preflight synchronizes a late or reactivated signed registration only before local edits',async()=>{
+ const data=snapshot();
+ const active=data.registrations[0];
+ Object.assign(active,{results:[],inspection:null,stageInspection:null});
+ active.classes[0].inspection=null;
+ data.participantDirectory=[{...active.participant,cars:[active.car]}];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const run=({changed=false,current=[],expected}={})=>{
+  const {tx,db,log}=mockDb();
+  tx.$queryRawUnsafe=async sql=>sql.includes('current_user')?[{name:'usd_venue_root',rolsuper:true}]:
+   sql.includes('operation_journal')?[{changed}]:sql.includes('set_config')?[{}]:[{stageId:uuid.stage}];
+  tx.stage.findUnique=async()=>({id:uuid.stage});
+  tx.auditLog.findFirst=async()=>({metadata:{sha256:'a'.repeat(64)}});
+  tx.car.findMany=async()=>[];
+  tx.registration.findMany=async()=>current;
+  tx.stageClass.findMany=async()=>[{classId:uuid.cls,isActive:true}];
+  tx.registrationClass.deleteMany=async()=>{log.push({model:'registrationClass',removed:true})};
+  tx.registrationNumber.deleteMany=async()=>{log.push({model:'registrationNumber',removed:true})};
+  return {log,run:()=>importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage,refreshRoster:true}),expected};
+ };
+ const late=run();
+ assert.equal((await late.run()).refreshedRegistrations,1);
+ assert.ok(late.log.some(x=>x.model==='registration'&&x.data.id===uuid.reg));
+ assert.ok(late.log.some(x=>x.model==='registrationNumber'&&x.data.number===6));
+ const cancelled={...active,status:'CANCELLED',participantNumber:-1,numbers:[],classes:[]};
+ const reopened=run({current:[cancelled]});
+ await reopened.run();
+ assert.ok(reopened.log.some(x=>x.model==='registration'&&x.update?.status==='ACTIVE'&&x.update.participantNumber===6));
+ const alreadyRunning=run({changed:true});
+ await assert.rejects(alreadyRunning.run(),/ROSTER_ALREADY_USED/);
+ assert.deepEqual(alreadyRunning.log,[]);
+ const inspected=run({current:[{...cancelled,inspection:{id:uuid.inspection}}]});
+ await assert.rejects(inspected.run(),/ROSTER_COMPETITION_DATA/);
+ assert.ok(inspected.log.every(x=>!x.removed&&!['registration','result'].includes(x.model)));
+});
+
 test('RED: signed full historical directory accepts imported car without plate without creating a new ID',async()=>{
  const p=snapshot();
  const personId='ab84e950-8f7e-447b-87ab-18d92c36cad5';

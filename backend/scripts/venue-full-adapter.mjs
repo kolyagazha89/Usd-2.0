@@ -68,6 +68,10 @@ export function postgresFullVenueAdapter(client){
        "SELECT action,\"entityId\",metadata->>'venueRegistrationId' AS \"venueRegistrationId\",metadata->>'eventHash' AS \"eventHash\",(metadata->>'sequence')::bigint AS sequence,metadata->>'baselineSha256' AS \"baselineSha256\",metadata->>'journalEndHash' AS \"journalEndHash\",metadata->>'resolutionHash' AS \"resolutionHash\" FROM \"AuditLog\" WHERE action='VENUE_FULL_EVENT_IMPORTED' AND metadata->>'stageId'=$1",[stageId]);
       return rows.map(r=>({...r,sequence:Number(r.sequence)}));
      },
+     async completedReturnsBefore(stageId,issuedAt){
+      const {rows}=await client.query('SELECT "baselineSha256","lastJournalHash" FROM "VenueSyncAuthorization" WHERE "stageId"=$1 AND "acceptedAt" < $2 AND "lastJournalHash" IS NOT NULL',[stageId,issuedAt]);
+      return rows;
+     },
      async findRegistrationForCar(stageId,carId){
       const {rows}=await client.query(`SELECT to_jsonb(r) AS row,c."participantId" AS "carOwner",
        (EXISTS(SELECT 1 FROM "RegistrationNumber" n WHERE n."registrationId"=r.id)

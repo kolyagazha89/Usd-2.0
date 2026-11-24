@@ -42,6 +42,7 @@ export class VenueStageService {
    throw new NotFoundException('Этап не найден');
   const signingKey=process.env.VENUE_STAGE_SIGNING_KEY_B64;
   if(!signingKey)throw new ServiceUnavailableException('Подпись пакетов площадки пока не настроена');
+  const generatedAt=new Date();
   const data=await this.prisma.stage.findFirst({
    where:{id,isDeleted:false,status:{in:['PUBLISHED','COMPLETED']}},
    select:{
@@ -224,7 +225,6 @@ export class VenueStageService {
   const staffKey=prepared?.staffKey;
   const staffAccess=prepared?.staffAccess;
   const staffCount=prepared?.staffCount??0;
-  const generatedAt=new Date();
   const syncToken=randomBytes(32).toString('base64url');
   const syncExpires=new Date(generatedAt.getTime()+30*24*60*60*1000);
   const snapshot:VenueStageSnapshot={
@@ -252,7 +252,7 @@ export class VenueStageService {
   await this.prisma.$transaction(async tx=>{
    await tx.venueSyncAuthorization.create({data:{
     stageId:id,baselineSha256:signed.integrity.sha256,
-    tokenHash:createHash('sha256').update(syncToken).digest('hex'),expiresAt:syncExpires,
+    tokenHash:createHash('sha256').update(syncToken).digest('hex'),expiresAt:syncExpires,createdAt:generatedAt,
    }});
    await tx.auditLog.create({data:{
     userId:request.user.sub,action:'VENUE_STAGE_PACKAGE_EXPORTED',entity:'Stage',entityId:id,

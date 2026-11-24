@@ -142,6 +142,7 @@ export class VenueAutoSyncService {
    const adapter=postgresFullVenueAdapter(client);
    report=await retryVenueTransaction(()=>applyCompleteVenueJournal(snapshot,adapter,{
     apply:true,stageId:body.stageId,baselineSha256:trusted.baselineSha256,
+    baselineIssuedAt:grant.createdAt,
     operator:'VENUE_AUTO:'+grant.id,
     ...approval,
    }));
@@ -180,8 +181,8 @@ export class VenueAutoSyncService {
   }catch(error){this.failed('RETURN_FINALIZE_FAILED',error,reference)}
   try{
    if(approval.reviewId)await this.reviews.applied(approval.reviewId);
-   await this.prisma.venueSyncAuthorization.update({
-    where:{id:grant.id},data:{lastJournalHash:report.journalEndHash,acceptedAt:new Date()},
+   await this.prisma.venueSyncAuthorization.updateMany({
+    where:{id:grant.id,acceptedAt:null},data:{lastJournalHash:report.journalEndHash,acceptedAt:new Date()},
    });
   }catch(error){this.failed('RETURN_ACK_FAILED',error,reference)}
   return {accepted:true,databaseSynchronized:true,derivedRankingsRebuilt:true,

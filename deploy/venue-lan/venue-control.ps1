@@ -5,7 +5,7 @@
 #>
 [CmdletBinding()]
 param(
- [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next','certificate','directory','status')][string]$Action,
+ [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next','certificate','directory','prepare','status')][string]$Action,
  [string]$StageFile='',
  [string]$PublicKeyFile='',
  [string]$StaffKeyFile='',
@@ -18,7 +18,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Root=$PSScriptRoot
 if($Workspace){
- if(($Action -notin @('export','online') -and !($Operator -and $Action -eq 'install')) -or ![IO.Path]::IsPathRooted($Workspace) -or !(Test-Path -LiteralPath (Join-Path $Workspace 'local-private/setup-state.json') -PathType Leaf)){
+ if(($Action -notin @('export','online') -and !($Operator -and $Action -in @('install','prepare'))) -or ![IO.Path]::IsPathRooted($Workspace) -or !(Test-Path -LiteralPath (Join-Path $Workspace 'local-private/setup-state.json') -PathType Leaf)){
   throw 'Рабочая папка этапа недоступна.'
  }
  $Root=$Workspace
@@ -927,6 +927,7 @@ try{
  elseif($Action -eq 'certificate'){Download-VenueCertificate}
  elseif($Action -eq 'next'){Switch-ToNextStage}
  elseif($Action -eq 'directory'){Import-VenueParticipantDirectory}
+ elseif($Action -eq 'prepare'){Import-VenueParticipantDirectory -PrepareRoster;Start-Local}
  else{Return-Online}
 }catch{
  Write-Host ('USD VENUE: не удалось выполнить '+$Action+'; step='+$script:VenueStep) -ForegroundColor Red
