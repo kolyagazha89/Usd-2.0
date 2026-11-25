@@ -1,7 +1,7 @@
 {
   "date": "2026-11-25",
   "frontendTests": {
-    "passed": 749,
+    "passed": 750,
     "failed": 0
   },
   "build": "passed",
@@ -725,6 +725,26 @@
     {
       "route": "/admin/assistant",
       "width": 320,
+      "status": "passed"
+    }
+  ],
+  "adminNavigationReturn": [
+    {
+      "width": 390,
+      "stageBefore": 10,
+      "stageAfter": 10,
+      "status": "passed"
+    },
+    {
+      "width": 1024,
+      "stageBefore": 10,
+      "stageAfter": 10,
+      "status": "passed"
+    },
+    {
+      "width": 1366,
+      "stageBefore": 10,
+      "stageAfter": 10,
       "status": "passed"
     }
   ]
