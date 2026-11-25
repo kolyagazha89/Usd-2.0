@@ -26,3 +26,21 @@ test('legacy SPL-parent classes route to their actual direction; unknown class i
 test('ambiguous duplicate numbers fail explicitly',()=>{
  assert.throws(()=>buildGatePaperSheets(stage,[{status:'ACTIVE',participantNumber:1},{status:'ACTIVE',participantNumber:1}],'now'),/Дублирующийся/);
 });
+
+test('operator can select a smaller or larger paper number range',()=>{
+ for(const count of [1,35,150,300]){
+  const [sheet]=buildGatePaperSheets(stage,[],'now',count);
+  assert.equal(sheet.rows.length,count+3);
+  assert.equal(sheet.rows.at(-1)[1],count);
+ }
+});
+test('selected range never hides an already allocated primary or BassRace sticker',()=>{
+ const [sheet]=buildGatePaperSheets(stage,[{status:'ACTIVE',participantNumber:18,classes:[cls('129.9','BassRace',43)]}],'now',20);
+ assert.equal(sheet.rows.at(-1)[1],43);
+ assert.equal(sheet.rows.at(-1)[8],'129.9');
+});
+test('invalid number ranges are rejected',()=>{
+ for(const value of [0,-1,1.5,NaN,Infinity,10001,'50']){
+  assert.throws(()=>buildGatePaperSheets(stage,[],'now',value),/количество номеров/i);
+ }
+});
