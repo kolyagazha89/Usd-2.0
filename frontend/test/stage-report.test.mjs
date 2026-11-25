@@ -98,3 +98,11 @@ test('stage report renders direction group headings in light admin layout',async
  assert.match(css,/background:linear-gradient\(115deg,#fff,#f7f8fa\)/);
  assert.doesNotMatch(css,/background:linear-gradient\(115deg,#191b22,#29252c\)/);
 });
+
+test('stage report exposes registered team people independently from podium medals',()=>{
+ const participation={totalParticipants:3,preliminaryParticipants:1,teams:[{key:'id:a',name:'Team A',participants:2,preliminaryParticipants:1},{key:'unattributed',name:'Без команды',participants:1,preliminaryParticipants:0}]};
+ const result=buildStageReport({...fixture,stats:{...fixture.stats,teamParticipation:participation}});
+ assert.deepEqual(result.teamParticipation,participation);
+ assert.equal(result.teams[0].gold,1);
+ assert.equal(buildStageReport(fixture).teamParticipation,null,'an older API must not be reported as zero registrations');
+});

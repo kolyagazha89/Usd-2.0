@@ -1,3 +1,4 @@
+import {canUseCurrentStageTeams,summarizeStageTeams} from './stage-team-participation';
 import {
   BadRequestException,
   Injectable,
@@ -671,6 +672,11 @@ export class StatisticsService {
           participantId: true,
           carId: true,
           participantNumber: true,
+          status: true,
+          source: true,
+          teamIdAtInspection: true,
+          teamNameAtInspection: true,
+          teamAffiliationCapturedAt: true,
           configurationSnapshot: true,
           inspection: {select:{status:true,notes:true}},
           stageInspection: {select:{status:true,notes:true}},
@@ -680,6 +686,7 @@ export class StatisticsService {
               lastName: true,
               middleName: true,
               team: true,
+              teamMembership: {select:{status:true,team:{select:{id:true,name:true,isActive:true}}}},
             },
           },
           car: {
@@ -776,9 +783,16 @@ export class StatisticsService {
       classes.set(classId, current);
     }
 
+    // A previous publication remains historical even after results are unpublished.
+    const useCurrentTeams=canUseCurrentStageTeams(stage)&&!await this.prisma.auditLog.findFirst({
+      where:{entity:'Stage',entityId:stageId,action:'STAGE_RESULTS_PUBLISHED'},select:{id:true},
+    });
+    const teamParticipation=summarizeStageTeams(registrations,useCurrentTeams);
+
     return {
       stage,
       stats: {
+        teamParticipation,
         registrations: registrations.length,
         participants: new Set(
           registrations.map((registration) =>

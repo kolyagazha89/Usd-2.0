@@ -109,6 +109,12 @@ export default function StageReportPage({path,go,PageFrame,LoadingPage,ErrorPane
       {group.rows.map(p=><tr key={p.id}><td data-label="Класс"><strong>{p.className}</strong></td><td data-label="Место"><span className={'usd-report-place p'+p.place}>{p.place}</span></td><td data-label="№">{p.number||'—'}</td><td data-label="Участник"><AdminEntityLink kind="participant" id={p.participantId}>{p.participant}</AdminEntityLink><small><AdminEntityLink kind="car" id={p.carId}>{p.car}</AdminEntityLink></small></td><td data-label="Результат"><strong>{p.value} {p.unit}</strong></td></tr>)}
      </tbody>)}</table></div>:<p className="usd-report-empty">Подиумы пока не сформированы.</p>}
    </section>
+   <section className="usd-report-section" aria-label="Зарегистрированные участники по командам">
+    <div className="usd-report-heading"><h3>Зарегистрированные участники по командам</h3>{report.teamParticipation&&<span>Всего участников: {number(report.teamParticipation.totalParticipants)}</span>}</div>
+    <p className="usd-report-help">Каждый человек учитывается один раз, независимо от количества автомобилей и классов. Отменённые регистрации исключены.</p>
+    {report.teamParticipation&&report.teamParticipation.preliminaryParticipants>0&&<p className="usd-report-help" role="note">До инспекции команда берётся из текущего профиля, после — из зафиксированных данных этапа. Предварительно учтено участников: {number(report.teamParticipation.preliminaryParticipants)}.</p>}
+    {report.teamParticipation===null?<p className="usd-report-empty">Данные о регистрации по командам пока недоступны.</p>:report.teamParticipation.teams.length?<div className="usd-report-table-wrap"><table className="usd-report-table" aria-label="Количество зарегистрированных людей по командам"><thead><tr><th scope="col">Команда</th><th scope="col">Участники</th></tr></thead><tbody>{report.teamParticipation.teams.map(team=><tr key={team.key}><td data-label="Команда"><strong>{team.name}</strong></td><td data-label="Участники">{number(team.participants)}</td></tr>)}</tbody></table></div>:<p className="usd-report-empty">На этап пока нет зарегистрированных участников.</p>}
+   </section>
    <section className="usd-report-section">
     <div className="usd-report-heading"><h3>Медали команд по зафиксированному составу</h3><span>Неофициальная сводка</span></div>
     <p className="usd-report-help">Учитываются только команды, сохранённые в момент инспекции. Это не командный зачёт: баллы и места команд не рассчитываются.</p>

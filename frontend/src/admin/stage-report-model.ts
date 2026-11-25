@@ -72,6 +72,11 @@ export function buildStageReport(source:StageReportSource){
  const pendingRegistrations=(Array.isArray(stats.pendingRegistrations)?stats.pendingRegistrations:[]).map((i:Rec)=>({
   id:String(i.registrationId??''),number:safeCount(i.participantNumber),participant:nameOf(i.participant)
  }));
+ const participation=stats.teamParticipation;
+ const teamParticipation:{totalParticipants:number;preliminaryParticipants:number;teams:Array<{key:string;name:string;participants:number;preliminaryParticipants:number}>}|null=participation&&Array.isArray(participation.teams)?{
+  totalParticipants:safeCount(participation.totalParticipants),preliminaryParticipants:safeCount(participation.preliminaryParticipants),
+  teams:participation.teams.map((team:Rec)=>({key:String(team.key??team.name??''),name:String(team.name??'Нет данных о команде'),participants:safeCount(team.participants),preliminaryParticipants:safeCount(team.preliminaryParticipants)})).filter((team:{participants:number})=>team.participants>0),
+ }:null;
  const warnings:string[]=[];
  if(stage.status!=='COMPLETED')warnings.push('Этап ещё не завершён. Данные отчёта могут измениться.');
  if(!stage.resultsPublishedAt)warnings.push('Результаты не опубликованы. Это внутренний отчёт, не официальный протокол.');
@@ -80,7 +85,7 @@ export function buildStageReport(source:StageReportSource){
  return {stage,status,registrations,participants,cars,appearances:safeCount(stats.appearances),
   inspections:{passed,failed,pending,completed:completedInspection,percent:inspectionPercent},
   classes,classGroups:groupByDirection(classes),directions:[...byDirection.values()].sort((a,b)=>compareDirections(a.direction,b.direction)),
-  podiums,podiumGroups:groupByDirection(podiums),teams,pendingConfigurations,inspectionProblems,pendingRegistrations,warnings,
+  podiums,podiumGroups:groupByDirection(podiums),teams,teamParticipation,pendingConfigurations,inspectionProblems,pendingRegistrations,warnings,
   generatedAt:new Date().toISOString()};
 }
 export function stageReportStatusLabel(status:string){
