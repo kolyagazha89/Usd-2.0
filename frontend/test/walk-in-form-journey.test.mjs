@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {walkInStepProgress,walkInNextStep,walkInConfigurationOptions} from '../src/admin/walk-in-form-journey.ts';
+import {walkInStepProgress,walkInNextStep,walkInConfigurationOptions,walkInConsentForSelection,walkInAfterProfileCreation} from '../src/admin/walk-in-form-journey.ts';
 const registration={participantId:'person',carId:'car',classIds:['c1'],primaryClassCount:1,legalReady:true,privacyConsent:true,termsAccepted:true,rulesAccepted:true,protocolConsent:true};
 test('on-site registration gates each stage without discarding data',()=>{
  assert.deepEqual(walkInStepProgress(registration),[true,true,true]);
@@ -26,4 +26,19 @@ test('walk-in intake offers only real configurations and leaves draft-only cars 
  assert.deepEqual(walkInConfigurationOptions([{name:'Черновик',versions:[draft]}]),[]);
  assert.deepEqual(walkInConfigurationOptions([{name:'Конфигурация',versions:[draft,real]}]),
   [{id:'saved',label:'Конфигурация · v2'}]);
+});
+
+test('newly created profile keeps all four consents and advances directly to classes',()=>{
+ const consent=walkInConsentForSelection(registration,'','new-person',true);
+ assert.deepEqual(consent,{privacyConsent:true,termsAccepted:true,rulesAccepted:true,protocolConsent:true});
+ assert.equal(walkInAfterProfileCreation({...registration,...consent,participantId:'new-person',carId:'new-car'}),1);
+});
+test('choosing another existing profile never transfers consent from previous identity',()=>{
+ assert.deepEqual(walkInConsentForSelection(registration,'person','another',false),{privacyConsent:false,termsAccepted:false,rulesAccepted:false,protocolConsent:false});
+ assert.equal(walkInConsentForSelection(registration,'person','person',false).protocolConsent,true);
+});
+test('profile creation with only intake consents stays on identity until other required consents are confirmed',()=>{
+ assert.equal(walkInAfterProfileCreation({...registration,protocolConsent:false}),0);
+ assert.equal(walkInAfterProfileCreation({...registration,rulesAccepted:false}),0);
+ assert.equal(walkInAfterProfileCreation({...registration,carId:''}),0);
 });
