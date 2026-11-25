@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildGatePaperSheets} from '../src/admin/gate-paper-model.ts';
+import {buildGatePaperSheets,parseGateNumberCount} from '../src/admin/gate-paper-model.ts';
 const stage={name:'Финал',date:'2026-11-29'};
 const cls=(name,direction,number)=>({class:{name,direction:{name:direction}},number:{number}});
 test('single portrait roster has 100 sticker rows, empty inspection, and five separate direction columns',()=>{
@@ -43,4 +43,9 @@ test('invalid number ranges are rejected',()=>{
  for(const value of [0,-1,1.5,NaN,Infinity,10001,'50']){
   assert.throws(()=>buildGatePaperSheets(stage,[],'now',value),/количество номеров/i);
  }
+});
+
+test('number input accepts only whole positive decimal counts within the supported range',()=>{
+ for(const [input,count] of [['50',50],[' 150 ',150],['1',1],['10000',10000]])assert.equal(parseGateNumberCount(input),count);
+ for(const input of ['', '0','-1','1.5','1e2','10001','abc'])assert.equal(parseGateNumberCount(input),null);
 });

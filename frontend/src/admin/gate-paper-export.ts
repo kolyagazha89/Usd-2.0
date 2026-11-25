@@ -35,6 +35,9 @@ export function applyGatePrintSettings(XLSX:typeof import('xlsx'),bytes:ArrayBuf
   const borders=xml.match(/<borders count="(\d+)">/),xfs=xml.match(/<cellXfs count="(\d+)">/);
   if(!borders||!xfs)throw new Error('Не удалось подготовить оформление Excel');
   const border=Number(borders[1]);styleIndex=Number(xfs[1]);
+  // The workbook is dedicated to the printed gate roster. Use a compact
+  // nine-point default font before Excel fits all ten columns to A4.
+  xml=xml.replace(/<sz val="[^"]*"\s*\/>/,'<sz val="9"/>');
   xml=xml.replace(borders[0],'<borders count="'+(border+1)+'">').replace('</borders>','<border><left style="thin"><color rgb="FF777777"/></left><right style="thin"><color rgb="FF777777"/></right><top style="thin"><color rgb="FF777777"/></top><bottom style="thin"><color rgb="FF777777"/></bottom><diagonal/></border></borders>');
   return xml.replace(xfs[0],'<cellXfs count="'+(styleIndex+1)+'">').replace('</cellXfs>','<xf numFmtId="0" fontId="0" fillId="0" borderId="'+border+'" xfId="0" applyAlignment="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf></cellXfs>');
  });
@@ -63,12 +66,12 @@ export function printGatePaperWorkbook(sheets:ReturnType<typeof buildGatePaperSh
  const style=doc.createElement('style');
  style.textContent=`
  @page {size:A4 portrait;margin:5mm}
- body{font:9px Arial,sans-serif;color:#111;margin:0}
+ body{font:8.5px Arial,sans-serif;color:#111;margin:0}
  h1{font-size:17px;margin:0 0 6px} p{margin:0 0 8px;overflow-wrap:anywhere}
  section+section{break-before:page}
  table{width:100%;border-collapse:collapse;table-layout:fixed}
  thead{display:table-header-group}
- th,td{border:1px solid #777;padding:3px;vertical-align:middle;overflow-wrap:anywhere;white-space:pre-wrap}
+ th,td{border:1px solid #777;padding:2px;vertical-align:middle;overflow-wrap:anywhere;white-space:pre-wrap}
  th{font-weight:bold;background:#eee;text-align:left} tr{break-inside:avoid}
  td{height:26px} th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:center} ol{padding-left:24px} li{font-size:13px;margin:0 0 12px;line-height:1.4}
  `;
