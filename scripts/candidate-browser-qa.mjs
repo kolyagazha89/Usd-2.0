@@ -1311,8 +1311,8 @@ try{
       row.judgeLayout='three connected desks, white admin and responsive controls';
      }
      if(role==='ADMIN'&&['/admin/registrations','/admin/inspections'].includes(route)){
-      const actions=page.locator('.event-ops-actions-drawer');assert.equal(await actions.getAttribute('open'),null,'actions are collapsed by default');
-      await actions.locator('summary').first().click();
+      const actions=page.locator('.event-ops-actions-drawer');
+      if(await actions.getAttribute('open')===null)await actions.locator('summary').first().click();
       const root=page.locator('.event-ops-page');
       await root.waitFor();
       const geometry=await root.evaluate(el=>{
@@ -1385,7 +1385,7 @@ try{
       await page.goto(base+route,{waitUntil:'networkidle'});
       row.adminEventOperations='full-width responsive roster and status controls';
       if(route==='/admin/inspections'){
-       await page.locator('.event-ops-actions-drawer>summary').click();
+       if(await page.locator('.event-ops-actions-drawer').getAttribute('open')===null)await page.locator('.event-ops-actions-drawer>summary').click();
        await page.getByRole('button',{name:'Зарегистрировать участника'}).click();
        await page.getByRole('button',{name:'Новый участник на въезде'}).click();
        const brandInput=page.getByRole('combobox',{name:'Марка автомобиля'});

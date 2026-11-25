@@ -4,14 +4,16 @@ import path from 'node:path';
 export async function verifyAdminSearch(page,route,width,output){
  if(['/admin/registrations?stageId=stage1','/admin/inspections?stageId=stage1'].includes(route)){
   const stage=page.locator('.event-ops-stage-drawer'),actions=page.locator('.event-ops-actions-drawer');
-  assert.equal(await stage.getAttribute('open'),null,'stage controls are collapsed initially');
-  assert.equal(await actions.getAttribute('open'),null,'action buttons are collapsed initially');
+  const viewKey=route.includes('inspections')?'inspections':'registrations';
+  const remembered=await page.evaluate(key=>['stageDrawer','actionsDrawer'].map(suffix=>JSON.parse(sessionStorage.getItem('usd:view:'+key+':'+suffix)??'false')),viewKey);
+  assert.equal(await stage.getAttribute('open')!==null,remembered[0],'stage controls restore explicit expansion, defaulting to collapsed');
+  assert.equal(await actions.getAttribute('open')!==null,remembered[1],'actions restore explicit expansion, defaulting to collapsed');
   assert.equal(await page.locator('.event-ops-workflow-context').count(),0,'only the three section tabs remain in list navigation');
   assert.match(await page.locator('.event-ops-workflow-steps').innerText(),/Результаты/);
-  await stage.locator('summary').first().focus();await page.keyboard.press('Enter');
+  if(await stage.getAttribute('open')===null){await stage.locator('summary').first().focus();await page.keyboard.press('Enter')}
   await stage.locator('select').first().waitFor({state:'visible'});await verifySelectTextSpace(page);
   await stage.locator('summary').first().click();
-  await actions.locator('summary').first().click();await actions.locator('button').first().waitFor({state:'visible'});
+  if(await actions.getAttribute('open')===null)await actions.locator('summary').first().click();await actions.locator('button').first().waitFor({state:'visible'});
   await actions.locator('summary').first().click();
   const consent=page.getByRole('button',{name:'Только необходимые',exact:true});if(await consent.isVisible())await consent.click();
   await page.evaluate(()=>scrollTo(0,0));
