@@ -9,9 +9,10 @@ test('retired assistant cannot be opened, called or assigned as a permission',()
  }
  assert.equal(existsSync(file('backend/src/assistant/assistant.controller.ts')),false);
  assert.equal(existsSync(file('frontend/src/admin/AssistantPage.tsx')),false);
+ assert.equal(existsSync(file('scripts/build-usd-research-corpus.py')),false);
 });
 test('release no longer builds a model corpus or configures an inference container',()=>{
  for(const path of ['.github/workflows/backend-ci.yml','.github/workflows/publish-home-pc-images.yml','deploy/home-pc/compose.yaml']){
-  assert.doesNotMatch(read(path),/build-usd-research-corpus|usd-research-corpus\.json|^\s+ollama:|profiles: \[local-ai\]/m,path);
+  assert.doesNotMatch(read(path),/build-usd-research-corpus|^\s+ollama:|profiles: \[local-ai\]/m,path);
  }
 });

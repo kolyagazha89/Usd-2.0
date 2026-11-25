@@ -12,6 +12,8 @@ test('judge and admin can use personal cabinet and their distinct staff navigati
  assert.equal(hasAdminPanelAccess(participant),false);
  assert.equal(hasAdminPanelAccess(admin),true);
  assert.equal(hasAdminPanelAccess(judge),true);
+ assert.equal(hasAdminPanelAccess({...judge,customRole:{...judge.customRole,permissions:{assistant:['view']}}}),false);
+ assert.equal(hasAdminPanelAccess({...judge,customRole:{...judge.customRole,permissions:{assistant:['view'],results:['view']}}}),true);
  assert.equal(hasAdminPanelAccess({...judge,customRole:{...judge.customRole,permissions:{results:['create']}}}),false);
  assert.equal(accountLanding(admin,'/participant?tab=cars'),'/participant?tab=cars');
  assert.equal(accountLanding(judge,'/participant/register?stageId=123'),'/participant/register?stageId=123');
