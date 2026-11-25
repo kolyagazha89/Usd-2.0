@@ -21,13 +21,14 @@ export async function downloadGatePaperWorkbook(sheets:ReturnType<typeof buildGa
 // SheetJS CE does not serialize pageSetup or wrapped cell styles itself.
 // Modify the two generated OOXML parts before the browser saves the XLSX.
 export function applyGatePrintSettings(XLSX:typeof import('xlsx'),bytes:ArrayBuffer):ArrayBuffer{
- const cfb=(XLSX as unknown as {CFB:{read:(data:Uint8Array,opts:{type:string})=>any;find:(archive:any,path:string)=>{content:Uint8Array}|null;utils:{cfb_add:(archive:any,path:string,data:Uint8Array)=>void};write:(archive:any,opts:{fileType:string;type:string})=>Uint8Array}}).CFB;
+ const cfb=(XLSX as unknown as {CFB:{read:(data:Uint8Array,opts:{type:string})=>any;find:(archive:any,path:string)=>{content:Uint8Array;size:number}|null;utils:{cfb_add:(archive:any,path:string,data:Uint8Array)=>void};write:(archive:any,opts:{fileType:string;type:string})=>Uint8Array}}).CFB;
  const archive=cfb.read(new Uint8Array(bytes),{type:'array'});
  const decoder=new TextDecoder(),encoder=new TextEncoder();
  function change(path:string,edit:(xml:string)=>string){
   const part=cfb.find(archive,'/'+path);
   if(!part?.content)throw new Error('Не удалось подготовить печать Excel: '+path);
-  cfb.utils.cfb_add(archive,path,encoder.encode(edit(decoder.decode(part.content))));
+  const updated=encoder.encode(edit(decoder.decode(part.content)));
+  part.content=updated;part.size=updated.length;
  }
  let styleIndex=0;
  change('xl/styles.xml',xml=>{
