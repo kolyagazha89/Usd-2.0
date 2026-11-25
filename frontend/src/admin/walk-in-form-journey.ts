@@ -23,3 +23,11 @@ export function walkInConfigurationOptions(configurations:readonly WalkInConfigu
   .filter(version=>version.additionalDescription!=='USD_ON_SITE_DRAFT_PENDING')
   .map(version=>({id:version.id,label:configuration.name+' · v'+version.version})));
 }
+
+export type WalkInConsents=Pick<WalkInFormState,'privacyConsent'|'termsAccepted'|'rulesAccepted'|'protocolConsent'>;
+/** A successful creation binds the current draft to its new ID; selecting
+ * another person must never inherit that draft's personal confirmations. */
+export function walkInConsentAfterSelection(consents:WalkInConsents,previousId:string,nextId:string,createdFromDraft=false):WalkInConsents{
+ if(previousId===nextId||(!previousId&&Boolean(nextId)&&createdFromDraft))return {...consents};
+ return {privacyConsent:false,termsAccepted:false,rulesAccepted:false,protocolConsent:false};
+}
