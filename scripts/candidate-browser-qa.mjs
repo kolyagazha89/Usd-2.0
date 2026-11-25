@@ -397,6 +397,14 @@ try{
         font:parseFloat(getComputedStyle(field).fontSize),viewport:innerWidth,scroll:document.documentElement.scrollWidth};
       });
       if(width<=760){
+       const notice=page.locator('.cookie-notice');
+       if(await notice.isVisible()){
+        await page.waitForFunction(()=>{
+         const notice=document.querySelector('.cookie-notice');
+         const send=document.querySelector('.assistant-composer button');
+         return notice&&send&&send.getBoundingClientRect().bottom<=notice.getBoundingClientRect().top+1;
+        });
+       }
        const geometry=await measure();
        assert.ok(geometry.fieldWidth>=160,'assistant input must remain wide '+JSON.stringify(geometry));
        assert.ok(geometry.buttonWidth>=44&&geometry.buttonWidth<=56&&geometry.buttonHeight>=44,'compact touch target '+JSON.stringify(geometry));

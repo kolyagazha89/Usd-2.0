@@ -20,4 +20,21 @@ describe('project research corpus',()=>{
   expect(result.content).not.toContain('private-example-secret-123456');
   expect(result.endLine).toBeLessThanOrEqual(80);
  });
+ it('redacts complete credential assignments before taking line windows, preserving source line numbers',()=>{
+  const fixture:ProjectCorpus={revision:corpus.revision,files:[{path:'docs/security.md',text:[
+   'API_TOKEN=example-secret-value-987654',
+   'export USD_DB_PASSWORD="example password with spaces"',
+   '  "privateKey": "another-example-key-123456",',
+   'const safe = 123;',
+   '-----BEGIN PRIVATE KEY-----','synthetic-key-material','-----END PRIVATE KEY-----',
+   'const visible = "USD";',
+  ].join('\n')}]};
+  const read=readProjectCorpus(fixture,'docs/security.md',1,8);
+  expect(read.content).not.toMatch(/example-secret-value|example password|another-example-key|synthetic-key-material/);
+  expect(read.content).toContain('const safe = 123;');
+  expect(read.content).toContain('const visible = "USD";');
+  expect(read.content.split('\n')).toHaveLength(8);
+  expect(readProjectCorpus(fixture,'docs/security.md',6,1).content).not.toContain('synthetic-key-material');
+  expect(JSON.stringify(searchProjectCorpus(fixture,'synthetic-key-material'))).not.toContain('synthetic-key-material');
+ });
 });
