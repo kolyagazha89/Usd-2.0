@@ -39,7 +39,16 @@ function makeRow(r:GateRow,n:number):Cell[]{
  }
  return row;
 }
-export function buildGatePaperSheets(stage:Stage,rows:readonly GateRow[],observedAt:string):Sheet[]{
+export const DEFAULT_GATE_NUMBER_COUNT=100;
+export const MAX_GATE_NUMBER_COUNT=10000;
+export function parseGateNumberCount(value:string):number|null{
+ const trimmed=value.trim();
+ if(!/^\d+$/.test(trimmed))return null;
+ const count=Number(trimmed);
+ return Number.isSafeInteger(count)&&count>=1&&count<=MAX_GATE_NUMBER_COUNT?count:null;
+}
+export function buildGatePaperSheets(stage:Stage,rows:readonly GateRow[],observedAt:string,requestedCount=DEFAULT_GATE_NUMBER_COUNT):Sheet[]{
+ if(!Number.isSafeInteger(requestedCount)||requestedCount<1||requestedCount>MAX_GATE_NUMBER_COUNT)throw new Error('Укажите количество номеров от 1 до '+MAX_GATE_NUMBER_COUNT);
  const context='USD · '+[stage.name,stage.city,stage.date?.slice(0,10)].filter(Boolean).join(' · ');
  const stamp='Снимок: '+observedAt+' (UTC)';
  const occupied=new Map<number,Cell[]>();
@@ -49,7 +58,7 @@ export function buildGatePaperSheets(stage:Stage,rows:readonly GateRow[],observe
    occupied.set(n,makeRow(r,n));
   }
  }
- const last=Math.max(100,...occupied.keys());
+ const last=Math.max(requestedCount,...occupied.keys());
  const data=Array.from({length:last},(_,i)=>occupied.get(i+1)??['',i+1,'','','','','','','','']);
  const widths=headers.map((header,i)=>Math.min(limits[i][1],Math.max(limits[i][0],header.length+1,...data.map(row=>Math.max(...String(row[i]??'').split('\n').map(line=>line.length+1))))));
  return [{name:'Регистрация',rows:[[context],[stamp],headers,...data],widths}];

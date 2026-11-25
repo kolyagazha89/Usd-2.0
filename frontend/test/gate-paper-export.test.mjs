@@ -17,4 +17,5 @@ test('generated workbook is a readable XLSX with portrait A4, page width fit and
  assert.match(xml,/paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/);
  assert.match(xml,/<c r="C4"[^>]*s="\d+"/);
  assert.match(styles,/wrapText="1"/);
+ assert.match(styles,/<sz val="9"\s*\/>/);
 });
