@@ -78,7 +78,7 @@ function dataFor(url,role){
  if(p==='/assistant/stages')return {success:true,items:[stage]};
  if(p==='/statistics/dashboard')return dashboard;
  if(p==='/statistics/data-quality/report')return {issues:[],counts:{total:0,error:0,warning:0,info:0},healthy:true};
- if(p==='/statistics/stages/stage1')return {stage:{...stage,resultsPublishedAt:null},stats:{registrations:1,participants:1,cars:1,appearances:1,inspections:{total:0,pending:1,passed:0,failed:0},registrationClasses:[{class:klass,registrations:1,participants:1,cars:1}],pendingConfigurations:[],inspectionDetails:[],pendingRegistrations:[{registrationId:'reg1',participantNumber:1,participant}],classResults:[{class:klass,results:[{id:'result1',place:1,value:'151.2',unit:'DB',participant,participantNumber:1,car,teamAtInspection:'USD Team'}]}]}};
+ if(p==='/statistics/stages/stage1')return {stage:{...stage,resultsPublishedAt:null},stats:{teamParticipation:{totalParticipants:1,preliminaryParticipants:1,teams:[{key:'id:team-fixture',name:'USD Team',participants:1,preliminaryParticipants:1}]},registrations:1,participants:1,cars:1,appearances:1,inspections:{total:0,pending:1,passed:0,failed:0},registrationClasses:[{class:klass,registrations:1,participants:1,cars:1}],pendingConfigurations:[],inspectionDetails:[],pendingRegistrations:[{registrationId:'reg1',participantNumber:1,participant}],classResults:[{class:klass,results:[{id:'result1',place:1,value:'151.2',unit:'DB',participant,participantNumber:1,car,teamAtInspection:'USD Team'}]}]}};
  if(p==='/statistics/season-report/s1')return {success:true,report:{
   season:{id:'s1',name:'Сезон 2026',year:2026},generatedAt:'2026-11-09T10:00:00.000Z',
   totals:{stages:1,registered:2,registrations:2,classEntries:2,actualParticipants:1,results:1,teams:1,podiums:1,records:0},
@@ -804,7 +804,14 @@ try{
      if(role==='ADMIN'&&route.startsWith('/admin/stage-report')){
       await page.locator('.usd-report-document').waitFor({state:'visible'});
       assert.equal(await page.locator('.usd-report-metric').count(),4,'report summary has four reliable KPIs');
-      assert.equal(await page.locator('.usd-report-table').count(),2,'class and podium details remain independent');
+      assert.equal(await page.locator('.usd-report-table').count(),3,'class, podium and registered team people remain independent');
+      const teamPeople=page.getByRole('table',{name:'Количество зарегистрированных людей по командам'});
+      assert.match(await teamPeople.innerText(),/USD Team/);
+      assert.equal(await teamPeople.locator('tbody tr').count(),1);
+      assert.equal(await teamPeople.locator('tbody td').last().innerText(),'1','team counts people independently of medals');
+      await page.emulateMedia({media:'print'});
+      assert.equal(await teamPeople.evaluate(el=>getComputedStyle(el).display),'table','team enrolment remains a real table in PDF');
+      await page.emulateMedia({media:'screen'});
       assert.match(await page.locator('.usd-report-hero').innerText(),/Этап №1/);
       assert.match(await page.locator('.usd-report-warnings').innerText(),/Результаты не опубликованы/);
       const bg=await page.locator('.usd-report-document').evaluate(el=>getComputedStyle(el).backgroundColor);
