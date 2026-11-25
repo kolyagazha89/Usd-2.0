@@ -24,7 +24,6 @@ import MediaLibraryPage from './MediaLibraryPage';
 import SiteSettingsPage from './SiteSettingsPage';
 import EmailTestingPage from './EmailTestingPage';
 import EmailTemplatesPage from './EmailTemplatesPage';
-import AssistantPage from './AssistantPage';
 import {ClassesPage,SeasonsPage,StageDetailPage,StagesPage} from './CompetitionPages';
 import RegistrationsPage from './RegistrationsPage';
 import EventDayPage from './EventDayPage';
@@ -88,7 +87,6 @@ function AdminRouteContent({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty,
   if(path.startsWith('/admin/legal-documents'))return <LegalDocumentsPage PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel}/>;
   if(path.startsWith('/admin/site-settings'))return <SiteSettingsPage routePath={path} go={go} PageFrame={PageFrame} PanelTitle={PanelTitle} LoadingPage={LoadingPage} ErrorPanel={ErrorPanel} cacheBrandLogo={cacheBrandLogo} humanize={humanize}/>;
   if(path.startsWith('/admin/rules'))return <RulesAdminPage/>;
-  if(path.startsWith('/admin/assistant'))return <AssistantPage go={go} PageFrame={PageFrame} enumLabel={enumLabel}/>;
   return <Coming title="Страница не найдена" icon={Info} user={user} PageFrame={PageFrame}/>;
  }
 

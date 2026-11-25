@@ -45,5 +45,6 @@ usd_backup_before_participant_car.sql
 # Laptop-only signed packages, local IAM/DB secrets and installer state
 /deploy/venue-lan/local-private/
 
-# Release-generated assistant source index (not checked into Git)
+
+# Ignore obsolete generated artifacts in pre-retirement local checkouts.
 /backend/usd-research-corpus.json

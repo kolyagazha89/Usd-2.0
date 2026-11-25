@@ -501,3 +501,32 @@ Public Ubuntu prerelease last verified at `49998d27fd179ef50c61d7e115516734b546f
 **Code/CI approval is not live migration approval.** The root-owned supervised release path still requires a fresh verified second-disk database backup, an isolated PostgreSQL 18 restore/migration rehearsal, matching signed candidate image and source, exclusive deployment lock and private `initial-preflight` receipt tied to the exact candidate SHA / deployed source / DB container, with post-upgrade row-count preservation and no live database replacement. The installed root helper must be updated and checked by the trusted operator before any use. Never use `prisma migrate resolve`, `migrate reset`, or manual changes to `/etc/usd-auto-release-schema` as a shortcut.
 
 A successful isolated CI fixture **cannot** prove that an actual Ubuntu migration, push delivery, second unattended release, backups, or physical iOS/Android acceptance occurred. Keep `app.usd-russia.ru` as the only prerelease site; do not touch `usd-russia.ru`, DNS or production data without separate approval. Local second-disk copies remain at risk from failure of the same computer.
+
+## Retired USD assistant: existing Ubuntu installations
+
+The assistant routes, model and corpus are no longer built. The database
+schema and historical audit records are retained to avoid an unnecessary
+destructive migration. An older opt-in Ollama container is not removed by
+normal API/frontend-only deployment. Once the removal PR is merged and main
+checks are green, refresh the trusted Compose snapshots using the reviewed
+installer, then stop and remove only the retired service:
+
+```bash
+cd /home/usd/usd-deploy
+git switch main && git pull --ff-only
+sudo bash deploy/home-pc/install-local-deployer.sh
+sudo flock -n /run/lock/usd-home-deploy.lock bash -c '
+  set -e
+  ids=$(docker ps -aq --filter label=com.docker.compose.project=usd-home --filter label=com.docker.compose.service=ollama)
+  if [ -n "$ids" ]; then docker rm -f $ids; fi
+'
+```
+
+The service-specific filter intentionally avoids Compose down, orphan removal,
+volume deletion, or touching other Docker projects. The old model volume is
+left intact; it is unused and may be removed separately after operator review.
+Existing inference environment values are inert and may be removed from the
+private .env during a supervised maintenance window. Never print credentials.
+Confirm the expected revision on the public API, and verify that no matching
+inference container remains. Do not disable or recreate the database or other
+USD services.

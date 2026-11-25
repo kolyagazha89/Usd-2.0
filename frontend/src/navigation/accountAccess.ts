@@ -5,8 +5,8 @@ export function hasAdminPanelAccess(user:User|null|undefined):boolean{
  if(!user)return false;
  if(user.role==='ADMIN')return true;
  if(!user.customRoleId)return false;
- return Object.values(user.customRole?.permissions??{}).some(
-  actions=>Array.isArray(actions)&&(actions.includes('view')||actions.includes('*')),
+ return Object.entries(user.customRole?.permissions??{}).some(
+  ([module,actions])=>module!=='assistant'&&Array.isArray(actions)&&(actions.includes('view')||actions.includes('*')),
  );
 }
 

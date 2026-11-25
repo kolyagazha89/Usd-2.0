@@ -6,3 +6,6 @@ coverage
 .env.*
 !.env.example
 npm-debug.log*
+
+# Never ship stale local inference corpora from an older checkout.
+usd-research-corpus.json

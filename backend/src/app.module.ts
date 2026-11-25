@@ -31,7 +31,6 @@ import { StatisticsModule } from './statistics/statistics.module';
 import { TrafficModule } from './traffic/traffic.module';
 import { GoogleModule } from './google/google.module';
 import { SiteSettingsModule } from './site-settings/site-settings.module';
-import { AssistantModule } from './assistant/assistant.module';
 import { NormalizationDryRunModule } from './data-quality/normalization-dry-run.module';
 import { ComponentCatalogRequestsModule } from './component-catalog-requests/component-catalog-requests.module';
 import { TeamsModule } from './teams/teams.module';
@@ -64,7 +63,6 @@ import { TeamsModule } from './teams/teams.module';
     TrafficModule,
     GoogleModule,
     SiteSettingsModule,
-    AssistantModule,
     NormalizationDryRunModule,
     ComponentCatalogRequestsModule,
     TeamsModule,

@@ -66,7 +66,6 @@ describe('venue API is a subset of production administration',()=>{
    ['MediaController','POST','/media/prepare'],
    ['GoogleController','POST','/google/connect'],
    ['ImportsController','POST','/imports/historical/commit'],
-   ['AssistantController','POST','/assistant/functions'],
    ['TeamsController','POST','/teams/admin'],
    ['AdminDeletionController','DELETE','/admin/permanent-deletion'],
   ] as const)expect(isVenueApiAllowed(controller,method,path)).toBe(false);
