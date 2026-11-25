@@ -169,32 +169,37 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: venue-ci-only-password
-          POSTGRES_DB: usd_venue_ci
+          POSTGRES_DB: usd_return_ci
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U postgres -d usd_venue_ci"
+          --health-cmd "pg_isready -U postgres -d usd_return_ci"
           --health-interval 5s --health-timeout 5s --health-retries 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - name: Install pinned backend tools
         working-directory: backend
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Apply real release schema to isolated PostgreSQL 18
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://postgres:venue-ci-only-password@127.0.0.1:5432/usd_venue_ci
+          DATABASE_URL: postgresql://postgres:venue-ci-only-password@127.0.0.1:5432/usd_return_ci
         run: ./node_modules/.bin/prisma migrate deploy --config ./prisma7.config.ts
-      - name: Verify whole-stage imported entrant, equipment, numbers, inspection and result
+      - name: Build the central API for an HTTP-level return regression
         working-directory: backend
         env:
-          VENUE_CENTRAL_TEST_DATABASE_URL: postgresql://postgres:venue-ci-only-password@127.0.0.1:5432/usd_venue_ci
+          DATABASE_URL: postgresql://postgres:venue-ci-only-password@127.0.0.1:5432/usd_return_ci
+        run: npm run build
+      - name: Verify signed returns, central HTTP failures and idempotent ACK
+        working-directory: backend
+        env:
+          VENUE_CENTRAL_TEST_DATABASE_URL: postgresql://postgres:venue-ci-only-password@127.0.0.1:5432/usd_return_ci
         run: node --test scripts/test-full-venue-return.integration.mjs
 
   venue-windows-launcher:
-    name: Windows PowerShell 5.1 one-click launcher syntax
+    name: Windows PowerShell 5.1 launcher and rendered dashboard
     runs-on: windows-latest
     timeout-minutes: 8
     steps:
@@ -205,7 +210,12 @@ jobs:
           $files = @(
             'deploy/venue-lan/USD-Control.ps1',
             'deploy/venue-lan/test-windows-operator-ui.ps1',
+            'deploy/venue-lan/test-windows-operator-launcher.ps1',
             'deploy/venue-lan/venue-control.ps1',
+            'deploy/venue-lan/venue-operator-status.ps1',
+            'deploy/venue-lan/venue-sync-http.ps1',
+            'deploy/venue-lan/test-windows-sync-conflict.ps1',
+            'deploy/venue-lan/test-windows-venue-https.ps1',
             'deploy/venue-lan/venue-season.ps1',
             'deploy/venue-lan/venue-coverage.ps1',
             'deploy/venue-lan/venue-directory.ps1',
@@ -226,9 +236,29 @@ jobs:
               throw "Invalid PowerShell syntax: $file"
             }
           }
-      - name: Exercise one-window ADMIN stage download and signed JSON on Windows
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Launch the packaged Windows app with empty and retained-stage data
+        shell: powershell
+        run: powershell -NoProfile -STA -File deploy/venue-lan/test-windows-operator-launcher.ps1
+      - name: Exercise ADMIN stage download and render the dashboard at three Windows scales
         shell: powershell
         run: powershell -NoProfile -STA -File deploy/venue-lan/test-windows-operator-ui.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: venue-windows-dashboard
+          path: venue-windows-render/*.png
+      - name: Verify real Windows TLS against a pinned local certificate chain
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-venue-https.ps1
+      - name: Exercise status of Docker, database, HTTPS and central journal acknowledgement
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-operator-status.ps1
+      - name: Report return conflicts and restore only the paused judging API
+        shell: powershell
+        run: powershell -NoProfile -File deploy/venue-lan/test-windows-sync-conflict.ps1
       - name: Exercise native PowerShell helpers without Docker or administrator access
         shell: powershell
         run: powershell -NoProfile -File deploy/venue-lan/test-windows-helpers.ps1

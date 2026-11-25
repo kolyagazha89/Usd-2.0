@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as XLSX from 'xlsx';
+import {applyGatePrintSettings} from '../src/admin/gate-paper-export.ts';
+test('generated workbook is a readable XLSX with portrait A4, page width fit and wrap/borders',()=>{
+ const book=XLSX.utils.book_new();
+ const sheet=XLSX.utils.aoa_to_sheet([['USD'],['Дата'],['Инспекция','№','ФИО'],['',1,'Иванов Иван']]);
+ sheet['!margins']={left:.2,right:.2,top:.2,bottom:.2,header:0,footer:0};
+ XLSX.utils.book_append_sheet(book,sheet,'Регистрация');
+ const bytes=applyGatePrintSettings(XLSX,XLSX.write(book,{type:'array',bookType:'xlsx'}));
+ const reopened=XLSX.read(bytes,{type:'array'});
+ assert.equal(reopened.Sheets['Регистрация'].C4.v,'Иванов Иван');
+ const archive=XLSX.CFB.read(new Uint8Array(bytes),{type:'array'});
+ const xml=new TextDecoder().decode(XLSX.CFB.find(archive,'/xl/worksheets/sheet1.xml').content);
+ const styles=new TextDecoder().decode(XLSX.CFB.find(archive,'/xl/styles.xml').content);
+ assert.match(xml,/pageSetUpPr fitToPage="1"/);
+ assert.match(xml,/paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/);
+ assert.match(xml,/<c r="C4"[^>]*s="\d+"/);
+ assert.match(styles,/wrapText="1"/);
+ assert.match(styles,/<sz val="9"\s*\/>/);
+});

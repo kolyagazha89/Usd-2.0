@@ -46,16 +46,36 @@ function addUnique(target,id,label){
 function maybeDate(value,context){return value==null?undefined:parsedDate(value,context);}
 function maybeJSON(value){return value==null?undefined:value;}
 
-/** Restore signed central versions as original, editable venue configurations.
- * Existing local versions are immutable: a retained stage may have judge edits.
- * Call only inside the signed isolated-stage import transaction.
+const legacyConfigurationName='USD VENUE: снимок регистрации';
+const legacyVersionDescription='Только локальный FK. Источник оборудования: Registration.configurationSnapshot.';
+const equipmentModels=[
+ ['carHeadUnit','headUnits'],['carBattery','batteries'],['carGenerator','generators'],
+ ['carAudioComponent','audioComponents'],['carAmplifier','amplifiers'],
+];
+
+async function canRestoreLegacyConfigurationVersion(tx,versionId,carId){
+ const row=await tx.carConfigurationVersion.findUnique({
+  where:{id:versionId},
+  include:{configuration:true,_count:{select:Object.fromEntries(equipmentModels.map(([,field])=>[field,true]))}},
+ });
+ const config=row?.configuration;
+ return config?.carId===carId&&config.name===legacyConfigurationName
+  &&config.isActive===false&&config.currentVersion===1&&row.version===1
+  &&row.vibrationIsolation===null&&row.additionalDescription===legacyVersionDescription
+  &&equipmentModels.every(([,field])=>row._count[field]===0);
+}
+
+/** Restore signed central versions inside the isolated-stage transaction.
+ * Legacy packages used a placeholder for the original registration version ID.
+ * Only an untouched placeholder from that same car can receive its signed data.
+ * Existing registration snapshots and locally edited versions stay immutable.
  */
 async function restoreSignedVenueConfigurations(tx,configurations,{shared=false}={}){
  let addedConfigurations=0,addedVersions=0;
  for(const config of configurations??[]){
   const existing=shared?await tx.carConfiguration.findUnique({where:{id:config.id}}):null;
   if(existing&&existing.carId!==config.carId)
-   throw new Error('MANUAL_REVIEW: конфигурация принадлежит другому автомобилю');
+   throw Object.assign(new Error('Конфигурация принадлежит другому автомобилю'),{venueConfigurationConflict:true});
   if(!existing){
    await tx.carConfiguration.create({data:{
     id:config.id,carId:config.carId,name:config.name,isActive:config.isActive,
@@ -66,27 +86,25 @@ async function restoreSignedVenueConfigurations(tx,configurations,{shared=false}
   }
   for(const version of config.versions){
    const prior=shared?await tx.carConfigurationVersion.findUnique({where:{id:version.id}}):null;
-   if(prior){
-    if(prior.configurationId!==config.id)
-     throw new Error('MANUAL_REVIEW: версия конфигурации уже привязана к другому автомобилю');
-    // An older live version can be referenced by a prior stage. Never replace
-    // its equipment or overwrite any local amendment made by the operator.
-    continue;
-   }
-   await tx.carConfigurationVersion.create({data:{
-    id:version.id,configurationId:config.id,version:version.version,
+   if(prior?.configurationId===config.id)continue;
+   const data={
+    configurationId:config.id,version:version.version,
     vibrationIsolation:version.vibrationIsolation,
     additionalDescription:version.additionalDescription,
     createdAt:parsedDate(version.createdAt,'версия конфигурации'),
-   }});
+   };
+   if(prior){
+    if(!await canRestoreLegacyConfigurationVersion(tx,version.id,config.carId)){
+     throw Object.assign(new Error('Версия конфигурации уже привязана к другой конфигурации'),{venueConfigurationConflict:true});
+    }
+    // Keep the version primary key used by registrations on past stages.
+    await tx.carConfigurationVersion.update({where:{id:version.id},data});
+   }else{
+    await tx.carConfigurationVersion.create({data:{id:version.id,...data}});
+   }
    // Insert audio components before amplifier-component junction rows.
-   for(const [table,rows] of [
-    ['carHeadUnit',version.headUnits],
-    ['carBattery',version.batteries],
-    ['carGenerator',version.generators],
-    ['carAudioComponent',version.audioComponents],
-    ['carAmplifier',version.amplifiers.map(({componentLinks,...amp})=>amp)],
-   ]){
+   for(const [table,field] of equipmentModels){
+    const rows=field==='amplifiers'?version.amplifiers.map(({componentLinks,...amp})=>amp):version[field];
     if(rows.length)await tx[table].createMany({data:rows});
    }
    const links=version.amplifiers.flatMap(amplifier=>amplifier.componentLinks);
@@ -218,8 +236,8 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
  let resultCount=0;
  for(const reg of snapshot.registrations){
   addUnique(registrations,assertUuid(reg.id,'регистрация'),'регистрации');
-  if(reg.stageId!==snapshot.stageId||reg.status!=='ACTIVE')throw new Error('Регистрация чужого этапа');
-  requiredCount(reg.participantNumber,'участник');
+  if(reg.stageId!==snapshot.stageId)throw new Error('Регистрация чужого этапа');
+  if(reg.status==='ACTIVE')requiredCount(reg.participantNumber,'участник');
   const person=reg.participant,car=reg.car;
   if(!isObject(person)||!isObject(car)||reg.participantId!==person.id||reg.carId!==car.id
     ||car.participantId!==person.id)
@@ -284,7 +302,7 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
   registrations:snapshot.registrations,
   participantDirectory:snapshot.participantDirectory,
   configurations:snapshot.configurations??[],
-  summary:{stageId:verified.stageId,registrations:registrations.size,
+  summary:{stageId:verified.stageId,registrations:verified.registrations,
    classes:classIds.size,results:resultCount},
  };
 }
@@ -537,12 +555,12 @@ export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress
     if(!version){
      const configId=randomUUID();
      await tx.carConfiguration.create({data:{
-      id:configId,carId:r.carId,name:'USD VENUE: снимок регистрации',
+      id:configId,carId:r.carId,name:legacyConfigurationName,
       isActive:false,
      }});
      await tx.carConfigurationVersion.create({data:{
       id:r.configurationVersionId,configurationId:configId,version:1,
-      additionalDescription:'Только локальный FK. Источник оборудования: Registration.configurationSnapshot.',
+      additionalDescription:legacyVersionDescription,
      }});
     }
    }
@@ -550,7 +568,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress
     id:r.id,stageId:r.stageId,participantId:r.participantId,carId:r.carId,
     configurationVersionId:r.configurationVersionId,
     configurationSnapshot:r.configurationSnapshot,participantNumber:r.participantNumber,
-    source:r.source,status:'ACTIVE',registeredAt:parsedDate(r.registeredAt,'регистрация'),
+    source:r.source,status:r.status,registeredAt:parsedDate(r.registeredAt,'регистрация'),
     teamIdAtInspection:r.teamIdAtInspection??null,
     teamNameAtInspection:r.teamNameAtInspection??null,
    }});
@@ -620,7 +638,7 @@ export async function applyVenueStageImport(plan,prisma,{shared=false,onProgress
  * Never touches Registration, Result, the original signed baseline or journal.
  * Every INSERT is into an existing central UUID, not a new local-generated ID.
  */
-export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
+export async function applyVenueParticipantDirectory(plan,prisma,{stageId,refreshRoster=false}={}){
  if(!plan?.packageHash||!prisma?.$transaction||!Array.isArray(plan.participantDirectory)
   ||plan.snapshot?.stageId!==stageId)
   throw new Error('Нет проверенного справочника для этого этапа');
@@ -640,11 +658,16 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
   const active=await tx.$queryRawUnsafe('SELECT stage_id AS "stageId" FROM venue_private.active_stage WHERE singleton=true');
   if(active.length!==1||active[0].stageId!==stageId)
    throw new Error('Нельзя обновить исторический или неактивный этап');
+  if(refreshRoster){
+   if(plan.snapshot.stage.resultsPublishedAt)throw new Error('ROSTER_RESULTS_PUBLISHED');
+   const changes=await tx.$queryRawUnsafe('SELECT EXISTS(SELECT 1 FROM venue_private.operation_journal WHERE stage_id=$1) AS changed',stageId);
+   if(changes.length!==1||changes[0].changed)throw new Error('ROSTER_ALREADY_USED');
+  }
   const already=await tx.auditLog.findFirst({
    where:{action:'VENUE_PARTICIPANT_DIRECTORY_IMPORTED',entity:'Stage',entityId:stageId},
    orderBy:{createdAt:'desc'},select:{metadata:true},
   });
-  if(already?.metadata?.sha256===plan.packageHash)
+  if(!refreshRoster&&already?.metadata?.sha256===plan.packageHash)
    return {addedParticipants:0,addedCars:0,replayed:true};
   const lookalike={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
   const normalizedPlate=car=>{
@@ -708,23 +731,78 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId}={}){
    }
   }
   // An upgraded signed directory can add the real configurations of existing
-  // central profiles. A locally modified placeholder blocks the transaction
-  // rather than silently replacing an operator's competition-day work.
+  // central profiles. A locally modified version still blocks the transaction.
   const equipment=await restoreSignedVenueConfigurations(tx,plan.configurations,{shared:true});
+  const roster=refreshRoster?await refreshVenueRegistrations(tx,plan,stageId):{};
   await tx.auditLog.create({data:{
    action:'VENUE_PARTICIPANT_DIRECTORY_IMPORTED',entity:'Stage',entityId:stageId,
    metadata:{sha256:plan.packageHash,participantCount:plan.participantDirectory.length,
-    addedParticipants,addedCars,...equipment},
+    addedParticipants,addedCars,...equipment,...roster},
   }});
-  return {addedParticipants,addedCars,...equipment,replayed:false};
+  return {addedParticipants,addedCars,...equipment,...roster,replayed:false};
  },{isolationLevel:'Serializable',timeout:120000});
+}
+
+async function refreshVenueRegistrations(tx,plan,stageId){
+ const classes=await tx.stageClass.findMany({where:{stageId},select:{classId:true,isActive:true}});
+ const enabled=new Map(classes.map(row=>[row.classId,row.isActive]));
+ if(enabled.size!==plan.snapshot.stage.stageClasses.length||plan.snapshot.stage.stageClasses.some(row=>
+  enabled.get(row.classId)!==row.isActive))throw new Error('ROSTER_STAGE_CLASSES_CHANGED');
+
+ const current=await tx.registration.findMany({where:{stageId},include:{
+  numbers:true,classes:{include:{inspection:{select:{id:true}},results:{select:{id:true}}}},
+  inspection:{select:{id:true}},results:{select:{id:true}},
+ }});
+ const existing=new Map(current.map(row=>[row.id,row]));
+ const incoming=new Map(plan.registrations.map(row=>[row.id,row]));
+ if(current.some(row=>row.status==='ACTIVE'&&!incoming.has(row.id)))throw new Error('ROSTER_SIGNED_REGISTRATION_MISSING');
+ const competitionData=row=>Boolean(row.inspection||row.stageInspection||row.participantStageInspectionId||
+  row.results?.length||row.classes.some(value=>value.inspection||value.results?.length));
+ const orderById=rows=>[...rows].sort((a,b)=>a.id.localeCompare(b.id));
+ const layout=row=>JSON.stringify({status:row.status,participantNumber:row.participantNumber,
+  configurationVersionId:row.configurationVersionId,
+  numbers:orderById(row.numbers).map(n=>[n.id,n.number,n.isPrimary]),
+  classes:orderById(row.classes).map(c=>[c.id,c.classId,c.numberId]),
+ });
+ const changes=[];
+ for(const row of plan.registrations){
+  const old=existing.get(row.id);
+  if(old&&(old.participantId!==row.participantId||old.carId!==row.carId))throw new Error('ROSTER_REGISTRATION_OWNER_CHANGED');
+  if(old&&layout(old)===layout(row))continue;
+  if((old&&competitionData(old))||competitionData(row))throw new Error('ROSTER_COMPETITION_DATA');
+  changes.push({row,old});
+ }
+
+ // Release only the numbers of changed rows inside this transaction, so a
+ // pair of registrations can exchange numbers without transient collisions.
+ const assigned=new Set([...current,...plan.registrations].map(row=>row.participantNumber));
+ let temporaryNumber=-1;
+ for(const {old} of changes){
+  if(!old)continue;
+  while(assigned.has(temporaryNumber))temporaryNumber--;
+  await tx.registrationClass.deleteMany({where:{registrationId:old.id}});
+  await tx.registrationNumber.deleteMany({where:{registrationId:old.id}});
+  await tx.registration.update({where:{id:old.id},data:{participantNumber:temporaryNumber--}});
+ }
+ for(const {row,old} of changes){
+  const data={configurationVersionId:row.configurationVersionId,configurationSnapshot:row.configurationSnapshot,
+   participantNumber:row.participantNumber,status:row.status,source:row.source,
+   registeredAt:parsedDate(row.registeredAt,'регистрация')};
+  if(old)await tx.registration.update({where:{id:row.id},data});
+  else await tx.registration.create({data:{...data,id:row.id,stageId,participantId:row.participantId,carId:row.carId}});
+  for(const number of row.numbers)await tx.registrationNumber.create({data:{...number,stageId,registrationId:row.id}});
+  for(const {id,classId,numberId} of row.classes)await tx.registrationClass.create({data:{id,classId,numberId,registrationId:row.id}});
+ }
+ return {refreshedRegistrations:changes.length,activeRegistrations:plan.registrations.filter(r=>r.status==='ACTIVE').length};
 }
 
 /** Fixed allowlist only: no SQL text, file paths, names, tokens or private
  * package fields are ever copied into installer stdout. */
 export function classifyVenueImportFailure(error){
  const reason=typeof error?.message==='string'?error.message:'';
+ if(/^ROSTER_(ALREADY_USED|STAGE_CLASSES_CHANGED|SIGNED_REGISTRATION_MISSING|REGISTRATION_OWNER_CHANGED|COMPETITION_DATA|RESULTS_PUBLISHED)$/.test(reason))return reason;
  if(Object.hasOwn(packageExitCodes,error?.venuePackageFailure))return error.venuePackageFailure;
+ if(error?.venueConfigurationConflict===true)return 'CONFIGURATION_VERSION_CONFLICT';
  if(/Повтор или повреждение участника справочника|Лишние личные поля или повтор участника справочника|Автомобиль принадлежит другому участнику или содержит запрещённые поля|Повтор или повреждение автомобиля справочника/.test(reason))return 'SIGNED_DIRECTORY_INVALID';
  if(/Цифровая подпись не подтверждена|Доверенный отпечаток ключа подписи не совпадает|Контрольная сумма пакета не совпадает|Нужен открытый ключ Ed25519/.test(reason))return 'SIGNATURE_OR_TRUST';
  if(/Адрес локальной базы данных недопустим|Импорт в публичную или постороннюю базу запрещён/.test(reason))return 'LOCAL_DATABASE_CONFIG';
@@ -740,7 +818,7 @@ export function classifyVenueImportFailure(error){
  if(sqlstate==='3D000')return 'DATABASE_NOT_FOUND';
  if(/^08[0-9A-Z]{3}$/.test(sqlstate))return 'DATABASE_CONNECTION';
  if(/Этап уже импортирован из другого пакета|исходной подписанной установки|пакета не совпадает/.test(reason))return 'INSTALLED_PACKAGE_MISMATCH';
- const phase=['DB_PRECHECK','STAGE_CATALOG','SIGNED_POLICY','PARTICIPANTS','CARS','REGISTRATIONS','INSPECTIONS_RESULTS','RECEIPT']
+ const phase=['DB_PRECHECK','STAGE_CATALOG','SIGNED_POLICY','PARTICIPANTS','CARS','CONFIGURATIONS','REGISTRATIONS','INSPECTIONS_RESULTS','RECEIPT']
   .includes(error?.venueImportPhase)?error.venueImportPhase:null;
  const prismaCode=typeof error?.code==='string'&&/^P(?:10(?:0[0-3]|17)|20(?:00|02|03|04|10|11|21|22|24|25|28|34))$/.test(error.code)
   ?error.code:null;
@@ -750,7 +828,7 @@ export function classifyVenueImportFailure(error){
 }
 async function main(){
  const [file,keyFile,mode,confirmedId]=process.argv.slice(2);
- if(!file||!keyFile||!['--dry-run','--apply','--check-installed','--check-uninstalled','--apply-directory'].includes(mode)
+ if(!file||!keyFile||!['--dry-run','--apply','--check-installed','--check-uninstalled','--apply-directory','--prepare-roster'].includes(mode)
   ||(mode==='--apply'&&!confirmedId))
   throw new Error('Usage: import-stage.mjs STAGE.json PUBLIC_KEY.pem --dry-run OR --apply STAGE_UUID');
  if((await stat(file)).size>MAX_FILE)throw new Error('Пакет слишком большой');
@@ -780,8 +858,8 @@ async function main(){
    return;
   }
   const plan=await planInstalledVenueStageImport(signed,key,process.env,prisma);
-  if(mode==='--apply-directory'){
-   const imported=await applyVenueParticipantDirectory(plan,prisma,{stageId:plan.snapshot.stageId});
+  if(mode==='--apply-directory'||mode==='--prepare-roster'){
+   const imported=await applyVenueParticipantDirectory(plan,prisma,{stageId:plan.snapshot.stageId,refreshRoster:mode==='--prepare-roster'});
    process.stdout.write('USD VENUE PARTICIPANT DIRECTORY IMPORTED — EXISTING IDS PRESERVED\n');
    process.stdout.write(JSON.stringify(imported)+'\n');
    return;

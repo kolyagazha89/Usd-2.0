@@ -62,8 +62,8 @@ test('one-click Windows repair backs up DB and checks coverage before every upgr
   source('./venue-control.ps1'),source('./venue-season.ps1'),
   source('./venue-coverage.ps1'),source('./build-windows-kit.py'),
  ]);
- assert.match(control,/Repair-VenueCoverageIfNeeded\s+Get-Content -LiteralPath \(Join-Path \$Root 'upgrade-journal-links\.sql'\)/);
- assert.match(season,/Repair-VenueCoverageIfNeeded\s+Get-Content -LiteralPath \(Join-Path \$Root 'upgrade-journal-links\.sql'\)/);
+ assert.match(control,/Repair-VenueCoverageIfNeeded\s+Invoke-VenueJournalSql \(Join-Path \$Root 'upgrade-journal-links\.sql'\)/);
+ assert.match(season,/Repair-VenueCoverageIfNeeded\s+Invoke-VenueJournalSql \(Join-Path \$Root 'upgrade-journal-links\.sql'\)/);
  assert.match(control,/if\(\$journalFile -eq 'upgrade-journal-links\.sql'\)\{Repair-VenueCoverageIfNeeded\}/);
  assert.match(control,/venue-coverage\.ps1/);
  assert.match(season,/'venue-coverage\.ps1'/);
@@ -76,5 +76,5 @@ test('one-click Windows repair backs up DB and checks coverage before every upgr
  assert.match(coverage,/SpecialFolder\]::LocalApplicationData/);
  assert.doesNotMatch(coverage,/Join-Path \$PrivateDir 'db-backups'/);
  assert.match(coverage,/Restore-VenueApi/);
- assert.ok(coverage.indexOf('pg_dump')<coverage.indexOf('Get-Content -LiteralPath $sql'));
+ assert.ok(coverage.indexOf('pg_dump')<coverage.indexOf('Invoke-VenueJournalSql $sql'));
 });

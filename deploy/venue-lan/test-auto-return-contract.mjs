@@ -13,10 +13,12 @@ test('no online switch until signed ACK includes exact journal hash and derived 
  const ctl=await read('venue-control.ps1');
  const section=ctl.slice(ctl.indexOf('function Return-Online'),ctl.indexOf('if($MyInvocation.InvocationName'));
  assert.ok(section.indexOf('Sync-VenueReturn')<section.indexOf('Remove-Autostart'));
- assert.match(ctl,/SyncResult\.journalEndHash -ne \$Bundle\.journalEndHash/);
- assert.match(ctl,/SyncResult\.derivedRankingsRebuilt -ne \$true/);
+ const transport=await read('venue-sync-http.ps1');
+ assert.ok(ctl.indexOf('Assert-VenueSyncAck $SyncResult $Bundle')<ctl.indexOf("'sync-ack-'"));
+ assert.match(transport,/@\('stageId','journalEndHash'\)/);
+ assert.match(transport,/@\('accepted','databaseSynchronized','derivedRankingsRebuilt'\)/);
  assert.match(section,/Restore-VenueApi/);
- assert.match(ctl,/function Replace-LegacyDemo/);
+ assert.doesNotMatch(ctl,/'down','--volumes'/);
 });
 test('signed grant is protected on Windows and central secrets never copied to venue',async()=>{
  const ctl=await read('venue-control.ps1');

@@ -443,13 +443,34 @@ async function retainedSeason(){
  const mappedIds=new Map();
  const newId=id=>{if(!mappedIds.has(id))mappedIds.set(id,randomUUID());return mappedIds.get(id)};
  try{
+  const legacyVersionId=stableFixtureUuid('second-version');
+  const legacyCarId=stableFixtureUuid('second-car');
+  const legacyParentId=stableFixtureUuid('legacy-placeholder');
+  const signedParentId=stableFixtureUuid('signed-config-'+legacyCarId);
+  const restoredHeadUnitId=stableFixtureUuid('restored-head-unit');
+  // Recreate the row layout produced by a pre-equipment signed stage while
+  // keeping its original version UUID and registration reference.
+  await root.$transaction(async tx=>{
+   await tx.$queryRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
+   await tx.carConfiguration.create({data:{
+    id:legacyParentId,carId:legacyCarId,name:'USD VENUE: снимок регистрации',isActive:false,
+   }});
+   await tx.carConfigurationVersion.update({where:{id:legacyVersionId},data:{
+    configurationId:legacyParentId,additionalDescription:'Только локальный FK. Источник оборудования: Registration.configurationSnapshot.',
+   }});
+  });
   const oldResults=await normal.result.findMany({orderBy:{id:'asc'}});
+  const oldRegistrations=await normal.registration.findMany({where:{stageId:ID.stage},orderBy:{id:'asc'}});
+  assert.ok(oldRegistrations.some(r=>r.configurationVersionId===legacyVersionId));
   const before=await collectVenueJournal(normal,process.env);
   const people=await normal.participant.count();
   const versions=await normal.carConfigurationVersion.count();
   const signed=syntheticSignedStage(undefined,s=>{
    s.stageId=second;s.stage.id=second;s.stage.stageNumber=8;
    delete s.venuePolicy;
+   const restored=s.configurations.find(c=>c.id===signedParentId).versions[0];
+   restored.headUnits.push({id:restoredHeadUnitId,versionId:legacyVersionId,brand:'USD',
+    catalogEntryId:null,model:'Legacy upgrade fixture',direction:'SUB'});
    s.stage.stageClasses.forEach(c=>{c.id=newId(c.id);c.stageId=second});
    for(const r of s.registrations){
     r.id=newId(r.id);r.stageId=second;
@@ -471,6 +492,13 @@ async function retainedSeason(){
   assert.equal(await normal.participant.count(),people);
   assert.equal(await normal.carConfigurationVersion.count(),versions);
   assert.deepEqual(await normal.result.findMany({orderBy:{id:'asc'}}),oldResults);
+  assert.deepEqual(await normal.registration.findMany({where:{stageId:ID.stage},orderBy:{id:'asc'}}),oldRegistrations);
+  const restoredVersion=await normal.carConfigurationVersion.findUnique({
+   where:{id:legacyVersionId},include:{headUnits:true},
+  });
+  assert.equal(restoredVersion.configurationId,signedParentId);
+  assert.deepEqual(restoredVersion.headUnits.map(row=>row.id),[restoredHeadUnitId]);
+  assert.ok(await normal.registration.findFirst({where:{stageId:second,configurationVersionId:legacyVersionId}}));
   const secondBefore=await collectVenueJournal(normal,env);
   assert.equal(secondBefore.eventCount,0,'Imported baseline must not become local mutations');
   const active=await root.$queryRawUnsafe('SELECT stage_id AS id FROM venue_private.active_stage');
@@ -489,7 +517,7 @@ async function retainedSeason(){
   if(oldResults[0])await assert.rejects(()=>normal.result.update({where:{id:oldResults[0].id},data:{value:'1'}}),/historical|P2004|P2010|database/i);
   const replacement={...plan,packageHash:'0'.repeat(64)};
   await assert.rejects(()=>applyVenueStageImport(replacement,root,{shared:true}),/другого пакета/);
-  console.log('USD RETAINED SEASON PASS: one database, two stages, reused identities/configurations, independent exports, crash replay, historical results unchanged');
+  console.log('USD RETAINED SEASON PASS: one database, two stages, reused identities/configurations, independent exports, migrated legacy equipment, crash replay, historical registrations and results unchanged');
  }finally{await normal.$disconnect();await root.$disconnect()}
 }
 const mode=process.argv[2];

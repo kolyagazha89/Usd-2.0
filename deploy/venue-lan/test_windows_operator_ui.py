@@ -26,7 +26,7 @@ class WindowsOperatorUI(unittest.TestCase):
         panel = read("USD-Control.ps1")
         for action in ("install", "offline", "online", "export", "directory", "next", "certificate"):
             self.assertIn("'" + action + "'", panel)
-        self.assertIn("Регистрации этого этапа не обновляются", panel)
+        self.assertIn("Обновление справочника добавляет профили и авто", read("venue-operator.xaml"))
         self.assertIn("https://api.usd-russia.ru", panel)
         self.assertNotIn("http://api.usd-russia.ru", panel)
         self.assertNotIn("down -v", panel)

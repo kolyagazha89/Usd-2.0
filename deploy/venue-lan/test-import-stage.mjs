@@ -85,6 +85,19 @@ test('dry-run validates signed scoped package without touching any database',()=
  assert.equal(plan.packageHash.length,64);
  assert.equal(plan.registrations[0].car.registrationNumber,'А123ВС55');
 });
+test('signed cancelled registration keeps its ID without an active place or number',()=>{
+ const data=snapshot();
+ const cancelled=data.registrations[0];
+ Object.assign(cancelled,{status:'CANCELLED',participantNumber:-1,numbers:[],classes:[],
+  inspection:null,stageInspection:null,results:[]});
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ assert.equal(plan.summary.registrations,0);
+ assert.equal(plan.registrations[0].id,uuid.reg);
+ assert.equal(plan.registrations[0].status,'CANCELLED');
+ assert.throws(()=>planVenueStageImport(signed({...data,registrations:[{...cancelled,participantNumber:6}]}),publicPem,env,now),/Отменённая/);
+ const leakedHistory={...cancelled,results:snapshot().registrations[0].results};
+ assert.throws(()=>planVenueStageImport(signed({...data,registrations:[leakedHistory]}),publicPem,env,now),/Отменённая/);
+});
 test('reject invalid origin, wrong key, expired package, wrong stage and external database',()=>{
  const p=signed();
  assert.throws(()=>planVenueStageImport(p,generateKeyPairSync('ed25519').publicKey.export({type:'spki',format:'pem'}).toString(),env,now),/подпись/);
@@ -365,6 +378,42 @@ test('append-only directory refresh requires local root, matching stage and pres
  await assert.rejects(()=>importer.applyVenueParticipantDirectory(plan,untrusted,{stageId:uuid.stage}),/root|установ|роль/i);
 });
 
+test('preflight synchronizes a late or reactivated signed registration only before local edits',async()=>{
+ const data=snapshot();
+ const active=data.registrations[0];
+ Object.assign(active,{results:[],inspection:null,stageInspection:null});
+ active.classes[0].inspection=null;
+ data.participantDirectory=[{...active.participant,cars:[active.car]}];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const run=({changed=false,current=[],expected}={})=>{
+  const {tx,db,log}=mockDb();
+  tx.$queryRawUnsafe=async sql=>sql.includes('current_user')?[{name:'usd_venue_root',rolsuper:true}]:
+   sql.includes('operation_journal')?[{changed}]:sql.includes('set_config')?[{}]:[{stageId:uuid.stage}];
+  tx.stage.findUnique=async()=>({id:uuid.stage});
+  tx.auditLog.findFirst=async()=>({metadata:{sha256:'a'.repeat(64)}});
+  tx.car.findMany=async()=>[];
+  tx.registration.findMany=async()=>current;
+  tx.stageClass.findMany=async()=>[{classId:uuid.cls,isActive:true}];
+  tx.registrationClass.deleteMany=async()=>{log.push({model:'registrationClass',removed:true})};
+  tx.registrationNumber.deleteMany=async()=>{log.push({model:'registrationNumber',removed:true})};
+  return {log,run:()=>importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage,refreshRoster:true}),expected};
+ };
+ const late=run();
+ assert.equal((await late.run()).refreshedRegistrations,1);
+ assert.ok(late.log.some(x=>x.model==='registration'&&x.data.id===uuid.reg));
+ assert.ok(late.log.some(x=>x.model==='registrationNumber'&&x.data.number===6));
+ const cancelled={...active,status:'CANCELLED',participantNumber:-1,numbers:[],classes:[]};
+ const reopened=run({current:[cancelled]});
+ await reopened.run();
+ assert.ok(reopened.log.some(x=>x.model==='registration'&&x.update?.status==='ACTIVE'&&x.update.participantNumber===6));
+ const alreadyRunning=run({changed:true});
+ await assert.rejects(alreadyRunning.run(),/ROSTER_ALREADY_USED/);
+ assert.deepEqual(alreadyRunning.log,[]);
+ const inspected=run({current:[{...cancelled,inspection:{id:uuid.inspection}}]});
+ await assert.rejects(inspected.run(),/ROSTER_COMPETITION_DATA/);
+ assert.ok(inspected.log.every(x=>!x.removed&&!['registration','result'].includes(x.model)));
+});
+
 test('RED: signed full historical directory accepts imported car without plate without creating a new ID',async()=>{
  const p=snapshot();
  const personId='ab84e950-8f7e-447b-87ab-18d92c36cad5';
@@ -606,4 +655,56 @@ test('retained season imports newer signed equipment versions but never downgrad
  };
  assert.deepEqual(await run(1),[2],'advance when a newer signed version arrives');
  assert.deepEqual(await run(3),[],'never downgrade a newer local version');
+});
+
+test('retained stage fills an untouched legacy configuration with the original signed UUID and equipment',async()=>{
+ const data=snapshot();
+ const configId='a1111111-1111-4111-8111-111111111111';
+ const placeholderId='b1111111-1111-4111-8111-111111111111';
+ const headUnitId='c1111111-1111-4111-8111-111111111111';
+ const timestamp='2026-11-01T10:00:00.000Z';
+ data.configurations=[{id:configId,carId:uuid.car,name:'SPL',isActive:true,currentVersion:2,
+  createdAt:timestamp,updatedAt:timestamp,
+  versions:[{id:uuid.version,configurationId:configId,version:2,
+   vibrationIsolation:null,additionalDescription:'Signed version',createdAt:timestamp,
+   amplifiers:[],audioComponents:[],batteries:[],generators:[],
+   headUnits:[{id:headUnitId,versionId:uuid.version,brand:'USD',catalogEntryId:null,model:'CI',direction:'SUB'}],
+  }]}];
+ const packageObject=signed(data);
+ const original=JSON.stringify(packageObject);
+ const plan=planVenueStageImport(packageObject,publicPem,env,now);
+ const placeholder={
+  id:uuid.version,configurationId:placeholderId,version:1,vibrationIsolation:null,
+  additionalDescription:'Только локальный FK. Источник оборудования: Registration.configurationSnapshot.',
+  configuration:{id:placeholderId,carId:uuid.car,name:'USD VENUE: снимок регистрации',isActive:false,currentVersion:1},
+  _count:{amplifiers:0,audioComponents:0,batteries:0,generators:0,headUnits:0},
+ };
+ const mockRetained=row=>{
+  const {tx,db,log}=mockDb();
+  tx.$queryRawUnsafe=async sql=>sql.includes('pg_roles')?[{rolsuper:true,name:'usd_venue_root'}]:[];
+  tx.carConfigurationVersion.findUnique=async()=>row;
+  return {db,log};
+ };
+ const untouched=mockRetained(placeholder);
+ await applyVenueStageImport(plan,untouched.db,{shared:true});
+ assert.equal(JSON.stringify(packageObject),original,'signed package bytes remain valid');
+ assert.deepEqual(untouched.log.find(x=>x.model==='carConfigurationVersion').update,{
+  configurationId:configId,version:2,vibrationIsolation:null,
+  additionalDescription:'Signed version',createdAt:new Date(timestamp),
+ });
+ assert.equal(untouched.log.find(x=>x.model==='carHeadUnit').data.id,headUnitId);
+ assert.equal(untouched.log.find(x=>x.model==='registration').data.configurationVersionId,uuid.version);
+
+ for(const changed of [
+  {...placeholder,configuration:{...placeholder.configuration,carId:uuid.season}},
+  {...placeholder,_count:{...placeholder._count,headUnits:1}},
+  {...placeholder,additionalDescription:'Local edit'},
+ ]){
+  const unsafe=mockRetained(changed);
+  await assert.rejects(()=>applyVenueStageImport(plan,unsafe.db,{shared:true}),error=>{
+   assert.equal(importer.classifyVenueImportFailure(error),'CONFIGURATION_VERSION_CONFLICT');
+   return true;
+  });
+  assert.ok(!unsafe.log.some(x=>x.model==='carConfigurationVersion'));
+ }
 });

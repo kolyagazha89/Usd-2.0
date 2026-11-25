@@ -34,7 +34,7 @@ export class VenueStageService {
   return {signing,centralSyncReady:signing.ready,fieldAcceptanceComplete:false};
  }
 
- async exportStage(id:string,request:AuthenticatedRequest,withStaff=false){
+ async exportStage(id:string,request:AuthenticatedRequest,withStaff=false,includeCancelled=false){
   // Stage access granted to a custom judge role is not sufficient to
   // export private participant names, plate numbers and configurations.
   if(request.user.role!=='ADMIN')throw new ForbiddenException('Только ADMIN может подготовить пакет локального сервера');
@@ -42,6 +42,7 @@ export class VenueStageService {
    throw new NotFoundException('Этап не найден');
   const signingKey=process.env.VENUE_STAGE_SIGNING_KEY_B64;
   if(!signingKey)throw new ServiceUnavailableException('Подпись пакетов площадки пока не настроена');
+  const generatedAt=new Date();
   const data=await this.prisma.stage.findFirst({
    where:{id,isDeleted:false,status:{in:['PUBLISHED','COMPLETED']}},
    select:{
@@ -55,7 +56,7 @@ export class VenueStageService {
      class:{select:{id:true,code:true,name:true,unit:true,sortOrder:true,isActive:true,
       direction:{select:{id:true,name:true,sortOrder:true,isActive:true}}}},
     }},
-    registrations:{where:{status:'ACTIVE'},orderBy:{participantNumber:'asc'},select:{
+    registrations:{where:includeCancelled?{}:{status:'ACTIVE'},orderBy:{participantNumber:'asc'},select:{
      id:true,stageId:true,participantId:true,carId:true,configurationVersionId:true,
      configurationSnapshot:true,participantNumber:true,source:true,status:true,registeredAt:true,
      teamIdAtInspection:true,teamNameAtInspection:true,
@@ -77,6 +78,21 @@ export class VenueStageService {
   if(!data)throw new NotFoundException('Этап не найден или недоступен для офлайн-экспорта');
   if(data.registrations.length>2500)
    throw new ServiceUnavailableException('Этап слишком большой для переносимого пакета; нужен потоковый экспорт');
+  const usedNumbers=new Set(data.registrations.map(row=>row.participantNumber));
+  let nextArchivalNumber=-1;
+  const registrations=data.registrations
+   .filter(row=>row.status==='ACTIVE'||(includeCancelled&&row.car.participantId===row.participantId))
+   .map(row=>{
+    if(row.status==='ACTIVE')return row;
+    // Cancelled rows keep their UUID so the LAN signup reuses it. They
+    // carry no competition data and reserve no positive sticker number.
+    let participantNumber=row.participantNumber;
+    if(participantNumber>=0){
+     while(usedNumbers.has(nextArchivalNumber))nextArchivalNumber--;
+     participantNumber=nextArchivalNumber--;
+    }
+    return {...row,participantNumber,numbers:[],classes:[],results:[],inspection:null,stageInspection:null};
+   });
   // Offline intake must search the SAME existing person/car UUIDs as Ubuntu.
   // This is a deliberately minimal roster: no email, phone, birthday, tokens,
   // archived aliases, credentials, user accounts or historical results.
@@ -99,7 +115,7 @@ export class VenueStageService {
   // administration records, or confirmation links to other competitions.
   const venueCarIds=[...new Set([
    ...participantDirectory.flatMap(person=>person.cars.map(car=>car.id)),
-   ...data.registrations.map(registration=>registration.carId),
+   ...registrations.map(registration=>registration.carId),
   ])].sort();
   if(venueCarIds.length>50000)
    throw new ServiceUnavailableException('Слишком много автомобилей для подписанного пакета');
@@ -137,7 +153,7 @@ export class VenueStageService {
   }
   const signedVersions=new Map(configurations.flatMap(config=>
    config.versions.map(version=>[version.id,config.carId] as const)));
-  for(const registration of data.registrations){
+  for(const registration of registrations){
    if(signedVersions.get(registration.configurationVersionId)!==registration.carId)
     throw new ServiceUnavailableException('Не найдена конфигурация регистрации для офлайн-пакета');
   }
@@ -209,7 +225,6 @@ export class VenueStageService {
   const staffKey=prepared?.staffKey;
   const staffAccess=prepared?.staffAccess;
   const staffCount=prepared?.staffCount??0;
-  const generatedAt=new Date();
   const syncToken=randomBytes(32).toString('base64url');
   const syncExpires=new Date(generatedAt.getTime()+30*24*60*60*1000);
   const snapshot:VenueStageSnapshot={
@@ -226,7 +241,7 @@ export class VenueStageService {
    ...(venuePolicy?{venuePolicy}:{}),
    ...(staffAccess?{staffAccess}:{}),
    syncAuthorization:{token:syncToken,expiresAt:syncExpires.toISOString()},
-   registrations:data.registrations,
+   registrations,
    participantDirectory,disqualifications,configurations,
   };
   let signed;
@@ -237,11 +252,12 @@ export class VenueStageService {
   await this.prisma.$transaction(async tx=>{
    await tx.venueSyncAuthorization.create({data:{
     stageId:id,baselineSha256:signed.integrity.sha256,
-    tokenHash:createHash('sha256').update(syncToken).digest('hex'),expiresAt:syncExpires,
+    tokenHash:createHash('sha256').update(syncToken).digest('hex'),expiresAt:syncExpires,createdAt:generatedAt,
    }});
    await tx.auditLog.create({data:{
     userId:request.user.sub,action:'VENUE_STAGE_PACKAGE_EXPORTED',entity:'Stage',entityId:id,
-    metadata:{sha256:signed.integrity.sha256,registrationCount:data.registrations.length,
+    metadata:{sha256:signed.integrity.sha256,registrationCount:registrations.filter(row=>row.status==='ACTIVE').length,
+     cancelledRegistrationCount:registrations.filter(row=>row.status==='CANCELLED').length,
      exportedAt:signed.snapshot.generatedAt,expiresAt:signed.snapshot.expiresAt,
      automaticReturn:true,staffCount,directoryCount:participantDirectory.length,configurationCount:configurations.length,banCount:disqualifications.length}, 
    }});

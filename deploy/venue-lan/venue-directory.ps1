@@ -2,6 +2,7 @@
 # Append a signed participant directory to the existing isolated LAN DB.
 # Never change registrations, results, stage baseline or historical journal.
 function Import-VenueParticipantDirectory {
+ param([switch]$PrepareRoster)
  if($Silent){throw 'Обновление справочника требует администратора'}
  Set-VenueStep 'import-existing-participant-directory'
  Assert-VenueCompose
@@ -65,21 +66,22 @@ function Import-VenueParticipantDirectory {
   Write-Host ('USD VENUE BACKUP: '+$backup)
   $env:VENUE_DB_PASSWORD=$cfg['VENUE_DB_ROOT_PASSWORD']
   $env:DATABASE_URL='postgresql://usd_venue_root:'+$cfg['VENUE_DB_ROOT_PASSWORD']+'@db:5432/usd_venue?schema=public'
+  $mode=if($PrepareRoster){'--prepare-roster'}else{'--apply-directory'}
   $mounts=@('--volume',($file+':/app/venue-directory-package.json:ro'),
    '--volume',([string]$state.publicKey+':/app/venue-signing-public.pem:ro'),
-   '--volume',((Join-Path $Root 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
-   '--volume',((Join-Path $Root 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'))
+   '--volume',((Join-Path $PSScriptRoot 'import-stage.mjs')+':/app/import-stage.mjs:ro'),
+   '--volume',((Join-Path $PSScriptRoot 'verify-stage-package.mjs')+':/app/verify-stage-package.mjs:ro'))
   Invoke-Compose (@('run','--rm','--no-deps','-T','-e','DATABASE_URL',
    '-e','VENUE_DB_USER=usd_venue_root','-e','VENUE_DB_PASSWORD')+$mounts+
    @('--entrypoint','node','api','/app/import-stage.mjs',
-   '/app/venue-directory-package.json','/app/venue-signing-public.pem','--apply-directory')) 'import signed existing profiles'
+   '/app/venue-directory-package.json','/app/venue-signing-public.pem',$mode)) 'check signed stage updates'
  }finally{
   if($null -eq $originalDb){Remove-Item Env:\DATABASE_URL -ErrorAction SilentlyContinue}
   else{$env:DATABASE_URL=$originalDb}
   if($null -eq $originalPass){Remove-Item Env:\VENUE_DB_PASSWORD -ErrorAction SilentlyContinue}
   else{$env:VENUE_DB_PASSWORD=$originalPass}
-  $null=& docker @(Get-VenueComposeArguments) exec -T db rm -f $dump 2>$null
+  try{Invoke-Compose @('exec','-T','db','rm','-f',$dump) 'remove temporary database dump'}catch{Write-Warning 'В контейнере осталась временная копия базы.'}
   if($paused){Restore-VenueApi}
  }
- Show-VenueMessage 'Все профили и автомобили из подписанного справочника загружены. ID сохранены, результаты и регистрации не изменены.'
+ if(!$Operator -and !$PrepareRoster){Show-VenueMessage 'Все профили и автомобили из подписанного справочника загружены. ID сохранены, результаты и регистрации не изменены.'}
 }

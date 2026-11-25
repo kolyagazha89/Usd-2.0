@@ -49,21 +49,23 @@ const full=()=>packet([
  event(8,'Inspection','INSERT',insp),
  event(9,'Result','INSERT',result),
 ]);
-function memoryDb({conflict=false,failAt=0,existing={},published=false}={}){
+function memoryDb({conflict=false,failAt=0,existing={},published=false,completed=[]}={}){
  const rows=new Map(Object.entries(existing).map(([table,records])=>
   [table,new Map(records.map(r=>[r.id,structuredClone(r)]))]));
  const receipt=new Map(),overrides=[];let begin=0;
+ const stage={id:ids.stage,status:'PUBLISHED',isDeleted:false,
+  resultsPublishedAt:published?'2026-11-11':null};
  return {
-  rows,receipt,overrides,
+  rows,receipt,overrides,stage,
   transaction:async (cb,{readOnly=false}={})=>{
    begin++;
    const working=new Map([...rows].map(([t,items])=>
     [t,new Map([...items].map(([id,row])=>[id,structuredClone(row)]))]));
    const receipts=new Map(receipt),pendingOverrides=[];
    const adapter={
-    stage:async()=>({id:ids.stage,status:'PUBLISHED',isDeleted:false,
-     resultsPublishedAt:published?'2026-11-11':null}),
+    stage:async()=>stage,
     listReceipts:async()=>[...receipts.values()].filter(x=>x.action==='VENUE_FULL_EVENT_IMPORTED'),
+    completedReturnsBefore:async (_stage,issuedAt)=>completed.filter(x=>x.acceptedAt<issuedAt),
     getRow:async (table,id)=>structuredClone(working.get(table)?.get(id)??null),
     canonical:async (_table,row)=>structuredClone(row),
     stageClassAllowed:async()=>true,
@@ -136,6 +138,56 @@ test('signed on-site profile and car left unregistered at gate do not poison the
  assert.equal(db.rows.get('Car').get(ids.car).participantId,ids.participant);
  assert.equal(db.receipt.size,2);
 });
+test('a new laptop baseline can follow an acknowledged return on the same stage',async()=>{
+ const first=full();
+ const acceptedAt=new Date('2026-11-12T11:00:00Z');
+ const db=memoryDb({completed:[{baselineSha256:baseline,lastJournalHash:first.journalEndHash,acceptedAt}]});
+ await applyCompleteVenueJournal(first,db,opts);
+ const newcomer={...participant,id:'ea10f672-79f7-44eb-8173-2a8ff94b1c0e',firstName:'Другой'};
+ const newcomerCar={...car,id:'ba10f672-79f7-44eb-8173-2a8ff94b1c0e',participantId:newcomer.id};
+ const fresh={...packet([
+  {...event(1,'Participant','INSERT',newcomer),hash:h(101)},
+  {...event(2,'Car','INSERT',newcomerCar),previousHash:h(101),hash:h(102)},
+ ]),baselineSha256:'b'.repeat(64)};
+ const options={...opts,baselineSha256:fresh.baselineSha256};
+ await assert.rejects(()=>applyCompleteVenueJournal(fresh,db,{...options,baselineIssuedAt:new Date('2026-11-12T10:59:00Z')}),{code:'JOURNAL_MISMATCH'});
+ assert.equal(db.receipt.size,9);
+ const newer={...options,baselineIssuedAt:new Date('2026-11-12T11:01:00Z')};
+ assert.equal((await applyCompleteVenueJournal(fresh,db,newer)).appliedEvents,2);
+ assert.equal(db.receipt.size,11);
+ assert.equal((await applyCompleteVenueJournal(fresh,db,newer)).alreadyApplied,true);
+ assert.equal((await applyCompleteVenueJournal(first,db,opts)).alreadyApplied,true);
+});
+test('published protocol blocks mixed intake atomically; same journal succeeds after unpublishing',async()=>{
+ const newcomer={...participant,id:'ea10f672-79f7-44eb-8173-2a8ff94b1c0e',firstName:'Новый'};
+ const newcomerCar={...car,id:'ba10f672-79f7-44eb-8173-2a8ff94b1c0e',participantId:newcomer.id};
+ const db=memoryDb({published:true,existing:{Participant:[participant],Car:[car]}});
+ const journal=packet([
+  event(1,'CarConfiguration','INSERT',config),
+  event(2,'CarConfigurationVersion','INSERT',version),
+  event(3,'Registration','INSERT',reg),
+  event(4,'RegistrationNumber','INSERT',number),
+  event(5,'RegistrationClass','INSERT',cls),
+  event(6,'Participant','INSERT',newcomer),
+  event(7,'Car','INSERT',newcomerCar),
+  event(8,'Inspection','INSERT',insp),
+  event(9,'Result','INSERT',result),
+  event(10,'Result','UPDATE',{...result,value:'154.100'},result),
+ ]);
+ await assert.rejects(()=>applyCompleteVenueJournal(journal,db,opts),{code:'RESULTS_ALREADY_PUBLISHED'});
+ assert.equal(db.receipt.size,0);
+ assert.equal(db.rows.get('Registration'),undefined);
+ assert.equal(db.rows.get('Participant').size,1);
+ db.stage.resultsPublishedAt=null;
+ const outcome=await applyCompleteVenueJournal(journal,db,opts);
+ assert.equal(outcome.appliedEvents,10);
+ assert.equal(db.receipt.size,10);
+ assert.deepEqual(db.rows.get('Participant').get(ids.participant),participant);
+ assert.equal(db.rows.get('Registration').get(ids.reg).participantId,ids.participant);
+ assert.equal(db.rows.get('Car').get(newcomerCar.id).participantId,newcomer.id);
+ assert.equal(db.rows.get('Result').get(ids.result).value,'154.100');
+ assert.equal((await applyCompleteVenueJournal(journal,db,opts)).alreadyApplied,true);
+});
 test('new car for an existing central profile is returned even before its stage registration',async()=>{
  const db=memoryDb({existing:{Participant:[participant]}});
  const report=await applyCompleteVenueJournal(packet([
@@ -173,7 +225,7 @@ test('any conflicting stage sticker number aborts entire import before first ins
  const db=memoryDb({existing:{RegistrationNumber:[{
   id:'c310f672-79f7-44eb-8173-2a8ff94b1c0e',stageId:ids.stage,number:19,
  }]}});
- await assert.rejects(()=>applyCompleteVenueJournal(full(),db,opts),/CONFLICT|conflict|номер/i);
+ await assert.rejects(()=>applyCompleteVenueJournal(full(),db,opts),{code:'START_NUMBER_TAKEN'});
  assert.equal(db.rows.get('Participant'),undefined);
  assert.equal(db.receipt.size,0);
 });

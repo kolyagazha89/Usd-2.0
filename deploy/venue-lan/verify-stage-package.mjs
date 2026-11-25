@@ -236,16 +236,24 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
    throw new Error('Некорректная связь класса с этапом');
   classIds.add(row.classId);
  }
- const ids=new Set(),allNumbers=new Set();
+ const ids=new Set(),allNumbers=new Set(),registrationNumbers=new Set();
+ let activeRegistrations=0;
  for(const r of snapshot.registrations){
   fields(r,['id','stageId','participantId','carId','configurationVersionId','configurationSnapshot',
    'participantNumber','source','status','registeredAt','teamIdAtInspection','teamNameAtInspection',
    'participant','car','numbers','classes','inspection','stageInspection','results'],'регистрация');
   if(!uuid(r.id)||ids.has(r.id)||r.stageId!==snapshot.stageId
-   ||r.status!=='ACTIVE'||!Number.isSafeInteger(r.participantNumber)
+   ||!['ACTIVE','CANCELLED'].includes(r.status)||!Number.isSafeInteger(r.participantNumber)
+   ||registrationNumbers.has(r.participantNumber)
    ||!Array.isArray(r.numbers)||!Array.isArray(r.classes)||!Array.isArray(r.results))
    throw new Error('Некорректная регистрация');
   ids.add(r.id);
+  registrationNumbers.add(r.participantNumber);
+  if(r.status==='CANCELLED'){
+   if(r.participantNumber>=0||r.participantNumber<-2147483648||r.numbers.length||r.classes.length
+    ||r.results.length||r.inspection||r.stageInspection)
+    throw new Error('Отменённая регистрация не может занимать стартовый номер или содержать результаты');
+  }else{activeRegistrations++}
   fields(r.participant,['id','firstName','lastName','middleName','city','team','isPublic'],'участник');
   if(r.participant.isPublic!==undefined&&typeof r.participant.isPublic!=='boolean')
    throw new Error('Некорректная приватность участника');
@@ -284,7 +292,7 @@ export function verifyVenueStageHandoff(packageValue,publicPem,now=Date.now()){
   [registration.configurationVersionId,registration.carId]);
  validateVenueConfigurations(snapshot.configurations,allCarIds,registeredVersions);
  return {stageId:snapshot.stageId,stageName:String(stage.name??''),
-  registrations:snapshot.registrations.length,classes:stage.stageClasses.length,
+  registrations:activeRegistrations,classes:stage.stageClasses.length,
   generatedAt:snapshot.generatedAt,expiresAt:snapshot.expiresAt,
   sha256:integrity.sha256,publicKeyFingerprint:integrity.publicKeyFingerprint};
 }

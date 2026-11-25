@@ -53,15 +53,13 @@ function Repair-VenueCoverageIfNeeded {
   if($hash -cne $expectedSha){throw 'backup checksum differs: копия Windows отличается от проверенной копии PostgreSQL'}
   Write-Host ('USD VENUE BACKUP: '+$filename)
   Write-Host ('USD VENUE BACKUP SHA256: '+$hash)
-  Get-Content -LiteralPath $sql -Raw -Encoding UTF8 |
-   & docker @(Get-VenueComposeArguments) exec -T db psql -X -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue
-  Assert-Exit 'safely repair duplicate venue metadata'
+  Invoke-VenueJournalSql $sql 'safely repair duplicate venue metadata'
   $rows=@(& docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c 'SELECT count(*) FROM venue_private.journal_coverage')
   Assert-Exit 'verify repaired journal coverage'
   if(@($rows|Where-Object {$_ -eq '1'}).Count -ne 1){throw 'Восстановленный журнал не прошёл проверку. Резервная копия сохранена.'}
   Write-Host 'USD VENUE: служебные записи исправлены; результаты и цепочка журнала сохранены.'
  } finally {
-  $null=& docker @(Get-VenueComposeArguments) exec -T db rm -f $remote 2>$null
+  try{Invoke-Compose @('exec','-T','db','rm','-f',$remote) 'remove temporary journal backup'}catch{Write-Warning 'В контейнере осталась временная копия журнала.'}
   if($stopped){Restore-VenueApi}
  }
 }

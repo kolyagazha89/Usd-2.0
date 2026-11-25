@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 # Execute the real Install-Local state machine from CONFIGURED to READY,
 # with only its OS/DB/network boundaries replaced by deterministic fakes.
 $ErrorActionPreference='Stop'
@@ -12,6 +12,8 @@ $script:steps=New-Object Collections.ArrayList
 $script:FailOperation=''
 $script:FailReadiness=$false
 $script:DbRestored=$true
+$script:RunningApiStage=$script:stageId
+$script:ActiveDatabaseStage=$script:stageId
 function Assert-VenueCompose {}
 function Ensure-DockerReady {}
 function Ensure-Firewall([string]$Ip){}
@@ -43,6 +45,12 @@ function Set-SetupPhase([object]$State,[string]$Phase){
 function Invoke-Compose([string[]]$Arguments,[string]$Purpose){
  $action=($Arguments -join ' ')
  [void]$script:steps.Add('compose-'+$action)
+ if($Arguments -contains '--force-recreate'){
+  if($Arguments -notcontains '--no-deps' -or $Arguments -contains 'db' -or $Arguments -contains 'rustfs'){
+   throw 'Stage activation tried to replace storage'
+  }
+  if($Arguments -contains 'api'){$script:RunningApiStage=$script:state.stageId}
+ }
  if($Purpose -eq $script:FailOperation){
   throw ('Injected failure in '+$Purpose)
  }
@@ -58,8 +66,9 @@ function Create-ExistingStaff([object]$State,[array]$Mounts){
 function Repair-VenueCoverageIfNeeded {}
 function Wait-VenueLanReady([object]$State){
  [void]$script:steps.Add('verify-ready')
- if($script:FailReadiness){throw 'Simulated API not ready'}
+ if($script:FailReadiness -or $script:RunningApiStage -cne $State.stageId){throw 'Simulated API not ready'}
 }
+function Test-IsActiveVenueStage([string]$StageId){return $script:ActiveDatabaseStage -ceq $StageId}
 function Start-Local {
  if($script:state.phase -ne 'READY'){throw 'Frontend started before readiness was committed'}
  [void]$script:steps.Add('start-frontend')
@@ -137,4 +146,27 @@ if($script:state.phase -ne 'READY'){throw 'LAN readiness failure could not recov
 if(($script:steps -join ';') -match 'prepare-media|migrate isolated DB|signed stage import'){
  throw 'Readiness retry repeated signed import or media migration'
 }
-Write-Host 'USD WINDOWS INSTALL E2E PASS: clean setup, idempotent READY, crash during import, API readiness retry'
+# A committed switch must replace the old stage's API without replaying import or replacing storage.
+$script:steps.Clear()
+$script:state.phase='STAFF_READY'
+$script:state.shared=$true
+$script:stageId='d510f672-79f7-44eb-8173-2a8ff94b1c0e'
+$script:state.stageId=$script:stageId
+$script:ActiveDatabaseStage=$script:stageId
+Install-Local
+if($script:state.phase -ne 'READY' -or $script:RunningApiStage -cne $script:state.stageId){
+ throw 'Shared installation left the obsolete stage API running'
+}
+$actions=$script:steps -join ';'
+if($actions -notmatch 'force-recreate api frontend gateway' -or $actions -match 'migrate|signed stage import|phase-IMPORTED'){
+ throw 'Shared recovery replayed the import or failed to activate the new stage'
+}
+$script:steps.Clear()
+$script:state.phase='STAFF_READY'
+$script:ActiveDatabaseStage='e510f672-79f7-44eb-8173-2a8ff94b1c0e'
+$blocked=$false
+try{Install-Local}catch{$blocked=$true}
+if(!$blocked -or ($script:steps -join ';') -match 'force-recreate'){
+ throw 'A historical workspace was allowed to restart stage services'
+}
+Write-Host 'USD WINDOWS INSTALL E2E PASS: clean setup, crash recovery and shared stage API recreation with retained storage'

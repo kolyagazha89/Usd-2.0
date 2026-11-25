@@ -72,7 +72,7 @@ function Download-VenueCertificate {
  }
  Set-VenueStep 'export-caddy-public-ca'
  Export-VenueCA
- if(!$Silent){
+ if(!$Silent -and !$Operator){
   Show-VenueMessage ('Сертификат готов в папке USD-Offline-Windows и local-private.'+[Environment]::NewLine+
    'Загрузите USD-Venue-CA.crt в онлайн-админку USD → Офлайн-сервер.'+[Environment]::NewLine+
    'Сверьте SHA-256 в консоли с онлайн-страницей.')
