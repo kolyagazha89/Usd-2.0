@@ -11,8 +11,49 @@ export async function downloadGatePaperWorkbook(sheets:ReturnType<typeof buildGa
   XLSX.utils.book_append_sheet(workbook,ws,sheet.name);
  }
  workbook.Workbook={...workbook.Workbook,Names:[{Name:'_xlnm.Print_Titles',Ref:"'Регистрация'!$1:$3",Sheet:0},{Name:'_xlnm.Print_Area',Ref:"'Регистрация'!$A$1:$J$"+sheets[0].rows.length,Sheet:0}]};
- XLSX.writeFile(workbook,'USD-gate-'+stageId+'.xlsx');
+ const bytes=applyGatePrintSettings(XLSX,XLSX.write(workbook,{bookType:'xlsx',type:'array'}));
+ const url=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+ const link=document.createElement('a');link.href=url;link.download='USD-gate-'+stageId+'.xlsx';document.body.append(link);
+ try{link.click()}finally{link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
+
 }
+
+// SheetJS CE does not serialize pageSetup or wrapped cell styles itself.
+// Modify the two generated OOXML parts before the browser saves the XLSX.
+export function applyGatePrintSettings(XLSX:typeof import('xlsx'),bytes:ArrayBuffer):ArrayBuffer{
+ const cfb=(XLSX as unknown as {CFB:{read:(data:Uint8Array,opts:{type:string})=>any;find:(archive:any,path:string)=>{content:Uint8Array}|null;utils:{cfb_add:(archive:any,path:string,data:Uint8Array)=>void};write:(archive:any,opts:{fileType:string;type:string})=>Uint8Array}}).CFB;
+ const archive=cfb.read(new Uint8Array(bytes),{type:'array'});
+ const decoder=new TextDecoder(),encoder=new TextEncoder();
+ function change(path:string,edit:(xml:string)=>string){
+  const part=cfb.find(archive,'/'+path);
+  if(!part?.content)throw new Error('Не удалось подготовить печать Excel: '+path);
+  cfb.utils.cfb_add(archive,path,encoder.encode(edit(decoder.decode(part.content))));
+ }
+ let styleIndex=0;
+ change('xl/styles.xml',xml=>{
+  const borders=xml.match(/<borders count="(\d+)">/),xfs=xml.match(/<cellXfs count="(\d+)">/);
+  if(!borders||!xfs)throw new Error('Не удалось подготовить оформление Excel');
+  const border=Number(borders[1]);styleIndex=Number(xfs[1]);
+  xml=xml.replace(borders[0],'<borders count="'+(border+1)+'">').replace('</borders>','<border><left style="thin"><color rgb="FF777777"/></left><right style="thin"><color rgb="FF777777"/></right><top style="thin"><color rgb="FF777777"/></top><bottom style="thin"><color rgb="FF777777"/></bottom><diagonal/></border></borders>');
+  return xml.replace(xfs[0],'<cellXfs count="'+(styleIndex+1)+'">').replace('</cellXfs>','<xf numFmtId="0" fontId="0" fillId="0" borderId="'+border+'" xfId="0" applyAlignment="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf></cellXfs>');
+ });
+ change('xl/worksheets/sheet1.xml',xml=>{
+  // This workbook is freshly generated with no sheetPr or pageSetup.
+  if(!/<sheetPr[\s>]/.test(xml))xml=xml.replace(/<worksheet\b[^>]*>/,m=>m+'<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>');
+  else if(!xml.includes('pageSetUpPr'))xml=xml.replace('</sheetPr>','<pageSetUpPr fitToPage="1"/></sheetPr>');
+  if(!/<pageMargins\b[^>]*\/>/.test(xml))throw new Error('Не удалось настроить поля Excel');
+  xml=xml.replace(/<pageMargins\b[^>]*\/>/,m=>m+'<pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/>');
+  return xml.replace(/<c\b[^>]*>/g,tag=>{
+   const row=tag.match(/\br="[A-J](\d+)"/);
+   if(!row||Number(row[1])<3)return tag;
+   const end=tag.endsWith('/>')? '/>':'>';
+   return tag.slice(0,-end.length).replace(/\s+s="[^"]*"/,'')+' s="'+styleIndex+'"'+end;
+  });
+ });
+ const result=cfb.write(archive,{fileType:'zip',type:'array'});
+ return Uint8Array.from(result).buffer;
+}
+
 /** Use textContent for all stage/participant data; never interpolate it into HTML. */
 export function printGatePaperWorkbook(sheets:ReturnType<typeof buildGatePaperSheets>,popup:Window){
  const doc=popup.document;
