@@ -57,18 +57,37 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
  useEffect(()=>{const el=messagesRef.current;if(el)el.scrollTop=el.scrollHeight},[messages,sending,error]);
  useEffect(()=>{
   const chat=chatRef.current;if(!chat)return;
+  let notice:HTMLElement|null=null;
   const resize=()=>{
    const viewport=window.visualViewport;
-   const top=chat.getBoundingClientRect().top-(viewport?.offsetTop??0);
-   const available=(viewport?.height??window.innerHeight)-Math.max(0,top)-8;
+   const offset=viewport?.offsetTop??0;
+   const top=chat.getBoundingClientRect().top-offset;
+   const visibleHeight=viewport?.height??window.innerHeight;
+   const noticeRect=notice?.getBoundingClientRect();
+   const bottom=noticeRect&&noticeRect.height>0&&getComputedStyle(notice!).visibility!=='hidden'
+    ?Math.min(visibleHeight,noticeRect.top-offset-8):visibleHeight;
+   const available=bottom-Math.max(0,top)-8;
    chat.style.setProperty('--assistant-mobile-height',Math.max(240,available)+'px');
   };
-  resize();
   const observer=new ResizeObserver(resize);
   if(toolbarRef.current)observer.observe(toolbarRef.current);
+  const syncNotice=()=>{
+   const next=document.querySelector<HTMLElement>('.cookie-notice');
+   if(next!==notice){
+    if(notice)observer.unobserve(notice);
+    notice=next;
+    if(notice)observer.observe(notice);
+   }
+   resize();
+  };
+  // CookieNotice is mounted independently after its own effect. Observe
+  // insertion/removal, not style attributes, and reserve its actual height.
+  const mutation=new MutationObserver(syncNotice);
+  mutation.observe(document.body,{childList:true,subtree:true});
+  syncNotice();
   window.addEventListener('resize',resize);
   window.visualViewport?.addEventListener('resize',resize);
-  return ()=>{observer.disconnect();window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize)};
+  return ()=>{mutation.disconnect();observer.disconnect();window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize)};
  },[]);
  useEffect(()=>{
   const el=textareaRef.current;if(!el)return;

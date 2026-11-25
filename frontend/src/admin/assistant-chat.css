@@ -118,7 +118,7 @@ body .app-shell .main .assistant-workspace .assistant-chat-note{flex:0 0 auto}
   white-space:nowrap!important;padding:0!important;margin:0!important;border:0!important;
  }
  body .app-shell .main .content:has(> .assistant-page){
-  padding-top:8px!important;padding-bottom:8px!important;
+  padding-top:8px!important;padding-bottom:calc(8px + var(--usd-cookie-height,0px))!important;
  }
  body .app-shell .main .assistant-workspace{gap:6px}
  body .app-shell .main .assistant-workspace .assistant-chat.panel{
