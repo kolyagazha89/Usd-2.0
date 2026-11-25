@@ -1254,6 +1254,8 @@ try{
       await detail.waitFor({state:'visible'});
       assert.match(await detail.locator('.resource-editor-heading').innerText(),/Тестовый Иван/,'registration QR selects the actual participant');
       assert.match(await detail.locator('.resource-editor-heading').innerText(),/007/,'QR retains the correct primary number');
+      assert.deepEqual(await detail.locator('.admin-related-entities small').allTextContents(),['Участник'],'the inspection does not duplicate stage and car links');
+      assert.equal(await detail.locator('.resource-editor-heading a.admin-entity-link').count(),1,'car remains available in the card heading');
       assert.equal(new URL(page.url()).searchParams.get('registrationId'),'reg1','QR deep link preserves registration ID');
       row.registrationQrInspection='same-origin QR -> stage-specific inspection detail; read-only';
       const desk=page.getByRole('navigation',{name:'Рабочие разделы этапа'});
