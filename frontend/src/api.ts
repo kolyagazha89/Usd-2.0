@@ -52,7 +52,7 @@ async function request<T>(path:string, init:RequestInit={}, retry=true):Promise<
   const sessionBound=headers.has('Authorization');
 
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), path === '/assistant/chat' ? 130_000 : path.startsWith('/admin/permanent-deletion/') ? 120_000 : REQUEST_TIMEOUT_MS);
+  const timeout = window.setTimeout(() => controller.abort(), path.startsWith('/admin/permanent-deletion/') ? 120_000 : REQUEST_TIMEOUT_MS);
 
   try {
     const response=await fetchWithPublicReadRetry(path,`${API_BASE}${path}`,{
@@ -233,21 +233,6 @@ export async function linkHistoricalProfile(participantId:string){
 }
 
 
-export type AssistantChatMessage = {role:'user'|'assistant';content:string};
-export type AssistantChatResponse = {success:boolean;reply:string;source?:'database'|'guide'|'ai'|'unavailable';action:null;links?:Array<{label:string;href:string}>;data?:unknown};
-export type AssistantChatMode='ask'|'design';
-export async function chatAssistant(message:string,options:{history?:AssistantChatMessage[];stageId?:string;mode?:AssistantChatMode}={}){return apiPost<AssistantChatResponse>('/assistant/chat',{message,...options});}
-export type AssistantAiStatus={success:boolean;aiConfigured:boolean;provider:'openai'|'ollama';model:string;modelReady:boolean|null;scope:'USD_ONLY';tools:number;note:string};
-export async function getAssistantAiStatus(){return apiGet<AssistantAiStatus>('/assistant/status');}
-export async function getAssistantStages(){return apiGet<{success:boolean;items:Array<{id:string;name:string;date:string;status:string;city?:string|null}>}>('/assistant/stages');}
-export async function getAssistantRequests(){return apiGet<any>('/assistant/requests');}
-export async function createAssistantRequest(body:any){return apiPost<any>('/assistant/requests',body);}
-export async function submitAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/submit',{});}
-export async function approveAssistantRequest(id:string,confirmation:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/approve',{confirmation});}
-export async function rejectAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/reject',{});}
-export async function applyAssistantRequest(id:string){return apiPatch<any>('/assistant/requests/'+encodeURIComponent(id)+'/apply',{});}
-export async function getAssistantFunctions(){return apiGet<any>('/assistant/functions');}
-export async function executeAssistantFunction(code:string,body:any={}){return apiPost<any>('/assistant/functions/'+encodeURIComponent(code)+'/execute',body);}
 
 export async function uploadSiteAsset(assetKey:string,file:File){
   if(!file.type) throw new Error('Не удалось определить тип изображения');

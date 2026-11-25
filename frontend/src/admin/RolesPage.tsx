@@ -23,7 +23,6 @@ const ROLE_MODULES:Array<{key:string;label:string;description:string}>= [
  {key:'siteSettings',label:'Настройки и контент сайта',description:'Новости, партнёры, медиа, регламент и настройки'},
  {key:'media',label:'Медиа',description:'Загрузка и управление файлами'},
  {key:'integrations',label:'Интеграции',description:'Google и внешние подключения'},
- {key:'assistant',label:'Ассистент USD',description:'Запросы и действия ассистента'},
  {key:'notifications',label:'Push-уведомления',description:'Сводка доставок и отправка объявлений подписчикам'},
 ];
 const ROLE_ACTIONS:Array<{key:string;label:string}>=[{key:'view',label:'Просмотр'},{key:'create',label:'Создание'},{key:'update',label:'Изменение'},{key:'delete',label:'Удаление'}];

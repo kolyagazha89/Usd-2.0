@@ -8,7 +8,7 @@ const EVENTS=new Set([
  'ParticipantsController','CarsController','ConfigurationsController',
 ]);
 const NO_LAN=new Set([
- 'GoogleController','AssistantController','ImportsController',
+ 'GoogleController','ImportsController',
  'AdminDeletionController','HistoricalResultsController','NormalizationDryRunController',
  'PushAdminController','AdminNotificationsController','MailController',
 ]);

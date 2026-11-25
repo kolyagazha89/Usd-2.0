@@ -41,7 +41,6 @@ const CONTROLLER_MODULES: Record<string, string> = {
   HistoricalResultsController: 'historicalResults',
   StatisticsController: 'statistics',
   GoogleController: 'integrations',
-  AssistantController: 'assistant',
   AuthController: 'users',
   ComponentCatalogRequestsController: 'componentCatalogRequests',
 };
