@@ -1,3 +1,4 @@
+import {ActionError} from '../ActionError';
 import {AdminListPagination} from './AdminListPagination';
 import {paginateResourceRows} from './admin-table-model';
 import CollapsibleFilters from '../CollapsibleFilters';
@@ -292,7 +293,6 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
    <p>{editable?'Изменить существующий результат может только ADMIN. Исправление фиксируется в аудите.':
     'Выберите допущенного участника по номеру, затем свободный класс и внесите значение.'}</p>
   </div><button type="button" className="secondary-button" onClick={onClose} disabled={saving}><ChevronLeft size={16}/>К протоколу</button></div>
-  {error&&<div role="alert" className="form-error"><AlertTriangle size={16}/>{error}</div>}
   <form className="form judging-entry-form" noValidate
    onKeyDown={e=>{if(e.key==='Enter'&&e.target instanceof HTMLInputElement)e.preventDefault()}}
    onSubmit={e=>e.preventDefault()}>
@@ -349,7 +349,7 @@ function ResultEditor({value,registrations,results,saving,error,onClose,onSubmit
      onChange={e=>setV({...v,notes:e.target.value})}/></label>
    </fieldset>
    {judgingStep===2&&selected&&<div className="form-wizard-review judging-entry-review" role="status"><strong>Проверьте измерение</strong><p>№{judgingNumbers(selected).join(' / ')} · {participantName(selected.participant)} · {shortCar(selected.car)}</p><p>{available.find(c=>c.id===v.registrationClassId)?.class?.name??'Укажите класс'} · {v.value??'—'} {enumLabel(available.find(c=>c.id===v.registrationClassId)?.class?.unit??'DB')}</p></div>}
-   <div className="judging-submit"><p>{judgingStep===2?'Измерение сохранится в протоколе этапа. Редактировать и удалять результаты может только ADMIN.':'Введённые данные сохраняются при переходе назад. Результат пока не отправлен.'}</p>
+   <div className="judging-submit"><ActionError message={error}/><p>{judgingStep===2?'Измерение сохранится в протоколе этапа. Редактировать и удалять результаты может только ADMIN.':'Введённые данные сохраняются при переходе назад. Результат пока не отправлен.'}</p>
     {!editable&&judgingStep>0&&<button type="button" className="secondary-button" disabled={saving} onClick={()=>setJudgingStep((judgingStep-1) as 0|1)}>Назад</button>}
     {!editable&&judgingStep<2?<button className="primary-button" type="button" disabled={saving||!judgingReady[judgingStep]} onClick={nextJudgingStep}>Продолжить <ChevronRight size={16}/></button>:<button className="primary-button" type="button" data-judging-confirm="true" onClick={submitJudging} disabled={saving||!valid||(!editable&&(!selected||!available.some(c=>c.id===v.registrationClassId)))}>
      <Trophy size={16}/>{saving?'Сохраняем…':editable?'Сохранить исправление':'Подтвердить и сохранить измерение'}

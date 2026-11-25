@@ -1,3 +1,4 @@
+import {ActionError} from '../ActionError';
 import {useEditorScroll} from './view-state';
 import {AdminEntityLink} from './AdminEntityLink';
 import './form-journey.css';
@@ -44,7 +45,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const photoPlaceholders=usePhotoPlaceholders();
  const isNew=!configuration.id,initial=configuration.versions?.find((x:any)=>x.version===configuration.currentVersion)||configuration.versions?.[0]||{};
  const [v,setV]=useState<any>({name:configuration.name??'',vibrationIsolation:initial.vibrationIsolation??'',additionalDescription:initial.additionalDescription==='USD_ON_SITE_DRAFT_PENDING'?'':withoutBoxLine(initial.additionalDescription??''),headUnits:(initial.headUnits??[]).map((x:any)=>({...x})),audioComponents:(initial.audioComponents??[]).map((x:any)=>({...x})),amplifiers:(initial.amplifiers??[]).map((x:any)=>({...x,componentLinks:(x.componentLinks??[]).map((l:any)=>({...l,componentId:String((initial.audioComponents??[]).findIndex((ac:any)=>ac.id===l.componentId))}))})),batteries:(initial.batteries??[]).map((x:any)=>({...x})),generators:(initial.generators??[]).map((x:any)=>({...x}))});
- const [saving,setSaving]=useState(false),[error,setError]=useState('');
+ const [saving,setSaving]=useState(false),[error,setError]=useState(''),[pickerError,setPickerError]=useState('');
  const [box,setBox]=useState(()=>boxFromDescription(initial.additionalDescription==='USD_ON_SITE_DRAFT_PENDING'?'':initial.additionalDescription??''));
 
  const [activeView,setActiveView]=useState<'SUB'|'FRONT'|'REAR'|'POWER'|'BOX'|'NOTES'|'SETUP'|'REVIEW'>(isNew||admin?'SETUP':'SUB');
@@ -137,6 +138,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const selectedView=editorViews.find(item=>item.key===activeView)??{key:'REVIEW',label:'Проверка',short:'Итог',icon:Check,desc:'Проверьте данные перед сохранением.'};
  const viewIsReady=(key:string)=>key==='SUB'||key==='FRONT'||key==='REAR'?configuredIn(key as 'SUB'|'FRONT'|'REAR')>0:key==='POWER'?(v.batteries.length+v.generators.length)>0:key==='BOX'?isBoxConfigured(box):key==='NOTES'?Boolean(v.additionalDescription.trim()):Boolean(v.name.trim());
  const openPicker=(kind:'audioComponents'|'amplifiers'|'headUnits',direction:'SUB'|'FRONT'|'REAR')=>{
+  setError('');setPickerError('');
   pickerReturnFocusRef.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
   setPickerSearchStage('brand');setPicker({kind,direction,type:direction==='SUB'?'SUBWOOFER':'MIDBASS',brand:'',model:'',quantity:1});setActionsOpen(false);
  };
@@ -163,13 +165,13 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  const savePicker=()=>{
   if(!picker)return;
   const brand=picker.brand.trim(),model=picker.model.trim();
-  if(!brand||!model||brand.length>100||model.length>160){setError('Укажите марку и модель оборудования (до 100 и 160 символов).');return}
-  if(!Number.isSafeInteger(picker.quantity)||picker.quantity<1||picker.quantity>99){setError('Укажите целое количество оборудования от 1 до 99.');return}
+  if(!brand||!model||brand.length>100||model.length>160){setPickerError('Укажите марку и модель оборудования (до 100 и 160 символов).');return}
+  if(!Number.isSafeInteger(picker.quantity)||picker.quantity<1||picker.quantity>99){setPickerError('Укажите целое количество оборудования от 1 до 99.');return}
   const entry=activeModels(picker.kind,picker.type).find((item:any)=>item.id
    &&String(item.brand).trim().toLocaleLowerCase('ru')===brand.toLocaleLowerCase('ru')
    &&String(item.model).trim().toLocaleLowerCase('ru')===model.toLocaleLowerCase('ru'));
   add(picker.kind,{catalogEntryId:entry?String(entry.id):null,brand,model,quantity:picker.quantity,direction:picker.direction,...(picker.kind==='audioComponents'?{type:picker.type}:{}),...(picker.kind==='amplifiers'?{componentLinks:[]}: {})});
-  setPicker(null);setError('');
+  setPicker(null);setPickerError('');
  };
  const brandOptions=(cat:string,current:string,type?:string)=>{const wanted=cat==='AUDIO_COMPONENT'&&type==='SUBWOOFER'?'SUBWOOFER':cat;const values=catalogs.componentBrands.filter((x:any)=>x.category===wanted&&x.isActive!==false).map((x:any)=>String(x.name));return [...new Set<string>(current&&!values.includes(current)?[current,...values]:values)].sort((a:string,b:string)=>a.localeCompare(b,'ru'))};
  const modelOptions=(cat:string,currentBrand:string,currentModel:string,type?:string)=>{const wanted=cat==='AUDIO_COMPONENT'&&type==='SUBWOOFER'?'SUBWOOFER':cat;const values=catalogs.componentModels.filter((x:any)=>x.category===wanted&&x.brand===currentBrand&&x.isActive!==false).map((x:any)=>String(x.model));return [...new Set<string>(currentModel&&!values.includes(currentModel)?[currentModel,...values]:values)].sort((a:string,b:string)=>a.localeCompare(b,'ru'))};
@@ -248,7 +250,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
           :<p>Моделей не найдено. Можно сохранить своё название без добавления в справочник.</p>}
         </div>
        </div>
-       <div className="member-config-picker-foot"><label>Количество <input type="number" min="1" max="99" step="1" value={picker.quantity} onChange={e=>setPicker({...picker,quantity:Math.min(99,Math.max(1,Math.trunc(Number(e.target.value))||1))})}/></label><button type="button" className="primary-button" disabled={!picker.brand.trim()||!picker.model.trim()} onClick={savePicker}><Plus size={17}/>Добавить {picker.direction==='SUB'?'в бас':picker.direction==='FRONT'?'во фронт':'в тыл'}</button></div>
+       <div className="member-config-picker-foot"><ActionError message={pickerError}/><label>Количество <input type="number" min="1" max="99" step="1" value={picker.quantity} onChange={e=>setPicker({...picker,quantity:Math.min(99,Math.max(1,Math.trunc(Number(e.target.value))||1))})}/></label><button type="button" className="primary-button" disabled={!picker.brand.trim()||!picker.model.trim()} onClick={savePicker}><Plus size={17}/>Добавить {picker.direction==='SUB'?'в бас':picker.direction==='FRONT'?'во фронт':'в тыл'}</button></div>
       </section></div>}
     {actionsOpen&&<div ref={actionsInlineRef} className="member-config-actions-overlay" role="presentation" onClick={()=>{if(!mobilePicker)setActionsOpen(false)}}><section role={mobilePicker?'region':'dialog'} aria-modal={mobilePicker?undefined:true} aria-label="Действия с конфигурацией" className="member-config-actions-sheet" onClick={e=>e.stopPropagation()}><div className="member-config-sheet-top"><h2>Действия</h2><button type="button" aria-label="Закрыть меню действий" onClick={()=>setActionsOpen(false)}><X size={20}/></button></div>
       <button type="button" onClick={addEquipmentForView}><Plus size={20}/><span><strong>Добавить оборудование</strong><small>Свободный ввод с подсказками из справочника</small></span><ChevronRight size={17}/></button>
@@ -259,7 +261,6 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
       <button type="button" onClick={()=>{setActionsOpen(false);onClose()}}><Layers3 size={20}/><span><strong>Версии и история</strong><small>Вернуться к сохранённым конфигурациям</small></span><ChevronRight size={17}/></button>
     </section></div>}
   </section>}
-  {error&&<div className="form-error" role="alert"><AlertTriangle size={16}/>{error}</div>}
   {admin&&<nav className="form-wizard-nav config-admin-steps" aria-label="Этапы редактирования конфигурации">{(['SETUP','SUB','FRONT','REAR','POWER','BOX','NOTES','REVIEW'] as const).map((key,index)=>{const item=editorViews.find(view=>view.key===key);return <button key={key} type="button" className={activeView===key?'is-active':''} aria-current={activeView===key?'step':undefined} disabled={saving} onClick={()=>{setActiveView(key);setError('')}}><span>{index+1}</span><strong>{item?.label??'Проверка и сохранение'}</strong><small>{key==='REVIEW'?'Итог перед новой версией':key==='SETUP'?'Название обязательно':viewIsReady(key)?'Заполнено':'Можно дополнить'}</small></button>})}</nav>}
   {admin&&<p className="form-wizard-progress" role="status">Редактируйте разделы в любом порядке. Все введённые данные сохраняются при переключении, запись в базу — только после проверки.</p>}
   <div className="form config-editor">
@@ -278,7 +279,7 @@ export function ConfigurationEditor({carId,configuration,car,admin,onClose,onSav
  <div><dt>Аудиокомпоненты</dt><dd>{v.audioComponents.length}</dd></div><div><dt>Усилители</dt><dd>{v.amplifiers.length}</dd></div>
  <div><dt>Головные устройства</dt><dd>{v.headUnits.length}</dd></div><div><dt>Аккумуляторы / генераторы</dt><dd>{v.batteries.length} / {v.generators.length}</dd></div>
  </dl><p role="status">Требования для SPL, BFSPL и BDW проверяются сервером при записи на этап.</p></section>}
-<div className="config-editor-actions">{admin&&activeView==='REVIEW'&&<button type="button" className="secondary-button" disabled={saving} onClick={()=>setActiveView('SETUP')}>Вернуться к редактированию</button>}<button className="primary-button" disabled={saving||!v.name.trim()} onClick={()=>admin&&activeView!=='REVIEW'?setActiveView('REVIEW'):void submit()}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:admin&&activeView!=='REVIEW'?<><ChevronRight size={15}/>Проверить конфигурацию</>:<><Check size={15}/>{historicalFinal?'Подтвердить конфигурацию финала':isNew?'Создать конфигурацию':'Сохранить новую версию'}</>}</button></div>
+<div className="config-editor-actions"><ActionError message={error}/>{admin&&activeView==='REVIEW'&&<button type="button" className="secondary-button" disabled={saving} onClick={()=>setActiveView('SETUP')}>Вернуться к редактированию</button>}<button className="primary-button" disabled={saving||!v.name.trim()} onClick={()=>admin&&activeView!=='REVIEW'?setActiveView('REVIEW'):void submit()}>{saving?<><Loader2 className="spin" size={15}/>Сохраняем…</>:admin&&activeView!=='REVIEW'?<><ChevronRight size={15}/>Проверить конфигурацию</>:<><Check size={15}/>{historicalFinal?'Подтвердить конфигурацию финала':isNew?'Создать конфигурацию':'Сохранить новую версию'}</>}</button></div>
   </div>
  </div>
 }

@@ -1,0 +1,5 @@
+.form-error.action-error{flex:1 0 100%;min-width:0;max-width:100%;white-space:pre-line;overflow-wrap:anywhere}
+.form-error.action-error>svg{flex-shrink:0}
+.form-error.action-error>span{min-width:0}
+.config-editor-actions:has(>.action-error),.member-config-picker-foot:has(>.action-error){flex-wrap:wrap}
+.member-config-picker-foot>.action-error{grid-column:1/-1}
