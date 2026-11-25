@@ -1,0 +1,731 @@
+{
+  "date": "2026-11-25",
+  "frontendTests": {
+    "passed": 749,
+    "failed": 0
+  },
+  "build": "passed",
+  "adminRouteWidths": [
+    1440,
+    402,
+    320
+  ],
+  "adminRouteVariants": 46,
+  "adminCasesPassed": 138,
+  "targetedCases": {
+    "chromiumSearch": 25,
+    "webkitSearch": 15,
+    "publicMember": 12
+  },
+  "chromiumSearchWidths": [
+    1440,
+    1024,
+    402,
+    390,
+    320
+  ],
+  "webkitSearchWidths": [
+    402,
+    390,
+    320
+  ],
+  "harnessRetry": {
+    "cases": 6,
+    "reason": "Disambiguated parent summary selector after adding nested stage disclosure; application code unchanged",
+    "result": "passed"
+  },
+  "liveAcceptance": false,
+  "physicalIPhoneAcceptance": false,
+  "adminCases": [
+    {
+      "route": "/admin",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/event-day?stageId=stage1",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/stages",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/stages/new",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/registrations",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/inspections",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/inspections?stageId=stage1",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/inspections?stageId=stage1&registrationId=reg1",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/results",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/results?stageId=stage1",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/results?stageId=stage1&registrationId=reg1&entry=1",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/participants",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/profile-links",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/teams",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/cars",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/cars/new",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/cars/configurations?carId=car1",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/records",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/statistics",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/stage-report?stageId=stage1",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/season-report",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/disqualifications",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/news",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/partners",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/rules",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/legal-documents",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/seasons",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/classes",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/vibration",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/components",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/vehicle-catalog",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/historical-results",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/data-quality",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/users",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/roles",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/media",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/audit",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=homepage&step=hero",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=homepage&step=copy",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=homepage&step=blocks",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=legal",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/email-testing",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/email-templates",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/notifications",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/assistant",
+      "width": 1440,
+      "status": "passed"
+    },
+    {
+      "route": "/admin",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/event-day?stageId=stage1",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/stages",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/stages/new",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/registrations",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/inspections",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/inspections?stageId=stage1",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/inspections?stageId=stage1&registrationId=reg1",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/results",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/results?stageId=stage1",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/results?stageId=stage1&registrationId=reg1&entry=1",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/participants",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/profile-links",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/teams",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/cars",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/cars/new",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/cars/configurations?carId=car1",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/records",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/statistics",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/stage-report?stageId=stage1",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/season-report",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/disqualifications",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/news",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/partners",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/rules",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/legal-documents",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/seasons",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/classes",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/vibration",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/components",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/vehicle-catalog",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/historical-results",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/data-quality",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/users",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/roles",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/media",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/audit",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=homepage&step=hero",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=homepage&step=copy",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=homepage&step=blocks",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=legal",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/email-testing",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/email-templates",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/notifications",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/assistant",
+      "width": 402,
+      "status": "passed"
+    },
+    {
+      "route": "/admin",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/event-day?stageId=stage1",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/stages",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/stages/new",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/registrations",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/inspections",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/inspections?stageId=stage1",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/inspections?stageId=stage1&registrationId=reg1",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/results",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/results?stageId=stage1",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/results?stageId=stage1&registrationId=reg1&entry=1",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/participants",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/profile-links",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/teams",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/cars",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/cars/new",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/cars/configurations?carId=car1",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/records",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/statistics",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/stage-report?stageId=stage1",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/season-report",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/disqualifications",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/news",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/partners",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/rules",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/legal-documents",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/seasons",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/classes",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/vibration",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/components",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/vehicle-catalog",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/historical-results",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/data-quality",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/users",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/roles",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/media",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/audit",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=homepage&step=hero",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=homepage&step=copy",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=homepage&step=blocks",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/site-settings?section=legal",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/email-testing",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/email-templates",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/notifications",
+      "width": 320,
+      "status": "passed"
+    },
+    {
+      "route": "/admin/assistant",
+      "width": 320,
+      "status": "passed"
+    }
+  ]
+}

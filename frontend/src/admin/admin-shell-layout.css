@@ -2353,3 +2353,40 @@ body .app-shell .main .content .usd-universal-pagination nav button{min-width:44
 @media(max-width:760px){
  body .app-shell .main .content .usd-universal-table-wrap .usd-universal-table thead .usd-universal-sort-button{visibility:hidden!important}
 }
+
+/* Gate lists: one compact overview card per registration on phones/tablets.
+ * Preserve the desktop table and every action, number/class association and link. */
+@media(max-width:1199px){
+ body .app-shell .main .content .event-ops-page .event-ops-results:has(.event-ops-compact-table){padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table{display:block!important;width:100%!important;min-width:0!important;border:0!important;background:transparent!important}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table thead{position:absolute!important;width:1px!important;height:1px!important;clip-path:inset(50%);overflow:hidden}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table tbody{display:grid!important;grid-template-columns:minmax(0,1fr);gap:8px}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table tbody tr{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;min-width:0;width:100%;box-sizing:border-box;margin:0!important;padding:12px!important;border:1px solid #dce1e8!important;border-radius:12px;background:#fff!important;box-shadow:none!important}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table tbody td{display:flex!important;flex-direction:row!important;flex-wrap:wrap;align-items:center!important;justify-content:flex-start!important;gap:4px 8px!important;grid-column:1/-1;min-width:0!important;width:auto!important;max-width:100%!important;padding:0!important;border:0!important;white-space:normal!important;text-align:left!important;line-height:1.4}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table tbody td::before{display:none!important}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table td[data-label="№"]{order:0;grid-column:1;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table td[data-label="№"]>strong::before{content:'№';margin-right:3px}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table :is(td[data-label="Статус"],td[data-label="Инспекция"]){order:1;grid-column:2;justify-content:flex-end!important}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table td[data-label="Участник"]{order:2;font-size:16px!important;font-weight:750}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table td[data-label="Автомобиль"]{order:3;font-size:14px!important}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table td[data-label="Классы"]{order:4;font-size:12px!important}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table .table-sub{display:inline;margin:0;font-size:12px;line-height:1.4;color:#596474}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table .class-number-chip{margin:0;padding:3px 7px;font-size:12px;line-height:1.4}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table :is(.inspection-number-class-groups,.inspection-number-class-group){display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0;padding:0;border:0;background:transparent}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table .inspection-number-title{font-size:12px;color:#a91530}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table .inspection-class-direction{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:baseline;margin:0;padding:0}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table .inspection-class-direction :is(span,b){font-size:12px;line-height:1.4}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table td.row-actions{order:5;justify-content:flex-end!important;padding-top:6px!important;border-top:1px solid #e9ebef!important}
+ body .app-shell .main .content .event-ops-page .event-ops-results .event-ops-compact-table td.row-actions button{min-height:44px!important;width:auto!important;flex:0 1 auto;padding:7px 12px!important;font-size:13px!important;white-space:normal}
+}
+/* Secondary controls stay collapsed so the working list begins near search. */
+body .app-shell .main .content :is(.event-ops-stage-drawer,.event-ops-actions-drawer){margin:8px 0;border:1px solid #dce1e8;border-radius:12px;background:#fff;min-width:0}
+body .app-shell .main .content :is(.event-ops-stage-drawer,.event-ops-actions-drawer)>summary{display:flex;align-items:center;gap:10px;min-height:44px;box-sizing:border-box;padding:10px 12px;font-size:13px;font-weight:750;line-height:1.4;cursor:pointer;list-style:none}
+body .app-shell .main .content :is(.event-ops-stage-drawer,.event-ops-actions-drawer)>summary::-webkit-details-marker{display:none}
+body .app-shell .main .content :is(.event-ops-stage-drawer,.event-ops-actions-drawer)>summary::after{content:'⌄';margin-left:auto;flex:0 0 auto;color:#596474}
+body .app-shell .main .content .event-ops-stage-drawer>summary>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:450;color:#596474}
+body .app-shell .main .content :is(.event-ops-stage-drawer,.event-ops-actions-drawer)>summary:focus-visible{outline:3px solid #bd1732;outline-offset:2px;border-radius:12px}
+body .app-shell .main .content .event-ops-stage-drawer>.stage-picker{margin:0!important;border:0!important;box-shadow:none!important}
+body .app-shell .main .content .event-ops-actions-drawer>.inspection-toolbar{margin:0!important;border:0!important;box-shadow:none!important}
+body .app-shell .main .content .event-ops-actions-drawer>.event-ops-main-actions{margin:0;padding:12px}
+body .app-shell .main .content .event-ops-page .inspection-search-panel>.row-count{display:block;margin-top:6px;font-size:12px;color:#596474}
