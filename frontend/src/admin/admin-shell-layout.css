@@ -4,6 +4,9 @@
  * Avoid new layout overrides in styles.css, ui-consistency.css or premium-ui.css.
  */
 
+/* Nested forms use the same readable labels as direct admin fields. */
+body .app-shell .main .content .form label{color:#374151}
+
 /* Staff catalog paint belongs to the staff layer, including keyboard focus. */
 body .app-shell .vehicle-catalog-suggestions,
 body .admin-shell .vehicle-catalog-suggestions {

@@ -317,6 +317,11 @@ body .usd-member .registration-number-preview-warning strong{color:#fff}
     aspect-ratio:auto!important;
     object-fit:contain!important;
   }
+  /* A missing poster should not inherit the legacy 260px artwork minimum. */
+  body .usd-live .usd-stage-card-approved .usd-stage-poster .public-stage-list-poster-placeholder{
+    min-height:0!important;
+    padding:14px 10px!important;
+  }
   body .usd-live .usd-stage-card-approved .usd-stage-card-info{
     grid-column:2;
     grid-row:2;

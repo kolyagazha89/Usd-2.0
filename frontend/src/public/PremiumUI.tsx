@@ -10,7 +10,7 @@ export function Eyebrow({children}:{children:ReactNode}){return <div className="
 export function EmptyState({title='Пока нет публикаций',children}:{title?:string;children?:ReactNode}){return <div className="p-empty"><span aria-hidden>USD / NEXT</span><h3>{title}</h3><p>{children||'Новые материалы появятся после публикации организаторами.'}</p></div>}
 export type PhotoPlaceholders={participant?:string|null;car?:string|null;stage?:string|null};
 export const PremiumPlaceholders=createContext<PhotoPlaceholders>({});
-export function Photo({src,alt,className='',fallback,kind,placeholderSrc}:{src?:string;alt:string;className?:string;fallback?:ReactNode;kind?:keyof PhotoPlaceholders;placeholderSrc?:string|null}){
+export function Photo({src,alt,className='',fallback,kind,placeholderSrc,loading='lazy'}:{src?:string;loading?:'lazy'|'eager';alt:string;className?:string;fallback?:ReactNode;kind?:keyof PhotoPlaceholders;placeholderSrc?:string|null}){
  const placeholders=useContext(PremiumPlaceholders);
  const original=safePhotoSource(src,isPrivateMediaUrl);
  const substitute=safePhotoSource(placeholderSrc??(kind?placeholders[kind]??undefined:undefined),isPrivateMediaUrl);
@@ -20,6 +20,6 @@ export function Photo({src,alt,className='',fallback,kind,placeholderSrc}:{src?:
  const [failure,F]=useState<{key:string;urls:string[]}>({key:'',urls:[]});
  const failed=failure.key===sourceKey?failure.urls:[];
  const url=[original,substitute].find(candidate=>candidate&&!failed.includes(candidate));
- return url?<img className={className} src={url} alt={alt} loading="lazy" decoding="async" onError={()=>F(previous=>{const urls=previous.key===sourceKey?previous.urls:[];return {key:sourceKey,urls:urls.includes(url)?urls:[...urls,url]};})}/>:<div className={className+' p-photo-fallback'} role="img" aria-label={alt}>{fallback||initials(alt)}</div>;
+ return url?<img className={className} src={url} alt={alt} loading={loading} decoding="async" onError={()=>F(previous=>{const urls=previous.key===sourceKey?previous.urls:[];return {key:sourceKey,urls:urls.includes(url)?urls:[...urls,url]};})}/>:<div className={className+' p-photo-fallback'} role="img" aria-label={alt}>{fallback||initials(alt)}</div>;
 }
-export function NewsCard({post}:{post:any}){return <Link to={'/news/'+encodeURIComponent(post.id)} className="p-news-card"><div className="p-news-media"><Photo src={post.photoUrl} alt={post.title} className="p-news-cover" fallback={<><span>USD / JOURNAL</span><b>ГРОМЧЕ<br/>КАЖДЫЙ ДЕНЬ.</b><i aria-hidden/></>}/></div><div className="p-news-copy"><small>{post.publishedAt?stageDate(post.publishedAt):'USD / ЖУРНАЛ'}</small><h3>{post.title}</h3>{post.excerpt&&<p>{post.excerpt}</p>}<span className="p-news-read">Читать материал <b aria-hidden>↗</b></span></div></Link>}
+export function NewsCard({post,eager=false}:{post:any;eager?:boolean}){return <Link to={'/news/'+encodeURIComponent(post.id)} className="p-news-card"><div className="p-news-media"><Photo src={post.photoUrl} loading={eager?'eager':'lazy'} alt={post.title} className="p-news-cover" fallback={<><span>USD / JOURNAL</span><b>ГРОМЧЕ<br/>КАЖДЫЙ ДЕНЬ.</b><i aria-hidden/></>}/></div><div className="p-news-copy"><small>{post.publishedAt?stageDate(post.publishedAt):'USD / ЖУРНАЛ'}</small><h3>{post.title}</h3>{post.excerpt&&<p>{post.excerpt}</p>}<span className="p-news-read">Читать материал <b aria-hidden>↗</b></span></div></Link>}
