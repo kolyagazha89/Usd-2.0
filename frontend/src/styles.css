@@ -2653,7 +2653,7 @@ body:has(.modal-backdrop){overflow:hidden!important}
 .public-rules-hero h2 span{color:#ed2638}
 .public-rules-hero>p{max-width:720px;margin:0;color:#b9bac2;font-size:15px;line-height:1.8}
 .public-rules-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:27px}
-.public-rules-actions button,.public-rules-registration-note button{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:44px;padding:12px 16px;border:1px solid #ed2638;border-radius:8px;background:#ed2638;color:#fff;font-weight:850;font-size:12px;cursor:pointer}
+.public-rules-actions button,.public-rules-registration-note button{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:44px;padding:12px 16px;border:1px solid #bd1732;border-radius:8px;background:#bd1732;color:#fff;font-weight:850;font-size:12px;cursor:pointer}
 .public-rules-actions a{color:#ff7884;font-size:12px;font-weight:800;text-decoration:none}
 .public-rules-actions a:hover,.public-rules-doc-links a:hover{color:#fff}
 .public-rules-layout{display:grid;grid-template-columns:minmax(220px,270px) minmax(0,1fr);align-items:start;gap:22px;margin-top:22px}
