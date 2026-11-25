@@ -101,10 +101,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Build and validate the current source corpus
-        working-directory: .
-        run: python3 scripts/build-usd-research-corpus.py
-
       - name: Build the exact runtime Dockerfile
         run: docker build -f backend/Dockerfile --build-arg USD_RELEASE_SHA=${{ github.sha }} -t usd-api-runtime-audit:pr backend
 
@@ -120,5 +116,6 @@ jobs:
             # banned runtime tooling rather than every transitive binary.
             test ! -x node_modules/.bin/nest
             test ! -x node_modules/.bin/eslint
-            node -e '"'"'const corpus=require("./usd-research-corpus.json");const revision=require("./usd-release.json");if(corpus.revision!==revision.revision||!corpus.files.some(f=>f.path==="docs/USD_MASTER_PLAN.md")||!corpus.files.some(f=>f.path==="frontend/src/admin/AssistantPage.tsx")||!corpus.files.some(f=>f.path==="backend/prisma/schema.prisma"))process.exit(1)'"'"'
+            test ! -e usd-research-corpus.json
+            test ! -d dist/assistant
           '
