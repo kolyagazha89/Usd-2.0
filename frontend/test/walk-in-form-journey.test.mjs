@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {walkInStepProgress,walkInNextStep,walkInConfigurationOptions,walkInConsentForSelection,walkInAfterProfileCreation} from '../src/admin/walk-in-form-journey.ts';
 const registration={participantId:'person',carId:'car',classIds:['c1'],primaryClassCount:1,legalReady:true,privacyConsent:true,termsAccepted:true,rulesAccepted:true,protocolConsent:true};
 test('on-site registration gates each stage without discarding data',()=>{
@@ -41,4 +42,14 @@ test('profile creation with only intake consents stays on identity until other r
  assert.equal(walkInAfterProfileCreation({...registration,protocolConsent:false}),0);
  assert.equal(walkInAfterProfileCreation({...registration,rulesAccepted:false}),0);
  assert.equal(walkInAfterProfileCreation({...registration,carId:''}),0);
+});
+
+test('gate form wires successful profile creation to retained consent and selected car without a second confirmation',async()=>{
+ const source=await readFile(new URL('../src/admin/InspectionsPage.tsx',import.meta.url),'utf8');
+ assert.doesNotMatch(source,/useEffect\(\(\)=>\{setProtocolConsent\(false\)\},\[participantId\]\)/);
+ assert.match(source,/selectParticipant\(created\.participantId,true\)/);
+ assert.match(source,/setCars\(\[createdCar\]\);setCarId\(created\.carId\)/);
+ assert.match(source,/setWalkInStep\(walkInAfterProfileCreation\(/);
+ assert.match(source,/if\(!createdId\)\{setCars\(\[\]\);setCarId\(''\)/);
+ assert.match(source,/setProtocolConsent\(consent\.protocolConsent\)/);
 });

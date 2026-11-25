@@ -5,7 +5,7 @@ import {isPastStageCalendar} from './stage-calendar';
 import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,AdminRelatedEntities} from './AdminEntityLink';
 import './form-journey.css';
-import {walkInConfigurationOptions,walkInNextStep,walkInStepProgress} from './walk-in-form-journey';
+import {walkInConfigurationOptions,walkInNextStep,walkInStepProgress,walkInConsentForSelection,walkInAfterProfileCreation} from './walk-in-form-journey';
 import {readViewState,useViewState,useListScroll,seasonYears,matchesSeason,stageYear} from './view-state';
 import {canOpenWalkInRegistration,filterInspections,summarizeInspections} from './event-ops-model';
 import {EventOperationsNavigation} from './EventOperationsNavigation';
@@ -247,12 +247,17 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
  useEffect(()=>{if(!loading)walkInTitleRef.current?.focus()},[walkInStep]);const[legalReady,setLegalReady]=useState(false),[legalVersion,setLegalVersion]=useState<string|null>(null),[rulesAccepted,setRulesAccepted]=useState(false),[privacyConsent,setPrivacyConsent]=useState(false),[termsAccepted,setTermsAccepted]=useState(false),[protocolConsent,setProtocolConsent]=useState(false);
  useEffect(()=>{apiGet<any>('/site-settings/public').then(r=>{const legal=r?.settings?.legal??{};const ready=legal.legalApproved===true&&Boolean(String(legal.legalVersion??'').trim())&&Boolean(String(legal.ipName??'').trim())&&Boolean(String(legal.privacyText??'').trim())&&Boolean(String(legal.consentText??'').trim())&&Boolean(String(legal.termsText??'').trim());const protocol=legal.documents?.officialProtocolConsent;const protocolReady=typeof protocol?.targetId==='string'&&protocol.targetId.startsWith('legal-document-officialProtocolConsent-')&&Boolean(String(protocol.url??'').trim());setLegalReady(ready&&protocolReady);setLegalVersion(ready&&protocolReady?String(legal.legalVersion??''):null)}).catch(()=>setLegalReady(false))},[]);
  useEffect(()=>{let cancelled=false;(async()=>{setLoading(true);setError('');try{const[p,sc]=await Promise.all([apiGet<any>('/participants/lookup'),apiGet<any>('/stages/'+encodeURIComponent(stageId)+'/classes')]);if(cancelled)return;setParticipants(listData(p));setStageClasses(listData(sc))}catch(e){if(!cancelled)setError(e instanceof Error?e.message:'Не удалось загрузить справочники')}finally{if(!cancelled)setLoading(false)}})();return()=>{cancelled=true}},[stageId]);
- useEffect(()=>{setProtocolConsent(false)},[participantId]);
  const normalizedProfileQuery=profileQuery.trim().toLocaleLowerCase('ru');
  const matchingProfiles=participants.filter(p=>[p.lastName,p.firstName,p.middleName,p.team,p.city,p.phone].filter(Boolean).join(' ').toLocaleLowerCase('ru').includes(normalizedProfileQuery));
  const visibleProfiles=normalizedProfileQuery||showAllProfiles?matchingProfiles:matchingProfiles.slice(0,6);
  const selectedParticipant=participants.find(p=>p.id===participantId);
- const selectParticipant=(id:string)=>{setParticipantId(id);setClassIds([]);setShowNewProfile(false);setShowNewCar(false)};
+ const selectParticipant=(id:string,createdFromDraft=false)=>{
+  if(!createdFromDraft&&(creatingProfile||creatingCar||saving))return;
+  if(id===participantId)return;
+  const consent=walkInConsentForSelection({privacyConsent,termsAccepted,rulesAccepted,protocolConsent},participantId,id,createdFromDraft);
+  setPrivacyConsent(consent.privacyConsent);setTermsAccepted(consent.termsAccepted);setRulesAccepted(consent.rulesAccepted);setProtocolConsent(consent.protocolConsent);
+  setParticipantId(id);setClassIds([]);setShowNewProfile(false);setShowNewCar(false);
+ };
  const createNewProfile=async()=>{
   if(creatingProfile)return;
   if(!legalReady||!privacyConsent||!termsAccepted){setError('Перед созданием профиля подтвердите согласия участника и проверьте юридические документы ниже');return}
@@ -267,9 +272,13 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
     privacyConsent,termsAccepted,
    });
    const participant={id:created.participantId,lastName:newLastName.trim(),firstName:newFirstName.trim(),middleName:newMiddleName.trim()};
+   if(!created.participantId||!created.carId)throw new Error('Сервер не подтвердил профиль и автомобиль. Проверьте поиск перед повторным созданием.');
    pendingCreatedCarId.current=created.carId;
+   const createdCar={id:created.carId,brand:newBrand.trim(),model:newModel.trim(),registrationNumber:newPlate.trim(),configurations:[]};
+   setCars([createdCar]);setCarId(created.carId);setConfigurationVersionId('');
    setParticipants(items=>[...items,participant]);setProfileQuery([participant.lastName,participant.firstName].join(' '));
-   selectParticipant(created.participantId);
+   selectParticipant(created.participantId,true);
+   setWalkInStep(walkInAfterProfileCreation({participantId:created.participantId,carId:created.carId,legalReady,privacyConsent,termsAccepted,rulesAccepted,protocolConsent}));
   }catch(e){setError(e instanceof Error?e.message:'Не удалось создать профиль на въезде')}
   finally{setCreatingProfile(false)}
  };
@@ -300,11 +309,26 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
  };
  const selectedCar=cars.find(c=>c.id===carId);
  const configurations=walkInConfigurationOptions(selectedCar?.configurations??[]);
- useEffect(()=>{if(!participantId){setCars([]);setCarId('');setConfigurationVersionId('');return}let cancelled=false;setCars([]);setCarId('');setConfigurationVersionId('');apiGet<any>('/participants/'+encodeURIComponent(participantId)+'/cars').then(r=>{if(!cancelled){const items=listData(r);setCars(items);if(pendingCreatedCarId.current){const id=pendingCreatedCarId.current;pendingCreatedCarId.current='';if(items.some((car:any)=>car.id===id))setCarId(id)}}}).catch(e=>{if(!cancelled){if(pendingCreatedCarId.current){
-  const id=pendingCreatedCarId.current;pendingCreatedCarId.current='';
-  setCars([{id,brand:newBrand.trim(),model:newModel.trim(),registrationNumber:newPlate.trim(),configurations:[]}]);setCarId(id);
-  setError('Профиль и автомобиль сохранены, но список автомобилей недоступен. Продолжайте регистрацию с выбранным автомобилем.');
- }else setError(e instanceof Error?e.message:'Не удалось загрузить автомобили участника')}});return()=>{cancelled=true}},[participantId]);
+ useEffect(()=>{
+  if(!participantId){setCars([]);setCarId('');setConfigurationVersionId('');return}
+  let cancelled=false;
+  const createdId=pendingCreatedCarId.current;pendingCreatedCarId.current='';
+  // A confirmed create already supplied the car and its id. Do not clear
+  // those while refreshing the list, or block the next wizard step.
+  if(!createdId){setCars([]);setCarId('');setConfigurationVersionId('')}
+  apiGet<any>('/participants/'+encodeURIComponent(participantId)+'/cars').then(r=>{
+   if(cancelled)return;
+   const items=listData(r);
+   if(createdId&&!items.some((car:any)=>car.id===createdId)){
+    setCars(previous=>[...items,...previous.filter(car=>car.id===createdId)]);
+   }else setCars(items);
+  }).catch(e=>{
+   if(cancelled)return;
+   if(createdId)setError('Профиль и автомобиль сохранены, но список автомобилей недоступен. Продолжайте регистрацию с выбранным автомобилем.');
+   else setError(e instanceof Error?e.message:'Не удалось загрузить автомобили участника');
+  });
+  return()=>{cancelled=true};
+ },[participantId]);
  useEffect(()=>{setConfigurationVersionId(walkInConfigurationOptions(selectedCar?.configurations??[])[0]?.id??'')},[selectedCar]);
  const isBassRace=isBassRaceStageOption;
  const classDirectionId=(item:any)=>item?.class?.direction?.id??item?.class?.directionId??item?.directionId;
@@ -348,9 +372,9 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
    <section className="registration-profile-picker" aria-labelledby="registration-profile-title">
     <div className="registration-profile-picker-heading"><div><h3 id="registration-profile-title">Найти участника</h3><p>Проверьте существующий профиль перед регистрацией, чтобы не создавать дубликаты.</p></div><span>{participants.length} в базе</span></div>
     <label className="registration-profile-search">Поиск по ФИО, команде или телефону<input type="search" autoComplete="off" value={profileQuery} onChange={e=>{setProfileQuery(e.target.value);setShowAllProfiles(false)}} placeholder="Начните вводить фамилию или имя…"/></label>
-    {selectedParticipant&&<div className="registration-profile-selected" role="status"><Check size={18}/><span>Выбран: <strong>{[selectedParticipant.lastName,selectedParticipant.firstName,selectedParticipant.middleName].filter(Boolean).join(' ')}</strong></span><button type="button" className="secondary-button compact" onClick={()=>selectParticipant('')}>Изменить</button></div>}
+    {selectedParticipant&&<div className="registration-profile-selected" role="status"><Check size={18}/><span>Выбран: <strong>{[selectedParticipant.lastName,selectedParticipant.firstName,selectedParticipant.middleName].filter(Boolean).join(' ')}</strong></span><button type="button" className="secondary-button compact" disabled={creatingProfile||creatingCar||saving} onClick={()=>selectParticipant('')}>Изменить</button></div>}
     <div className="registration-profile-results" role="group" aria-label="Найденные профили">
-     {visibleProfiles.map(p=><button type="button" key={p.id} className={'registration-profile-choice'+(participantId===p.id?' is-selected':'')} aria-pressed={participantId===p.id} onClick={()=>selectParticipant(p.id)}><span className="registration-profile-avatar" aria-hidden="true">{String(p.lastName||p.firstName||'У').slice(0,1).toLocaleUpperCase('ru')}</span><span className="registration-profile-identity"><strong>{[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ')||'Участник USD'}</strong><small>{[p.city,p.team].filter(Boolean).join(' · ')||'Профиль участника'}</small></span><span className="registration-profile-choice-status">{participantId===p.id?'Выбран':'Выбрать'}</span></button>)}
+     {visibleProfiles.map(p=><button type="button" key={p.id} className={'registration-profile-choice'+(participantId===p.id?' is-selected':'')} aria-pressed={participantId===p.id} disabled={creatingProfile||creatingCar||saving} onClick={()=>selectParticipant(p.id)}><span className="registration-profile-avatar" aria-hidden="true">{String(p.lastName||p.firstName||'У').slice(0,1).toLocaleUpperCase('ru')}</span><span className="registration-profile-identity"><strong>{[p.lastName,p.firstName,p.middleName].filter(Boolean).join(' ')||'Участник USD'}</strong><small>{[p.city,p.team].filter(Boolean).join(' · ')||'Профиль участника'}</small></span><span className="registration-profile-choice-status">{participantId===p.id?'Выбран':'Выбрать'}</span></button>)}
      {!matchingProfiles.length&&<p className="registration-profile-empty">Совпадений нет. Проверьте написание ФИО или создайте профиль через раздел «Участники».</p>}
     </div>
     {!normalizedProfileQuery&&matchingProfiles.length>6&&<button type="button" className="secondary-button compact registration-profile-more" onClick={()=>setShowAllProfiles(v=>!v)}>{showAllProfiles?'Свернуть список':'Показать все профили ('+matchingProfiles.length+')'}</button>}
@@ -379,7 +403,7 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
    </div><p className="field-help">Убедитесь, что выбрали правильный исторический или существующий профиль. Согласия участника подтверждаются ниже.</p><button type="button" className="primary-button" disabled={creatingCar||!legalReady||!privacyConsent||!termsAccepted||!carSelectionValid||!newPlate.trim()} onClick={()=>void createNewCar()}>{creatingCar?'Сохраняем автомобиль…':'Добавить автомобиль и продолжить'}</button></section>}
    <label>Конфигурация оборудования (можно заполнить позже)<select value={configurationVersionId} onChange={e=>setConfigurationVersionId(e.target.value)} disabled={!carId}><option value="">Пока не заполнена — создать черновик на этапе</option>{configurations.map((cfg:any)=><option key={cfg.id} value={cfg.id}>{cfg.label}</option>)}</select></label>
    {!configurationVersionId&&carId&&<div className="notice" role="status"><Info size={16}/><span>Участник получит номер и попадёт на инспекцию. Точные характеристики аудиосистемы пока не подтверждены, их нужно заполнить позже.</span></div>}
-   {!legalReady&&<div className="form-error"><AlertTriangle size={16}/>Юридические документы не утверждены. Регистрация на месте временно недоступна.</div>}{legalReady&&<div className="consent-stack"><strong>Подтверждение участника</strong><label className="consent-option"><input type="checkbox" checked={privacyConsent} onChange={e=>setPrivacyConsent(e.target.checked)} required/><span>Подтверждаю, что участник дал согласие на обработку персональных данных и ознакомлен с <a href="/privacy" target="_blank" rel="noreferrer">политикой</a> и <a href="/consent" target="_blank" rel="noreferrer">текстом согласия</a>.</span></label><label className="consent-option"><input type="checkbox" checked={termsAccepted} onChange={e=>setTermsAccepted(e.target.checked)} required/><span>Подтверждаю, что участник принял <a href="/terms" target="_blank" rel="noreferrer">пользовательское соглашение</a>.</span></label><label className="consent-option"><input type="checkbox" checked={rulesAccepted} onChange={e=>setRulesAccepted(e.target.checked)} required/><span>Подтверждаю, что участник ознакомлен с <a href="/rules" target="_blank" rel="noreferrer">регламентом USD</a> и правилами выбранных классов.</span></label><label className="consent-option"><input type="checkbox" checked={protocolConsent} onChange={e=>setProtocolConsent(e.target.checked)} required/><span>Подтверждаю, что участник ознакомился с <a href="/documents/officialProtocolConsent" target="_blank" rel="noopener noreferrer">отдельным документом о публикации протоколов</a> и разрешил публикацию своих ФИО, класса, места и официального результата в протоколах USD. Это не является согласием на фото или рекламу. Согласие получено от участника либо его законного представителя; если документ оформлен на бумаге, подписанный оригинал передан организатору для хранения. При несовершеннолетии необходимо проверить полномочия представителя.</span></label><small className="muted">Версия юридических документов: {legalVersion}</small></div>}
+   {!legalReady&&<div className="form-error"><AlertTriangle size={16}/>Юридические документы не утверждены. Регистрация на месте временно недоступна.</div>}{legalReady&&<div className="consent-stack"><strong>Подтверждение участника</strong><label className="consent-option"><input type="checkbox" checked={privacyConsent} onChange={e=>setPrivacyConsent(e.target.checked)} disabled={creatingProfile||creatingCar||saving} required/><span>Подтверждаю, что участник дал согласие на обработку персональных данных и ознакомлен с <a href="/privacy" target="_blank" rel="noreferrer">политикой</a> и <a href="/consent" target="_blank" rel="noreferrer">текстом согласия</a>.</span></label><label className="consent-option"><input type="checkbox" checked={termsAccepted} onChange={e=>setTermsAccepted(e.target.checked)} disabled={creatingProfile||creatingCar||saving} required/><span>Подтверждаю, что участник принял <a href="/terms" target="_blank" rel="noreferrer">пользовательское соглашение</a>.</span></label><label className="consent-option"><input type="checkbox" checked={rulesAccepted} onChange={e=>setRulesAccepted(e.target.checked)} disabled={creatingProfile||creatingCar||saving} required/><span>Подтверждаю, что участник ознакомлен с <a href="/rules" target="_blank" rel="noreferrer">регламентом USD</a> и правилами выбранных классов.</span></label><label className="consent-option"><input type="checkbox" checked={protocolConsent} onChange={e=>setProtocolConsent(e.target.checked)} disabled={creatingProfile||creatingCar||saving} required/><span>Подтверждаю, что участник ознакомился с <a href="/documents/officialProtocolConsent" target="_blank" rel="noopener noreferrer">отдельным документом о публикации протоколов</a> и разрешил публикацию своих ФИО, класса, места и официального результата в протоколах USD. Это не является согласием на фото или рекламу. Согласие получено от участника либо его законного представителя; если документ оформлен на бумаге, подписанный оригинал передан организатору для хранения. При несовершеннолетии необходимо проверить полномочия представителя.</span></label><small className="muted">Версия юридических документов: {legalVersion}</small></div>}
 
    </div>
    <div id="walk-in-classes" className="form-wizard-panel" hidden={walkInStep!==1}>

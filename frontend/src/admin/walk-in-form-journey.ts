@@ -23,3 +23,16 @@ export function walkInConfigurationOptions(configurations:readonly WalkInConfigu
   .filter(version=>version.additionalDescription!=='USD_ON_SITE_DRAFT_PENDING')
   .map(version=>({id:version.id,label:configuration.name+' · v'+version.version})));
 }
+
+type WalkInConsentState=Pick<WalkInFormState,'privacyConsent'|'termsAccepted'|'rulesAccepted'|'protocolConsent'>;
+/** The draft person becomes a saved identity, not a different participant. */
+export function walkInConsentForSelection(state:WalkInConsentState,previousId:string,nextId:string,createdFromDraft:boolean):WalkInConsentState{
+ if(createdFromDraft||previousId===nextId){
+  const {privacyConsent,termsAccepted,rulesAccepted,protocolConsent}=state;
+  return {privacyConsent,termsAccepted,rulesAccepted,protocolConsent};
+ }
+ return {privacyConsent:false,termsAccepted:false,rulesAccepted:false,protocolConsent:false};
+}
+export function walkInAfterProfileCreation(state:WalkInConsentState&Pick<WalkInFormState,'participantId'|'carId'|'legalReady'>):0|1{
+ return state.participantId.trim()&&state.carId.trim()&&state.legalReady&&state.privacyConsent&&state.termsAccepted&&state.rulesAccepted&&state.protocolConsent?1:0;
+}
