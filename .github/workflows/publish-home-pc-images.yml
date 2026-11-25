@@ -63,6 +63,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build immutable model research corpus from tracked source
+        if: matrix.image == 'usd-2.0-api'
+        run: python3 scripts/build-usd-research-corpus.py
       - id: build
         uses: docker/build-push-action@v6
         with:

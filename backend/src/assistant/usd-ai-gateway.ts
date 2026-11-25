@@ -3,7 +3,7 @@ import {USD_CHANGE_DESIGN_PROMPT,loadUsdDesignEvidence,type UsdAssistantMode} fr
 
 export const USD_EXPERT_TOOL_NAMES=[
  'usd_rules','usd_stages','usd_classes','usd_stage_readiness','usd_snapshot',
- 'usd_data_quality','usd_import_diagnostics','usd_search_registrations','usd_search_results','usd_stage_results','usd_project_docs',
+ 'usd_data_quality','usd_import_diagnostics','usd_search_registrations','usd_search_results','usd_stage_results','usd_project_docs','usd_project_search','usd_project_read','usd_query_data',
 ] as const;
 export type UsdExpertTool=typeof USD_EXPERT_TOOL_NAMES[number];
 export type UsdToolArgs=Record<string,unknown>;
@@ -19,6 +19,11 @@ const docArgs={type:'object',properties:{
 },required:['topic'],additionalProperties:false};
 
 export const USD_EXPERT_TOOLS=[
+ {type:'function',name:'usd_query_data',description:'Самостоятельный запрос к спортивным данным: count, list, group. entities: stages, seasons, registrations, results, classes, classEntries, cars. Фильтры равенства JSON: stages (id,seasonId,city,status,registrationOpen,stageNumber), seasons (id,year,status,isActive), registrations (stageId,source,status,participantNumber), results (unit,place,isHistorical,verificationStatus), classes (id,code,directionId,unit,isActive), classEntries (classId), cars (brand,model). groupBy: допустимое поле группировки, limit до 25. Нет SQL/изменений/контактов. Для связанных результатов этапа используй usd_stage_results.',strict:true,parameters:{type:'object',properties:{entity:{type:'string',enum:['stages','seasons','registrations','results','classes','classEntries','cars']},operation:{type:'string',enum:['count','list','group']},filters:{type:'string',description:'JSON-объект простых фильтров равенства, например {"status":"ACTIVE"} или "{}"'},groupBy:{type:['string','null']},sortBy:{type:['string','null']},order:{type:['string','null'],enum:['asc','desc',null]},limit:{type:'integer'}},required:['entity','operation','filters','groupBy','sortBy','order','limit'],additionalProperties:false}},
+
+ {type:'function',name:'usd_project_search',description:'Search actual release source code, frontend, backend, schema, deployment and docs by keywords. Returns paths and line ranges.',strict:true,parameters:{type:'object',properties:{query:{type:'string',description:'Search words, code identifiers or terms in Russian/English'}},required:['query'],additionalProperties:false}},
+ {type:'function',name:'usd_project_read',description:'Read a specific file and line range returned by usd_project_search. Read only indexed release sources.',strict:true,parameters:{type:'object',properties:{path:{type:'string'},startLine:{type:'integer'},lineCount:{type:'integer'}},required:['path','startLine','lineCount'],additionalProperties:false}},
+
  {type:'function',name:'usd_project_docs',description:'Поиск по каноническому USD_MASTER_PLAN, описанию офлайн-режима и архитектуре. Это требования/планы, не свидетельство выпуска.',strict:true,parameters:{
   type:'object',properties:{
    query:{type:'string',description:'Конкретный вопрос или термины поиска по проекту USD'},
@@ -28,7 +33,7 @@ export const USD_EXPERT_TOOLS=[
  {type:'function',name:'usd_rules',description:'Прочитать утверждённую справку о процессах USD; для точных редакций регламента проверяй опубликованный документ.',strict:true,parameters:docArgs},
  {type:'function',name:'usd_stages',description:'Актуальный список этапов, дат, статусов (без удалённых).',strict:true,parameters:noArgs},
  {type:'function',name:'usd_classes',description:'Список направлений и классов USD, опционально для конкретного этапа.',strict:true,parameters:stageArgs},
- {type:'function',name:'usd_stage_readiness',description:'Проверить выбранный этап: регистрации, инспекции, классы, результаты и проблемы.',strict:true,parameters:stageArgs},
+ {type:'function',name:'usd_stage_readiness',description:'Проверить этап: уникальные участники, регистрации, инспекции, классы, результаты. Для последнего прошедшего selection=past, ближайшего upcoming; конкретный stageId имеет приоритет.',strict:true,parameters:{type:'object',properties:{...stageArgs.properties,selection:{type:['string','null'],enum:['past','upcoming',null]}},required:['stageId','selection'],additionalProperties:false}},
  {type:'function',name:'usd_snapshot',description:'Действительные общие счётчики USD.',strict:true,parameters:noArgs},
  {type:'function',name:'usd_data_quality',description:'Проверенные сигналы качества данных USD, без полных персональных данных.',strict:true,parameters:noArgs},
  {type:'function',name:'usd_import_diagnostics',description:'Статус импортов и предупреждений.',strict:true,parameters:noArgs},

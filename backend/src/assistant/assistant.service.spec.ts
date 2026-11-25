@@ -218,23 +218,22 @@ describe('USD assistant reliable operational chat', () => {
     }));
   });
 
-  it.each(['Дай отчет по последнему этапу','Скока на последний этап зарегано?','Сколько участников зарегистрировано на последнем этапе?'])('answers %s from the last past stage without asking Ollama',async(question)=>{
+  it.each(['Дай отчет по последнему этапу','Скока на последний этап зарегано?','Сколько участников зарегистрировано на последнем этапе?','Проверь готовность этапа','Как судье изменить класс и добавить BassRace?'])('lets the local model choose tools and compose the answer: %s',async(question)=>{
     const {service,prisma}=makeService();
     process.env.USD_AI_PROVIDER='ollama';
-    prisma.stage.findFirst.mockResolvedValue({
-      id:'past-stage',name:'Прошедший этап',status:'COMPLETED',registrationOpen:false,stageClasses:[{id:'c1'}],
-    });
     prisma.registration.groupBy=jest.fn().mockResolvedValue([{participantId:'p1'},{participantId:'p2'}]);
-    const fetchMock=jest.spyOn(global,'fetch').mockRejectedValue(new Error('Ollama unavailable'));
+    const response=(content:string,tool_calls?:unknown[])=>({ok:true,json:async()=>({done:true,message:{role:'assistant',content,tool_calls}})}) as any;
+    const mock=jest.spyOn(global,'fetch')
+      .mockResolvedValueOnce(response('{"in_scope":true}'))
+      .mockResolvedValueOnce(response('',[{type:'function',function:{name:'usd_stage_readiness',arguments:{stageId:null,selection:'past'}}}]))
+      .mockResolvedValueOnce(response('Авторский ответ модели на основе полученных данных.'));
     const answer=await service.chat(question,'admin');
-    expect(answer.source).toBe('database');
-    expect(answer.reply).toContain('Прошедший этап');
-    expect(answer.reply).toContain('Уникальных участников: 2');
-    expect(answer.reply).toContain('Регистраций: 18');
-    expect(prisma.stage.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where:expect.objectContaining({isDeleted:false,date:{lte:expect.any(Date)},status:{notIn:['DRAFT','CANCELLED']}}),
-    }));
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(answer.source).toBe('ai');
+    expect(answer.reply).toBe('Авторский ответ модели на основе полученных данных.');
+    expect(mock).toHaveBeenCalledTimes(3);
+    expect(prisma.stage.findFirst).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({date:{lte:expect.any(Date)}})}));
+    const continuation=JSON.parse(String((mock.mock.calls[2][1] as RequestInit).body));
+    expect(continuation.messages).toContainEqual(expect.objectContaining({role:'tool',content:expect.stringContaining('"participants":2')}));
   });
 
   it('does not route unrelated or injected questions into the stage-report shortcut',async()=>{

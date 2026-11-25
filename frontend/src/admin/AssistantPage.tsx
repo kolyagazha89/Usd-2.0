@@ -8,7 +8,7 @@ type StageChoice={id:string;name:string;date:string;city?:string|null;status:str
 
 const greeting:ChatEntry={
  role:'assistant',
- text:'Я AI-консультант по соревнованиям USD. Спроси о правилах, классах, этапах, участниках, результатах, настройках сайта или работе судей. Для точных данных я обращаюсь к системе USD. На темы, не связанные с USD, не отвечаю.',
+ text:'Спрашивай о соревнованиях, данных, коде и развитии USD. Я самостоятельно ищу сведения и анализирую их.',
  source:'guide',
 };
 const designGreeting:ChatEntry={
@@ -23,8 +23,9 @@ const designSuggestions=[
  'Как изменить регистрацию на месте, не нарушая существующие номера?',
 ];
 const suggestions=[
- 'Дай отчёт по последнему этапу',
+ 'Как дела по последнему этапу?',
  'Сколько участников на ближайшем этапе?',
+ 'Покажи результаты последнего этапа',
  'Что сейчас требует внимания?',
  'Проверь готовность этапа',
  'Проверь качество данных',
@@ -56,18 +57,37 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
  useEffect(()=>{const el=messagesRef.current;if(el)el.scrollTop=el.scrollHeight},[messages,sending,error]);
  useEffect(()=>{
   const chat=chatRef.current;if(!chat)return;
+  let notice:HTMLElement|null=null;
   const resize=()=>{
    const viewport=window.visualViewport;
-   const top=chat.getBoundingClientRect().top+window.scrollY;
-   const available=(viewport?.height??window.innerHeight)-Math.max(0,top)-12;
-   chat.style.setProperty('--assistant-mobile-height',Math.max(320,available)+'px');
+   const offset=viewport?.offsetTop??0;
+   const top=chat.getBoundingClientRect().top-offset;
+   const visibleHeight=viewport?.height??window.innerHeight;
+   const noticeRect=notice?.getBoundingClientRect();
+   const bottom=noticeRect&&noticeRect.height>0&&getComputedStyle(notice!).visibility!=='hidden'
+    ?Math.min(visibleHeight,noticeRect.top-offset-8):visibleHeight;
+   const available=bottom-Math.max(0,top)-8;
+   chat.style.setProperty('--assistant-mobile-height',Math.max(240,available)+'px');
   };
-  resize();
   const observer=new ResizeObserver(resize);
   if(toolbarRef.current)observer.observe(toolbarRef.current);
+  const syncNotice=()=>{
+   const next=document.querySelector<HTMLElement>('.cookie-notice');
+   if(next!==notice){
+    if(notice)observer.unobserve(notice);
+    notice=next;
+    if(notice)observer.observe(notice);
+   }
+   resize();
+  };
+  // CookieNotice is mounted independently after its own effect. Observe
+  // insertion/removal, not style attributes, and reserve its actual height.
+  const mutation=new MutationObserver(syncNotice);
+  mutation.observe(document.body,{childList:true,subtree:true});
+  syncNotice();
   window.addEventListener('resize',resize);
   window.visualViewport?.addEventListener('resize',resize);
-  return ()=>{observer.disconnect();window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize)};
+  return ()=>{mutation.disconnect();observer.disconnect();window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize)};
  },[]);
  useEffect(()=>{
   const el=textareaRef.current;if(!el)return;
@@ -101,7 +121,7 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
    database:'Проверено по базе USD',guide:'Инструкция',ai:'USD AI',unavailable:'Не удалось проверить',
  } as Record<string,string>)[source??'']??'';
 
- return <PageFrame title="Ассистент USD" subtitle="Вопросы по USD и обсуждение новых изменений — только чтение, без автоматического внесения правок.">
+ return <PageFrame title="Ассистент USD" subtitle="Данные USD и обсуждение изменений · только чтение" showHelp={false} className="assistant-page">
   <div className="assistant-workspace">
    <div className="assistant-workspace-toolbar" ref={toolbarRef}>
     <div className="assistant-chat-mode-switch" role="group" aria-label="Режим ассистента">
@@ -123,7 +143,7 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
    <section className="assistant-chat panel" ref={chatRef} aria-label="Чат ассистента USD">
     <div className="assistant-chat-head">
      <div className="assistant-avatar"><Bot size={22} aria-hidden="true"/></div>
-     <div><strong>Ассистент USD</strong><span>{aiStatus?(aiStatus.provider==='ollama'?(aiStatus.modelReady?'Локальная модель '+aiStatus.model+' готова':'Локальная модель '+aiStatus.model+' недоступна'):(aiStatus.aiConfigured?'Облачная модель '+aiStatus.model+' · ключ настроен':'OpenAI API · ключ не настроен')):'Отвечаю только по USD · проверяю факты через систему'}</span></div>
+     <div><strong>Ассистент USD</strong><span>{aiStatus?(aiStatus.provider==='ollama'?(aiStatus.modelReady?'Локальный ИИ · доступ к данным и исходникам':'Локальная модель '+aiStatus.model+' недоступна'):(aiStatus.aiConfigured?'Облачная модель '+aiStatus.model+' · ключ настроен':'OpenAI API · ключ не настроен')):'Отвечаю только по USD · проверяю факты через систему'}</span></div>
      <ShieldCheck className="assistant-trust-icon" size={21} aria-hidden="true"/>
     </div>
     <div className="assistant-messages" ref={messagesRef} role="log" aria-live="polite" aria-relevant="additions text">
@@ -137,7 +157,7 @@ function AssistantPage({go,PageFrame}:{go:(path:string)=>void;PageFrame:React.Co
        </div>:null}
       </div>
      </div>)}
-     {sending&&<div className="assistant-message assistant"><div className="message-avatar"><Bot size={15}/></div><div className="message-bubble assistant-typing"><Loader2 size={15} className="spin"/>Проверяю запрос… Первый ответ модели может занять до двух минут.</div></div>}
+     {sending&&<div className="assistant-message assistant"><div className="message-avatar"><Bot size={15}/></div><div className="message-bubble assistant-typing"><Loader2 size={15} className="spin"/>{mode==='design'?'Анализирую предложение…':'Исследую данные и формирую ответ…'}</div></div>}
     </div>
     {messages.length===1&&!sending&&<div className="assistant-chat-suggestions" aria-label={mode==='design'?'Идеи для обсуждения':'Быстрые проверки'}>
      {(mode==='design'?designSuggestions:suggestions).map(text=><button type="button" key={text} onClick={()=>void send(text)} disabled={sending}>{text}</button>)}

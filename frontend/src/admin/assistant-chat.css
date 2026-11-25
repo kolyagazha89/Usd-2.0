@@ -108,3 +108,25 @@ body .app-shell .main .assistant-workspace .assistant-chat-note{flex:0 0 auto}
  body .app-shell .main .assistant-workspace .assistant-composer button span{display:none!important}
  body .app-shell .main .assistant-workspace .assistant-chat-note{display:none!important}
 }
+
+/* Chat is the primary surface on phones. Preserve the semantic h1 for AT,
+   while eliminating duplicate page chrome and using the available viewport. */
+@media(max-width:760px){
+ body .app-shell .main .content > .assistant-page > .page-heading{
+  position:absolute!important;width:1px!important;height:1px!important;
+  min-height:0!important;overflow:hidden!important;clip-path:inset(50%);
+  white-space:nowrap!important;padding:0!important;margin:0!important;border:0!important;
+ }
+ body .app-shell .main .content:has(> .assistant-page){
+  padding-top:8px!important;padding-bottom:calc(8px + var(--usd-cookie-height,0px))!important;
+ }
+ body .app-shell .main .assistant-workspace{gap:6px}
+ body .app-shell .main .assistant-workspace .assistant-chat.panel{
+  min-height:240px!important;
+ }
+ body .app-shell .main .assistant-workspace .assistant-chat-head{
+  padding:6px 9px!important;gap:8px;
+ }
+ body .app-shell .main .assistant-workspace .assistant-avatar{width:30px;height:30px}
+ body .app-shell .main .assistant-workspace .assistant-messages{padding:8px!important}
+}
