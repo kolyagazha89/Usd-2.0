@@ -5,18 +5,14 @@ export async function downloadGatePaperWorkbook(sheets:ReturnType<typeof buildGa
  for(const sheet of sheets){
   const ws=XLSX.utils.aoa_to_sheet(sheet.rows);
   ws['!cols']=sheet.widths.map(wch=>({wch}));
-  if(sheet.name!=='Инструкция'){
-   ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:sheet.widths.length-1}},{s:{r:1,c:0},e:{r:1,c:sheet.widths.length-1}}];
-   ws['!rows']=sheet.rows.map((row,i)=>({hpt:i<3?24:Math.max(28,...row.map((v,c)=>Math.ceil(String(v).length/Math.max(1,sheet.widths[c]-4))*15))}));
-  }else{
-   ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:1}},{s:{r:1,c:0},e:{r:1,c:1}}];
-   ws['!rows']=sheet.rows.map((row,i)=>({hpt:i<2?24:Math.max(36,Math.ceil(String(row[1]??'').length/85)*17)}));
-  }
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
+  ws['!rows']=sheet.rows.map((row,i)=>({hpt:i<3?30:Math.max(29,...row.map((v,c)=>String(v).split('\n').reduce((sum,line)=>sum+Math.max(1,Math.ceil(line.length/Math.max(1,sheet.widths[c]-2))),0)*13))}));
+  ws['!margins']={left:0.2,right:0.2,top:0.2,bottom:0.2,header:0,footer:0};
   XLSX.utils.book_append_sheet(workbook,ws,sheet.name);
  }
+ workbook.Workbook={...workbook.Workbook,Names:[{Name:'_xlnm.Print_Titles',Ref:"'Регистрация'!$1:$3",Sheet:0},{Name:'_xlnm.Print_Area',Ref:"'Регистрация'!$A$1:$J$"+sheets[0].rows.length,Sheet:0}]};
  XLSX.writeFile(workbook,'USD-gate-'+stageId+'.xlsx');
 }
-
 /** Use textContent for all stage/participant data; never interpolate it into HTML. */
 export function printGatePaperWorkbook(sheets:ReturnType<typeof buildGatePaperSheets>,popup:Window){
  const doc=popup.document;
@@ -24,15 +20,15 @@ export function printGatePaperWorkbook(sheets:ReturnType<typeof buildGatePaperSh
  doc.documentElement.lang='ru';
  const style=doc.createElement('style');
  style.textContent=`
- @page {size:A4 landscape;margin:10mm}
- body{font:11px Arial,sans-serif;color:#111;margin:0}
+ @page {size:A4 portrait;margin:5mm}
+ body{font:9px Arial,sans-serif;color:#111;margin:0}
  h1{font-size:17px;margin:0 0 6px} p{margin:0 0 8px;overflow-wrap:anywhere}
  section+section{break-before:page}
  table{width:100%;border-collapse:collapse;table-layout:fixed}
  thead{display:table-header-group}
- th,td{border:1px solid #777;padding:5px;vertical-align:top;overflow-wrap:anywhere;white-space:pre-wrap}
+ th,td{border:1px solid #777;padding:3px;vertical-align:middle;overflow-wrap:anywhere;white-space:pre-wrap}
  th{font-weight:bold;background:#eee;text-align:left} tr{break-inside:avoid}
- td{height:21px} ol{padding-left:24px} li{font-size:13px;margin:0 0 12px;line-height:1.4}
+ td{height:26px} th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:center} ol{padding-left:24px} li{font-size:13px;margin:0 0 12px;line-height:1.4}
  `;
  doc.head.append(style);
  for(const sheet of sheets){

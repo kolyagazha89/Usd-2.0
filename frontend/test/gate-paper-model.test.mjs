@@ -1,40 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildGatePaperSheets} from '../src/admin/gate-paper-model.ts';
-
-const stage={name:'Финал',city:'Волгоград',date:'2026-11-29'};
-const rows=[
- {id:'pre',status:'ACTIVE',source:'PRE_REGISTRATION',participantNumber:5,participant:{lastName:'Иванов',firstName:'Иван',middleName:'Иванович'},car:{brand:'Lada',model:'2107',registrationNumber:'А123АА'},numbers:[{number:5,isPrimary:true},{number:9,isPrimary:false}],classes:[{class:{name:'SPL',direction:{name:'SPL'}},number:{number:5}},{class:{name:'120',direction:{name:'BassRace'}},number:{number:9}}]},
- {id:'cancelled',status:'CANCELLED',source:'PRE_REGISTRATION',participantNumber:-1,numbers:[{number:7}]},
- {id:'onsite',status:'ACTIVE',source:'ON_SITE',participantNumber:2,participant:{lastName:'Петров'},numbers:[{number:2,isPrimary:true}],classes:[]},
-];
-test('gate package lists every active pre-registration and all occupied stickers, including on-site and BassRace',()=>{
- const sheets=buildGatePaperSheets(stage,rows,'2026-11-25T08:00:00.000Z');
- const pre=sheets.find(s=>s.name==='Предрегистрация').rows.slice(3);
- assert.equal(pre.length,1);
- assert.deepEqual(pre[0].slice(0,6),[5,'Иванов Иван Иванович','Lada 2107','А123АА','SPL · SPL','9: BassRace · 120']);
- const occupied=sheets.find(s=>s.name==='Занятые номера').rows.slice(3);
- assert.deepEqual(occupied.map(r=>r[0]),Array.from({length:100},(_,i)=>i+1));
- assert.deepEqual(occupied[0],[1,'Свободен','','','','']);
- assert.equal(occupied[1][1],'Основной');
- assert.equal(occupied[8][1],'Доп.');
- assert.equal(occupied[8][3],'BassRace · 120');
- assert.equal(occupied[6][1],'Свободен');
+const stage={name:'Финал',date:'2026-11-29'};
+const cls=(name,direction,number)=>({class:{name,direction:{name:direction}},number:{number}});
+test('single portrait roster has 100 sticker rows, empty inspection, and five separate direction columns',()=>{
+ const [sheet,...other]=buildGatePaperSheets(stage,[{status:'ACTIVE',source:'PRE_REGISTRATION',participantNumber:5,participant:{lastName:'Иванов',firstName:'Иван',middleName:'Иванович'},car:{brand:'Lada',model:'2107',registrationNumber:'А123АА'},numbers:[{number:5,isPrimary:true},{number:9}],classes:[cls('Любитель','SPL',5),cls('Стандарт','SPL',5),cls('Фронт','BF SPL',5),cls('Тыл','BDW SPL',5),cls('Wall','Storm Wall',5),cls('129.9','Bass Race',9)]}], 'now');
+ assert.equal(other.length,0);
+ assert.equal(sheet.rows.length,103);
+ assert.deepEqual(sheet.rows[2],['Инспекция','№ участника','ФИО','Авто','Госномер','SPL','BFSPL','BDW SPL','BassRace','Hurricane']);
+ assert.deepEqual(sheet.rows[3],['',1,'','','','','','','','']);
+ assert.deepEqual(sheet.rows[7],['',5,'Иванов Иван Иванович','Lada 2107','А123АА','Любитель\nСтандарт','Фронт','Тыл','','Wall']);
+ assert.deepEqual(sheet.rows[11],['',9,'Иванов Иван Иванович','Lada 2107','А123АА','','','','129.9','']);
+ assert.equal(sheet.rows.at(-1)[1],100);
 });
-test('empty stage still has headers, blank forms and instructions; no invented participant',()=>{
- const sheets=buildGatePaperSheets(stage,[],'2026-11-25T08:00:00.000Z');
- assert.equal(sheets.find(s=>s.name==='Предрегистрация').rows.length,3);
- assert.equal(sheets.find(s=>s.name==='Занятые номера').rows.length,103);
- assert.equal(sheets.find(s=>s.name==='Новые заявки').rows.length,23);
- assert.equal(sheets.find(s=>s.name==='Инструкция').rows[0][0],'USD · Резервная работа на въезде');
+test('cancelled records never reserve a paper row; all active sources and numbers above 100 stay visible',()=>{
+ const [sheet]=buildGatePaperSheets(stage,[{status:'CANCELLED',participantNumber:7},{status:'ACTIVE',source:'ON_SITE',participantNumber:103,classes:[cls('139.9','BassRace',103)]}],'now');
+ assert.deepEqual(sheet.rows[9],['',7,'','','','','','','','']);
+ assert.equal(sheet.rows.at(-1)[1],103);
+ assert.equal(sheet.rows.at(-1)[8],'139.9');
 });
-test('primary number and class-linked numbers are preserved even with incomplete number arrays',()=>{
- const sheets=buildGatePaperSheets(stage,[{status:'ACTIVE',source:'PRE_REGISTRATION',participantNumber:4,classes:[{class:{name:'Extra'},number:{number:8}}]}],'now');
- assert.deepEqual(sheets.find(s=>s.name==='Занятые номера').rows.slice(3).filter(r=>r[1]!=='Свободен').map(r=>r[0]),[4,8]);
+test('legacy SPL-parent classes route to their actual direction; unknown class is not lost',()=>{
+ const [sheet]=buildGatePaperSheets(stage,[{status:'ACTIVE',participantNumber:1,classes:[cls('BFSPL 1','SPL',1),cls('BDW 2','SPL',1),cls('SPL Hurricane','SPL',1),cls('Custom','Unknown',1)]}],'now');
+ assert.deepEqual(sheet.rows[3].slice(5),['[?] Unknown · Custom','BFSPL 1','BDW 2','','SPL Hurricane']);
 });
-
-test('occupied numbers above 100 are never omitted from the ledger',()=>{
- const sheet=buildGatePaperSheets(stage,[{status:'ACTIVE',participantNumber:107}],'now').find(s=>s.name==='Занятые номера');
- assert.equal(sheet.rows.length,104);
- assert.deepEqual(sheet.rows.at(-1),[107,'Основной','','',107,'']);
+test('ambiguous duplicate numbers fail explicitly',()=>{
+ assert.throws(()=>buildGatePaperSheets(stage,[{status:'ACTIVE',participantNumber:1},{status:'ACTIVE',participantNumber:1}],'now'),/Дублирующийся/);
 });
