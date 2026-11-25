@@ -5,27 +5,28 @@ import {jumpToEventOpsRecords} from './event-ops-scroll';
 const sections = [
  {id:'registrations',title:'Регистрации'},
  {id:'inspections',title:'Инспекция',label:'Инспекция въезда'},
- {id:'results',title:'Судейство'},
+ {id:'results',title:'Результаты'},
 ] as const;
 
-export function EventOperationsNavigation({current,stageId,stageName,registrationId,participantNumber,showListJump=true,go}:{
+export function EventOperationsNavigation({current,stageId,stageName,registrationId,participantNumber,showListJump=true,compact=false,go}:{
  current:OperationsSection;
  stageId:string;
  stageName?:string;
  registrationId?:string;
  participantNumber?:number|string;
  showListJump?:boolean;
+ compact?:boolean;
  go:(path:string)=>void;
 }){
  return <nav className="event-ops-workflow" aria-label="Рабочие разделы этапа">
-  <div className="event-ops-workflow-context">
+  {!compact&&<div className="event-ops-workflow-context">
    <strong><AdminEntityLink kind="stage" id={stageId}>{stageId?(stageName||'Выбранный этап'):'Сначала выберите этап'}</AdminEntityLink></strong>
    {participantNumber!=null&&<span className="event-ops-workflow-number-label">Участник № {participantNumber}</span>}
    {stageId&&<div className="event-ops-workflow-context-actions">
     {showListJump&&<button type="button" className="secondary-button compact event-ops-list-jump" onClick={()=>jumpToEventOpsRecords()}>К списку</button>}
     <button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))} aria-label="Все участники и допуски">Участники и допуски</button>
    </div>}
-  </div>
+  </div>}
   <div className="event-ops-workflow-steps">
    {sections.map(step=>{
     const active=step.id===current;

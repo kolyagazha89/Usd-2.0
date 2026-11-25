@@ -11,14 +11,26 @@ export default function CookieNotice() {
   useLayoutEffect(() => {
     if (!visible || !noticeRef.current) return;
     const notice = noticeRef.current;
-    const measure = () => document.documentElement.style.setProperty('--usd-cookie-height', `${Math.ceil(notice.getBoundingClientRect().height)}px`);
+    let frame = 0;
+    const measure = () => {
+      const value = `${Math.ceil(notice.getBoundingClientRect().height)}px`;
+      if (document.documentElement.style.getPropertyValue('--usd-cookie-height') !== value) {
+        document.documentElement.style.setProperty('--usd-cookie-height', value);
+      }
+    };
+    // WebKit reports a ResizeObserver loop if layout is changed during delivery.
+    const scheduleMeasure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
     measure();
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleMeasure);
     observer?.observe(notice);
-    window.addEventListener('resize', measure);
+    window.addEventListener('resize', scheduleMeasure);
     return () => {
       observer?.disconnect();
-      window.removeEventListener('resize', measure);
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', scheduleMeasure);
       document.documentElement.style.removeProperty('--usd-cookie-height');
     };
   }, [visible]);

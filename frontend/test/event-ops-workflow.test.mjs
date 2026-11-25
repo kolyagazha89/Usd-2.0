@@ -42,7 +42,7 @@ test('both operational lists have independently reachable detail actions and loa
  ]);
  for(const s of [registrations,inspections]){
   assert.match(s,/className="panel table-wrap event-ops-results" aria-busy=\{loading\}/);
-  assert.match(s,/className="data-table" aria-label="/);
+  assert.match(s,/className="data-table event-ops-compact-table" aria-label="/);
   assert.match(s,/event-ops-open/);
  }
  assert.match(registrations,/aria-label=\{"Подробнее о регистрации: "/);

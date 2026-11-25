@@ -84,6 +84,11 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
    setNotice('Регистрация найдена в защищённом офлайн-пакете. Сервер не запрашивался.');
   }catch(e){setQrError(e instanceof Error?e.message:'QR не найден в этом пакете')}
  };
+ useEffect(()=>{
+  if(!data||!qrInput.trim())return;
+  const timer=setTimeout(()=>{stopCamera();readRegistrationQr(qrInput)},300);
+  return()=>clearTimeout(timer);
+ },[qrInput,data]);
  const startCamera=async()=>{
   if(!data||cameraActive||busy)return;
   type Detector=new(options:{formats:string[]})=>{detect:(video:HTMLVideoElement)=>Promise<Array<{rawValue:string}>>};
@@ -251,7 +256,6 @@ export default function OfflineEventPage({onGoOnline}:{onGoOnline:(path?:string)
       <p>Сканируйте камерой, если браузер поддерживает QR, либо вставьте ссылку из QR-кода участника. Поиск выполняется только в локальном зашифрованном списке.</p></div>
      <form className="usd-offline-qr-form" onSubmit={e=>{e.preventDefault();stopCamera();readRegistrationQr(qrInput)}}>
       <label>QR регистрации или ID<input type="text" autoComplete="off" value={qrInput} maxLength={2048} onChange={e=>setQrInput(e.target.value)} placeholder="https://app.usd-russia.ru/admin/inspections?…"/></label>
-      <button type="submit" className="usd-offline-button" disabled={!qrInput.trim()}><ScanQrCode size={16}/>Найти по QR</button>
       <button type="button" className="usd-offline-button secondary" disabled={busy} onClick={()=>void (cameraActive?stopCamera():startCamera())}>{cameraActive?'Остановить камеру':'Открыть камеру'}</button>
      </form>
      <video ref={cameraRef} className={'usd-offline-qr-camera'+(cameraActive?' is-active':'')} autoPlay playsInline muted aria-label="Камера QR"/>

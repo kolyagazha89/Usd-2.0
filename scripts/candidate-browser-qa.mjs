@@ -3,6 +3,7 @@ import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import {verifyAdminSearch,verifySelectTextSpace} from './admin-search-browser-qa.mjs';
 import {isCandidateApiRequest,getCandidateQaOptions} from './candidate-browser-qa-config.mjs';
 import {getBrowserLaunchOptions} from './browser-qa-config.mjs';
 
@@ -84,6 +85,8 @@ function dataFor(url,role){
   directions:[{id:'dir1',name:'SPL',athletes:2,classEntries:2,actualAthletes:1,results:1,classes:[{id:'class1',name:'Limited 2.0',athletes:2,classEntries:2,actualAthletes:1,results:1}]}],
   notes:['Только опубликованные исходные данные USD. Не отображать фиктивные платежи.']
  }};
+ if(p==='/statistics/participants')return [participant];
+ if(p==='/statistics/participants/p1')return {participant,stats:{registrations:1}};
  if(p==='/statistics/overview')return {stats:dashboard.overview};
  if(p.startsWith('/statistics/seasons/'))return {registrations:{total:1,withTeam:1,withoutTeam:0,withoutTeamPercent:0},teams:[{name:'USD Team',registrations:1,percent:100,participants:1}],vibrationIsolation:[],configurationBrands:[]};
  if(p.startsWith('/statistics/audit'))return {items:[],total:0,page:1,totalPages:1};
@@ -128,7 +131,7 @@ function dataFor(url,role){
  if(p==='/teams/public')return [{id:null,name:'USD Team',description:'',isActive:false,members:[],historicalMembers:[{id:participant.id,firstName:participant.firstName,lastName:participant.lastName,city:participant.city}],posts:[]}];
  if(p==='/results/admin/stage/stage1'||p.startsWith('/results/stage/')||p==='/results/public')return [result];
  if(p==='/results/public/latest')return [result];
- if(p==='/auth/admin/users')return [user('PARTICIPANT')];
+ if(p==='/auth/admin/users')return Array.from({length:12},(_,index)=>({...user('PARTICIPANT'),id:'fixture-user-'+index,email:index?'other-'+index+'@example.test':'fixture@example.test',participantId:index?null:'p1',participant:index?null:participant}));
  if(p==='/mail/journal')return {entries:[{id:'mail-1',type:'AUTH_EMAIL_VERIFICATION',recipient:'fixture@example.test',status:'PROVIDER_ACCEPTED',attempts:1,createdAt:'2026-11-18T09:00:00Z',providerAcceptedAt:'2026-11-18T09:00:03Z'}],nextCursor:null};
  if(p==='/push/admin/messages')return {enabled:true,subscribers:1,messages:[]};
  if(p==='/push/admin/templates')return {revision:'a'.repeat(64),templates:[{key:'profileLinkRequest',label:'Заявка на привязку',description:'Администраторам',enabled:true,title:'Новая заявка',body:'Проверьте заявку'}]};
@@ -136,7 +139,7 @@ function dataFor(url,role){
 }
 const publicRoutes=['/','/offline-event','/stages','/stages/stage1','/results?stageId=stage1','/records','/rules','/privacy','/terms','/consent','/login','/login?next=%2Fparticipant%2Fregister%3FstageId%3Dstage1','/participants/missing','/cars/missing','/stages/missing','/participants/offline','/stages/offline','/stages/%E0%A4%A','/unknown-page','/reset-password','/confirm-email-change','/participants','/participants/p1','/teams','/teams/USD%20Team','/cars','/cars/car1','/news','/news/news-image-fixture','/partners','/contacts','/documents','/about'];
 const participantRoutes=[...publicRoutes.filter(route=>!['/login','/reset-password','/confirm-email-change'].includes(route.split('?')[0])),'/participant','/participant?tab=profile','/participant?tab=profile&section=consents','/participant?tab=profile&section=security','/participant?tab=profile&section=sessions','/participant?tab=profile&section=notifications','/participant?tab=cars','/participant?tab=registrations','/participant/car?carId=car1','/participant/car/new','/participant/configurations?carId=car1','/participant/configurations?carId=car1&view=config1','/participant/configurations?carId=car1&edit=config1','/participant/registration?registrationId=reg1','/participant/registration-success?registrationId=reg1','/participant/register?stageId=stage1','/participant/register?stageId=missing','/participant/register','/participant/register?stageId=outage'];
-const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/inspections?stageId=stage1&registrationId=reg1','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/profile-links','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/season-report','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
+const adminRoutes=['/admin','/admin/event-day?stageId=stage1','/admin/stages','/admin/stages/new','/admin/registrations','/admin/inspections','/admin/inspections?stageId=stage1','/admin/inspections?stageId=stage1&registrationId=reg1','/admin/results','/admin/results?stageId=stage1','/admin/results?stageId=stage1&registrationId=reg1&entry=1','/admin/participants','/admin/profile-links','/admin/teams','/admin/cars','/admin/cars/new','/admin/cars/configurations?carId=car1','/admin/records','/admin/statistics','/admin/stage-report?stageId=stage1','/admin/season-report','/admin/disqualifications','/admin/news','/admin/partners','/admin/rules','/admin/legal-documents','/admin/seasons','/admin/classes','/admin/vibration','/admin/components','/admin/vehicle-catalog','/admin/historical-results','/admin/data-quality','/admin/users','/admin/roles','/admin/media','/admin/audit','/admin/site-settings','/admin/site-settings?section=homepage&step=hero','/admin/site-settings?section=homepage&step=copy','/admin/site-settings?section=homepage&step=blocks','/admin/site-settings?section=legal','/admin/email-testing','/admin/email-templates','/admin/notifications','/admin/assistant'];
 const report={scope:'Built candidate JavaScript and CSS; all remote requests mocked; synthetic records only; no production access',motion:'Reduced-motion responsive layout; normal-motion WebGL graphics require separate browser acceptance',startedAt:new Date().toISOString(),pages:[],failures:[],blocked};
 const browser=await chromium.launch(getBrowserLaunchOptions());
 try{
@@ -519,7 +522,9 @@ try{
        row.universalTable='shared responsive cards, keyboard-sortable resource list';
       }else row.universalTable='resource sort columns and direction available on desktop';
      }
-     if(role==='ADMIN'&&width<=760&&['/admin/registrations','/admin/inspections','/admin/results'].includes(route.split('?')[0])){
+     if(role==='ADMIN'&&width<=760&&['/admin/registrations','/admin/inspections','/admin/results'].includes(route.split('?')[0])&&await page.locator('.stage-picker').count()){
+      const stageDrawer=page.locator('.event-ops-stage-drawer');const wasClosed=await stageDrawer.count()&&await stageDrawer.getAttribute('open')===null;
+      if(wasClosed)await stageDrawer.locator('summary').first().click();
       const stageLayout=await page.locator('.stage-picker').evaluate(element=>{
        const stage=element.querySelector(':scope > label')?.getBoundingClientRect();
        const filters=element.querySelector(':scope > .usd-filter-drawer')?.getBoundingClientRect();
@@ -528,7 +533,8 @@ try{
       });
       assert.ok(stageLayout.stageWidth>=stageLayout.outerWidth-32&&stageLayout.stageTop<=stageLayout.filtersTop,
        'stage selection must be full width and above optional filters on phones '+JSON.stringify(stageLayout));
-      row.stagePicker='primary stage selector is full width and visually first';
+      row.stagePicker='full-width selector inside optional collapsed stage controls';
+      row.stageSelects=await verifySelectTextSpace(page);if(wasClosed)await stageDrawer.locator('summary').first().click();
      }
      if(role==='ADMIN'&&route==='/admin/components'){
       const categoryPicker=page.getByRole('combobox',{name:'Категория оборудования'});
@@ -1225,7 +1231,7 @@ try{
       await desk.getByRole('button',{name:'Регистрации'}).click();
       await page.waitForURL(url=>url.pathname==='/admin/registrations'&&url.searchParams.get('view')==='reg1');
       await desk.getByText('Участник № 7').waitFor();
-      await desk.getByRole('button',{name:'Судейство'}).click();
+      await desk.getByRole('button',{name:'Результаты'}).click();
       await page.waitForURL(url=>url.pathname==='/admin/results'&&url.searchParams.get('registrationId')==='reg1');
       await page.locator('.judging-entry-wizard').waitFor();
       await desk.getByRole('button',{name:'Инспекция въезда'}).click();
@@ -1242,7 +1248,7 @@ try{
       await nav.waitFor({state:'visible'});
       assert.equal(await nav.locator('.event-ops-workflow-step').count(),3,'three stage-scoped desks');
        assert.equal(await nav.getByRole('button',{name:'Все участники и допуски'}).count(),1,'stage desk offers return to unified roster');
-      assert.equal(await nav.locator('[aria-current="page"]').getAttribute('aria-label'),'Судейство');
+      assert.equal(await nav.locator('[aria-current="page"]').getAttribute('aria-label'),'Результаты');
       // The judging KPIs are intentionally collapsed until an operator requests them.
       const judgingMetrics=page.locator('details.event-ops-metrics-drawer');
       assert.equal(await judgingMetrics.getAttribute('open'),null,'judging metrics stay compact by default');
@@ -1305,6 +1311,8 @@ try{
       row.judgeLayout='three connected desks, white admin and responsive controls';
      }
      if(role==='ADMIN'&&['/admin/registrations','/admin/inspections'].includes(route)){
+      const actions=page.locator('.event-ops-actions-drawer');
+      if(await actions.getAttribute('open')===null)await actions.locator('summary').first().click();
       const root=page.locator('.event-ops-page');
       await root.waitFor();
       const geometry=await root.evaluate(el=>{
@@ -1320,7 +1328,7 @@ try{
       await page.locator('.event-ops-results .data-table tbody tr').first().waitFor();
       if(width<=760){
        const display=await page.locator('.event-ops-results .data-table tbody tr').first().evaluate(el=>getComputedStyle(el).display);
-       assert.equal(display,'block','event registrations/inspections must render mobile cards, not wide desktop tables');
+       assert.equal(display,'grid','event registrations/inspections render compact mobile cards');
       }else if(width<1200){
        const tablet=await page.locator('.event-ops-results .data-table').evaluate(el=>{
         const row=el.querySelector('tbody tr');
@@ -1360,14 +1368,14 @@ try{
       }
       const workflow=page.getByRole('navigation',{name:'Рабочие разделы этапа'});
       await workflow.waitFor({state:'visible'});
-      assert.equal(await workflow.getByRole('button',{name:/К списку/}).count(),1,'staff can jump straight to the records list');
-      assert.match(await workflow.innerText(),/Кубок USD/,'both desks show the selected stage');
+      assert.equal(await workflow.locator('.event-ops-workflow-context').count(),0,'list navigation consists of the three work sections');
+      assert.match(await page.locator('.event-ops-stage-drawer>summary').innerText(),/Кубок USD/,'selected stage stays visible in the collapsed controls');
       const activeLabel=route==='/admin/registrations'?'Регистрации':'Инспекция въезда';
       const nextLabel=route==='/admin/registrations'?'Инспекция въезда':'Регистрации';
       const nextPath=route==='/admin/registrations'?'/admin/inspections':'/admin/registrations';
       assert.equal(await workflow.locator('[aria-current="page"]').getAttribute('aria-label'),activeLabel);
       assert.equal(await workflow.locator('.event-ops-workflow-step').count(),3,'three connected event-day steps');
-       assert.equal(await workflow.getByRole('button',{name:'Все участники и допуски'}).count(),1,'unified event-day roster is reachable from inspections and registration');
+       assert.equal(await actions.getByRole('button',{name:'Участники и допуски',exact:true}).count(),1,'unified roster remains inside actions');
       await workflow.getByRole('button',{name:nextLabel,exact:true}).click();
       await page.waitForURL(url=>url.pathname===nextPath&&url.searchParams.get('stageId')==='stage1');
       await page.locator('.event-ops-workflow-step.is-active').waitFor();
@@ -1377,6 +1385,7 @@ try{
       await page.goto(base+route,{waitUntil:'networkidle'});
       row.adminEventOperations='full-width responsive roster and status controls';
       if(route==='/admin/inspections'){
+       if(await page.locator('.event-ops-actions-drawer').getAttribute('open')===null)await page.locator('.event-ops-actions-drawer>summary').click();
        await page.getByRole('button',{name:'Зарегистрировать участника'}).click();
        await page.getByRole('button',{name:'Новый участник на въезде'}).click();
        const brandInput=page.getByRole('combobox',{name:'Марка автомобиля'});
@@ -1703,6 +1712,8 @@ try{
       row.configuratorInteraction='brand first, model second; manual names and catalog models added to SUB without saving';
       await page.evaluate(()=>scrollTo(0,0));
      }
+     if(role==='ADMIN')await verifyAdminSearch(page,route,width,output);
+     row.selectTextSpace=await verifySelectTextSpace(page);
      if(AxeBuilder){
       const axe=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
       row.axe={violations:axe.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})),incomplete:axe.incomplete.length,passes:axe.passes.length};

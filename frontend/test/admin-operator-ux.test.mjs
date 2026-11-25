@@ -17,12 +17,12 @@ test('profile-link work queue precedes the optional history/audit tools',async()
  assert.match(code,/Заявок с выбранным статусом нет/);
 });
 
-test('user search supports explicit submit and one-click clearing',async()=>{
+test('user search supports full name and one-click clearing',async()=>{
  const code=await get('UsersPage.tsx');
- assert.match(code,/aria-label="Поиск пользователей по email"/);
- assert.match(code,/Найти/);
+ assert.match(code,/aria-label="Поиск пользователей по email или ФИО"/);
+ assert.doesNotMatch(code,/>Найти<\/button>/);
  assert.match(code,/aria-label="Очистить поиск пользователей"/);
- assert.match(code,/void load\(\{search:''\}\)/);
+ assert.match(code,/filterAdminUsers\(data,search,role/);
  assert.match(code,/Пользователи не найдены/);
  assert.match(code,/Сбросить поиск и фильтры/);
  assert.match(code,/aria-label="Обновить список пользователей"/);

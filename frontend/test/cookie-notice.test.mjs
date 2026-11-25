@@ -9,8 +9,9 @@ import path from 'node:path';
 test('cookie clearance follows the wrapped notice and is removed on dismissal',async()=>{
  const base=path.dirname(fileURLToPath(import.meta.url)),scratch=await mkdtemp(path.join(base,'.cookie-notice-'));
  const dom=new JSDOM('<div id="root"></div>',{url:'https://usd.test/'});
- let height=180,resize,disconnected=false;
+ let height=180,resize,disconnected=false,frame=null;
  const values={window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true,
+  requestAnimationFrame:callback=>{frame=callback;return 1},cancelAnimationFrame:()=>{frame=null},
   ResizeObserver:class{constructor(callback){resize=callback}observe(){}disconnect(){disconnected=true}}};
  const previous=new Map(Object.keys(values).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
  try{
@@ -25,7 +26,7 @@ test('cookie clearance follows the wrapped notice and is removed on dismissal',a
   try{
    await React.act(async()=>root.render(React.createElement(CookieNotice)));
    assert.equal(clearance(),'180px');
-   height=240;await React.act(async()=>resize());assert.equal(clearance(),'240px','a taller wrapped notice must reserve more scroll space');
+   height=240;await React.act(async()=>resize());assert.equal(clearance(),'180px','observer defers layout writes until the next frame');assert.ok(frame);frame();assert.equal(clearance(),'240px','a taller wrapped notice must reserve more scroll space');
    await React.act(async()=>document.querySelector('.cookie-notice__button').click());
    assert.equal(document.querySelector('.cookie-notice'),null);assert.equal(clearance(),'');assert.equal(disconnected,true);
    assert.equal(window.localStorage.getItem('usd_cookie_notice_dismissed'),'2026-11-analytics-v2');

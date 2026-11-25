@@ -73,7 +73,21 @@ export function operationsSearchText(row:OperationsRow):string {
 }
 
 export function matchesOperationsSearch(row:OperationsRow,query:string):boolean {
-  const terms=normalize(query).split(/\s+/).filter(Boolean);
+  let text=normalize(query);
+  // A number entered at the gate identifies an assigned participant number,
+  // not digits inside a plate, car model or class name. Compare strings to
+  // avoid numeric precision loss and accept the padded numbers shown in UI.
+  const assigned=[row.participantNumber,...(row.numbers??[]).map(n=>n.number),...(row.classes??[]).map(c=>c.number?.number)]
+    .filter(n=>n!==null&&n!==undefined).map(n=>String(n).replace(/^0+(?=\d)/,''));
+  const number=text.match(/^(?:[№#]\s*)?(\d+)$/);
+  if(number)return assigned.includes(number[1].replace(/^0+(?=\d)/,''));
+  let matchesNumbers=true;
+  text=text.replace(/(^|\s)[№#]\s*(\d+)(?=\s|$)/g,(_match,_space,digits:string)=>{
+    if(!assigned.includes(digits.replace(/^0+(?=\d)/,'')))matchesNumbers=false;
+    return ' ';
+  });
+  if(!matchesNumbers)return false;
+  const terms=text.split(/\s+/).filter(Boolean);
   if(!terms.length)return true;
   const source=operationsSearchText(row);
   const compactSource=compactPlate(source);
