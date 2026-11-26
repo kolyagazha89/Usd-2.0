@@ -613,6 +613,7 @@ $script:StepLabels=@{
  'import-existing-participant-directory'='Проверяем пакет и обновляем справочник'
  'export-caddy-public-ca'='Подготавливаем публичный сертификат для судей'
  'check-startup-release'='Проверяем обновления USD'
+ 'check-startup-schema'='Проверяем совместимость API с локальной базой'
  'cache-startup-frontend'='Скачиваем новый интерфейс в кеш'
  'cache-startup-api'='Скачиваем образ API в кеш'
  'download-current-frontend-image'='Скачиваем обновление интерфейса'
@@ -1337,7 +1338,7 @@ try{
  }
  $script:Token=''
 }
- {'Новые образы скачаны. Интерфейс обновится при следующем запуске остановленного сервера.'}
+ {'Новые образы скачаны. При запуске остановленного сервера обновятся интерфейс и совместимый API.'}
     ': current
   if($request.Action -eq 'next'){
    $next=@($lines|Where-Object {$_ -match '^USD VENUE WORKSPACE: '}|Select-Object -Last 1)
