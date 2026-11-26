@@ -97,6 +97,13 @@ try{
     const url=base+'/admin/'+desk+'?stageId='+stage.id;
     await page.goto(url,{waitUntil:'networkidle'});
     const list=page.locator('table.data-table tbody tr.clickable-row');await list.first().waitFor();assert.equal(await list.count(),10,desk+' starts with 10 records');
+    const stageDrawer=page.locator('.event-ops-stage-drawer');
+    if(await stageDrawer.getAttribute('open')===null)await stageDrawer.locator('summary').click();
+    await page.screenshot({path:path.join(output,engine+'-'+width+'-'+desk+'-stage-picker.png')});
+    const stageFields=await stageDrawer.locator('.stage-picker>label').evaluateAll(labels=>labels.map(label=>{const b=label.getBoundingClientRect();return {text:label.firstChild?.textContent,top:b.top,bottom:b.bottom,left:b.left,right:b.right}}));
+    for(let i=0;i<stageFields.length;i++)for(let j=i+1;j<stageFields.length;j++){const a=stageFields[i],b=stageFields[j];assert.ok(a.bottom<=b.top+1||b.bottom<=a.top+1||a.right<=b.left+1||b.right<=a.left+1,'stage fields never overlap: '+JSON.stringify(stageFields))}
+    assert.equal(await stageDrawer.locator('select').first().isVisible(),true,'stage selector is available when expanded');
+    await stageDrawer.locator('summary').click();
     assert.equal(await page.locator('.usd-universal-pagination').count(),0,'no pagination panel');
     const primary=page.getByRole('group',{name:'Основные действия этапа'});await primary.waitFor();
     const bounds=await primary.locator('button').evaluateAll(els=>els.map(el=>({y:el.getBoundingClientRect().y,width:el.offsetWidth,height:el.offsetHeight})));

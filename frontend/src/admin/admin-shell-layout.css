@@ -1725,7 +1725,7 @@ body .app-shell .main .content .event-day-extra-actions {display:contents}
     min-width:0!important;width:100%!important;margin:0!important;
     font-size:12px!important;color:#515966;
   }
-  body .app-shell .main .content .event-ops-page .stage-picker>label {
+  body .app-shell .main .content .event-ops-page .stage-picker>label:first-child {
     grid-row:1;grid-column:1/-1;
   }
   body .app-shell .main .content .event-ops-page .stage-picker>.usd-filter-drawer {
