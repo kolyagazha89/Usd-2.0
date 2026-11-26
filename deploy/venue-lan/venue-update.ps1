@@ -188,7 +188,63 @@ function Update-LegacyVenueRegistration([object]$State){
  Write-Host ('USD VENUE: обновлены локальный API и экран регистрации '+$target)
  return $true
 }
-function Update-ReadyVenueFrontend([object]$State) {
+# A startup cache contains only a confirmed immutable release, never a new
+# database/runtime pin. Active judging services must not restart on GUI open.
+function Get-VenueInstalledWebSha([object]$State,[hashtable]$Config){
+ if($Config.ContainsKey('VENUE_WEB_IMAGE_TAG')){return [string]$Config['VENUE_WEB_IMAGE_TAG']}
+ return [string]$State.image
+}
+function Test-VenueStartupImage([string]$Service,[string]$Sha){
+ if($Service -cnotin @('api','frontend') -or $Sha -cnotmatch '^[a-f0-9]{40}\z'){return $false}
+ try{
+  $labels=Read-VenueDockerLabels 'image' ('ghcr.io/kolyagazha89/usd-2.0-'+$Service+':'+$Sha)
+  return [string]$labels.'org.opencontainers.image.revision' -ceq $Sha
+ }catch{return $false}
+}
+function Cache-VenueStartupImages([object]$State){
+ if(!$State -or $State.phase -cne 'READY'){return 'not-ready'}
+ $cfg=Read-Env
+ if($cfg['VENUE_STAGE_ID'] -cne $State.stageId -or $cfg['VENUE_IMAGE_TAG'] -cne $State.image -or
+    $cfg['VENUE_BIND_IP'] -cne $State.ip -or $cfg['VENUE_SIGNING_KEY_FINGERPRINT'] -cne $State.fingerprint){
+  throw 'Закреплённый этап не совпадает. Автообновление отменено.'
+ }
+ Set-VenueStep 'check-startup-release'
+ $target=Get-OnlineVenueReleaseSha
+ if(!$target){return 'offline'}
+ if($target -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная версия обновления USD'}
+ $installed=Get-VenueInstalledWebSha $State $cfg
+ if($installed -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная установленная версия frontend'}
+ foreach($service in @('frontend','api')){
+  if(!(Test-VenueStartupImage $service $target)){
+   Set-VenueStep ('cache-startup-'+$service)
+   Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-'+$service+':'+$target)) 'cache confirmed USD release'
+   if(!(Test-VenueStartupImage $service $target)){throw 'Скачанный образ не соответствует версии USD'}
+  }
+ }
+ $marker=Join-Path $PrivateDir 'startup-release.json'
+ $temp=$marker+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+ try{
+  Write-PrivateFile $temp (@{stage=$State.stageId;fingerprint=$State.fingerprint;from=$installed;target=$target}|ConvertTo-Json -Compress)
+  if(Test-Path -LiteralPath $marker){[IO.File]::Replace($temp,$marker,[NullString]::Value)}
+  else{[IO.File]::Move($temp,$marker)}
+ }finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
+ if($target -ceq $installed){return 'current'}
+ return 'cached'
+}
+function Get-VenueCachedWebTarget([object]$State){
+ try{
+  $marker=Join-Path $PrivateDir 'startup-release.json'
+  if(!(Test-Path -LiteralPath $marker -PathType Leaf)){return}
+  $candidate=Get-Content -LiteralPath $marker -Raw -Encoding UTF8|ConvertFrom-Json
+  $cfg=Read-Env
+  $installed=Get-VenueInstalledWebSha $State $cfg
+  if($candidate.stage -cne $State.stageId -or $candidate.fingerprint -cne $State.fingerprint -or
+    $candidate.from -cne $installed -or $candidate.target -ceq $installed -or
+    [string]$candidate.target -cnotmatch '^[a-f0-9]{40}\z'){return}
+  if(Test-VenueStartupImage 'frontend' $candidate.target){return [string]$candidate.target}
+ }catch{return}
+}
+function Update-ReadyVenueFrontend([object]$State,[string]$CachedTarget='') {
  if($State.phase -ne 'READY'){throw 'LIVE: установка этапа ещё не завершена'}
  $cfg=Read-Env
  if($cfg['VENUE_STAGE_ID'] -cne $State.stageId -or
@@ -198,7 +254,10 @@ function Update-ReadyVenueFrontend([object]$State) {
  }
  $installed=$(if($cfg.ContainsKey('VENUE_WEB_IMAGE_TAG')){[string]$cfg['VENUE_WEB_IMAGE_TAG']}else{[string]$State.image})
  if($installed -cnotmatch '^[a-f0-9]{40}\z'){throw 'LIVE: неверная версия установленного frontend'}
- $target=Get-OnlineVenueReleaseSha
+ $target=if($CachedTarget){
+  if($CachedTarget -cne (Get-VenueCachedWebTarget $State)){throw 'Кеш обновления USD не подтверждён'}
+  $CachedTarget
+ }else{Get-OnlineVenueReleaseSha}
  # An installed READY stage already has a verified web image. Retrying its
  # installer must never restart judges' HTTPS gateway without a new revision.
  # Start-Local takes care of a genuinely stopped container separately.
@@ -211,7 +270,7 @@ function Update-ReadyVenueFrontend([object]$State) {
  if($target -and $target -cne $installed){
   Set-VenueStep 'download-current-frontend-image'
   $ref='ghcr.io/kolyagazha89/usd-2.0-frontend:'+$target
-  Invoke-Docker @('pull',$ref) 'download frontend update'
+  if(!$CachedTarget){Invoke-Docker @('pull',$ref) 'download frontend update'}
   $labels=Read-VenueDockerLabels 'image' $ref
   if([string]$labels.'org.opencontainers.image.revision' -cne $target){
    throw 'LIVE: новый образ не соответствует версии сайта. Данные этапа сохранены.'
