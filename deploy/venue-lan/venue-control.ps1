@@ -288,7 +288,7 @@ function Save-DesktopShortcuts {
  $shell=New-Object -ComObject WScript.Shell
  $shortcut=$shell.CreateShortcut((Join-Path $desktop 'USD — Офлайн-сервер.lnk'))
  $shortcut.TargetPath=(Join-Path $PSHOME 'powershell.exe')
- $shortcut.Arguments='-NoProfile -STA -ExecutionPolicy Bypass -File "'+(Join-Path $Root 'USD-Control.ps1')+'"'
+ $shortcut.Arguments='-NoProfile -STA -ExecutionPolicy Bypass -File "'+(Join-Path $Root 'USD-Control.ps1')+'"'+' -HideLauncherConsole'
  $shortcut.WorkingDirectory=$Root
  $shortcut.Description='USD — единое окно управления офлайн-сервером'
  $shortcut.Save()
