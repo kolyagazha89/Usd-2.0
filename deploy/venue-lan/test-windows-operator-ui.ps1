@@ -19,7 +19,7 @@ foreach($action in @('install','next','prepare','offline','online','export','dir
 }
 foreach($action in @('status','images')){
  $mode=Get-UsdWorkerWindowOptions $action
- if($mode.WindowStyle -ne 'Hidden' -or $mode.ContainsKey('NoNewWindow')){throw "Background worker $action must remain hidden"}
+ if(!$mode.NoNewWindow -or $mode.ContainsKey('WindowStyle')){throw "Background worker $action must reuse the hidden launcher console without opening a new one"}
 }
 
 $originalRoot=$script:Root
