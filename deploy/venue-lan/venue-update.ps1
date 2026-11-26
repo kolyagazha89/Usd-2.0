@@ -55,7 +55,7 @@ function Get-OnlineVenueReleaseSha {
  $revisions=@()
  foreach($endpoint in @(
   'https://api.usd-russia.ru/release',
-  'https://app.usd-russia.ru/usd-release.json'
+  'https://usd-russia.ru/usd-release.json'
  )){
   try{
    $release=Invoke-RestMethod -Uri $endpoint -TimeoutSec 8 -ErrorAction Stop
@@ -446,7 +446,23 @@ function Invoke-VenueStartupImageCache {
  }
 }
 function Get-VenueStartupTargetForStoppedStage([object]$State){
- # A predownloaded image must not interrupt an already running judging API.
+ # Never interrupt an active judging API. A stopped server resolves its release
+ # itself, even when the asynchronous dashboard prefetch has not finished.
+ if(Test-VenueJudgingRunning){return}
+ $cacheMutex=[Threading.Mutex]::new($false,'Local\USD-Venue-ImageCache')
+ $ownsCache=$false
+ try{
+  try{$ownsCache=$cacheMutex.WaitOne(120000)}catch [Threading.AbandonedMutexException]{$ownsCache=$true}
+  if($ownsCache){
+   try{
+    $status=Cache-VenueStartupImages $State
+    Write-Host ('USD STARTUP IMAGES: '+$status)
+   }catch{Write-Warning ('Проверка обновлений не завершена: '+$_.Exception.Message+'. Используем проверенную локальную версию.')}
+  }else{Write-Warning 'Загрузка образов ещё выполняется. Используем ранее проверенный кеш.'}
+ }finally{
+  if($ownsCache){$cacheMutex.ReleaseMutex()}
+  $cacheMutex.Dispose()
+ }
  if(!(Test-VenueJudgingRunning)){return (Get-VenueCachedWebTarget $State)}
 }
 function Invoke-VenueStartupActivation([object]$State,[string]$Target){
