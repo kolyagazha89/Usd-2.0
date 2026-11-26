@@ -551,8 +551,7 @@ function Install-Local {
    Start-VenueDatabase
    if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап находится в архиве. Откройте ярлык с текущим этапом.'}
   }
-  if(-not (Update-LegacyVenueRegistration $state)){Update-ReadyVenueFrontend $state}
-  Start-Local
+  Start-Local -ActivateCachedFrontend
   return
  }
  Set-VenueStep 'check-other-stage-ports'
