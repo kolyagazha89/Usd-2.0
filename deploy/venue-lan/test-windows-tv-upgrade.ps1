@@ -120,6 +120,51 @@ try{
    (Get-VenueCachedWebTarget $state)){
   throw 'Cached web update pulled again, touched API/data or replayed an applied marker'
  }
+ # General API upgrades are allowed only with the exact same image schema,
+ # no local journal, a verified backup and a healthy pinned replacement.
+ $newApi='eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+ $script:target=$newApi
+ $null=Cache-VenueStartupImages $state
+ $beforeRuntime=[IO.File]::ReadAllText($EnvFile)
+ $script:commands=@();$script:sameSchema=$false;$script:cleanJournal=$true;$script:failRuntime=$false
+ function Get-VenueApiSchemaFingerprint([string]$Sha){
+  if($script:sameSchema -or $Sha -ceq $api){return ('a'*64)}
+  return ('b'*64)
+ }
+ function Test-VenueStageUnchanged([object]$State){return $script:cleanJournal}
+ function Assert-VenueReleaseImages([string]$Sha){if($Sha -cne $newApi){throw 'Wrong cached API'}}
+ function Save-VenueRegistrationUpgradeBackup {$script:commands+='backup'}
+ function Wait-VenueLanReady([object]$State){$script:commands+='ready '+(Get-VenueRuntimeApiSha (Read-Env))}
+ function Invoke-Compose {
+  param([string[]]$Arguments,[string]$Purpose)
+  $script:commands+=('compose '+($Arguments -join ' '))
+  if($script:failRuntime -and $Purpose -eq 'activate cached compatible USD release'){throw 'Simulated candidate failure'}
+ }
+ if((Update-VenueCachedRuntime $state $newApi) -cne 'not-eligible' -or $script:commands.Count){
+  throw 'A changed schema must not start an automatic backend rollout'
+ }
+ $script:sameSchema=$true;$script:cleanJournal=$false
+ if((Update-VenueCachedRuntime $state $newApi) -cne 'not-eligible' -or $script:commands.Count){
+  throw 'A stage with judging changes must not start an automatic backend rollout'
+ }
+ $script:cleanJournal=$true;$script:failRuntime=$true
+ if((Update-VenueCachedRuntime $state $newApi) -cne 'rolled-back' -or
+   [IO.File]::ReadAllText($EnvFile) -cne $beforeRuntime -or
+   $script:commands[-1] -cne ('ready '+$api)){
+  throw 'Failed automatic API rollout must restore exact configuration and verify old service'
+ }
+ $script:commands=@();$script:failRuntime=$false
+ if((Update-VenueCachedRuntime $state $newApi) -cne 'updated'){
+  throw 'Compatible cached API and web image did not activate'
+ }
+ $cfg=Read-Env
+ if((Get-VenueRuntimeApiSha $cfg) -cne $newApi -or $cfg['VENUE_WEB_IMAGE_TAG'] -cne $newApi -or
+   $cfg['VENUE_IMAGE_TAG'] -cne $api -or $cfg['VENUE_STAGE_ID'] -cne $stage -or
+   $cfg['VENUE_JWT_SECRET'] -cne 'do-not-change-existing-auth-token' -or
+   ($script:commands -join ';') -notmatch 'stop api;backup;compose up .*api frontend gateway;ready ' -or
+   ($script:commands -join ';') -match 'migrate|down|--volumes'){
+  throw 'Compatible auto-upgrade touched data, lost pins or skipped the backup'
+ }
  $legacy='53833411c3ce82424b8c1ac40b029f201eeed863'
  $fixed='ff93d4957c4ca9f322a2832a511570e10ae65dcb'
  $state.image=$legacy
