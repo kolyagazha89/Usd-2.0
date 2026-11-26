@@ -30,20 +30,22 @@ try{
  }
 
  $script:target=$tv;$script:commands=@();$script:failOnce=$false
+ $script:cachedImages=@{}
  function Get-OnlineVenueReleaseSha{return $script:target}
  function Test-VenueWebRevision([string]$Sha){return $true}
  function Test-VenueGatewayReady([string]$Ip){return $true}
  function Invoke-Docker {
   param([string[]]$Arguments,[string]$Purpose)
   $script:commands+=('docker '+($Arguments -join ' '))
+  if($Arguments[0] -eq 'pull'){$script:cachedImages[$Arguments[1]]=$true}
  }
  function Read-VenueDockerLabels {
   param([string]$Kind,[string]$Identity)
-  if($Kind -ne 'image' -or $Identity -ne ('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$script:target)){
+  if($Kind -ne 'image' -or !$script:cachedImages.ContainsKey($Identity)){
    throw 'Attempted to inspect unknown image'
   }
   $label=[pscustomobject]@{}
-  $label|Add-Member -NotePropertyName 'org.opencontainers.image.revision' -NotePropertyValue $script:target
+  $label|Add-Member -NotePropertyName 'org.opencontainers.image.revision' -NotePropertyValue ($Identity.Split(':')[-1])
   return $label
  }
  function Invoke-Compose {
@@ -90,10 +92,37 @@ try{
  if(!$rejected -or $inherited['VENUE_WEB_IMAGE_TAG'] -cne $tv){throw 'Unpinned inherited web version was accepted'}
  Write-Host 'USD FRONTEND UPGRADE PASS: READY phase updates only spectator frontend/gateway, rollback and next stage preserve versions and secrets'
 
+ # Startup downloads the verified release without recreating any containers.
+ $PrivateDir=Join-Path $folder 'local-private'
+ [void][IO.Directory]::CreateDirectory($PrivateDir)
+ $state|Add-Member -NotePropertyName fingerprint -NotePropertyValue ('d'*64)
+ [IO.File]::AppendAllText($EnvFile,'VENUE_SIGNING_KEY_FINGERPRINT='+$state.fingerprint+[Environment]::NewLine)
+ $script:commands=@();$script:cachedImages=@{};$script:target=$next
+ $before=[IO.File]::ReadAllText($EnvFile)
+ $result=Cache-VenueStartupImages $state
+ if($result -cne 'cached' -or [IO.File]::ReadAllText($EnvFile) -cne $before -or
+   ($script:commands -join ';') -match 'compose|migrate|down|--volumes' -or
+   $script:commands.Count -ne 2 -or (Get-VenueCachedWebTarget $state) -cne $next){
+  throw 'Startup cache changed the installed runtime or failed to cache both immutable images'
+ }
+ $script:commands=@()
+ if((Cache-VenueStartupImages $state) -cne 'cached' -or $script:commands.Count -ne 0){
+  throw 'Startup downloaded already cached images'
+ }
+ $script:target=$null
+ if((Cache-VenueStartupImages $state) -cne 'offline' -or (Get-VenueCachedWebTarget $state) -cne $next){
+  throw 'No internet must preserve the previously verified startup candidate'
+ }
+ $script:commands=@()
+ Update-ReadyVenueFrontend $state -CachedTarget $next
+ if((Read-Env)['VENUE_WEB_IMAGE_TAG'] -cne $next -or
+   ($script:commands -join ';') -match 'docker pull|migrate|\bapi\b|\bdb\b' -or
+   (Get-VenueCachedWebTarget $state)){
+  throw 'Cached web update pulled again, touched API/data or replayed an applied marker'
+ }
  $legacy='53833411c3ce82424b8c1ac40b029f201eeed863'
  $fixed='ff93d4957c4ca9f322a2832a511570e10ae65dcb'
  $state.image=$legacy
- $state|Add-Member -NotePropertyName fingerprint -NotePropertyValue ('d'*64)
  $legacyEnv=$original.Replace($api,$legacy)+[Environment]::NewLine+
   'VENUE_SIGNING_KEY_FINGERPRINT='+$state.fingerprint+[Environment]::NewLine
  [IO.File]::WriteAllText($EnvFile,$legacyEnv)
