@@ -12,12 +12,14 @@ $expected=$raw.Substring($start,$raw.IndexOf(',"staffKey"')-$start)
 if($signed -cne $expected){throw 'Signed JSON bytes/order were changed'}
 if($signed -notmatch '2099-01-01T00:00:00.000Z'){throw 'Signed timestamp changed'}
 
-# Interactive workers must not inherit SW_HIDE for their first native dialog.
+# Interactive workers must not create consoles or inherit SW_HIDE for native dialogs.
 foreach($action in @('install','next','prepare','offline','online','export','directory','certificate')){
- if((Get-UsdWorkerWindowStyle $action) -ne 'Normal'){throw "Interactive worker $action must be visible"}
+ $mode=Get-UsdWorkerWindowOptions $action
+ if(!$mode.NoNewWindow -or $mode.ContainsKey('WindowStyle')){throw "Interactive worker $action must have no new console and no hidden startup style"}
 }
 foreach($action in @('status','images')){
- if((Get-UsdWorkerWindowStyle $action) -ne 'Hidden'){throw "Background worker $action must remain hidden"}
+ $mode=Get-UsdWorkerWindowOptions $action
+ if($mode.WindowStyle -ne 'Hidden' -or $mode.ContainsKey('NoNewWindow')){throw "Background worker $action must remain hidden"}
 }
 
 $originalRoot=$script:Root
