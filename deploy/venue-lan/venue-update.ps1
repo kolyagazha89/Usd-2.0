@@ -244,6 +244,105 @@ function Get-VenueCachedWebTarget([object]$State){
   if(Test-VenueStartupImage 'frontend' $candidate.target){return [string]$candidate.target}
  }catch{return}
 }
+# Compare schema and every migration byte from the immutable images; this
+# deliberately refuses even additive schema changes in an unattended upgrade.
+function Get-VenueApiSchemaFingerprint([string]$Sha){
+ if($Sha -cnotmatch '^[a-f0-9]{40}\z'){return}
+ $program=@'
+const fs=require("node:fs"),path=require("node:path"),crypto=require("node:crypto");
+const sha=process.argv[2],root="/app/prisma";
+if(JSON.parse(fs.readFileSync("/app/usd-release.json","utf8")).revision!==sha)process.exit(2);
+const files=["schema.prisma"];
+function walk(dir){
+ for(const item of fs.readdirSync(path.join(root,dir),{withFileTypes:true})){
+  const rel=dir+"/"+item.name;
+  if(item.isDirectory())walk(rel);
+  else if(item.isFile())files.push(rel);
+  else process.exit(3);
+ }
+}
+walk("migrations");
+if(!files.some(file=>file.endsWith("/migration.sql")))process.exit(4);
+const manifest=files.sort().map(file=>[file,crypto.createHash("sha256").update(fs.readFileSync(path.join(root,file))).digest("hex")]);
+console.log(crypto.createHash("sha256").update(JSON.stringify(manifest)).digest("hex"));
+'@
+ try{
+  $image='ghcr.io/kolyagazha89/usd-2.0-api:'+$Sha
+  $lines=@($program | & docker run --rm -i --network none --pull never --entrypoint node $image - $Sha 2>$null)
+  if($LASTEXITCODE -eq 0 -and $lines.Count -eq 1 -and [string]$lines[0] -cmatch '^[a-f0-9]{64}\z'){return [string]$lines[0]}
+ }catch{return}
+}
+function Test-VenueStageUnchanged([object]$State){
+ if([string]$State.stageId -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z'){return $false}
+ # Called after the installed journal has been checked; missing table, failed
+ # query or an unexpected result is a hard refusal, not an empty journal.
+ try{
+  $query="SELECT NOT EXISTS(SELECT 1 FROM venue_private.operation_journal WHERE stage_id='$($State.stageId)')"
+  $lines=@(& docker @(Get-VenueComposeArguments) exec -T db psql -X -A -t -v 'ON_ERROR_STOP=1' -U usd_venue_root -d usd_venue -c $query 2>$null)
+  return $LASTEXITCODE -eq 0 -and $lines.Count -eq 1 -and [string]$lines[0] -ceq 't'
+ }catch{return $false}
+}
+function Update-VenueCachedRuntime([object]$State,[string]$Target){
+ if($Target -cne (Get-VenueCachedWebTarget $State)){return 'not-eligible'}
+ $cfg=Read-Env
+ $installedApi=Get-VenueRuntimeApiSha $cfg
+ $installedWeb=Get-VenueInstalledWebSha $State $cfg
+ if($Target -ceq $installedApi -or !(Test-VenueStartupImage 'api' $Target)){return 'not-eligible'}
+ Set-VenueStep 'check-startup-schema'
+ try{
+  $oldSchema=Get-VenueApiSchemaFingerprint $installedApi
+  $newSchema=Get-VenueApiSchemaFingerprint $Target
+  if(!$oldSchema -or $oldSchema -cne $newSchema -or !(Test-VenueStageUnchanged $State)){
+   Write-Host 'USD VENUE: API оставлен без изменений (иная схема или локальные операции).'
+   return 'not-eligible'
+  }
+  Assert-VenueReleaseImages $Target
+ }catch{
+  Write-Warning 'Совместимость нового API не подтверждена. Оставляем установленную версию.'
+  return 'not-eligible'
+ }
+ $original=[IO.File]::ReadAllText($EnvFile)
+ $newline=[Environment]::NewLine
+ $lines=@([IO.File]::ReadAllLines($EnvFile)|Where-Object {$_ -notmatch '^VENUE_(API|WEB)_IMAGE_TAG='})
+ $updated=($lines+@('VENUE_API_IMAGE_TAG='+$Target,'VENUE_WEB_IMAGE_TAG='+$Target)) -join $newline
+ $changed=$false
+ try{
+  # Only called when the operator started a previously stopped stack.
+  # Stop the API before rechecking the journal to close the write race.
+  Set-VenueStep 'backup-registration-upgrade'
+  Invoke-Compose @('stop','api') 'pause API before automatic compatible update'
+  if(!(Test-VenueStageUnchanged $State)){
+   Invoke-Compose @('up','-d','--no-deps','--no-build','--pull','never','api') 'restore previous judging API'
+   Wait-VenueLanReady $State
+   return 'not-eligible'
+  }
+  Save-VenueRegistrationUpgradeBackup
+  Set-VenueStep 'activate-registration-upgrade'
+  Set-VenueRuntimeEnvironment ($updated+$newline)
+  $changed=$true
+  Invoke-Compose @('up','-d','--no-build','--no-deps','--pull','never','--force-recreate','api','frontend','gateway') 'activate cached compatible USD release'
+  Wait-VenueLanReady $State
+  if(!(Test-VenueWebRevision $Target)){throw 'Интерфейс не подтвердил скачанную версию'}
+ }catch{
+  $failure=$_.Exception.Message
+  try{
+   $services=@('api')
+   if($changed){
+    Set-VenueRuntimeEnvironment $original
+    $services=@('--force-recreate','api','frontend','gateway')
+   }
+   Invoke-Compose (@('up','-d','--no-build','--no-deps','--pull','never')+$services) 'restore previous local services'
+   Wait-VenueLanReady $State
+   if(!(Test-VenueWebRevision $installedWeb)){throw 'Прежний интерфейс не подтвердил версию'}
+  }catch{
+   throw ('Автообновление: '+$failure+'. Откат не подтвердился: '+$_.Exception.Message)
+  }
+  Write-Warning ('Автообновление не выполнено, прежние версии восстановлены: '+$failure)
+  return 'rolled-back'
+ }
+ Write-Host ('USD VENUE: автоматически обновлены API и frontend '+$Target+'; схема и данные сохранены')
+ return 'updated'
+}
 function Update-ReadyVenueFrontend([object]$State,[string]$CachedTarget='') {
  if($State.phase -ne 'READY'){throw 'LIVE: установка этапа ещё не завершена'}
  $cfg=Read-Env
