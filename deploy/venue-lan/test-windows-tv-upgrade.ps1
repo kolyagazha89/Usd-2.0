@@ -113,6 +113,20 @@ try{
  if((Cache-VenueStartupImages $state) -cne 'offline' -or (Get-VenueCachedWebTarget $state) -cne $next){
   throw 'No internet must preserve the previously verified startup candidate'
  }
+ # Reproduce the cold-start race: no marker exists yet when the operator starts.
+ Remove-Item -LiteralPath (Join-Path $PrivateDir 'startup-release.json') -Force
+ $script:target=$next
+ $script:running=$false
+ function Test-VenueJudgingRunning{return $script:running}
+ $script:commands=@()
+ if((Get-VenueStartupTargetForStoppedStage $state) -cne $next -or $script:commands.Count -ne 0){
+  throw 'Cold start must resolve the current release itself even without a prefetch marker'
+ }
+ $script:running=$true
+ $script:target=$api
+ if(Get-VenueStartupTargetForStoppedStage $state){throw 'An active judging API must not activate updates'}
+ if((Get-VenueCachedWebTarget $state) -cne $next){throw 'Active judging start changed the verified candidate'}
+ $script:running=$false
  $script:commands=@()
  Update-ReadyVenueFrontend $state -CachedTarget $next
  if((Read-Env)['VENUE_WEB_IMAGE_TAG'] -cne $next -or
