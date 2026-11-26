@@ -2479,3 +2479,47 @@ body .app-shell .main .content .admin-load-more>button{width:100%;max-width:420p
  body .app-shell .main .content .judging-page .judging-results-table td.row-actions{display:table-cell!important;min-width:0;white-space:normal}
  body .app-shell .main .content .judging-page .judging-results-table td.row-actions button{display:inline-flex;vertical-align:middle;margin:2px;min-height:44px}
 }
+
+/* Readable opened operation cards; avoid generic field grids and repeated context. */
+body .app-shell .main .content .event-ops-page .operation-detail-card{display:grid;gap:16px;padding:16px!important;min-width:0;max-width:100%;box-sizing:border-box}
+body .app-shell .main .content .event-ops-page .operation-detail-heading{display:grid!important;gap:10px;margin:0!important;padding:0 0 14px!important;border-bottom:1px solid #e1e5ec;min-width:0}
+body .app-shell .main .content .operation-detail-topline{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+body .app-shell .main .content .operation-detail-topline h2{margin:0!important;font-size:22px!important;line-height:1.25!important}
+body .app-shell .main .content .operation-detail-topline button{min-height:44px;flex:0 0 auto}
+body .app-shell .main .content .operation-detail-identity{display:flex;align-items:start;gap:10px;flex-wrap:wrap;min-width:0}
+body .app-shell .main .content .operation-detail-identity>strong{flex:1 1 220px;font-size:20px!important;line-height:1.35;min-width:0;overflow-wrap:anywhere}
+body .app-shell .main .content .operation-detail-identity>.badge{flex:0 0 auto}
+body .app-shell .main .content .operation-detail-heading .operation-detail-car{display:flex;align-items:baseline;gap:6px 10px;flex-wrap:wrap;margin:0!important;font-size:15px!important;line-height:1.5;min-width:0}
+body .app-shell .main .content .operation-detail-car small{font-size:12px;color:#596474}
+body .app-shell .main .content .operation-detail-numbers{display:flex;flex-wrap:wrap;gap:6px}
+body .app-shell .main .content .operation-detail-numbers>span{font-size:13px;font-weight:700;line-height:1.5;padding:3px 7px;border-radius:6px;background:#f1f3f6;color:#374151}
+body .app-shell .main .content .operation-detail-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:12px;margin:0;min-width:0}
+body .app-shell .main .content .operation-detail-facts>div{min-width:0;padding:0}
+body .app-shell .main .content .operation-detail-facts dt{margin:0 0 4px;font-size:12px;line-height:1.4;color:#596474}
+body .app-shell .main .content .operation-detail-facts dd{margin:0;font-size:15px;line-height:1.5;font-weight:600;white-space:pre-wrap;overflow-wrap:anywhere}
+body .app-shell .main .content .operation-detail-section{display:grid;gap:10px;min-width:0;padding:14px 0 0;margin:0;border-top:1px solid #e1e5ec}
+body .app-shell .main .content .operation-detail-section h3{margin:0;font-size:16px;line-height:1.4}
+body .app-shell .main .content .operation-detail-classes{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+body .app-shell .main .content .operation-detail-classes>li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;padding:10px;background:#f8f9fb;border-radius:8px;min-width:0}
+body .app-shell .main .content .operation-detail-classes>li>span{font-size:13px;font-weight:700;white-space:nowrap;color:#a91530}
+body .app-shell .main .content .operation-detail-classes :is(small,strong){display:block;line-height:1.5;overflow-wrap:anywhere}
+body .app-shell .main .content .operation-detail-classes small{font-size:12px;color:#596474}
+body .app-shell .main .content .operation-detail-classes strong{font-size:14px}
+body .app-shell .main .content .operation-detail-primary{display:flex;gap:8px;flex-wrap:wrap}
+body .app-shell .main .content .operation-detail-primary>button{min-height:48px}
+body .app-shell .main .content .operation-result-values{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px}
+body .app-shell .main .content .operation-result-values>div{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;min-width:0}
+body .app-shell .main .content .operation-result-values span{flex:1 0 100%;font-size:12px;color:#596474}
+body .app-shell .main .content .operation-result-values strong{font-size:32px;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap}
+body .app-shell .main .content .operation-result-values>div:first-child strong{color:#a91530}
+body .app-shell .main .content .operation-result-values small{font-size:13px;color:#596474}
+body .app-shell .main .content .inspection-status-summary{font-size:16px;line-height:1.5}
+body .app-shell .main .content .inspection-operation-detail>.detail-actions{margin:0;padding:0;justify-content:flex-start}
+body .app-shell .main .content .inspection-operation-detail .inspection-decision-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+body .app-shell .main .content .inspection-operation-detail .inspection-decision-actions>button{min-width:0;min-height:48px;white-space:normal}
+body .app-shell .main .content .operation-detail-card .inspection-number-class-groups{display:grid;gap:10px;min-width:0}
+@media(max-width:600px){
+ body .app-shell .main .content .operation-detail-topline{align-items:start;flex-direction:column-reverse;gap:12px}
+ body .app-shell .main .content .operation-detail-topline>button{align-self:flex-start}
+ body .app-shell .main .content .operation-detail-primary>button{width:100%}
+}

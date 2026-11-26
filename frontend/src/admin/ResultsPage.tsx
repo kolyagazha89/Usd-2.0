@@ -1,3 +1,4 @@
+import {OperationDetailCard} from './OperationDetailCard';
 import {EventOperationsStagePicker,EventOperationsActions,EventOperationsSummary} from './EventOperationsControls';
 import {EventOperationsPrimaryActions} from './EventOperationsPrimaryActions';
 import {InspectionQrScanner} from './InspectionQrScanner';
@@ -167,20 +168,14 @@ function ResultsStage({stageControls,stageId,stage,entryId,go,user,ErrorPanel,Lo
  const canCreate=!readOnly&&registrations.some(r=>canJudgeRegistration(r)&&remainingJudgingClasses(r,results).length>0);
  if(scanOpen)return <InspectionQrScanner stageId={stageId} initialUsdId="" contextLabel="Результаты" onClose={()=>setScanOpen(false)} onScan={(nextStageId,registrationId)=>{setScanOpen(false);go(judgingResultLink(nextStageId,registrationId))}}/>;
  return <>
-  <EventOperationsNavigation current="results" stageId={stageId} stageName={stage.name} registrationId={selectedRegistration?.id} participantNumber={selectedRegistration?.participantNumber} showListJump={!editor&&!detail} compact={editor===null&&detail===null} go={go}/>
+  <EventOperationsNavigation current="results" stageId={stageId} stageName={stage.name} registrationId={selectedRegistration?.id} participantNumber={selectedRegistration?.participantNumber} showListJump={!editor&&!detail} compact={editor===null} go={go}/>
   {readOnly&&<p className="notice">Этап в архиве. Результаты доступны для просмотра.</p>}
   {notice&&<div className="notice judging-notice" role="status"><CheckCircle2 size={16}/>{notice}</div>}
   {error&&<ErrorPanel message={error} retry={load}/>}
   {editor!==null?<ResultEditor value={editor} saving={saving} error={editorError}
     registrations={registrations} results={results} enumLabel={enumLabel}
     displayCarName={displayCarName} onClose={closeEditor} onSubmit={save}/>:
-   detail?<EntityDetailModal inline title="Результат" item={detail}
-    columns={[{key:'registrationClass.class.name',label:'Класс'},{key:'registrationClass.class.unit',label:'Единица'},
-     {key:'registration.participant.lastName',label:'Фамилия'},{key:'registration.participant.firstName',label:'Имя'},
-     {key:'registrationClass.number.number',label:'Номер класса'},{key:'registration.participantNumber',label:'Основной номер'},{key:'registration.car.brand',label:'Марка'},
-     {key:'registration.car.model',label:'Модель'},{key:'value',label:'Результат'},
-     {key:'place',label:'Место'},{key:'notes',label:'Комментарий'}]}
-    onClose={()=>setDetail(null)}
+   detail?<OperationDetailCard registration={{...detail.registration,stage:detail.registration?.stage??stage}} result={detail} onBack={()=>setDetail(null)} go={go} displayCarName={displayCarName} enumLabel={enumLabel}
     onEdit={!readOnly&&user.role==='ADMIN'&&!detail.isHistorical?()=>{
      setDetail(null);setEditor({id:detail.id,value:Number(detail.value),place:detail.place??'',notes:detail.notes??''});
     }:undefined}/>:

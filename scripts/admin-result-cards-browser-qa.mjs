@@ -16,6 +16,7 @@ const server=createServer(async(req,res)=>{
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+server.address().port;
 const stage={id:'stage-cards',stageNumber:1,name:'Проверочный этап USD',date:'2026-11-25T12:00:00Z',status:'PUBLISHED',venueActive:true,season:{id:'s1',year:2026}};
+const alternate={...stage,id:'stage-other',name:'Второй проверочный этап USD'};
 const completed={...stage,id:'stage-closed',status:'COMPLETED',venueActive:false};
 const user={id:'qa-admin',email:'admin@example.test',role:'ADMIN'};
 const specimens=[
@@ -49,7 +50,7 @@ try{
    const p=url.pathname;let data=[];
    if(p==='/auth/refresh')data={accessToken:'qa-only',user};
    else if(p==='/auth/me')data=user;
-   else if(p==='/stages')data=[stage,completed];
+   else if(p==='/stages')data=[stage,alternate,completed];
    else if(p.startsWith('/results/admin/stage/'))data=(paging?pagingEntries:entries).map(row=>({...row,registration:{...row.registration,stageId:p.endsWith(completed.id)?completed.id:stage.id,stage:p.endsWith(completed.id)?completed:stage}}));
    else if(p==='/registrations')data=(paging?pagingEntries:entries).map((row,index)=>index===0&&paging?{...row.registration,classes:[...row.registration.classes,{id:'pending-class',class:{id:'pending-class',name:'Свободный класс',unit:'DB',direction:{id:'spl',name:'SPL'}}}]}:row.registration);
    else if(p.startsWith('/stages/')&&p.endsWith('/classes'))data=entries.map(row=>({classId:row.registrationClass.classId,class:row.registrationClass.class}));
@@ -103,6 +104,14 @@ try{
     const stageFields=await stageDrawer.locator('.stage-picker>label').evaluateAll(labels=>labels.map(label=>{const b=label.getBoundingClientRect();return {text:label.firstChild?.textContent,top:b.top,bottom:b.bottom,left:b.left,right:b.right}}));
     for(let i=0;i<stageFields.length;i++)for(let j=i+1;j<stageFields.length;j++){const a=stageFields[i],b=stageFields[j];assert.ok(a.bottom<=b.top+1||b.bottom<=a.top+1||a.right<=b.left+1||b.right<=a.left+1,'stage fields never overlap: '+JSON.stringify(stageFields))}
     assert.equal(await stageDrawer.locator('select').first().isVisible(),true,'stage selector is available when expanded');
+    for(const next of [alternate,stage]){
+     await stageDrawer.locator('select').first().selectOption(next.id);
+     await page.waitForURL(url=>url.searchParams.get('stageId')===next.id);
+     await page.waitForFunction(id=>document.querySelector('.event-ops-stage-drawer select')?.value===id,next.id);
+     await list.first().waitFor();
+     assert.equal(await stageDrawer.locator('select').first().inputValue(),next.id,'select changes the working stage');
+     assert.ok((await stageDrawer.locator('summary').innerText()).includes(next.name),'selected stage stays identifiable');
+    }
     await stageDrawer.locator('summary').click();
     assert.equal(await page.locator('.usd-universal-pagination').count(),0,'no pagination panel');
     const primary=page.getByRole('group',{name:'Основные действия этапа'});await primary.waitFor();
@@ -119,8 +128,16 @@ try{
     await more.click();await page.waitForFunction(()=>document.querySelectorAll('table.data-table tbody tr.clickable-row').length===20);
     const expanded=await list.allTextContents();assert.ok(first.every(text=>expanded.includes(text)),'load more retains previously visible rows');
     await list.nth(14).scrollIntoViewIfNeeded();await page.mouse.wheel(0,10);await list.nth(14).focus();await page.waitForTimeout(150);const before=await page.evaluate(()=>scrollY);
-    await page.keyboard.press('Enter');await page.locator('.resource-editor-page').waitFor();
-    await page.goto(url,{waitUntil:'networkidle'});await list.first().waitFor();assert.equal(await list.count(),20,'return restores expanded list');
+    await page.keyboard.press('Enter');await page.locator('.operation-detail-card').waitFor();
+    await page.screenshot({path:path.join(output,engine+'-'+width+'-'+desk+'-detail.png'),fullPage:true});
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'opened card stays inside viewport');
+    assert.ok(await page.locator('.operation-detail-identity').innerText(),'opened card identifies the participant');
+    if(desk==='inspections'){
+     await page.getByRole('button',{name:'Не прошёл',exact:true}).click();
+     assert.equal(await page.getByRole('button',{name:'Подтвердить: не прошёл',exact:true}).isDisabled(),true,'rejection still requires a reason');
+     await page.locator('.inspection-confirm-box').getByRole('button',{name:'Отмена',exact:true}).click();
+    }
+    await page.getByRole('button',{name:'Назад к списку',exact:true}).click();await list.first().waitFor();assert.equal(await list.count(),20,'return restores expanded list');
     await page.waitForTimeout(150);const after=await page.evaluate(()=>scrollY);assert.ok(Math.abs(before-after)<5,'return restores row position: '+JSON.stringify({desk,before,after}));
     await more.click();await page.waitForFunction(()=>document.querySelectorAll('table.data-table tbody tr.clickable-row').length===27);assert.equal(await more.count(),0,'no load button after all records');
     const query=page.getByRole('searchbox',{name:desk==='results'?'Поиск результата':desk==='inspections'?'Поиск участников инспекции':'Поиск регистраций',exact:true});
