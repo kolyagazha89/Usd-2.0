@@ -70,6 +70,8 @@ function Wait-VenueLanReady([object]$State){
 }
 function Test-IsActiveVenueStage([string]$StageId){return $script:ActiveDatabaseStage -ceq $StageId}
 function Start-Local {
+ param([switch]$ActivateCachedFrontend)
+ if($ActivateCachedFrontend){[void]$script:steps.Add('check-startup-update')}
  if($script:state.phase -ne 'READY'){throw 'Frontend started before readiness was committed'}
  [void]$script:steps.Add('start-frontend')
 }
@@ -112,7 +114,7 @@ $script:steps.Clear()
 function Update-ReadyVenueFrontend([object]$State){[void]$script:steps.Add('web-noop')}
 Install-Local
 $mutations=@($script:steps|Where-Object {$_ -ne 'compose-config --quiet'})
-if(($mutations -join ';') -cne 'web-noop;start-frontend'){
+if(($mutations -join ';') -cne 'check-startup-update;start-frontend'){
  throw ('READY retry unexpectedly modified a completed installation: '+($script:steps -join ';'))
 }
 # Import crash: do not stamp IMPORTED before a transaction commits.
