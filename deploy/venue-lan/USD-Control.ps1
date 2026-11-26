@@ -752,6 +752,15 @@ function Complete-UsdWorker {
 function Set-UsdProbeFailure([string]$Reason){
  $script:Local=[pscustomobject]@{mode='attention';reason=$Reason;running=$false;docker=$false}
 }
+function Update-UsdStatusNotice {
+ if($script:Worker -or !$script:Local -or $ui.Notice.Text -cnotin @(
+   'Проверяем локальный сервер…','Локальный сервер проверен.','Не удалось проверить локальный сервер. Откройте диагностику.')){
+  return
+ }
+ $ui.Notice.Text=if($script:Local.mode -eq 'attention'){
+  'Не удалось проверить локальный сервер. Откройте диагностику.'
+ }else{'Локальный сервер проверен.'}
+}
 function Update-UsdProbe {
  if($script:Probe){
   $job=$script:Probe
@@ -798,7 +807,7 @@ function Update-UsdProbe {
     $script:Probe=$null
    }
   }
-  if($finished){Update-UsdDashboard}
+  if($finished){Update-UsdDashboard;Update-UsdStatusNotice}
  }
  if(!$script:Probe -and !$script:Worker -and [DateTime]::UtcNow -ge $script:NextProbe){
   $script:NextProbe=[DateTime]::UtcNow.AddSeconds(20)
@@ -807,6 +816,7 @@ function Update-UsdProbe {
    $script:DashboardError='Не удалось запустить проверку: '+$_.Exception.GetType().Name
    Set-UsdProbeFailure 'Не удалось запустить проверку сервера. Проверьте файлы программы и Docker Desktop.'
    Update-UsdDashboard
+   Update-UsdStatusNotice
   }
  }
 }
