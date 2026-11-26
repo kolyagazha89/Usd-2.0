@@ -179,17 +179,6 @@ function Ensure-DockerReady {
  }
  throw 'Docker Desktop не готов. Проверьте WSL2, лицензию и режим Linux containers.'
 }
-function Get-PrivateLanIp {
- $addresses=@(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
-  $_.AddressState -eq 'Preferred' -and
-  $_.InterfaceAlias -notmatch '(?i)vEthernet|WSL|Docker|Loopback' -and
-  ($_.IPAddress -match '^192\.168\.' -or $_.IPAddress -match '^10\.' -or
-   $_.IPAddress -match '^172\.(1[6-9]|2[0-9]|3[01])\.')
- })
- if($addresses.Count -eq 0){throw 'Подключите ноутбук к выделенному Wi-Fi-роутеру. Нужен частный IP-адрес.'}
- $options=@($addresses|ForEach-Object {[pscustomobject]@{Label=($_.InterfaceAlias+' — '+$_.IPAddress);Value=$_.IPAddress}})
- return Select-VenueOption 'USD — Сеть площадки' 'Выберите подключение к роутеру соревнований. Телефоны судей должны быть в этой же сети.' $options
-}
 function Test-VenueFirewallRule([string]$Ip){
  # Verify the actual firewall rule.
  $name='USD Venue HTTPS '+$Ip
@@ -234,6 +223,7 @@ function Ensure-Firewall([string]$Ip){
    throw 'Сеть Windows управляется организацией или имеет неподдерживаемый профиль. Выберите отдельный Wi-Fi роутер судей.'
   }
   $message='Windows считает выбранный Wi-Fi общедоступным. Для доступа телефонов нужен частный профиль сети. Изменить ТОЛЬКО эту сеть на «Частная» и разрешить HTTPS (TCP 443) только своей подсети (вход HTTPS 443 и табло HTTP 80)?'
+  Set-VenueStep 'confirm-private-network'
   if(-not(Confirm-VenueAction $message)){
    throw 'Wi-Fi сейчас «Общедоступная». Откройте Параметры Windows -> Сеть и Интернет -> свойства подключённого Wi-Fi -> профиль «Частная» и запустите установку снова.'
   }
@@ -251,6 +241,7 @@ function Ensure-Firewall([string]$Ip){
    & powershell.exe @helperArgs | Out-Host
    $exitCode=$LASTEXITCODE
   }else{
+   Set-VenueStep 'confirm-firewall-uac'
    Write-Host 'Подтвердите запрос администратора Windows (UAC).'
    $task=Start-Process powershell.exe -Verb RunAs -ArgumentList $arguments -Wait -PassThru
    $exitCode=$task.ExitCode
@@ -375,6 +366,7 @@ function Complete-VenueInitialConfig([object]$State) {
  [IO.File]::Move($pending,$EnvFile)
 }
 function New-InitialState {
+ if($Operator -and (!$StageFile -or !$PublicKeyFile -or !$StaffKeyFile -or !$TrustedFingerprint)){throw 'Подписанный пакет или ключи отсутствуют. Повторите загрузку этапа из окна USD.'}
  if(Test-Path -LiteralPath $EnvFile){throw '.env существует без маркера установки. Нельзя затирать чужую конфигурацию.'}
  $source=$null;$sharedConfig=$null
  $sharedFile=Join-Path $Root 'shared-source.json'
@@ -384,6 +376,7 @@ function New-InitialState {
  }
  $ip=$(if($sharedConfig){$sharedConfig['VENUE_BIND_IP']}else{Get-PrivateLanIp})
  $sha=Get-VenueReleaseSha $sharedConfig
+ Set-VenueStep 'read-signed-stage'
  $file='';$key='';$stageId='';$fingerprint=''
  $file=$(if($StageFile){$StageFile}else{Select-VenueFile 'Выберите файл этапа, скачанный из админки USD' 'Файл этапа (*.json)|*.json'})
  if(!(Test-Path -LiteralPath $file -PathType Leaf)){throw 'Файл этапа отсутствует'}
@@ -921,6 +914,7 @@ try{
   Write-Output ('USD STATUS: '+((Get-VenueOperatorStatus)|ConvertTo-Json -Compress))
   return
  }
+ if($Action -eq 'images'){Invoke-VenueStartupImageCache;return}
  $mutex=[Threading.Mutex]::new($false,'Local\USD-Venue-Operation')
  try{$ownsMutex=$mutex.WaitOne(0)}catch [Threading.AbandonedMutexException]{$ownsMutex=$true}
  if(!$ownsMutex){throw 'Другая операция USD уже выполняется. Дождитесь её завершения.'}
@@ -929,7 +923,6 @@ try{
   if($Workspace){Copy-VenueProgramFiles $PSScriptRoot $Root}
   Install-Local
  }
- elseif($Action -eq 'images'){Invoke-VenueStartupImageCache}
  elseif($Action -eq 'offline'){Start-Local -ActivateCachedFrontend}
  elseif($Action -eq 'export'){Export-VenueReturn}
  elseif($Action -eq 'certificate'){Download-VenueCertificate}

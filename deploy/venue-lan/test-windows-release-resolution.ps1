@@ -95,6 +95,15 @@ if($result -cne $script:pinnedSha -or $script:urls.Count -ne 2 -or
  throw 'Both USD endpoints timed out but immutable published image fallback was not used'
 }
 Write-Host 'USD RELEASE PUBLICATION PASS: GHCR-only fallback works without both USD sites'
+# A reachable website does not guarantee registry connectivity. Preserve a
+# verified cached pair if the online release cannot be downloaded.
+$script:cached=@('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)
+$script:allowApi=$true
+$script:registryBlocked=$true
+$result=Get-VenueReleaseSha $null
+if($result -cne $sha){throw 'A blocked registry must not strand a verified offline image pair'}
+$script:cached=@()
+$script:allowApi=$false
 $script:registryBlocked=$true
 $failure=''
 try{Get-VenueReleaseSha $null|Out-Null}catch{$failure=$_.Exception.Message}

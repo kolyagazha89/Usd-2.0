@@ -30,6 +30,30 @@ try {
  }
  [IO.File]::WriteAllText($script:stagePath,($signed|ConvertTo-Json -Depth 8))
  function Get-VenueReleaseSha([object]$Config){return 'a'*40}
+ # A GUI worker must not silently choose the VPN or open an invisible dialog.
+ $script:lanChoices=@()
+ function Get-NetIPAddress {
+  return @(
+   [pscustomobject]@{AddressState='Preferred';InterfaceAlias='Wi-Fi';IPAddress='192.168.25.10'},
+   [pscustomobject]@{AddressState='Preferred';InterfaceAlias='Ethernet';IPAddress='10.25.0.5'},
+   [pscustomobject]@{AddressState='Preferred';InterfaceAlias='vEthernet (WSL)';IPAddress='172.18.0.2'}
+  )
+ }
+ function Select-VenueOption([string]$Title,[string]$Text,[object[]]$Options){
+  $script:lanChoices=@($Options)
+  if($script:VenueStep -cne 'select-lan-network'){throw 'LAN selection must announce the actual waiting step'}
+  return [string]$Options[0].Value
+ }
+ if((Get-PrivateLanIp) -cne '192.168.25.10' -or $script:lanChoices.Count -ne 2){
+  throw 'Network selection must offer only valid LAN adapters'
+ }
+ # Operator first install must fail visibly if a signed bundle was not supplied.
+ $Operator=$true
+ $script:StageFile=''
+ $blocked=$false
+ try{New-InitialState|Out-Null}catch{$blocked=$_.Exception.Message -match 'пакет'}
+ if(!$blocked -or (Test-Path -LiteralPath $EnvFile)){throw 'Operator must reject a missing signed bundle before choosing files'}
+ $Operator=$false
  function Get-PrivateLanIp {return '192.168.25.10'}
  function Get-VenueHome {return $Root}
  function Assert-NoOrphanedVenueStack([string]$Project){}

@@ -431,9 +431,19 @@ function Update-ReadyVenueFrontend([object]$State,[string]$CachedTarget='') {
 
 # Keep the main installer small and delegate the startup policy here.
 function Invoke-VenueStartupImageCache {
- if(!(Test-DockerReady)){Write-Host 'USD STARTUP IMAGES: docker-unavailable';return}
- $result=Cache-VenueStartupImages (Read-State)
- Write-Host ('USD STARTUP IMAGES: '+$result)
+ # This lock serializes immutable downloads without acquiring the stage operation lock.
+ $cacheMutex=[Threading.Mutex]::new($false,'Local\USD-Venue-ImageCache')
+ $ownsCache=$false
+ try{
+  try{$ownsCache=$cacheMutex.WaitOne(0)}catch [Threading.AbandonedMutexException]{$ownsCache=$true}
+  if(!$ownsCache){Write-Host 'USD STARTUP IMAGES: busy';return}
+  if(!(Test-DockerReady)){Write-Host 'USD STARTUP IMAGES: docker-unavailable';return}
+  $result=Cache-VenueStartupImages (Read-State)
+  Write-Host ('USD STARTUP IMAGES: '+$result)
+ }finally{
+  if($ownsCache){$cacheMutex.ReleaseMutex()}
+  $cacheMutex.Dispose()
+ }
 }
 function Get-VenueStartupTargetForStoppedStage([object]$State){
  # A predownloaded image must not interrupt an already running judging API.

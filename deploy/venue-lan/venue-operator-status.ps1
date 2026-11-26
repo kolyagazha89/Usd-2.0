@@ -126,3 +126,16 @@ SELECT json_build_object(
  }finally{$ErrorActionPreference=$previous}
  return $result
 }
+
+function Get-PrivateLanIp {
+ $addresses=@(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
+  $_.AddressState -eq 'Preferred' -and
+  $_.InterfaceAlias -notmatch '(?i)vEthernet|WSL|Docker|Loopback' -and
+  ($_.IPAddress -match '^192\.168\.' -or $_.IPAddress -match '^10\.' -or
+   $_.IPAddress -match '^172\.(1[6-9]|2[0-9]|3[01])\.')
+ })
+ if($addresses.Count -eq 0){throw 'Подключите ноутбук к выделенному Wi-Fi-роутеру. Нужен частный IP-адрес.'}
+ $options=@($addresses|ForEach-Object {[pscustomobject]@{Label=($_.InterfaceAlias+' — '+$_.IPAddress);Value=$_.IPAddress}})
+ Set-VenueStep 'select-lan-network'
+ return Select-VenueOption 'USD — Сеть площадки' 'Выберите подключение к роутеру соревнований. Телефоны судей должны быть в этой же сети.' $options
+}
