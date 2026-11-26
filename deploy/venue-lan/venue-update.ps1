@@ -213,6 +213,7 @@ function Cache-VenueStartupImages([object]$State){
  if(!$target){return 'offline'}
  if($target -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная версия обновления USD'}
  $installed=Get-VenueInstalledWebSha $State $cfg
+ $installedApi=Get-VenueRuntimeApiSha $cfg
  if($installed -cnotmatch '^[a-f0-9]{40}\z'){throw 'Неверная установленная версия frontend'}
  foreach($service in @('frontend','api')){
   if(!(Test-VenueStartupImage $service $target)){
@@ -224,11 +225,11 @@ function Cache-VenueStartupImages([object]$State){
  $marker=Join-Path $PrivateDir 'startup-release.json'
  $temp=$marker+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
  try{
-  Write-PrivateFile $temp (@{stage=$State.stageId;fingerprint=$State.fingerprint;from=$installed;target=$target}|ConvertTo-Json -Compress)
+  Write-PrivateFile $temp (@{stage=$State.stageId;fingerprint=$State.fingerprint;from=$installed;fromApi=$installedApi;target=$target}|ConvertTo-Json -Compress)
   if(Test-Path -LiteralPath $marker){[IO.File]::Replace($temp,$marker,[NullString]::Value)}
   else{[IO.File]::Move($temp,$marker)}
  }finally{if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
- if($target -ceq $installed){return 'current'}
+ if($target -ceq $installed -and $target -ceq $installedApi){return 'current'}
  return 'cached'
 }
 function Get-VenueCachedWebTarget([object]$State){
@@ -238,8 +239,10 @@ function Get-VenueCachedWebTarget([object]$State){
   $candidate=Get-Content -LiteralPath $marker -Raw -Encoding UTF8|ConvertFrom-Json
   $cfg=Read-Env
   $installed=Get-VenueInstalledWebSha $State $cfg
+  $installedApi=Get-VenueRuntimeApiSha $cfg
   if($candidate.stage -cne $State.stageId -or $candidate.fingerprint -cne $State.fingerprint -or
-    $candidate.from -cne $installed -or $candidate.target -ceq $installed -or
+    $candidate.from -cne $installed -or $candidate.fromApi -cne $installedApi -or
+    ($candidate.target -ceq $installed -and $candidate.target -ceq $installedApi) -or
     [string]$candidate.target -cnotmatch '^[a-f0-9]{40}\z'){return}
   if(Test-VenueStartupImage 'frontend' $candidate.target){return [string]$candidate.target}
  }catch{return}
@@ -304,7 +307,7 @@ function Update-VenueCachedRuntime([object]$State,[string]$Target){
  $original=[IO.File]::ReadAllText($EnvFile)
  $newline=[Environment]::NewLine
  $lines=@([IO.File]::ReadAllLines($EnvFile)|Where-Object {$_ -notmatch '^VENUE_(API|WEB)_IMAGE_TAG='})
- $updated=($lines+@('VENUE_API_IMAGE_TAG='+$Target,'VENUE_WEB_IMAGE_TAG='+$Target)) -join $newline
+ $updated=($lines+@(('VENUE_API_IMAGE_TAG='+$Target),('VENUE_WEB_IMAGE_TAG='+$Target))) -join $newline
  $changed=$false
  try{
   # Only called when the operator started a previously stopped stack.
