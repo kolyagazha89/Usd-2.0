@@ -243,9 +243,15 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
     ||car.participantId!==person.id)
    throw new Error('Сломана связь участника и автомобиля');
   assertUuid(person.id,'участник');assertUuid(car.id,'автомобиль');
-  nonBlank(person.lastName,'фамилия');nonBlank(person.firstName,'имя');
-  nonBlank(car.brand,'марка автомобиля');nonBlank(car.model,'модель автомобиля');
-  nonBlank(car.registrationNumber,'госномер автомобиля');
+  // Cancelled central registrations retain their original identity and no
+  // competition numbers or results. Historical imported profiles/cars can
+  // legitimately have empty text; never manufacture a new identity for them.
+  for(const [value,field] of [[person.lastName,'фамилия'],[person.firstName,'имя'],
+   [car.brand,'марка автомобиля'],[car.model,'модель автомобиля'],[car.registrationNumber,'госномер автомобиля']]){
+   if(reg.status==='CANCELLED'){
+    if(typeof value!=='string')throw new Error('Отсутствует значение: '+field);
+   }else nonBlank(value,field);
+  }
   if(people.has(person.id)&&JSON.stringify(people.get(person.id))!==JSON.stringify(person))
    throw new Error('Конфликт данных одного участника');
   people.set(person.id,person);
@@ -708,31 +714,42 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId,refres
    }
   }
   phase='DIRECTORY_IDENTITIES';
-  await tx.$queryRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
+  const localPeople=new Set((await tx.participant.findMany({select:{id:true}})).map(person=>person.id));
+  const localCars=new Map(currentCars.map(car=>[car.id,car]));
+  const peopleToAdd=[],carsToAdd=[];
   for(const person of plan.participantDirectory){
-   const old=await tx.participant.findUnique({where:{id:person.id}});
-   if(!old){
-    await tx.participant.create({data:{
+   if(!localPeople.has(person.id)){
+    peopleToAdd.push({
      id:person.id,firstName:person.firstName,lastName:person.lastName,
      middleName:person.middleName??null,city:person.city??null,
      team:person.team??null,isPublic:person.isPublic===true,
-    }});
-    addedParticipants++;
+    });
    }
    for(const car of person.cars){
-    const prior=await tx.car.findUnique({where:{id:car.id}});
+    const prior=localCars.get(car.id);
     if(prior){
      if(prior.participantId!==person.id)throw new Error('Автомобиль привязан к другому участнику');
      continue;
     }
-    await tx.car.create({data:{
+    carsToAdd.push({
      id:car.id,participantId:person.id,brand:car.brand,model:car.model,
      registrationCountry:car.registrationCountry,registrationNumber:car.registrationNumber,
      color:car.color??null,isPublic:car.isPublic===true,isActive:car.isActive===true,
-    }});
-    addedCars++;
+    });
    }
   }
+  await tx.$queryRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
+  // Match the initial import's bounded batches, without skipDuplicates or
+  // updates: concurrent collisions must roll back rather than reassign IDs.
+  for(const [model,rows] of [['participant',peopleToAdd],['car',carsToAdd]]){
+   for(let offset=0;offset<rows.length;offset+=250){
+    const batch=rows.slice(offset,offset+250);
+    const inserted=await tx[model].createMany({data:batch});
+    if(inserted.count!==batch.length)throw new Error('DIRECTORY_INSERT_COUNT_MISMATCH');
+   }
+  }
+  addedParticipants=peopleToAdd.length;
+  addedCars=carsToAdd.length;
   // An upgraded signed directory can add the real configurations of existing
   // central profiles. A locally modified version still blocks the transaction.
   phase='DIRECTORY_CONFIGURATIONS';
@@ -813,6 +830,7 @@ export function classifyVenueImportFailure(error){
  if(/^ROSTER_(ALREADY_USED|STAGE_CLASSES_CHANGED|SIGNED_REGISTRATION_MISSING|REGISTRATION_OWNER_CHANGED|COMPETITION_DATA|RESULTS_PUBLISHED)$/.test(reason))return reason;
  if(Object.hasOwn(packageExitCodes,error?.venuePackageFailure))return error.venuePackageFailure;
  if(error?.venueConfigurationConflict===true)return 'CONFIGURATION_VERSION_CONFLICT';
+ if(reason==='DIRECTORY_INSERT_COUNT_MISMATCH')return 'DIRECTORY_INSERT_COUNT_MISMATCH';
  if(reason==='MANUAL_REVIEW: госномер уже занят локальным автомобилем под другим ID')return 'DIRECTORY_PLATE_CONFLICT';
  if(reason==='Автомобиль привязан к другому участнику')return 'DIRECTORY_CAR_OWNER_CONFLICT';
  if(reason==='Пополнение справочника разрешено только локальному root-установщику')return 'DIRECTORY_ROOT_REQUIRED';
