@@ -544,6 +544,34 @@ function Get-CachedVenueReleaseSha {
  }
  return $null
 }
+# Only immutable image pulls are cancellable here. Never terminate SQL/import
+# or a running judging API to implement a download timeout.
+function Invoke-VenueReleaseImagePull([string]$Image,[string]$Purpose){
+ if($Image -cnotmatch '^ghcr[.]io/kolyagazha89/usd-2[.]0-(api|frontend):[a-f0-9]{40}\z'){throw 'Недопустимый образ USD'}
+ $command=Get-Command docker -ErrorAction Stop
+ if($command.CommandType -ne 'Application'){
+  Invoke-Docker @('pull',$Image) $Purpose
+  return
+ }
+ $info=New-Object Diagnostics.ProcessStartInfo
+ $info.FileName=$command.Source
+ $info.Arguments='pull '+$Image
+ $info.UseShellExecute=$false;$info.CreateNoWindow=$true
+ $info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+ $process=[Diagnostics.Process]::Start($info)
+ try{
+  $stdout=$process.StandardOutput.ReadToEndAsync()
+  $stderr=$process.StandardError.ReadToEndAsync()
+  if(!$process.WaitForExit(600000)){
+   try{$process.Kill()}catch{}
+   throw ('Превышено время загрузки образа '+$Purpose+'. Проверьте доступ к ghcr.io и повторите.')
+  }
+  $out=$stdout.GetAwaiter().GetResult();$err=$stderr.GetAwaiter().GetResult()
+  if($out){Write-Host $out}
+  if($err){Write-Host $err}
+  if($process.ExitCode -ne 0){throw ($Purpose+' failed with exit '+$process.ExitCode)}
+ }finally{$process.Dispose()}
+}
 function Get-VenueReleaseSha([object]$sharedConfig){
  if($sharedConfig){
   $local=Get-VenueRuntimeApiSha $sharedConfig
@@ -578,11 +606,15 @@ function Get-VenueReleaseSha([object]$sharedConfig){
  }
  Set-VenueStep 'download-immutable-release-images'
  try{
-  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha)) 'API image pull'
-  Invoke-Docker @('pull',('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha)) 'frontend image pull'
+  Invoke-VenueReleaseImagePull ('ghcr.io/kolyagazha89/usd-2.0-api:'+$sha) 'API image pull'
+  Invoke-VenueReleaseImagePull ('ghcr.io/kolyagazha89/usd-2.0-frontend:'+$sha) 'frontend image pull'
   Set-VenueStep 'verify-immutable-release-images'
   Assert-VenueReleaseImages $sha
  }catch{
+  if($cached -and !$sharedConfig){
+   Write-Warning 'Новый образ недоступен. Используем проверенные локальные образы; данные сохранены.'
+   return $cached
+  }
   throw ('Не удалось получить проверенные образы из ghcr.io. Проверьте интернет до GitHub Container Registry или заранее загрузите образы на ноутбук. Данные Docker сохранены. Причина: '+$_.Exception.Message)
  }
  return $sha
