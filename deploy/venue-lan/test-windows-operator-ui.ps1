@@ -89,6 +89,35 @@ try{
    throw 'Windows stage worker lost the specific import reason'
   }
  }finally{$testJob.Process.Dispose()}
+ # Reproduce the original issue with a real native modal dialog in the worker.
+ Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes
+ $fixture=@'
+Add-Type -AssemblyName System.Windows.Forms
+$form=New-Object System.Windows.Forms.Form
+$form.Text='USD CI — native network choice'
+$form.TopMost=$true
+try{[void]$form.ShowDialog()}finally{$form.Dispose()}
+'@
+ [IO.File]::WriteAllText((Join-Path $temp 'venue-control.ps1'),$fixture,[Text.UTF8Encoding]::new($true))
+ $dialogJob=Start-UsdChild 'next' $temp
+ try{
+  $condition=[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty,'USD CI — native network choice')
+  $deadline=[DateTime]::UtcNow.AddSeconds(20)
+  $dialog=$null
+  do{
+   if($dialogJob.Process.HasExited){break}
+   $dialog=[Windows.Automation.AutomationElement]::RootElement.FindFirst([Windows.Automation.TreeScope]::Children,$condition)
+   if($dialog){break}
+   Start-Sleep -Milliseconds 200
+  }while([DateTime]::UtcNow -lt $deadline)
+  if(!$dialog){throw 'Interactive worker did not expose a native network dialog'}
+  if($dialog.Current.IsOffscreen){throw 'Native network dialog is hidden'}
+  $dialog.GetCurrentPattern([Windows.Automation.WindowPattern]::Pattern).Close()
+  if(!$dialogJob.Process.WaitForExit(10000) -or $dialogJob.Process.ExitCode -ne 0){throw 'Native dialog worker failed to exit'}
+ }finally{
+  if(!$dialogJob.Process.HasExited){$dialogJob.Process.Kill()}
+  $dialogJob.Process.Dispose()
+ }
  # Startup checks once, after Docker is ready, with no token or stage download.
  $script:StartupImagesAttempted=$false
  $script:State=[pscustomobject]@{phase='READY';stageId=$stage}
