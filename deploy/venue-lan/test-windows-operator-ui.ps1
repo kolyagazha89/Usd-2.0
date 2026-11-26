@@ -79,7 +79,22 @@ try{
    throw 'Windows stage worker lost the specific import reason'
   }
  }finally{$testJob.Process.Dispose()}
- Write-Host 'USD OPERATOR: signed JSON, ADMIN guard and protected files passed'
+ # Startup checks once, after Docker is ready, with no token or stage download.
+ $script:StartupImagesAttempted=$false
+ $script:State=[pscustomobject]@{phase='READY';stageId=$stage}
+ $script:Local=[pscustomobject]@{docker=$false;mode='ready'}
+ $script:Pending=$null;$script:Worker=$null
+ if(Get-UsdStartupImageRequest){throw 'Startup must not launch Docker automatically'}
+ $script:Local.docker=$true;$script:Local.mode='archived'
+ if(Get-UsdStartupImageRequest){throw 'Startup must not update archived stage'}
+ $script:Local.mode='working'
+ $request=Get-UsdStartupImageRequest
+ if(!$request -or $request.Action -cne 'images' -or $request.Id -or $request.Root -cne $temp){
+  throw 'Startup cache must use local worker, not authenticated package download'
+ }
+ if(Get-UsdStartupImageRequest){throw 'Startup must not retry on every status tick'}
+ $script:State=$null;$script:Local=$null
+ Write-Host 'USD OPERATOR: signed JSON, ADMIN guard, startup image gate and protected files passed'
 }finally{
  $script:Root=$originalRoot
  Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
