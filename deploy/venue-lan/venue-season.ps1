@@ -584,7 +584,7 @@ function Get-VenueReleaseSha([object]$sharedConfig){
  $sha=$null
  foreach($endpoint in @(
   [pscustomobject]@{Uri='https://api.usd-russia.ru/release';Step='resolve-release-online-api'},
-  [pscustomobject]@{Uri='https://app.usd-russia.ru/usd-release.json';Step='resolve-release-online-frontend'}
+  [pscustomobject]@{Uri='https://usd-russia.ru/usd-release.json';Step='resolve-release-online-frontend'}
  )){
   Set-VenueStep $endpoint.Step
   try{

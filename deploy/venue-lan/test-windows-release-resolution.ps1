@@ -40,7 +40,7 @@ function Invoke-RestMethod {
  $script:urls+= $Uri
  if($TimeoutSec -gt 9){throw 'Release endpoint may not block installer for 20 seconds'}
  if($Uri -like 'https://api.usd-russia.ru/*' -and $script:allowApi){return [pscustomobject]@{revision=$second}}
- if($Uri -like 'https://app.usd-russia.ru/*' -and $script:allowFrontend){return [pscustomobject]@{revision=$second}}
+ if($Uri -like 'https://usd-russia.ru/*' -and $script:allowFrontend){return [pscustomobject]@{revision=$second}}
  throw [System.TimeoutException]::new('Время ожидания завершения операции истекло.')
 }
 function Invoke-Docker([string[]]$Arguments,[string]$Purpose){
@@ -83,7 +83,7 @@ $script:cached=@()
 $script:urls=@();$script:verified=@();$script:pulled=@()
 $script:allowApi=$false;$script:allowFrontend=$true
 $result=Get-VenueReleaseSha $null
-if($result -cne $second -or $script:urls.Count -ne 2 -or $script:pulled.Count -ne 2){
+if($result -cne $second -or $script:urls.Count -ne 2 -or $script:urls[-1] -cne 'https://usd-russia.ru/usd-release.json' -or $script:pulled.Count -ne 2){
  throw 'API timeout did not retry verified frontend release and pull both images'
 }
 Write-Host 'USD RELEASE FALLBACK PASS: API timeout uses signed site release metadata'

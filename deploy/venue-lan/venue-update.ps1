@@ -55,7 +55,7 @@ function Get-OnlineVenueReleaseSha {
  $revisions=@()
  foreach($endpoint in @(
   'https://api.usd-russia.ru/release',
-  'https://app.usd-russia.ru/usd-release.json'
+  'https://usd-russia.ru/usd-release.json'
  )){
   try{
    $release=Invoke-RestMethod -Uri $endpoint -TimeoutSec 8 -ErrorAction Stop
@@ -275,6 +275,60 @@ console.log(crypto.createHash("sha256").update(JSON.stringify(manifest)).digest(
   if($LASTEXITCODE -eq 0 -and $lines.Count -eq 1 -and [string]$lines[0] -cmatch '^[a-f0-9]{64}\z'){return [string]$lines[0]}
  }catch{return}
 }
+# Only previously reviewed additive SQL is eligible for unattended migration.
+# Every historical migration must match byte-for-byte. Future migrations
+# require review in the installer; arbitrary SQL is never run automatically.
+function Get-VenueMigrationManifest([string]$Sha){
+ if($Sha -cnotmatch '^[a-f0-9]{40}\z'){return}
+ $program=@'
+const fs=require("node:fs"),path=require("node:path"),crypto=require("node:crypto");
+const sha=process.argv[2],root="/app/prisma";
+if(JSON.parse(fs.readFileSync("/app/usd-release.json","utf8")).revision!==sha)process.exit(2);
+function blob(file){const b=fs.readFileSync(file);return crypto.createHash("sha1").update("blob "+b.length+"\0").update(b).digest("hex")}
+const migrations={};
+for(const d of fs.readdirSync(path.join(root,"migrations"),{withFileTypes:true})){
+ if(d.isFile()&&d.name==="migration_lock.toml"){migrations[d.name]=blob(path.join(root,"migrations",d.name));continue}
+ if(!d.isDirectory()||!/^\d{14}_[a-zA-Z0-9_]+$/.test(d.name))process.exit(3);
+ const dir=path.join(root,"migrations",d.name);
+ if(fs.readdirSync(dir).join("")!=="migration.sql")process.exit(4);
+ migrations[d.name]=blob(path.join(dir,"migration.sql"));
+}
+console.log(JSON.stringify({schema:blob(path.join(root,"schema.prisma")),migrations}));
+'@
+ try{
+  $lines=@($program | & docker run --rm -i --network none --pull never --entrypoint node ('ghcr.io/kolyagazha89/usd-2.0-api:'+$Sha) - $Sha 2>$null)
+  if($LASTEXITCODE -eq 0 -and $lines.Count -eq 1){return ($lines[0]|ConvertFrom-Json -ErrorAction Stop)}
+ }catch{return}
+}
+function Test-VenueReviewedSchemaUpgrade([string]$Old,[string]$New){
+ $before=Get-VenueMigrationManifest $Old
+ $after=Get-VenueMigrationManifest $New
+ if(!$before -or !$after -or !$before.migrations -or !$after.migrations){return $false}
+ # The reviewed Nov 26 schema and six additive migrations; digest is the
+ # Git blob ID of the exact SQL, not merely a filename or date.
+ if($after.schema -cne '087b525d054147264e7c289d9c677b5ae7f14895'){return $false}
+ $approved=@{
+  '20261115181500_venue_tls_certificate'='4d03d9b9bacf6718d25fb7b94f730722f8d0835f'
+  '20261116180000_participant_publication_consent'='4060a8f2168dcbcdc3789b96111e187744de022b'
+  '20261116184500_official_protocol_consent'='44296692467d123ac47e30f89b5b61cd7d40f63b'
+  '20261118180000_stage_start_time_msk'='e9beb9b4fa7c2947ab4fc45486f0c47ecbff3bcc'
+  '20261119140000_manual_stage_critical_notice'='efbdba33301cc73a87ad8437538e7d328ceb1429'
+  '20261119173000_venue_return_review'='bba990fdbbd72a93633789932641f1a4e3352af0'
+ }
+ $oldEntries=@($before.migrations.PSObject.Properties)
+ $newEntries=@($after.migrations.PSObject.Properties)
+ if(!$oldEntries.Count -or $newEntries.Count -le $oldEntries.Count){return $false}
+ foreach($entry in $oldEntries){
+  $match=$after.migrations.PSObject.Properties[$entry.Name]
+  if(!$match -or $match.Value -cne $entry.Value){return $false}
+ }
+ foreach($entry in $newEntries){
+  if(!$before.migrations.PSObject.Properties[$entry.Name]){
+   if(!$approved.ContainsKey($entry.Name) -or $entry.Value -cne $approved[$entry.Name]){return $false}
+  }
+ }
+ return $true
+}
 function Test-VenueStageUnchanged([object]$State){
  if([string]$State.stageId -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z'){return $false}
  # Called after the installed journal has been checked; missing table, failed
@@ -295,7 +349,8 @@ function Update-VenueCachedRuntime([object]$State,[string]$Target){
  try{
   $oldSchema=Get-VenueApiSchemaFingerprint $installedApi
   $newSchema=Get-VenueApiSchemaFingerprint $Target
-  if(!$oldSchema -or $oldSchema -cne $newSchema -or !(Test-VenueStageUnchanged $State)){
+  $needsMigration=$oldSchema -cne $newSchema
+  if(!$oldSchema -or !$newSchema -or ($needsMigration -and !(Test-VenueReviewedSchemaUpgrade $installedApi $Target)) -or !(Test-VenueStageUnchanged $State)){
    Write-Host 'USD VENUE: API оставлен без изменений (иная схема или локальные операции).'
    return 'not-eligible'
   }
@@ -320,6 +375,18 @@ function Update-VenueCachedRuntime([object]$State,[string]$Target){
    return 'not-eligible'
   }
   Save-VenueRegistrationUpgradeBackup
+  if($needsMigration){
+   Set-VenueStep 'migrate-startup-schema'
+   $previous=$env:VENUE_API_IMAGE_TAG
+   try{
+    $env:VENUE_API_IMAGE_TAG=$Target
+    Invoke-Compose @('run','--rm','--no-deps','--pull','never','--entrypoint',
+     './node_modules/.bin/prisma','api','migrate','deploy','--config','./prisma7.config.ts') 'apply reviewed additive LAN migrations'
+   }finally{
+    if($null -eq $previous){Remove-Item Env:\VENUE_API_IMAGE_TAG -ErrorAction SilentlyContinue}
+    else{$env:VENUE_API_IMAGE_TAG=$previous}
+   }
+  }
   Set-VenueStep 'activate-registration-upgrade'
   Set-VenueRuntimeEnvironment ($updated+$newline)
   $changed=$true
@@ -446,14 +513,35 @@ function Invoke-VenueStartupImageCache {
  }
 }
 function Get-VenueStartupTargetForStoppedStage([object]$State){
- # A predownloaded image must not interrupt an already running judging API.
- if(!(Test-VenueJudgingRunning)){return (Get-VenueCachedWebTarget $State)}
+ # Never interrupt an active judging API. A stopped server resolves its release
+ # itself, even when the asynchronous dashboard prefetch has not finished.
+ if(Test-VenueJudgingRunning){return}
+ $cacheMutex=[Threading.Mutex]::new($false,'Local\USD-Venue-ImageCache')
+ $ownsCache=$false
+ $status='offline'
+ try{
+  try{$ownsCache=$cacheMutex.WaitOne(120000)}catch [Threading.AbandonedMutexException]{$ownsCache=$true}
+  if($ownsCache){
+   try{
+    $status=Cache-VenueStartupImages $State
+    Write-Host ('USD STARTUP IMAGES: '+$status)
+   }catch{Write-Warning ('Проверка обновлений не завершена: '+$_.Exception.Message+'. Используем проверенную локальную версию.')}
+  }else{Write-Warning 'Загрузка образов ещё выполняется. Используем ранее проверенный кеш.'}
+ }finally{
+  if($ownsCache){$cacheMutex.ReleaseMutex()}
+  $cacheMutex.Dispose()
+ }
+ if($status -eq 'cached' -and !(Test-VenueJudgingRunning)){return (Get-VenueCachedWebTarget $State)}
 }
 function Invoke-VenueStartupActivation([object]$State,[string]$Target){
  if(!$Target){return}
  # A failed backend rollback must escape as an error, not as a ready stage.
  $runtimeUpdate=Update-VenueCachedRuntime $State $Target
  if($runtimeUpdate -ceq 'not-eligible'){
+  if((Get-VenueRuntimeApiSha (Read-Env)) -cne $Target){
+   Write-Warning 'API не может быть безопасно обновлён. Новая версия интерфейса отдельно не применяется.'
+   return
+  }
   try{
    Update-ReadyVenueFrontend $State -CachedTarget $Target
    Wait-VenueLanReady $State

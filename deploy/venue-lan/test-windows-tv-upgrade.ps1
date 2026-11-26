@@ -113,6 +113,22 @@ try{
  if((Cache-VenueStartupImages $state) -cne 'offline' -or (Get-VenueCachedWebTarget $state) -cne $next){
   throw 'No internet must preserve the previously verified startup candidate'
  }
+ # Reproduce the cold-start race: no marker exists yet when the operator starts.
+ Remove-Item -LiteralPath (Join-Path $PrivateDir 'startup-release.json') -Force
+ $script:target=$next
+ $script:running=$false
+ function Test-VenueJudgingRunning{return $script:running}
+ $script:commands=@()
+ if((Get-VenueStartupTargetForStoppedStage $state) -cne $next -or $script:commands.Count -ne 0){
+  throw 'Cold start must resolve the current release itself even without a prefetch marker'
+ }
+ $script:target=$null
+ if(Get-VenueStartupTargetForStoppedStage $state){throw 'Offline launch must not activate even a predownloaded candidate'}
+ $script:running=$true
+ $script:target=$api
+ if(Get-VenueStartupTargetForStoppedStage $state){throw 'An active judging API must not activate updates'}
+ if((Get-VenueCachedWebTarget $state) -cne $next){throw 'Active judging start changed the verified candidate'}
+ $script:running=$false
  $script:commands=@()
  Update-ReadyVenueFrontend $state -CachedTarget $next
  if((Read-Env)['VENUE_WEB_IMAGE_TAG'] -cne $next -or
@@ -131,6 +147,22 @@ try{
   if($script:sameSchema -or $Sha -ceq $api){return ('a'*64)}
   return ('b'*64)
  }
+ # Byte-level migration review: a known addition is allowed, changed or
+ # unreviewed SQL and rewritten history are not.
+ $script:oldManifest=[pscustomobject]@{schema='old';migrations=[pscustomobject]@{'20261101000000_base'=('a'*40)}}
+ $script:newManifest=[pscustomobject]@{schema='087b525d054147264e7c289d9c677b5ae7f14895';migrations=[pscustomobject]@{'20261101000000_base'=('a'*40);'20261115181500_venue_tls_certificate'='4d03d9b9bacf6718d25fb7b94f730722f8d0835f'}}
+ function Get-VenueMigrationManifest([string]$Sha){if($Sha -ceq $api){return $script:oldManifest};return $script:newManifest}
+ if(!(Test-VenueReviewedSchemaUpgrade $api $newApi)){throw 'Exact reviewed migration not accepted'}
+ $script:newManifest.migrations.'20261115181500_venue_tls_certificate'='f'*40
+ if(Test-VenueReviewedSchemaUpgrade $api $newApi){throw 'Modified reviewed SQL accepted'}
+ $script:newManifest.migrations.'20261115181500_venue_tls_certificate'='4d03d9b9bacf6718d25fb7b94f730722f8d0835f'
+ $script:newManifest.migrations.'20261101000000_base'='b'*40
+ if(Test-VenueReviewedSchemaUpgrade $api $newApi){throw 'Rewritten historical migration accepted'}
+ $script:newManifest.migrations.'20261101000000_base'='a'*40
+ $script:newManifest.migrations|Add-Member -NotePropertyName '20261126000000_unknown' -NotePropertyValue ('e'*40)
+ if(Test-VenueReviewedSchemaUpgrade $api $newApi){throw 'Unreviewed migration accepted'}
+ $script:reviewed=$false
+ function Test-VenueReviewedSchemaUpgrade([string]$Old,[string]$New){return $script:reviewed}
  function Test-VenueStageUnchanged([object]$State){return $script:cleanJournal}
  function Assert-VenueReleaseImages([string]$Sha){if($Sha -cne $newApi){throw 'Wrong cached API'}}
  function Save-VenueRegistrationUpgradeBackup {$script:commands+='backup'}
@@ -143,6 +175,19 @@ try{
  if((Update-VenueCachedRuntime $state $newApi) -cne 'not-eligible' -or $script:commands.Count){
   throw 'A changed schema must not start an automatic backend rollout'
  }
+ Invoke-VenueStartupActivation $state $newApi
+ if($script:commands.Count){throw 'Unreviewed API must not activate a mismatched frontend'}
+ # An explicitly reviewed additive schema change must migrate both images,
+ # but an unreviewed schema remains pinned. Backup precedes the migration.
+ $script:reviewed=$true
+ $script:cleanJournal=$true
+ $script:commands=@()
+ if((Update-VenueCachedRuntime $state $newApi) -cne 'updated' -or
+   ($script:commands -join ';') -notmatch 'backup;compose run .*migrate deploy.*;compose up .*api frontend gateway'){
+  throw 'Reviewed startup migration must back up and activate both versions'
+ }
+ [IO.File]::WriteAllText($EnvFile,$beforeRuntime)
+ $script:commands=@();$script:reviewed=$false
  $script:sameSchema=$true;$script:cleanJournal=$false
  if((Update-VenueCachedRuntime $state $newApi) -cne 'not-eligible' -or $script:commands.Count){
   throw 'A stage with judging changes must not start an automatic backend rollout'
