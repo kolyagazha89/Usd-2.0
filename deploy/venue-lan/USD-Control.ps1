@@ -477,7 +477,7 @@ function Start-UsdNetwork($Request,[string]$Kind){
 }
 # Do not create a second console or pass SW_HIDE to native dialog workers.
 function Get-UsdWorkerWindowOptions([string]$Action){
- if($Action -in @('status','images')){return @{WindowStyle='Hidden'}}
+ # All workers inherit the existing launcher console; none create or hide a new one.
  return @{NoNewWindow=$true}
 }
 function Hide-UsdLauncherConsole {
