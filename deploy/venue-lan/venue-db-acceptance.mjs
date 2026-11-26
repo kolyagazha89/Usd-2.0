@@ -525,7 +525,8 @@ async function retainedSeason(){
   refreshedSnapshot.registrations.push(late);
   const sourceConfig=structuredClone(refreshedSnapshot.configurations.find(c=>c.carId===refreshedSnapshot.registrations[1].carId));
   Object.assign(sourceConfig,{id:stableFixtureUuid('directory-refresh-config'),carId:lateCar.id});
-  sourceConfig.versions=[{...sourceConfig.versions[0],id:late.configurationVersionId,configurationId:sourceConfig.id}];
+  sourceConfig.versions=[{...sourceConfig.versions[0],id:late.configurationVersionId,configurationId:sourceConfig.id,
+   headUnits:[],batteries:[],generators:[],audioComponents:[],amplifiers:[]}];
   refreshedSnapshot.configurations.push(sourceConfig);
   // Keep the same stage signer and use the CLI's root-only import connection.
   const fresh=syntheticSignedStage(undefined,s=>Object.assign(s,refreshedSnapshot),signed.keys);
