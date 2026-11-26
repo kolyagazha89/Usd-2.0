@@ -1,11 +1,12 @@
+import {EventOperationsStagePicker,EventOperationsActions,EventOperationsSummary} from './EventOperationsControls';
+import {EventOperationsPrimaryActions} from './EventOperationsPrimaryActions';
+import {InspectionQrScanner} from './InspectionQrScanner';
+import {AdminLoadMore,useIncrementalRows} from './AdminLoadMore';
 import {ActionError} from '../ActionError';
-import {AdminListPagination} from './AdminListPagination';
-import {paginateResourceRows} from './admin-table-model';
-import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,useAdminDetail} from './AdminEntityLink';
 import './form-journey.css';
 import {useEffect,useRef,useState} from 'react';
-import {AlertTriangle,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Hash,Pencil,Plus,RefreshCw,Search,ShieldAlert,Trash2,Trophy,Users,XCircle,X} from 'lucide-react';
+import {AlertTriangle,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Hash,Pencil,RefreshCw,Search,ShieldAlert,Trash2,Trophy,Users,XCircle,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {useViewState,useListScroll,matchesSeason,seasonYears,stageYear} from './view-state';
 import {loadOperationalStages} from './operational-stages';
@@ -24,7 +25,7 @@ const queryOf=(path:string)=>new URLSearchParams(path.split('?')[1]??'');
 const participantName=(row:any)=>[row?.lastName,row?.firstName,row?.middleName].filter(Boolean).join(' ').trim()||'Участник не указан';
 const shortCar=(row:any)=>[row?.brand,row?.model].filter(Boolean).join(' ')||'Автомобиль не указан';
 
-function StagePicker({path,go,Empty,children}:{path:string;go:Go;Empty:React.ComponentType<any>;children:(stageId:string,stage:any)=>React.ReactNode}){
+function StagePicker({path,go,Empty,children}:{path:string;go:Go;Empty:React.ComponentType<any>;children:(stageId:string,stage:any,stageControls:(extra?:React.ReactNode)=>React.ReactNode)=>React.ReactNode}){
  const requested=queryOf(path).get('stageId')??'';
  const [stages,setStages]=useState<any[]>([]);
  const [stageId,setStageId]=useViewState('results:stage','');
@@ -46,29 +47,29 @@ function StagePicker({path,go,Empty,children}:{path:string;go:Go;Empty:React.Com
  },[requested]);
  const choose=(id:string)=>{setStageId(id);go(id?judgingResultLink(id):'/admin/results')};
  const current=stages.find(s=>s.id===stageId);
- return <>
-  <div className="toolbar stage-picker judging-stage-picker"><label>Этап<select aria-label="Этап судейства" value={stageId} disabled={loading} onChange={e=>choose(e.target.value)}>
+ const stageControls=(extra?:React.ReactNode)=><EventOperationsStagePicker viewKey="results" stageId={stageId} stageName={current?.name}><div className="toolbar stage-picker judging-stage-picker"><label>Этап<select aria-label="Этап судейства" value={stageId} disabled={loading} onChange={e=>choose(e.target.value)}>
     <option value="">{loading?'Загрузка этапов…':'Выберите этап'}</option>
     {stages.filter(s=>matchesSeason(s,season)).map(s=><option key={s.id} value={s.id}>№{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}
-   </select></label><CollapsibleFilters activeCount={Number(season!=='ALL')}>
+   </select></label>
    <label>Сезон<select aria-label="Сезон судейства" value={season} disabled={loading} onChange={e=>{
     const next=e.target.value;setSeason(next);
     const stage=stages.find(s=>matchesSeason(s,next));choose(stage?.id??'');
    }}><option value="ALL">Все сезоны</option>{seasonYears(stages).map(y=><option key={y} value={y}>{y}</option>)}</select></label>
-   </CollapsibleFilters>
-  </div>
+
+  </div>{extra}</EventOperationsStagePicker>;
+ return <>
   {error&&<p className="judging-data-error" role="alert">{error}</p>}
-  {stageId&&current?<>{children(stageId,current)}</>:<section className="panel"><Empty text="Выберите этап для судейства"/></section>}
+  {stageId&&current?<>{children(stageId,current,stageControls)}</>:<>{stageControls()}<section className="panel"><Empty text="Выберите этап для судейства"/></section></>}
  </>;
 }
 
 export function ResultsPage({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty,EntityDetailModal,enumLabel,displayCarName,displayPersonName}:Common){
  const requested=queryOf(path);
  const entryId=requested.get('entry')==='1'?requested.get('registrationId')??'':'';
- return <PageFrame className="event-ops-page judging-page" title="Судейство и результаты" subtitle="Третий этап рабочего процесса: допуск, измерения, места и протоколы">
+ return <PageFrame className="event-ops-page judging-page" title="Результаты" subtitle="Результаты участников этапа" showHelp={false}>
   <StagePicker path={path} go={go} Empty={Empty}>
-   {(stageId,stage)=><>
-    <ResultsStage key={stageId} stageId={stageId} stage={stage} entryId={stageId===requested.get('stageId')?entryId:''} go={go}
+   {(stageId,stage,stageControls)=><>
+    <ResultsStage key={stageId} stageControls={stageControls} stageId={stageId} stage={stage} entryId={stageId===requested.get('stageId')?entryId:''} go={go}
      user={user} ErrorPanel={ErrorPanel} LoadingPage={LoadingPage} Empty={Empty}
      EntityDetailModal={EntityDetailModal} enumLabel={enumLabel}
      displayCarName={displayCarName} displayPersonName={displayPersonName}/>
@@ -77,8 +78,8 @@ export function ResultsPage({path,go,user,PageFrame,ErrorPanel,LoadingPage,Empty
  </PageFrame>;
 }
 
-function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empty,EntityDetailModal,enumLabel,displayCarName,displayPersonName}:{
- stageId:string;stage:any;entryId:string;go:Go;user:User;ErrorPanel:React.ComponentType<any>;
+function ResultsStage({stageControls,stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empty,EntityDetailModal,enumLabel,displayCarName,displayPersonName}:{
+ stageControls:(extra?:React.ReactNode)=>React.ReactNode;stageId:string;stage:any;entryId:string;go:Go;user:User;ErrorPanel:React.ComponentType<any>;
  LoadingPage:React.ComponentType<any>;Empty:React.ComponentType<any>;EntityDetailModal:React.ComponentType<any>;
  enumLabel:(v:any)=>string;displayCarName:(car:any,fallback?:string)=>string;displayPersonName:(v:any)=>string;
 }){
@@ -88,7 +89,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
  const [saving,setSaving]=useState(false),[deleteTargetId,setDeleteTargetId]=useState(''),[deleteReason,setDeleteReason]=useState('');
  const [classFilter,setClassFilter]=useViewState('results:'+stageId+':class','ALL');
  const [search,setSearch]=useViewState('results:'+stageId+':search','');
- const [page,setPage]=useViewState('results:'+stageId+':page',1),[pageSize,setPageSize]=useViewState('results:'+stageId+':pageSize',10);
+ const [scanOpen,setScanOpen]=useState(false);
  const handledEntry=useRef('');
  const isVenue=stage.venueActive!==undefined;
  const readOnly=isVenue&&isPastStageCalendar(stage);
@@ -161,23 +162,12 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
  const filteredResults=results.filter(r=>
   (classFilter==='ALL'||r.registrationClass?.class?.id===classFilter)&&matchesJudgingResult(r,search));
  const orderedResults=groupJudgingResults(filteredResults).flatMap(group=>group.rows);
- const pagination=paginateResourceRows(orderedResults,page,pageSize);
+ const incremental=useIncrementalRows('results:'+stageId,orderedResults,[search,classFilter].join('\0'));
  const selectedRegistration=registrations.find(r=>r.id===(editor?.registrationId??entryId))??detail?.registration;
  const canCreate=!readOnly&&registrations.some(r=>canJudgeRegistration(r)&&remainingJudgingClasses(r,results).length>0);
+ if(scanOpen)return <InspectionQrScanner stageId={stageId} initialUsdId="" contextLabel="Результаты" onClose={()=>setScanOpen(false)} onScan={(nextStageId,registrationId)=>{setScanOpen(false);go(judgingResultLink(nextStageId,registrationId))}}/>;
  return <>
-  <EventOperationsNavigation current="results" stageId={stageId} stageName={stage.name} registrationId={selectedRegistration?.id} participantNumber={selectedRegistration?.participantNumber} showListJump={!editor&&!detail} go={go}/>
-  <details className="event-ops-metrics-drawer"><summary>Сводка: {stats.admitted} допущены · {stats.remaining} классов без результатов · {stats.entered} внесено</summary><section className="judging-summary" aria-label="Сводка судейства">
-   {[
-    {key:'registrations',name:'Регистрации',icon:Users,value:stats.registrations},
-    {key:'admitted',name:'Допущены',icon:CheckCircle2,value:stats.admitted},
-    {key:'remaining',name:'Классы без результатов',icon:ClipboardCheck,value:stats.remaining},
-    {key:'entered',name:'Результаты',icon:Trophy,value:stats.entered},
-   ].map(metric=><div key={metric.key} className="judging-summary-card"><metric.icon size={20}/><strong>{loading?'—':metric.value}</strong><span>{metric.name}</span></div>)}
-  </section></details>
-  <section className="judging-context" aria-label="Состояние этапа">
-   <div><strong><AdminEntityLink kind="stage" id={stageId}>{stage.name}</AdminEntityLink></strong><p>{stats.awaiting} ожидают инспекцию · {stats.failed} не прошли · {stats.admitted} допущены</p></div>
-   {stats.awaiting>0&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/inspections?stageId='+encodeURIComponent(stageId))}><ShieldAlert size={16}/>Завершить инспекции</button>}
-  </section>
+  <EventOperationsNavigation current="results" stageId={stageId} stageName={stage.name} registrationId={selectedRegistration?.id} participantNumber={selectedRegistration?.participantNumber} showListJump={!editor&&!detail} compact={editor===null&&detail===null} go={go}/>
   {readOnly&&<p className="notice">Этап в архиве. Результаты доступны для просмотра.</p>}
   {notice&&<div className="notice judging-notice" role="status"><CheckCircle2 size={16}/>{notice}</div>}
   {error&&<ErrorPanel message={error} retry={load}/>}
@@ -195,48 +185,58 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
      setDetail(null);setEditor({id:detail.id,value:Number(detail.value),place:detail.place??'',notes:detail.notes??''});
     }:undefined}/>:
    <>
-    {!isVenue && user.role === 'ADMIN' && <BassRaceTextImport stageId={stageId} stageStatus={stage.status} onImported={load}/>}
-    <div className="judging-toolbar" role="search" aria-label="Поиск результата">
-     <div className="judging-search"><Search size={17} aria-hidden="true"/>
+
+    <div className="event-ops-primary-row judging-toolbar">
+     <div className="judging-search" role="search"><Search size={17} aria-hidden="true"/>
       <input aria-label="Поиск результата" type="search" value={search}
-       onChange={e=>{setSearch(e.target.value);setPage(1)}} placeholder="№, ФИО, госномер, класс или команда"/>
-      {search&&<button className="judging-result-search-clear" type="button" aria-label="Очистить поиск результатов" title="Очистить поиск" onClick={()=>{setSearch('');setPage(1)}}><X size={18} aria-hidden="true"/></button>}
+       onChange={e=>{setSearch(e.target.value)}} placeholder="№, ФИО, госномер, класс или команда"/>
+      {search&&<button className="judging-result-search-clear" type="button" aria-label="Очистить поиск результатов" title="Очистить поиск" onClick={()=>{setSearch('')}}><X size={18} aria-hidden="true"/></button>}
      </div>
-     <CollapsibleFilters activeCount={Number(classFilter!=='ALL')}><select className="filter-select" aria-label="Фильтр результатов по классу" value={classFilter}
-      onChange={e=>{setClassFilter(e.target.value);setPage(1)}}>
-      <option value="ALL">Все классы</option>
-      {classes.map((c:any)=><option key={c.id} value={c.id}>{c.direction?.name?c.direction.name+' · ':''}{c.name}</option>)}
-     </select></CollapsibleFilters>
-     {(search.trim()||classFilter!=='ALL')&&<button className="secondary-button compact judging-filter-reset" type="button" aria-label="Сбросить фильтры результатов" onClick={()=>{setSearch('');setClassFilter('ALL');setPage(1)}}>Сбросить фильтры</button>}
-     <button className="primary-button compact" type="button" disabled={loading||!canCreate} onClick={()=>{
-      setEditor({});setEditorError('');setDetail(null);
-     }}><Plus size={15}/>Внести результат</button>
-     <button className="secondary-button compact" type="button" disabled={loading} onClick={()=>void load()}>
-      <RefreshCw size={15}/>Обновить</button>
+
+
+     <EventOperationsPrimaryActions createLabel="Внести результат" onCreate={()=>{setEditor({});setEditorError('');setDetail(null)}} onScan={()=>setScanOpen(true)} createDisabled={loading||!canCreate} scanDisabled={loading||readOnly}/>
     </div>
     <p className="judging-quick-help" role="status" aria-live="polite">
      Найдено {filteredResults.length} из {results.length} результатов.
-     {!readOnly&&!canCreate&&!loading?' Для нового измерения требуется допуск и класс без внесённого результата.':''}
+     {!readOnly&&!canCreate&&!loading?' · Нет доступных классов для внесения':''}
     </p>
-    {filteredResults.length>10&&<AdminListPagination label="результатов" total={filteredResults.length} page={pagination.page} pageCount={pagination.pageCount} pageSize={pagination.pageSize} onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1)}}/>}
+    <div className="event-ops-secondary-controls">{stageControls(<label className="event-ops-extra-filter">Класс<select className="filter-select" aria-label="Фильтр результатов по классу" value={classFilter}
+      onChange={e=>{setClassFilter(e.target.value)}}>
+      <option value="ALL">Все классы</option>
+      {classes.map((c:any)=><option key={c.id} value={c.id}>{c.direction?.name?c.direction.name+' · ':''}{c.name}</option>)}
+     </select></label>)}<EventOperationsActions viewKey="results"><div className="event-ops-secondary-actions">     <button className="secondary-button compact" type="button" disabled={loading} onClick={()=>void load()}>
+      <RefreshCw size={15}/>Обновить</button>{(search.trim()||classFilter!=='ALL')&&<button className="secondary-button compact judging-filter-reset" type="button" aria-label="Сбросить фильтры результатов" onClick={()=>{setSearch('');setClassFilter('ALL')}}>Сбросить фильтры</button>}<button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))}>Участники и допуски</button>{stats.awaiting>0&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/inspections?stageId='+encodeURIComponent(stageId))}><ShieldAlert size={16}/>Завершить инспекции</button>}</div>{!isVenue && user.role === 'ADMIN' && <BassRaceTextImport stageId={stageId} stageStatus={stage.status} onImported={load}/>}</EventOperationsActions>  <EventOperationsSummary viewKey="results" summary={`Сводка: ${stats.admitted} допущены · ${stats.remaining} классов без результатов · ${stats.entered} внесено`}><section className="judging-summary" aria-label="Сводка судейства">
+   {[
+    {key:'registrations',name:'Регистрации',icon:Users,value:stats.registrations},
+    {key:'admitted',name:'Допущены',icon:CheckCircle2,value:stats.admitted},
+    {key:'remaining',name:'Классы без результатов',icon:ClipboardCheck,value:stats.remaining},
+    {key:'entered',name:'Результаты',icon:Trophy,value:stats.entered},
+   ].map(metric=><div key={metric.key} className="judging-summary-card"><metric.icon size={20}/><strong>{loading?'—':metric.value}</strong><span>{metric.name}</span></div>)}
+  </section>
+  <section className="judging-context" aria-label="Состояние этапа">
+   <div><strong><AdminEntityLink kind="stage" id={stageId}>{stage.name}</AdminEntityLink></strong><p>{stats.awaiting} ожидают инспекцию · {stats.failed} не прошли · {stats.admitted} допущены</p></div>
+
+  </section>
+</EventOperationsSummary></div>
     <div id="event-ops-records" className="panel table-wrap judging-results" aria-busy={loading}>
      {loading?<LoadingPage small/>:!filteredResults.length?
       <Empty text={results.length?'По запросу результаты не найдены':'Измерения пока не внесены'}/>:
       <table className="data-table judging-results-table" aria-label="Протокол результатов этапа">
        <thead><tr><th>Класс</th><th>Участник</th><th>Автомобиль</th><th>Результат</th><th>Место</th><th>Статус</th><th>Действия</th></tr></thead>
-       <tbody>{groupJudgingResults(pagination.rows).flatMap(group=>[
-        <tr key={'direction-'+group.id} className="results-direction-row"><td colSpan={7}><strong>{group.name}</strong><span>{group.rows.length} результатов на странице</span></td></tr>,
+       <tbody>{groupJudgingResults(incremental.rows).flatMap(group=>[
+        <tr key={'direction-'+group.id} className="results-direction-row"><td colSpan={7}><strong>{group.name}</strong><span>{group.rows.length} результатов</span></td></tr>,
         ...group.rows.map((row:any)=><tr key={row.id} className="clickable-row" tabIndex={0} aria-label={'Открыть результат: '+participantName(row.registration?.participant)+' · '+String(row.registrationClass?.class?.name??'класс не указан')} onClick={()=>setDetail(row)} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setDetail(row)}}}>
          <td data-label="Класс">{row.registrationClass?.class?.name||'—'}</td>
          <td data-label="Участник"><strong><AdminEntityLink kind="participant" id={row.registration?.participant?.id??row.registration?.participantId}>{participantName(row.registration?.participant)}</AdminEntityLink></strong>
           <small className="table-sub">№{row.registrationClass?.number?.number??judgingNumbers(row.registration??{})[0]??row.registration?.participantNumber??'—'}</small></td>
-         <td data-label="Авто"><AdminEntityLink kind="car" id={row.registration?.car?.id??row.registration?.carId}>{displayCarName(row.registration?.car)||'—'}</AdminEntityLink></td>
+         <td data-label="Авто"><AdminEntityLink kind="car" id={row.registration?.car?.id??row.registration?.carId}>{displayCarName(row.registration?.car)||'—'}</AdminEntityLink>{row.registration?.car?.registrationNumber&&<small className="table-sub result-car-plate">{row.registration.car.registrationNumber}</small>}</td>
          <td data-label="Результат"><strong>{row.value}</strong>{row.registrationClass?.class?.unit&&
           <small className="table-sub">{enumLabel(row.registrationClass.class.unit)}</small>}</td>
-         <td data-label="Место">{row.place??'—'}</td>
+         <td data-label="Место"><strong>{row.place??'—'}</strong></td>
          <td data-label="Статус">{row.isHistorical?<span className="badge">Исторический</span>:
           <span className="badge good">Официальный</span>}</td>
          <td data-label="Действия" className="row-actions" onClick={e=>e.stopPropagation()}>
+          <button type="button" className="secondary-button compact result-open" onClick={()=>setDetail(row)}>Открыть<ChevronRight size={14}/></button>
           {!readOnly&&user.role==='ADMIN'&&!row.isHistorical&&<>
            <button type="button" className="icon-button" title="Исправить результат" aria-label="Исправить результат" onClick={()=>{
             setEditor({id:row.id,value:Number(row.value),place:row.place??'',notes:row.notes??''});setEditorError('');
@@ -254,6 +254,7 @@ function ResultsStage({stageId,stage,entryId,go,user,ErrorPanel,LoadingPage,Empt
        ])}</tbody>
       </table>}
     </div>
+    <AdminLoadMore label="Результаты" total={filteredResults.length} shown={incremental.rows.length} onMore={incremental.showMore} busy={loading}/>
    </>}
  </>;
 }

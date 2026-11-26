@@ -36,21 +36,23 @@ test('inspection scan-QR action is beside on-site registration, not in the remot
  assert.match(code,/onScanQr=\{\(\)=>setScanOpen\(true\)\}/);
  assert.match(code,/onScanQr:\(\)=>void/);
  assert.doesNotMatch(code,/action=\{!scanOpen\?<button/,'QR must not be a header action');
- const toolbar=code.slice(code.indexOf('className="inspection-toolbar event-ops-toolbar"'));
- assert.ok(toolbar.indexOf('Зарегистрировать участника')<toolbar.indexOf('Сканировать QR'));
- assert.match(toolbar,/<ScanQrCode size=\{15\}\/>/);
+ const primary=await read('EventOperationsPrimaryActions.tsx');
+ assert.match(code,/EventOperationsPrimaryActions onCreate=\{\(\)=>setRegisterOpen\(true\)\} onScan=\{onScanQr\}/);
+ assert.match(primary,/aria-label="Сканировать QR"/);
+ assert.match(primary,/createLabel='Регистрация на месте'/);
+
 });
 
 test('inspection, registration and judging prioritize actual entries over full-height metrics',async()=>{
  const [registrations,inspections,results]=await Promise.all([
   read('RegistrationsPage.tsx'),read('InspectionsPage.tsx'),read('ResultsPage.tsx')
  ]);
- assert.match(registrations,/<details className="event-ops-metrics-drawer"/);
- assert.match(inspections,/<details className="event-ops-metrics-drawer"/);
- assert.match(results,/<details className="event-ops-metrics-drawer"/);
+ assert.match(registrations,/<EventOperationsSummary/);
+ assert.match(inspections,/<EventOperationsSummary/);
+ assert.match(results,/<EventOperationsSummary/);
  assert.doesNotMatch(inspections,/className="event-ops-overview" aria-label="Сводка инспекций"/);
  assert.doesNotMatch(registrations,/className="event-ops-overview" aria-label="Сводка регистраций"/);
- assert.ok(inspections.indexOf('className="inspection-toolbar event-ops-toolbar"')<inspections.indexOf('<details className="event-ops-metrics-drawer"'),
+ assert.ok(inspections.indexOf('className="inspection-toolbar event-ops-toolbar"')<inspections.indexOf('<EventOperationsSummary'),
   'inspection actions and search must precede optional metrics');
 });
 

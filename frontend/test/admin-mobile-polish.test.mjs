@@ -21,9 +21,9 @@ test('catalog workspace separates browsing, bulk management, import, and request
 test('registration keeps original actions but moves lists ahead of optional metrics',async()=>{
  const code=await source('admin/RegistrationsPage.tsx');
  assert.ok(code.indexOf('className="event-ops-search"') < code.indexOf('className="event-ops-main-actions"') || code.indexOf('className="event-ops-search"') < code.indexOf('event-ops-quick-actions event-ops-main-actions'));
- assert.match(code,/<details className="event-ops-metrics-drawer"/);
+ assert.match(code,/<EventOperationsSummary/);
  assert.doesNotMatch(code,/className="event-ops-overview"/);
- assert.match(code,/onClick=\{\(\)=>go\(walkInRegistrationPath\(stageId\)\)\}/);
+ assert.match(code,/onCreate=\{\(\)=>go\(walkInRegistrationPath\(stageId\)\)\}/);
  assert.match(code,/aria-label="Поиск регистраций"/);
  assert.match(code,/className="toolbar stage-picker"/);
 });
@@ -107,6 +107,6 @@ test('mobile competition operations put the selected stage above compact filters
  for(const file of ['RegistrationsPage.tsx','InspectionsPage.tsx','ResultsPage.tsx']){
   const code=await source('admin/'+file);
   const picker=code.slice(code.indexOf('className="toolbar stage-picker'));
-  assert.ok(picker.indexOf('<label>Этап')>=0&&picker.indexOf('<label>Этап')<picker.indexOf('<CollapsibleFilters'),file+' must put the stage before optional filters in DOM order');
+  assert.ok(picker.indexOf('<label>Этап')>=0&&picker.indexOf('<label>Этап')<picker.indexOf('<label>Сезон'),file+' must put the stage before optional filters in DOM order');
  }
 });

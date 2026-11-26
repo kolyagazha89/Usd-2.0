@@ -39,7 +39,7 @@ test('admin and public filter-heavy screens use same disclosure instead of full-
  ];
  for(const p of paths){
   const s=await source(p);
-  assert.match(s,/<CollapsibleFilters\b/,p+' must use the shared collapsible filter control');
+  assert.match(s,/<(?:CollapsibleFilters|EventOperationsStagePicker)\b/,p+' must use a shared collapsible filter control');
  }
  const css=await source('../src/collapsible-filters.css');
  assert.match(css,/\.usd-filter-drawer/);
@@ -49,7 +49,7 @@ test('admin and public filter-heavy screens use same disclosure instead of full-
  assert.match(css,/@media\s*\(max-width:700px\)/,'mobile drawers fit small viewports');
 });
 
-test('primary search and stage choice remain visible outside the advanced filter disclosure',async()=>{
+test('primary search remains visible while stage choice and filters share the folded controls',async()=>{
  const resource=await source('../src/admin/ResourcePage.tsx');
  assert.ok(resource.indexOf('className="search-box"')<resource.indexOf('<CollapsibleFilters'));
  const registrations=await source('../src/admin/RegistrationsPage.tsx');
@@ -57,6 +57,7 @@ test('primary search and stage choice remain visible outside the advanced filter
  for(const [name,s] of [['registrations',registrations],['inspections',inspections]]){
   const stagePicker=s.slice(s.indexOf('className="toolbar stage-picker'));
   assert.match(stagePicker,/^className="toolbar stage-picker"><label>Этап<select/,name+' current stage is first');
-  assert.ok(stagePicker.indexOf('<label>Этап<select')<stagePicker.indexOf('<CollapsibleFilters'),name+' stage is outside and before advanced filters');
+  assert.match(s,/<EventOperationsStagePicker/,name+' stage and filters are folded together');
+  assert.match(s,/<EventOperationsPrimaryActions/,name+' primary actions remain outside secondary controls');
  }
 });

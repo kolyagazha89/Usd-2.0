@@ -21,6 +21,7 @@ test('every original browser QA and offline boundary step remains exactly once a
     'core-desktop': [
       'admin-drawer-swipe-browser-qa.mjs',
       'admin-navigation-browser-qa.mjs',
+      'admin-result-cards-browser-qa.mjs',
       'stage-actions-browser-qa.mjs',
       'public-browser-read-recheck.test.mjs',
       'online-release-preflight.test.mjs',

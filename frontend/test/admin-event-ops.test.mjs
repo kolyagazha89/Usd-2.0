@@ -107,7 +107,7 @@ test('the registration desk enters the correct live stage and never offers walk-
   readFile(new URL('../src/admin/InspectionsPage.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/ui-consistency.css',import.meta.url),'utf8'),
  ]);
- assert.match(registration,/!pastStage&&<button type="button" className="primary-button compact"/);
+ assert.match(registration,/createDisabled=\{!selectedStage\|\|pastStage\|\|loading\}/);
  assert.match(registration,/go\(walkInRegistrationPath\(stageId\)\)/);
  assert.match(registration,/disabled=\{!stageId\|\|loading\}/);
  assert.match(inspection,/loadingStages\?<LoadingPage small\/>/,'initial stage must be validated before rendering gate form');
