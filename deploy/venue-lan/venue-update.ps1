@@ -428,3 +428,29 @@ function Update-ReadyVenueFrontend([object]$State,[string]$CachedTarget='') {
   Write-Warning 'Обе версии USD не подтверждены: сохранили установленный frontend. Обновите при доступном интернете.'
  }
 }
+
+# Keep the main installer small and delegate the startup policy here.
+function Invoke-VenueStartupImageCache {
+ if(!(Test-DockerReady)){Write-Host 'USD STARTUP IMAGES: docker-unavailable';return}
+ $result=Cache-VenueStartupImages (Read-State)
+ Write-Host ('USD STARTUP IMAGES: '+$result)
+}
+function Get-VenueStartupTargetForStoppedStage([object]$State){
+ # A predownloaded image must not interrupt an already running judging API.
+ if(!(Test-VenueJudgingRunning)){return (Get-VenueCachedWebTarget $State)}
+}
+function Invoke-VenueStartupActivation([object]$State,[string]$Target){
+ if(!$Target){return}
+ # A failed backend rollback must escape as an error, not as a ready stage.
+ $runtimeUpdate=Update-VenueCachedRuntime $State $Target
+ if($runtimeUpdate -ceq 'not-eligible'){
+  try{
+   Update-ReadyVenueFrontend $State -CachedTarget $Target
+   Wait-VenueLanReady $State
+  }catch{
+   Write-Warning ('Автообновление интерфейса: '+$_.Exception.Message)
+   # Do not report a working stage unless restored services actually answer.
+   Wait-VenueLanReady $State
+  }
+ }
+}
