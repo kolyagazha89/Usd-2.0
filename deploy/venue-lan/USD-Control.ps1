@@ -18,6 +18,7 @@ $script:Archive=@()
 $script:StageMetadata=@{}
 $script:LaunchRoot=$PSScriptRoot
 $script:StartupImagesAttempted=$false
+$script:ImageJob=$null
 
 function Read-UsdJson([string]$File){
  if(Test-Path -LiteralPath $File -PathType Leaf){
@@ -748,18 +749,32 @@ function Complete-UsdWorker {
  Update-UsdDashboard
 }
 
+function Set-UsdProbeFailure([string]$Reason){
+ $script:Local=[pscustomobject]@{mode='attention';reason=$Reason;running=$false;docker=$false}
+}
 function Update-UsdProbe {
  if($script:Probe){
   $job=$script:Probe
-  $job.Process.Refresh()
-  $line=@()
-  $timedOut=([DateTime]::UtcNow-$job.Started).TotalSeconds -gt 30
-  if(!$job.Process.HasExited -and !$timedOut){return}
-  if(!$job.Process.HasExited){try{$job.Process.Kill()}catch{}}
-  else{
-   $line=@(Get-UsdLog $job | Where-Object {$_ -match '^USD STATUS: '} | Select-Object -Last 1)
-   if(!$script:Worker -and $job.Root -ceq $script:Root -and $line.Count){
-    $script:Local=$line[0].Substring(12)|ConvertFrom-Json
+  $finished=$false
+  try{
+   $job.Process.Refresh()
+   $timedOut=([DateTime]::UtcNow-$job.Started).TotalSeconds -gt 30
+   if(!$job.Process.HasExited -and !$timedOut){return}
+   $finished=$true
+   if(!$job.Process.HasExited){
+    try{$job.Process.Kill()}catch{}
+    if(!$script:Worker -and $job.Root -ceq $script:Root){
+     Set-UsdProbeFailure 'Проверка локального сервера превысила 30 секунд. Проверьте Docker Desktop и сеть; USD повторит проверку.'
+    }
+   }elseif(!$script:Worker -and $job.Root -ceq $script:Root){
+    $line=@(Get-UsdLog $job | Where-Object {$_ -match '^USD STATUS: '} | Select-Object -Last 1)
+    if(!$line.Count){throw 'Не получен ответ проверки сервера. Проверьте Docker Desktop и файлы USD.'}
+    $status=$line[0].Substring(12)|ConvertFrom-Json -ErrorAction Stop
+    if($status.mode -notin @('empty','preparing','attention','ready','archived','synced','pending','working') -or
+       $status.docker -isnot [bool] -or $status.running -isnot [bool]){
+     throw 'Некорректный ответ проверки локального сервера.'
+    }
+    $script:Local=$status
     if($script:Local.mode -eq 'archived'){
      $known=@(Get-LocalWorkspaces|Where-Object {$_.Id -ceq $script:Local.activeStageId})
      if($known.Count -eq 1){
@@ -769,18 +784,59 @@ function Update-UsdProbe {
      }
     }
    }
+  }catch{
+   $finished=$true
+   $script:DashboardError='Ошибка проверки состояния: '+$_.Exception.GetType().Name
+   if(!$script:Worker -and $job.Root -ceq $script:Root){
+    Set-UsdProbeFailure 'Не удалось прочитать состояние локального сервера. Проверьте Docker Desktop; USD повторит проверку.'
+   }
+  }finally{
+   if($finished){
+    try{if(!$job.Process.HasExited){$job.Process.Kill()}}catch{}
+    try{$job.Process.Dispose()}catch{}
+    Remove-Item -LiteralPath $job.Output,$job.Errors -Force -ErrorAction SilentlyContinue
+    $script:Probe=$null
+   }
   }
-  if(($timedOut -or !$line.Count) -and !$script:Worker -and $job.Root -ceq $script:Root){
-   $script:Local=[pscustomobject]@{mode='attention';reason='Не удалось проверить сервер. Откройте Docker Desktop и повторите.';running=$false;docker=$false}
-  }
-  $job.Process.Dispose()
-  Remove-Item -LiteralPath $job.Output,$job.Errors -Force -ErrorAction SilentlyContinue
-  $script:Probe=$null
-  Update-UsdDashboard
+  if($finished){Update-UsdDashboard}
  }
  if(!$script:Probe -and !$script:Worker -and [DateTime]::UtcNow -ge $script:NextProbe){
   $script:NextProbe=[DateTime]::UtcNow.AddSeconds(20)
-  $script:Probe=Start-UsdChild 'status' $script:Root
+  try{$script:Probe=Start-UsdChild 'status' $script:Root}
+  catch{
+   $script:DashboardError='Не удалось запустить проверку: '+$_.Exception.GetType().Name
+   Set-UsdProbeFailure 'Не удалось запустить проверку сервера. Проверьте файлы программы и Docker Desktop.'
+   Update-UsdDashboard
+  }
+ }
+}
+function Update-UsdStartupImages {
+ if($script:ImageJob){
+  $job=$script:ImageJob
+  $job.Process.Refresh()
+  if(!$job.Process.HasExited){return}
+  $lines=@(Get-UsdLog $job -Tail 40)
+  $job.Process.Dispose()
+  $script:ImageJob=$null
+  if(!$script:Worker -and $job.Root -ceq $script:Root){
+   $status=@($lines|Where-Object {$_ -cmatch '^USD STARTUP IMAGES: (cached|current|offline|not-ready|docker-unavailable|busy)\z'}|Select-Object -Last 1)
+   $ui.Notice.Text=switch -Regex ($status -join ''){
+    ': cached\z' {'Новые образы скачаны. Они будут применены при следующем запуске остановленного сервера.'}
+    ': current\z' {'Образы USD актуальны.'}
+    ': busy\z' {'Образы уже проверяются в другом окне USD.'}
+    default {'Обновление образов недоступно. Можно использовать сохранённую версию.'}
+   }
+  }
+  return
+ }
+ $request=Get-UsdStartupImageRequest
+ if($request){
+  try{
+   $script:ImageJob=Start-UsdChild 'images' $request.Root
+   $ui.Notice.Text='Проверяем обновления образов. Можно пользоваться программой.'
+  }catch{
+   $ui.Notice.Text='Не удалось начать проверку образов. Сохранённая версия доступна.'
+  }
  }
 }
 
@@ -1006,6 +1062,7 @@ $timer.Add_Tick({
  try{
   Complete-UsdWorker
   Update-UsdProbe
+  Update-UsdStartupImages
  }catch{
   $script:DashboardError=$_.Exception.Message
   $ui.Notice.Text='Не удалось обновить состояние. Откройте диагностику или журнал операций.'
@@ -1028,5 +1085,6 @@ try{
   $script:Probe.Process.Dispose()
   Remove-Item -LiteralPath $script:Probe.Output,$script:Probe.Errors -Force -ErrorAction SilentlyContinue
  }
+ if($script:ImageJob){$script:ImageJob.Process.Dispose();$script:ImageJob=$null}
  $script:Token=''
 }
