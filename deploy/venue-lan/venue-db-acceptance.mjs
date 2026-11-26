@@ -59,7 +59,7 @@ function stableFixtureUuid(kind,index=0){
  const hex=createHash('sha256').update('usd-venue-e2e:'+kind+':'+index).digest('hex');
  return hex.slice(0,8)+'-'+hex.slice(8,12)+'-4'+hex.slice(13,16)+'-8'+hex.slice(17,20)+'-'+hex.slice(20,32);
 }
-function syntheticSignedStage(staffAccess,mutate=()=>{}){
+function syntheticSignedStage(staffAccess,mutate=()=>{},keys=generateKeyPairSync('ed25519')){
  const now=Date.now();
  const snapshot={
   format:1,purpose:'USD_VENUE_STAGE_READONLY',stageId:ID.stage,
@@ -173,7 +173,7 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
   makeConfig(ID.bannedCar,stableFixtureUuid('signed-directory-version'),'Directory-only system'),
  ];
  mutate(snapshot);
- const {privateKey,publicKey}=generateKeyPairSync('ed25519');
+ const {privateKey,publicKey}=keys;
  const bytes=Buffer.from(JSON.stringify(snapshot));
  const digest=b=>createHash('sha256').update(b).digest('hex');
  const pub=publicKey.export({type:'spki',format:'der'});
@@ -183,7 +183,7 @@ function syntheticSignedStage(staffAccess,mutate=()=>{}){
   publicKeyFingerprint:digest(pub),
  };
  return {container:{snapshot,integrity},
-  publicPem:publicKey.export({type:'spki',format:'pem'}).toString()};
+  publicPem:publicKey.export({type:'spki',format:'pem'}).toString(),keys};
 }
 async function seed(){
  assert.equal(process.env.USD_VENUE_LAN_MODE,'true');
@@ -503,6 +503,55 @@ async function retainedSeason(){
   assert.equal(secondBefore.eventCount,0,'Imported baseline must not become local mutations');
   const active=await root.$queryRawUnsafe('SELECT stage_id AS id FROM venue_private.active_stage');
   assert.equal(active[0].id,second);
+  // Reproduce the actual Windows directory updater against an already
+  // installed stage with retained history, new profiles, and a late signup.
+  const refreshedSnapshot=structuredClone(signed.container.snapshot);
+  const added=Array.from({length:300},(_,index)=>{
+   const id=stableFixtureUuid('directory-refresh-person',index);
+   return {id,firstName:'Новый',lastName:'Профиль '+index,middleName:null,city:null,team:null,isPublic:false,
+    cars:[{id:stableFixtureUuid('directory-refresh-car',index),participantId:id,brand:'Lada',model:'Vesta',
+     registrationCountry:'RU',registrationNumber:'',color:null,isPublic:false,isActive:true}]};
+  });
+  refreshedSnapshot.participantDirectory.push(...added);
+  const late=structuredClone(refreshedSnapshot.registrations[1]);
+  const latePerson=added[0],lateCar=latePerson.cars[0];
+  lateCar.registrationNumber='А555ВС55';
+  const {cars:unusedCars,...lateIdentity}=latePerson;
+  Object.assign(late,{id:stableFixtureUuid('directory-refresh-registration'),participantId:latePerson.id,
+   carId:lateCar.id,participant:lateIdentity,car:lateCar,participantNumber:99,
+   configurationVersionId:stableFixtureUuid('directory-refresh-version'),inspection:null,stageInspection:null,results:[]});
+  late.numbers=[{id:stableFixtureUuid('directory-refresh-number'),number:99,isPrimary:true}];
+  late.classes=[{...late.classes[0],id:stableFixtureUuid('directory-refresh-class'),numberId:late.numbers[0].id,inspection:null}];
+  refreshedSnapshot.registrations.push(late);
+  const sourceConfig=structuredClone(refreshedSnapshot.configurations.find(c=>c.carId===refreshedSnapshot.registrations[1].carId));
+  Object.assign(sourceConfig,{id:stableFixtureUuid('directory-refresh-config'),carId:lateCar.id});
+  sourceConfig.versions=[{...sourceConfig.versions[0],id:late.configurationVersionId,configurationId:sourceConfig.id,
+   headUnits:[],batteries:[],generators:[],audioComponents:[],amplifiers:[]}];
+  refreshedSnapshot.configurations.push(sourceConfig);
+  // Keep the same stage signer and use the CLI's root-only import connection.
+  const fresh=syntheticSignedStage(undefined,s=>Object.assign(s,refreshedSnapshot),signed.keys);
+  const dir=await mkdtemp(join(tmpdir(),'usd-directory-refresh-'));
+  try{
+   const pkg=join(dir,'stage.json'),pem=join(dir,'public.pem');
+   await writeFile(pkg,JSON.stringify(fresh.container),{mode:0o600});
+   await writeFile(pem,fresh.publicPem,{mode:0o600});
+   const rootEnv={...env,DATABASE_URL:rootUrl.toString(),VENUE_DB_USER:'usd_venue_root',
+    VENUE_DB_PASSWORD:process.env.VENUE_DB_ROOT_PASSWORD};
+   const run=mode=>execFileSync(process.execPath,['/app/import-stage.mjs',pkg,pem,mode],
+    {env:rootEnv,encoding:'utf8',stdio:['ignore','pipe','pipe']});
+   const regCount=await normal.registration.count();
+   assert.match(run('--apply-directory'),/"addedParticipants":300/);
+   assert.equal(await normal.participant.count(),people+300);
+   assert.equal(await normal.registration.count(),regCount);
+   assert.match(run('--apply-directory'),/"replayed":true/);
+   assert.match(run('--prepare-roster'),/"refreshedRegistrations":1/);
+   assert.equal(await normal.registration.count(),regCount+1);
+   assert.equal((await normal.registration.findUnique({where:{id:late.id}})).participantNumber,99);
+   assert.deepEqual(await normal.result.findMany({orderBy:{id:'asc'}}),oldResults);
+   assert.deepEqual(await normal.registration.findMany({where:{stageId:ID.stage},orderBy:{id:'asc'}}),oldRegistrations);
+   assert.equal((await collectVenueJournal(normal,env)).eventCount,0);
+   assert.match(run('--prepare-roster'),/"refreshedRegistrations":0/);
+  }finally{await rm(dir,{recursive:true,force:true})}
   const reg=plan.registrations[0];
   await normal.result.create({data:{registrationId:reg.id,registrationClassId:reg.classes[0].id,value:'148.200',unit:'DB',verificationStatus:'NOT_REQUIRED'}});
   const after=await collectVenueJournal(normal,env);

@@ -17,6 +17,7 @@ $script:Pending=$null
 $script:Archive=@()
 $script:StageMetadata=@{}
 $script:LaunchRoot=$PSScriptRoot
+$script:StartupImagesAttempted=$false
 
 function Read-UsdJson([string]$File){
  if(Test-Path -LiteralPath $File -PathType Leaf){
@@ -421,6 +422,15 @@ function Get-UsdFailure([string]$Reason,[int]$Http=0){
  if($Http -ge 500 -or $Reason -match '(?i)\b(500|502|503|504)\b'){
   return @('Сайт USD временно не смог обработать запрос.', 'Подождите несколько минут и повторите. При повторной ошибке отправьте подробности администратору USD.')
  }
+ if($Reason -eq 'DIRECTORY_PLATE_CONFLICT'){
+  return @('Госномер уже привязан к другому локальному автомобилю.','Нужна сверка автомобиля в USD. Ничего не перезаписано.')
+ }
+ if($Reason -eq 'DIRECTORY_CAR_OWNER_CONFLICT'){
+  return @('Автомобиль в локальной базе привязан к другому участнику.','Нужна сверка профилей. Регистрации и результаты сохранены.')
+ }
+ if($Reason -match '^(DIRECTORY_|SIGNED_|DATABASE_.*DIRECTORY_)'){
+  return @('Справочник участников не обновлён: '+$Reason,'Локальные данные сохранены. Передайте код из технических подробностей администратору USD.')
+ }
  if($Reason -eq 'CONFIGURATION_VERSION_CONFLICT'){
   return @('Одна из версий оборудования уже привязана к другой конфигурации.','Локальные данные сохранены. Передайте технические подробности администратору USD для сверки.')
  }
@@ -464,7 +474,7 @@ function Start-UsdNetwork($Request,[string]$Kind){
  }catch{$pipeline.Dispose();throw}
 }
 function Start-UsdChild([string]$Action,[string]$Root,$Bundle=$null){
- $kitRoot=if($Action -in @('export','online','install','prepare')){$script:LaunchRoot}else{$Root}
+ $kitRoot=if($Action -in @('export','online','install','prepare','images')){$script:LaunchRoot}else{$Root}
  $manager=Join-Path $kitRoot 'venue-control.ps1'
  if(!(Test-Path -LiteralPath $manager -PathType Leaf)){throw 'Не удалось найти файлы управления USD. Обновите программу в рабочей папке.'}
  $logsRoot=Join-Path (Join-Path $Root 'local-private') 'operations'
@@ -523,6 +533,15 @@ function Set-UsdManager($Request,$Bundle=$null){
 }
 function New-UsdRequest([string]$Action,[string]$Label,[string]$Root=$script:Root,[string]$Id=''){
  return [pscustomobject]@{Action=$Action;Label=$Label;Root=$Root;Id=$Id;Input=$null;Bundle=$null}
+}
+function Get-UsdStartupImageRequest {
+ # A passive download after the first successful Docker status check.
+ # Never retry on every timer tick and never delay an incomplete installation.
+ if($script:StartupImagesAttempted -or $script:Worker -or $script:Pending -or
+    !$script:State -or $script:State.phase -cne 'READY' -or !$script:Local -or
+    !$script:Local.docker -or $script:Local.mode -in @('archived','attention')){return}
+ $script:StartupImagesAttempted=$true
+ return (New-UsdRequest 'images' 'проверить обновления образов' $script:Root)
 }
 function Start-UsdRequest($Request){
  if($script:Worker){return}
@@ -593,6 +612,10 @@ $script:StepLabels=@{
  'stop-after-ack'='Сайт подтвердил результаты. Останавливаем судейский ввод'
  'import-existing-participant-directory'='Проверяем пакет и обновляем справочник'
  'export-caddy-public-ca'='Подготавливаем публичный сертификат для судей'
+ 'check-startup-release'='Проверяем обновления USD'
+ 'check-startup-schema'='Проверяем совместимость API с локальной базой'
+ 'cache-startup-frontend'='Скачиваем новый интерфейс в кеш'
+ 'cache-startup-api'='Скачиваем образ API в кеш'
  'download-current-frontend-image'='Скачиваем обновление интерфейса'
  'activate-updated-frontend'='Проверяем обновлённую админку и табло'
  'download-registration-upgrade'='Скачиваем исправление регистрации'
@@ -692,7 +715,14 @@ function Complete-UsdWorker {
    online='Сайт подтвердил получение результатов.'
    certificate='Сертификат для судей сохранён в папке программы.'
   }
-  $ui.Notice.Text=$messages[$request.Action]
+  if($request.Action -eq 'images'){
+   $imageStatus=@($lines|Where-Object {$_ -cmatch '^USD STARTUP IMAGES: (cached|current|offline|not-ready|docker-unavailable)\z'}|Select-Object -Last 1)
+   $ui.Notice.Text=switch -Regex ($imageStatus -join ''){
+    ': cached\z' {'Новые образы скачаны. При запуске остановленного сервера обновятся интерфейс и совместимый API.'}
+    ': current\z' {'Образы USD актуальны. Работающие службы не изменены.'}
+    default {'Новые образы недоступны. Сохранённая офлайн-версия готова к работе.'}
+   }
+  }else{$ui.Notice.Text=$messages[$request.Action]}
   if($request.Action -eq 'next'){
    $next=@($lines|Where-Object {$_ -match '^USD VENUE WORKSPACE: '}|Select-Object -Last 1)
    if($next.Count){

@@ -243,9 +243,15 @@ export function planVenueStageImport(signed,publicPem,env,now=Date.now()){
     ||car.participantId!==person.id)
    throw new Error('Сломана связь участника и автомобиля');
   assertUuid(person.id,'участник');assertUuid(car.id,'автомобиль');
-  nonBlank(person.lastName,'фамилия');nonBlank(person.firstName,'имя');
-  nonBlank(car.brand,'марка автомобиля');nonBlank(car.model,'модель автомобиля');
-  nonBlank(car.registrationNumber,'госномер автомобиля');
+  // Cancelled central registrations retain their original identity and no
+  // competition numbers or results. Historical imported profiles/cars can
+  // legitimately have empty text; never manufacture a new identity for them.
+  for(const [value,field] of [[person.lastName,'фамилия'],[person.firstName,'имя'],
+   [car.brand,'марка автомобиля'],[car.model,'модель автомобиля'],[car.registrationNumber,'госномер автомобиля']]){
+   if(reg.status==='CANCELLED'){
+    if(typeof value!=='string')throw new Error('Отсутствует значение: '+field);
+   }else nonBlank(value,field);
+  }
   if(people.has(person.id)&&JSON.stringify(people.get(person.id))!==JSON.stringify(person))
    throw new Error('Конфликт данных одного участника');
   people.set(person.id,person);
@@ -642,7 +648,8 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId,refres
  if(!plan?.packageHash||!prisma?.$transaction||!Array.isArray(plan.participantDirectory)
   ||plan.snapshot?.stageId!==stageId)
   throw new Error('Нет проверенного справочника для этого этапа');
- return prisma.$transaction(async tx=>{
+ let phase='DIRECTORY_PRECHECK';
+ try{return await prisma.$transaction(async tx=>{
   await tx.$queryRawUnsafe('SELECT 1::int AS acquired FROM pg_advisory_xact_lock(1827726187)');
   const role=await tx.$queryRawUnsafe('SELECT current_user AS name,rolsuper FROM pg_roles WHERE rolname=current_user');
   if(role.length!==1||role[0].name!=='usd_venue_root'||role[0].rolsuper!==true)
@@ -669,6 +676,7 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId,refres
   });
   if(!refreshRoster&&already?.metadata?.sha256===plan.packageHash)
    return {addedParticipants:0,addedCars:0,replayed:true};
+  phase='DIRECTORY_PLATES';
   const lookalike={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
   const normalizedPlate=car=>{
    // Old centrally signed cars may legitimately have no plate assigned yet.
@@ -705,35 +713,50 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId,refres
     plates.set(plate,owners);
    }
   }
-  await tx.$queryRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
+  phase='DIRECTORY_IDENTITIES';
+  const localPeople=new Set((await tx.participant.findMany({select:{id:true}})).map(person=>person.id));
+  const localCars=new Map(currentCars.map(car=>[car.id,car]));
+  const peopleToAdd=[],carsToAdd=[];
   for(const person of plan.participantDirectory){
-   const old=await tx.participant.findUnique({where:{id:person.id}});
-   if(!old){
-    await tx.participant.create({data:{
+   if(!localPeople.has(person.id)){
+    peopleToAdd.push({
      id:person.id,firstName:person.firstName,lastName:person.lastName,
      middleName:person.middleName??null,city:person.city??null,
      team:person.team??null,isPublic:person.isPublic===true,
-    }});
-    addedParticipants++;
+    });
    }
    for(const car of person.cars){
-    const prior=await tx.car.findUnique({where:{id:car.id}});
+    const prior=localCars.get(car.id);
     if(prior){
      if(prior.participantId!==person.id)throw new Error('Автомобиль привязан к другому участнику');
      continue;
     }
-    await tx.car.create({data:{
+    carsToAdd.push({
      id:car.id,participantId:person.id,brand:car.brand,model:car.model,
      registrationCountry:car.registrationCountry,registrationNumber:car.registrationNumber,
      color:car.color??null,isPublic:car.isPublic===true,isActive:car.isActive===true,
-    }});
-    addedCars++;
+    });
    }
   }
+  await tx.$queryRawUnsafe("SELECT set_config('usd_venue.importing','true',true)");
+  // Match the initial import's bounded batches, without skipDuplicates or
+  // updates: concurrent collisions must roll back rather than reassign IDs.
+  for(const [model,rows] of [['participant',peopleToAdd],['car',carsToAdd]]){
+   for(let offset=0;offset<rows.length;offset+=250){
+    const batch=rows.slice(offset,offset+250);
+    const inserted=await tx[model].createMany({data:batch});
+    if(inserted.count!==batch.length)throw new Error('DIRECTORY_INSERT_COUNT_MISMATCH');
+   }
+  }
+  addedParticipants=peopleToAdd.length;
+  addedCars=carsToAdd.length;
   // An upgraded signed directory can add the real configurations of existing
   // central profiles. A locally modified version still blocks the transaction.
+  phase='DIRECTORY_CONFIGURATIONS';
   const equipment=await restoreSignedVenueConfigurations(tx,plan.configurations,{shared:true});
+  phase='DIRECTORY_ROSTER';
   const roster=refreshRoster?await refreshVenueRegistrations(tx,plan,stageId):{};
+  phase='DIRECTORY_RECEIPT';
   await tx.auditLog.create({data:{
    action:'VENUE_PARTICIPANT_DIRECTORY_IMPORTED',entity:'Stage',entityId:stageId,
    metadata:{sha256:plan.packageHash,participantCount:plan.participantDirectory.length,
@@ -741,6 +764,10 @@ export async function applyVenueParticipantDirectory(plan,prisma,{stageId,refres
   }});
   return {addedParticipants,addedCars,...equipment,...roster,replayed:false};
  },{isolationLevel:'Serializable',timeout:120000});
+ }catch(error){
+  if(error&&typeof error==='object'){try{error.venueImportPhase=phase}catch{}}
+  throw error;
+ }
 }
 
 async function refreshVenueRegistrations(tx,plan,stageId){
@@ -803,6 +830,17 @@ export function classifyVenueImportFailure(error){
  if(/^ROSTER_(ALREADY_USED|STAGE_CLASSES_CHANGED|SIGNED_REGISTRATION_MISSING|REGISTRATION_OWNER_CHANGED|COMPETITION_DATA|RESULTS_PUBLISHED)$/.test(reason))return reason;
  if(Object.hasOwn(packageExitCodes,error?.venuePackageFailure))return error.venuePackageFailure;
  if(error?.venueConfigurationConflict===true)return 'CONFIGURATION_VERSION_CONFLICT';
+ if(reason==='DIRECTORY_INSERT_COUNT_MISMATCH')return 'DIRECTORY_INSERT_COUNT_MISMATCH';
+ if(reason==='MANUAL_REVIEW: госномер уже занят локальным автомобилем под другим ID')return 'DIRECTORY_PLATE_CONFLICT';
+ if(reason==='Автомобиль привязан к другому участнику')return 'DIRECTORY_CAR_OWNER_CONFLICT';
+ if(reason==='Пополнение справочника разрешено только локальному root-установщику')return 'DIRECTORY_ROOT_REQUIRED';
+ if(reason==='Нельзя обновить исторический или неактивный этап')return 'DIRECTORY_INACTIVE_STAGE';
+ if(reason==='Этот этап ещё не установлен'||reason==='Нет исходной подписанной установки этапа')return 'DIRECTORY_NOT_INSTALLED';
+ if(reason==='Отсутствует значение: госномер автомобиля')return 'SIGNED_REGISTRATION_PLATE_MISSING';
+ if(reason==='Отсутствует значение: марка автомобиля'||reason==='Отсутствует значение: модель автомобиля')return 'SIGNED_REGISTRATION_CAR_INCOMPLETE';
+ if(reason==='Отсутствует значение: фамилия'||reason==='Отсутствует значение: имя')return 'SIGNED_REGISTRATION_NAME_INCOMPLETE';
+ if(reason==='Не утверждены юридические документы, контакт или регламент')return 'SIGNED_POLICY_INVALID';
+ if(reason==='Некорректный размер справочника участников')return 'SIGNED_DIRECTORY_INVALID';
  if(/Повтор или повреждение участника справочника|Лишние личные поля или повтор участника справочника|Автомобиль принадлежит другому участнику или содержит запрещённые поля|Повтор или повреждение автомобиля справочника/.test(reason))return 'SIGNED_DIRECTORY_INVALID';
  if(/Цифровая подпись не подтверждена|Доверенный отпечаток ключа подписи не совпадает|Контрольная сумма пакета не совпадает|Нужен открытый ключ Ed25519/.test(reason))return 'SIGNATURE_OR_TRUST';
  if(/Адрес локальной базы данных недопустим|Импорт в публичную или постороннюю базу запрещён/.test(reason))return 'LOCAL_DATABASE_CONFIG';
@@ -818,7 +856,7 @@ export function classifyVenueImportFailure(error){
  if(sqlstate==='3D000')return 'DATABASE_NOT_FOUND';
  if(/^08[0-9A-Z]{3}$/.test(sqlstate))return 'DATABASE_CONNECTION';
  if(/Этап уже импортирован из другого пакета|исходной подписанной установки|пакета не совпадает/.test(reason))return 'INSTALLED_PACKAGE_MISMATCH';
- const phase=['DB_PRECHECK','STAGE_CATALOG','SIGNED_POLICY','PARTICIPANTS','CARS','CONFIGURATIONS','REGISTRATIONS','INSPECTIONS_RESULTS','RECEIPT']
+ const phase=['DB_PRECHECK','STAGE_CATALOG','SIGNED_POLICY','PARTICIPANTS','CARS','CONFIGURATIONS','REGISTRATIONS','INSPECTIONS_RESULTS','RECEIPT','DIRECTORY_PRECHECK','DIRECTORY_PLATES','DIRECTORY_IDENTITIES','DIRECTORY_CONFIGURATIONS','DIRECTORY_ROSTER','DIRECTORY_RECEIPT','DIRECTORY_PACKAGE_VALIDATION']
   .includes(error?.venueImportPhase)?error.venueImportPhase:null;
  const prismaCode=typeof error?.code==='string'&&/^P(?:10(?:0[0-3]|17)|20(?:00|02|03|04|10|11|21|22|24|25|28|34))$/.test(error.code)
   ?error.code:null;
@@ -857,7 +895,13 @@ async function main(){
    if(receipt)throw Object.assign(new Error('Найдена запись об импорте этапа'),{venuePackageFailure:'STAGE_ALREADY_INSTALLED'});
    return;
   }
-  const plan=await planInstalledVenueStageImport(signed,key,process.env,prisma);
+  let plan;
+  try{plan=await planInstalledVenueStageImport(signed,key,process.env,prisma)}catch(error){
+   if((mode==='--apply-directory'||mode==='--prepare-roster')&&error&&typeof error==='object'){
+    try{error.venueImportPhase='DIRECTORY_PACKAGE_VALIDATION'}catch{}
+   }
+   throw error;
+  }
   if(mode==='--apply-directory'||mode==='--prepare-roster'){
    const imported=await applyVenueParticipantDirectory(plan,prisma,{stageId:plan.snapshot.stageId,refreshRoster:mode==='--prepare-roster'});
    process.stdout.write('USD VENUE PARTICIPANT DIRECTORY IMPORTED — EXISTING IDS PRESERVED\n');

@@ -2,6 +2,7 @@
 # Exercise Windows PowerShell TLS with a local CA/intermediate and explicit IP SAN.
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'venue-operator-status.ps1')
+. (Join-Path $PSScriptRoot 'venue-update.ps1')
 
 $openssl=Join-Path $env:ProgramFiles 'Git/usr/bin/openssl.exe'
 if(!(Test-Path -LiteralPath $openssl -PathType Leaf)){
@@ -53,6 +54,14 @@ subjectAltName=IP:127.0.0.1
  [IO.File]::WriteAllText($program,@'
 const fs=require('node:fs');
 const https=require('node:https');
+const http=require('node:http');
+const tv=http.createServer((req,res)=>{
+ if(req.url==='/venue/live')res.writeHead(200,{'Content-Type':'text/html'}).end('<!doctype html><html>USD</html>');
+ else res.writeHead(404).end();
+});
+tv.listen(0,'127.0.0.1',()=>fs.writeFileSync('tv-port',String(tv.address().port)));
+const proxy=http.createServer((req,res)=>res.writeHead(502).end('proxy must not be used'));
+proxy.listen(0,'127.0.0.1',()=>fs.writeFileSync('proxy-port',String(proxy.address().port)));
 function handle(request,response) {
  if (request.url==='/venue-api/results/venue-live') {
    response.setHeader('Content-Type','application/json');
@@ -77,10 +86,29 @@ listen('wrong-ip.crt','wrong-port');
  $node=Start-Process -FilePath (Get-Command node.exe).Source -ArgumentList ('"'+$program+'"') -WorkingDirectory $PrivateDir -PassThru -WindowStyle Hidden
  $portFile=Join-Path $PrivateDir 'port'
  $wrongPortFile=Join-Path $PrivateDir 'wrong-port'
- for($attempt=0;$attempt -lt 40 -and (!(Test-Path -LiteralPath $portFile) -or !(Test-Path -LiteralPath $wrongPortFile));$attempt++){
+ for($attempt=0;$attempt -lt 40 -and (!(Test-Path -LiteralPath $portFile) -or !(Test-Path -LiteralPath $wrongPortFile) -or !(Test-Path -LiteralPath (Join-Path $PrivateDir 'tv-port')) -or !(Test-Path -LiteralPath (Join-Path $PrivateDir 'proxy-port')));$attempt++){
   if($node.HasExited){throw 'Local HTTPS fixture exited before listening'}
   Start-Sleep -Milliseconds 100
  }
+ $tvPort=[int][IO.File]::ReadAllText((Join-Path $PrivateDir 'tv-port'))
+ $proxyPort=[int][IO.File]::ReadAllText((Join-Path $PrivateDir 'proxy-port'))
+ Add-Type -TypeDefinition @'
+using System;
+using System.Net;
+public sealed class UsdTestForcedProxy : IWebProxy {
+    private readonly Uri target;
+    public UsdTestForcedProxy(string url) { target = new Uri(url); }
+    public ICredentials Credentials { get; set; }
+    public bool IsBypassed(Uri destination) { return false; }
+    public Uri GetProxy(Uri destination) { return target; }
+}
+'@
+ $previousProxy=[Net.WebRequest]::DefaultWebProxy
+ try{
+  [Net.WebRequest]::DefaultWebProxy=New-Object UsdTestForcedProxy ("http://127.0.0.1:"+$proxyPort)
+  if(!(Test-VenueGatewayReady '127.0.0.1' $tvPort)){throw 'Local LIVE probe did not bypass a failing system proxy'}
+  if(Test-VenueGatewayReady '127.0.0.1' $proxyPort){throw 'Local LIVE probe accepted an HTTP failure'}
+ }finally{[Net.WebRequest]::DefaultWebProxy=$previousProxy}
  $port=[int][IO.File]::ReadAllText($portFile)
  $stageId='c510f672-79f7-44eb-8173-2a8ff94b1c0e'
  if(!(Test-VenueHttpsReady '127.0.0.1' $stageId $port)){throw $script:VenueHttpsProbeReason}

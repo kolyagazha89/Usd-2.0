@@ -125,6 +125,7 @@ function mockDb(){
   tx[name]={
    count:async()=>0,
    findUnique:async()=>null,
+   findMany:async()=>[],
    create:async value=>{log.push({model:name,data:value.data});return {id:value.data?.id??uuid.version}},
    createMany:async value=>{for(const item of value.data)log.push({model:name,data:item});return {count:value.data.length}},
    update:async value=>{log.push({model:name,update:value.data});return {}},
@@ -707,4 +708,77 @@ test('retained stage fills an untouched legacy configuration with the original s
   });
   assert.ok(!unsafe.log.some(x=>x.model==='carConfigurationVersion'));
  }
+});
+
+test('directory refresh classifies local plate collisions without exposing identity data',async()=>{
+ const data=snapshot(),person=data.registrations[0].participant,car=data.registrations[0].car;
+ data.participantDirectory=[{...person,cars:[car]}];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {tx,db,log}=mockDb();
+ tx.$queryRawUnsafe=async sql=>sql.includes('current_user')?[{name:'usd_venue_root',rolsuper:true}]:[{stageId:uuid.stage}];
+ tx.stage.findUnique=async()=>({id:uuid.stage});
+ tx.auditLog.findFirst=async()=>({metadata:{sha256:'a'.repeat(64)}});
+ tx.car.findMany=async()=>[{...car,id:'d1a29ae7-73ea-42e6-b12c-594c687f8564'}];
+ await assert.rejects(()=>importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage}),error=>{
+  assert.equal(importer.classifyVenueImportFailure(error),'DIRECTORY_PLATE_CONFLICT');
+  return true;
+ });
+ assert.deepEqual(log,[]);
+});
+
+test('directory failures report a safe phase and do not print private database errors',async()=>{
+ const data=snapshot(),person=data.registrations[0].participant,car=data.registrations[0].car;
+ data.participantDirectory=[{...person,cars:[car]}];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {tx,db}=mockDb();
+ tx.$queryRawUnsafe=async sql=>sql.includes('current_user')?[{name:'usd_venue_root',rolsuper:true}]:[{stageId:uuid.stage}];
+ tx.stage.findUnique=async()=>({id:uuid.stage});
+ tx.auditLog.findFirst=async()=>({metadata:{sha256:'a'.repeat(64)}});
+ tx.car.findMany=async()=>[];
+ tx.participant.findMany=async()=>{throw new Error('private SQL, token and participant data')};
+ await assert.rejects(()=>importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage}),error=>{
+  assert.equal(importer.classifyVenueImportFailure(error),'DATABASE_DIRECTORY_IDENTITIES');
+  return true;
+ });
+});
+
+test('directory update preserves existing rows and imports 750 new profiles in bounded batches',async()=>{
+ const data=snapshot(),person=data.registrations[0].participant,car=data.registrations[0].car;
+ data.participantDirectory=[{...person,cars:[car]},...Array.from({length:750},(_,index)=>{
+  const id=randomUUID();
+  return {id,firstName:'Исторический',lastName:'Профиль '+index,middleName:null,
+   city:null,team:null,isPublic:false,
+   cars:[{id:randomUUID(),participantId:id,brand:'Lada',model:'',registrationCountry:'RU',
+    registrationNumber:'',color:null,isPublic:false,isActive:false}]};
+ })];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {tx,db,log}=mockDb(),batches=[];
+ tx.$queryRawUnsafe=async sql=>sql.includes('current_user')?[{name:'usd_venue_root',rolsuper:true}]:[{stageId:uuid.stage}];
+ tx.stage.findUnique=async()=>({id:uuid.stage});
+ tx.auditLog.findFirst=async()=>({metadata:{sha256:'a'.repeat(64)}});
+ tx.car.findMany=async()=>[car];
+ tx.participant.findMany=async()=>[{id:person.id}];
+ for(const model of ['participant','car']){
+  tx[model].findUnique=async()=>{throw new Error('unbounded per-row lookup')};
+  tx[model].create=async()=>{throw new Error('unbounded per-row insert')};
+  const createMany=tx[model].createMany;
+  tx[model].createMany=async args=>{batches.push([model,args.data.length]);return createMany(args)};
+ }
+ const result=await importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage});
+ assert.equal(result.addedParticipants,750);
+ assert.equal(result.addedCars,750);
+ assert.deepEqual(batches,[['participant',250],['participant',250],['participant',250],['car',250],['car',250],['car',250]]);
+ assert.ok(!log.some(x=>x.data?.id===person.id||x.data?.id===car.id));
+ assert.ok(!log.some(x=>['registration','result','inspection'].includes(x.model)));
+});
+
+test('cancelled signed registration can retain incomplete historical car and name without inventing values',()=>{
+ const data=snapshot(),row=data.registrations[0];
+ Object.assign(row,{status:'CANCELLED',participantNumber:-1,numbers:[],classes:[],results:[],inspection:null,stageInspection:null});
+ row.car.registrationNumber='';row.car.model='';row.participant.firstName='';
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ assert.equal(plan.registrations[0].car.registrationNumber,'');
+ assert.equal(plan.registrations[0].participant.firstName,'');
+ const active=snapshot();active.registrations[0].car.registrationNumber='';
+ assert.throws(()=>planVenueStageImport(signed(active),publicPem,env,now),/госномер/);
 });
