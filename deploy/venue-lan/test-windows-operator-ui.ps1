@@ -95,6 +95,7 @@ try{
  if(Get-UsdStartupImageRequest){throw 'Startup must not retry on every status tick'}
  # A malformed status response or a killed probe must not pin the dashboard in checking.
  function Update-UsdDashboard {}
+ $ui=@{Notice=[pscustomobject]@{Text='Проверяем локальный сервер…'}}
  $script:NextProbe=[DateTime]::UtcNow.AddMinutes(1)
  $script:Local=$null
  [IO.File]::WriteAllText((Join-Path $temp 'venue-control.ps1'),"Write-Output 'USD STATUS: {bad-json'; exit 0")
@@ -104,12 +105,14 @@ try{
  if($script:Probe -or $script:Local.mode -cne 'attention' -or !$script:Local.reason){
   throw 'Malformed status must release the probe and display an actionable failure'
  }
+ if($ui.Notice.Text -notmatch 'Не удалось проверить'){throw 'Initial status notice must report failed probes'}
  # A second, valid probe must recover without reopening the application.
  [IO.File]::WriteAllText((Join-Path $temp 'venue-control.ps1'),"Write-Output 'USD STATUS: {""mode"":""ready"",""docker"":true,""running"":false}'; exit 0")
  $script:Probe=Start-UsdChild 'status' $temp
  if(!$script:Probe.Process.WaitForExit(10000)){throw 'Recovery fixture did not exit'}
  Update-UsdProbe
  if($script:Probe -or $script:Local.mode -cne 'ready'){throw 'Status recovery failed'}
+ if($ui.Notice.Text -cne 'Локальный сервер проверен.'){throw 'Successful probe must replace the checking notice'}
  # Image download is separate from the exclusive operator worker and the status probe.
  $script:StartupImagesAttempted=$false
  $script:State=[pscustomobject]@{phase='READY';stageId=$stage}
