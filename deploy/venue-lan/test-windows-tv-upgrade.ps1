@@ -122,6 +122,8 @@ try{
  if((Get-VenueStartupTargetForStoppedStage $state) -cne $next -or $script:commands.Count -ne 0){
   throw 'Cold start must resolve the current release itself even without a prefetch marker'
  }
+ $script:target=$null
+ if(Get-VenueStartupTargetForStoppedStage $state){throw 'Offline launch must not activate even a predownloaded candidate'}
  $script:running=$true
  $script:target=$api
  if(Get-VenueStartupTargetForStoppedStage $state){throw 'An active judging API must not activate updates'}
@@ -145,6 +147,8 @@ try{
   if($script:sameSchema -or $Sha -ceq $api){return ('a'*64)}
   return ('b'*64)
  }
+ $script:reviewed=$false
+ function Test-VenueReviewedSchemaUpgrade([string]$Old,[string]$New){return $script:reviewed}
  function Test-VenueStageUnchanged([object]$State){return $script:cleanJournal}
  function Assert-VenueReleaseImages([string]$Sha){if($Sha -cne $newApi){throw 'Wrong cached API'}}
  function Save-VenueRegistrationUpgradeBackup {$script:commands+='backup'}
@@ -157,6 +161,17 @@ try{
  if((Update-VenueCachedRuntime $state $newApi) -cne 'not-eligible' -or $script:commands.Count){
   throw 'A changed schema must not start an automatic backend rollout'
  }
+ # An explicitly reviewed additive schema change must migrate both images,
+ # but an unreviewed schema remains pinned. Backup precedes the migration.
+ $script:reviewed=$true
+ $script:cleanJournal=$true
+ $script:commands=@()
+ if((Update-VenueCachedRuntime $state $newApi) -cne 'updated' -or
+   ($script:commands -join ';') -notmatch 'backup;compose run .*migrate deploy.*;compose up .*api frontend gateway'){
+  throw 'Reviewed startup migration must back up and activate both versions'
+ }
+ [IO.File]::WriteAllText($EnvFile,$beforeRuntime)
+ $script:commands=@();$script:reviewed=$false
  $script:sameSchema=$true;$script:cleanJournal=$false
  if((Update-VenueCachedRuntime $state $newApi) -cne 'not-eligible' -or $script:commands.Count){
   throw 'A stage with judging changes must not start an automatic backend rollout'
