@@ -43,6 +43,12 @@ if __name__ == "__main__":
     if "--check" in sys.argv:
         stale = [name for name, data in files.items() if not (OUTPUT / name).is_file() or (OUTPUT / name).read_bytes() != data]
         if stale:
+            # Temporary branch-only transport of the deterministic public kit.
+            import base64
+            for filename in ("USD-Offline-Windows.zip", "USD-Offline-Windows.json"):
+                payload = base64.b64encode(files[filename]).decode("ascii")
+                for offset in range(0, len(payload), 2048):
+                    print(f"USD_KIT_TRANSFER {filename} {offset} {payload[offset:offset+2048]}", flush=True)
             raise SystemExit("Windows download kit is stale; run python3 deploy/venue-lan/build-windows-kit.py: " + ", ".join(stale))
     else:
         OUTPUT.mkdir(parents=True, exist_ok=True)
