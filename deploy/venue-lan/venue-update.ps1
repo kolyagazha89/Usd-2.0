@@ -7,11 +7,36 @@ function Copy-VenueWebVersion([System.Collections.IDictionary]$Config,[hashtable
   $Config['VENUE_WEB_IMAGE_TAG']=$version
  }
 }
-function Test-VenueGatewayReady([string]$Ip){
+function Test-VenueGatewayReady([string]$Ip,[int]$Port=80){
+ # LAN probes must never traverse a Windows/VPN proxy. Do not change global
+ # proxy settings: online release downloads still use the operator's network.
+ $script:VenueGatewayProbeReason=''
+ $reply=$null
+ $reader=$null
  try{
-  $reply=Invoke-WebRequest -Uri ('http://'+$Ip+'/venue/live') -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
-  return $reply.StatusCode -eq 200 -and [string]$reply.Content -match '(?i)<(?:!doctype|html)'
- }catch{return $false}
+  $request=[Net.HttpWebRequest][Net.WebRequest]::Create(('http://'+$Ip+':'+$Port+'/venue/live'))
+  $request.Proxy=$null
+  $request.AllowAutoRedirect=$false
+  $request.Timeout=3000
+  $request.ReadWriteTimeout=3000
+  $reply=$request.GetResponse()
+  if([int]$reply.StatusCode -ne 200){
+   $script:VenueGatewayProbeReason='HTTP '+[int]$reply.StatusCode
+   return $false
+  }
+  $reader=New-Object System.IO.StreamReader($reply.GetResponseStream())
+  if($reader.ReadToEnd() -notmatch '(?i)<(?:!doctype|html)'){
+   $script:VenueGatewayProbeReason='HTTP 200, но ответ не является HTML'
+   return $false
+  }
+  return $true
+ }catch{
+  $script:VenueGatewayProbeReason=$_.Exception.GetBaseException().Message
+  return $false
+ }finally{
+  if($reader){$reader.Dispose()}
+  if($reply){$reply.Close()}
+ }
 }
 function Test-VenueWebRevision([string]$Sha){
  $program=@'
@@ -209,11 +234,20 @@ function Update-ReadyVenueFrontend([object]$State) {
    '--force-recreate','frontend','gateway') 'activate updated LIVE and judging frontend'
   $expected=$(if($target){$target}else{$installed})
   $webReady=$false
+  $revisionReady=$false
+  $gatewayReady=$false
   for($attempt=0;$attempt -lt 15;$attempt++){
-   if((Test-VenueWebRevision $expected) -and (Test-VenueGatewayReady $State.ip)){$webReady=$true;break}
+   $revisionReady=Test-VenueWebRevision $expected
+   $gatewayReady=Test-VenueGatewayReady $State.ip
+   if($revisionReady -and $gatewayReady){$webReady=$true;break}
    Start-Sleep -Seconds 1
   }
-  if(!$webReady){throw 'Новый экран или локальный шлюз не подтвердили готовность'}
+  if(!$webReady){
+   $reason=@()
+   if(!$revisionReady){$reason+='frontend внутри Docker не подтвердил ревизию '+$expected}
+   if(!$gatewayReady){$reason+='локальный LIVE HTTP '+$State.ip+': '+$script:VenueGatewayProbeReason}
+   throw ($reason -join '; ')
+  }
  }catch{
   $failure=$_.Exception.Message
   if($null -ne $original){
