@@ -147,6 +147,20 @@ try{
   if($script:sameSchema -or $Sha -ceq $api){return ('a'*64)}
   return ('b'*64)
  }
+ # Byte-level migration review: a known addition is allowed, changed or
+ # unreviewed SQL and rewritten history are not.
+ $script:oldManifest=[pscustomobject]@{schema='old';migrations=[pscustomobject]@{'20261101000000_base'=('a'*40)}}
+ $script:newManifest=[pscustomobject]@{schema='087b525d054147264e7c289d9c677b5ae7f14895';migrations=[pscustomobject]@{'20261101000000_base'=('a'*40);'20261115181500_venue_tls_certificate'='4d03d9b9bacf6718d25fb7b94f730722f8d0835f'}}
+ function Get-VenueMigrationManifest([string]$Sha){if($Sha -ceq $api){return $script:oldManifest};return $script:newManifest}
+ if(!(Test-VenueReviewedSchemaUpgrade $api $newApi)){throw 'Exact reviewed migration not accepted'}
+ $script:newManifest.migrations.'20261115181500_venue_tls_certificate'='f'*40
+ if(Test-VenueReviewedSchemaUpgrade $api $newApi){throw 'Modified reviewed SQL accepted'}
+ $script:newManifest.migrations.'20261115181500_venue_tls_certificate'='4d03d9b9bacf6718d25fb7b94f730722f8d0835f'
+ $script:newManifest.migrations.'20261101000000_base'='b'*40
+ if(Test-VenueReviewedSchemaUpgrade $api $newApi){throw 'Rewritten historical migration accepted'}
+ $script:newManifest.migrations.'20261101000000_base'='a'*40
+ $script:newManifest.migrations|Add-Member -NotePropertyName '20261126000000_unknown' -NotePropertyValue ('e'*40)
+ if(Test-VenueReviewedSchemaUpgrade $api $newApi){throw 'Unreviewed migration accepted'}
  $script:reviewed=$false
  function Test-VenueReviewedSchemaUpgrade([string]$Old,[string]$New){return $script:reviewed}
  function Test-VenueStageUnchanged([object]$State){return $script:cleanJournal}
@@ -161,6 +175,8 @@ try{
  if((Update-VenueCachedRuntime $state $newApi) -cne 'not-eligible' -or $script:commands.Count){
   throw 'A changed schema must not start an automatic backend rollout'
  }
+ Invoke-VenueStartupActivation $state $newApi
+ if($script:commands.Count){throw 'Unreviewed API must not activate a mismatched frontend'}
  # An explicitly reviewed additive schema change must migrate both images,
  # but an unreviewed schema remains pinned. Backup precedes the migration.
  $script:reviewed=$true
