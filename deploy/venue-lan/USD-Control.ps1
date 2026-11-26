@@ -474,6 +474,11 @@ function Start-UsdNetwork($Request,[string]$Kind){
   $script:Worker=[pscustomobject]@{Kind=$Kind;Request=$Request;Pipeline=$pipeline;Handle=$handle}
  }catch{$pipeline.Dispose();throw}
 }
+# Native dialogs in a worker must not inherit a hidden startup window.
+function Get-UsdWorkerWindowStyle([string]$Action){
+ if($Action -in @('status','images')){return 'Hidden'}
+ return 'Normal'
+}
 function Start-UsdChild([string]$Action,[string]$Root,$Bundle=$null){
  $kitRoot=if($Action -in @('export','online','install','prepare','images')){$script:LaunchRoot}else{$Root}
  $manager=Join-Path $kitRoot 'venue-control.ps1'
@@ -489,7 +494,7 @@ function Start-UsdChild([string]$Action,[string]$Root,$Bundle=$null){
  if($Bundle){
   $arguments+=' -StageFile "'+$Bundle.StageFile+'" -PublicKeyFile "'+$Bundle.PublicKeyFile+'" -StaffKeyFile "'+$Bundle.StaffKeyFile+'" -TrustedFingerprint '+$Bundle.Fingerprint
  }
- $proc=Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList $arguments -WorkingDirectory $Root -PassThru -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err
+ $proc=Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList $arguments -WorkingDirectory $Root -PassThru -WindowStyle (Get-UsdWorkerWindowStyle $Action) -RedirectStandardOutput $out -RedirectStandardError $err
  # Keep a process handle so Windows PowerShell can read its exit code after exit.
  try{[void]$proc.Handle}catch{}
  return [pscustomobject]@{Process=$proc;Output=$out;Errors=$err;Root=$Root;Started=[DateTime]::UtcNow}
