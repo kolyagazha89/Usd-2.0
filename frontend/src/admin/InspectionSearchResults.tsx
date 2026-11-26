@@ -2,9 +2,9 @@ import {ChevronRight} from 'lucide-react';
 import './inspection-search.css';
 
 /** A single compact, keyboard-accessible action per matching registration. */
-export function InspectionSearchResults({rows,loading,onOpen,onReset,displayCarName}:{rows:any[];loading:boolean;onOpen:(id:string)=>void;onReset:()=>void;displayCarName:(car:any)=>string}){
+export function InspectionSearchResults({rows,total=rows.length,loading,onOpen,onReset,displayCarName}:{rows:any[];total?:number;loading:boolean;onOpen:(id:string)=>void;onReset:()=>void;displayCarName:(car:any)=>string}){
  return <section className="inspection-quick-results" aria-label="Результаты поиска инспекций" aria-busy={loading}>
-  <p className="inspection-search-count" role="status">{loading?'Загружаем инспекции…':`Найдено: ${rows.length}`}</p>
+  <p className="inspection-search-count" role="status">{loading?'Загружаем инспекции…':`Найдено: ${total}`}</p>
   {!loading&&(rows.length?<ul>{rows.map(row=>{
    const numbers=[...new Set([row.participantNumber,...(row.numbers??[]).map((n:any)=>n.number),...(row.classes??[]).map((c:any)=>c.number?.number)].filter(n=>n!==null&&n!==undefined))];
    const name=[row.participant?.lastName,row.participant?.firstName,row.participant?.middleName].filter(Boolean).join(' ')||'Участник';

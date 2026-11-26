@@ -15,17 +15,18 @@ test('operational controls start collapsed, remember explicit expansion on retur
   }
   const outfile=path.join(scratch,'controls.mjs');
   await build({stdin:{contents:"export * from './src/admin/EventOperationsControls'",resolveDir:path.join(base,'..'),loader:'tsx'},bundle:true,platform:'node',format:'esm',jsx:'automatic',packages:'external',outfile});
-  const {EventOperationsStagePicker:Stage,EventOperationsActions:Actions}=await import(pathToFileURL(outfile).href);
+  const {EventOperationsStagePicker:Stage,EventOperationsActions:Actions,EventOperationsSummary:Summary}=await import(pathToFileURL(outfile).href);
   const React=await import('react'),{createRoot}=await import('react-dom/client');let root=createRoot(document.getElementById('root'));
   const render=async(viewKey,stageId='s1')=>React.act(async()=>root.render(React.createElement(React.Fragment,null,
-   React.createElement(Stage,{viewKey,stageId,stageName:'Тестовый этап'},'Выбор этапа'),React.createElement(Actions,{viewKey},'Кнопки действий'))));
+   React.createElement(Stage,{viewKey,stageId,stageName:'Тестовый этап'},'Выбор этапа'),React.createElement(Actions,{viewKey},'Кнопки действий'),React.createElement(Summary,{viewKey,summary:'Сводка'},'Статистика'))));
+  const summary=()=>document.querySelector('.event-ops-metrics-drawer');
   const stages=()=>document.querySelector('.event-ops-stage-drawer'),actions=()=>document.querySelector('.event-ops-actions-drawer');
   try{
    await render('registrations');assert.equal(stages().open,false);assert.equal(actions().open,false);
-   await React.act(async()=>{for(const el of [stages(),actions()]){el.open=true;el.dispatchEvent(new window.Event('toggle'))}});
+   await React.act(async()=>{for(const el of [stages(),actions(),summary()]){el.open=true;el.dispatchEvent(new window.Event('toggle'))}});
    await React.act(async()=>root.unmount());root=createRoot(document.getElementById('root'));await render('registrations');
    assert.equal(stages().open,true,'return preserves the list height by restoring the expanded stage controls');
-   assert.equal(actions().open,true,'return restores expanded actions');
+   assert.equal(actions().open,true,'return restores expanded actions');assert.equal(summary().open,true,'return restores summary height');
    await render('inspections');assert.equal(stages().open,false,'another desk starts collapsed');assert.equal(actions().open,false);
    await render('inspections','');assert.equal(stages().open,true,'without a selected stage the selector is available');
   }finally{await React.act(async()=>root.unmount())}

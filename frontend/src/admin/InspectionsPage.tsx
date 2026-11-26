@@ -1,11 +1,11 @@
-import {EventOperationsStagePicker,EventOperationsActions} from './EventOperationsControls';
+import {InspectionQrScanner} from './InspectionQrScanner';
+import {EventOperationsPrimaryActions} from './EventOperationsPrimaryActions';
+import {AdminLoadMore,useIncrementalRows} from './AdminLoadMore';
+import {EventOperationsStagePicker,EventOperationsActions,EventOperationsSummary} from './EventOperationsControls';
 import {InspectionSearchResults} from './InspectionSearchResults';
 import {ActionError} from '../ActionError';
-import {AdminListPagination} from './AdminListPagination';
-import {paginateResourceRows} from './admin-table-model';
 import {loadOperationalStages} from './operational-stages';
 import {isPastStageCalendar} from './stage-calendar';
-import CollapsibleFilters from '../CollapsibleFilters';
 import {AdminEntityLink,AdminRelatedEntities} from './AdminEntityLink';
 import './form-journey.css';
 import {walkInConfigurationOptions,walkInNextStep,walkInStepProgress,walkInConsentAfterSelection} from './walk-in-form-journey';
@@ -14,8 +14,6 @@ import {canOpenWalkInRegistration,filterInspections,summarizeInspections} from '
 import {EventOperationsNavigation} from './EventOperationsNavigation';
 import {judgingResultLink} from './results-operations-model';
 import {useEffect,useRef,useState} from 'react';
-import jsQR from 'jsqr';
-import {parseInspectionQr} from '../participant/usd-id';
 import {AlertTriangle,Check,ChevronLeft,ChevronRight,ClipboardCheck,Info,Loader2,Plus,RefreshCw,ScanQrCode,Search,Users,ShieldAlert,Trophy,UserRound,CarFront,CalendarDays,Flag,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
 import {useVehicleDirectory} from '../use-vehicle-directory';
@@ -118,70 +116,23 @@ export function InspectionsPage({user,go,PageFrame,Empty,LoadingPage,SearchableS
  const visibleStages=stages.filter(s=>matchesSeason(s,season)&&(period==='PAST'?isPastStage(s):!isPastStage(s)));
  useEffect(()=>{loadOperationalStages<any>().then(s=>{setStages(s);const active=s.find(x=>x.venueActive);const requested=s.find(x=>x.id===new URLSearchParams(location.search).get('stageId'))??active??s.find(x=>x.id===initialStageId);const requestedPeriod=requested?(isPastStage(requested)?'PAST':'UPCOMING'):period;setPeriod(requestedPeriod);if(requested&&!matchesSeason(requested,season))setSeason(stageYear(requested));const visible=s.filter((x:any)=>matchesSeason(x,season)&&(requestedPeriod==='PAST'?isPastStage(x):!isPastStage(x)));setStageId(requested?.id??visible[0]?.id??'')}).catch(e=>setStageError(e instanceof Error?e.message:'Не удалось загрузить этапы')).finally(()=>setLoadingStages(false))},[]);
  useEffect(()=>{if(loadingStages)return;const params=new URLSearchParams(location.search);if(stageId)params.set('stageId',stageId);else params.delete('stageId');history.replaceState({},'',location.pathname+'?'+params.toString())},[stageId,loadingStages]);
- const stageControls=<EventOperationsStagePicker viewKey="inspections" stageId={stageId} stageName={selectedStage?.name}>
-  <div className="toolbar stage-picker"><label>Этап<select value={stageId} onChange={e=>changeStage(e.target.value)} disabled={loadingStages}><option value="">Выберите этап</option>{visibleStages.map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label><CollapsibleFilters activeCount={Number(season!=='ALL')+Number(period!=='UPCOMING')}>
+ const closeScanner=()=>{setScanOpen(false);const params=new URLSearchParams(location.search);params.delete('scan');params.delete('usdId');history.replaceState({},'',location.pathname+(params.toString()?'?'+params.toString():''))};
+ const stageControls=(extra?:React.ReactNode)=><EventOperationsStagePicker viewKey="inspections" stageId={stageId} stageName={selectedStage?.name}>
+  <div className="toolbar stage-picker"><label>Этап<select value={stageId} onChange={e=>changeStage(e.target.value)} disabled={loadingStages}><option value="">Выберите этап</option>{visibleStages.map(s=><option key={s.id} value={s.id}>#{s.stageNumber} · {s.name} · {s.city||'—'}</option>)}</select></label>
    <label>Сезон<select aria-label="Сезон инспекций" value={season} onChange={e=>{const next=e.target.value;setSeason(next);const candidates=stages.filter(s=>matchesSeason(s,next)&&(period==='PAST'?isPastStage(s):!isPastStage(s)));changeStage(candidates[0]?.id??'')}}><option value="ALL">Все сезоны</option>{seasonYears(stages).map(year=><option key={year} value={year}>{year}</option>)}</select></label><label>Период<select value={period} onChange={e=>{const next=e.target.value as 'UPCOMING'|'PAST';setPeriod(next);const nextStages=stages.filter(s=>matchesSeason(s,season)&&(next==='PAST'?isPastStage(s):!isPastStage(s)));changeStage(nextStages[0]?.id??'')}}><option value="UPCOMING">Будущие этапы</option><option value="PAST">Прошедшие этапы</option></select></label>
-   </CollapsibleFilters>
-  </div>
-  </EventOperationsStagePicker>;
- return <PageFrame className="event-ops-page" title="Инспекция въезда" subtitle="Проверка зарегистрированных участников перед допуском на этап" showHelp={false}>
-  {stageError&&<p className="form-error" role="alert">{stageError}</p>}
-  {scanOpen ? <InspectionQrScanner stageId={new URLSearchParams(location.search).has('usdId')?'':stageId} initialUsdId={new URLSearchParams(location.search).get('usdId')??''} onClose={()=>setScanOpen(false)} onScan={(nextStageId,registrationId)=>{setScanOpen(false);go('/admin/inspections?stageId='+encodeURIComponent(nextStageId)+'&registrationId='+encodeURIComponent(registrationId))}}/> : <>
 
-  {!stageId&&stageControls}
+  </div>
+  {extra}</EventOperationsStagePicker>;
+ return <PageFrame className="event-ops-page" title="Инспекция въезда" subtitle="Допуск участников этапа" showHelp={false}>
+  {stageError&&<p className="form-error" role="alert">{stageError}</p>}
+  {scanOpen ? <InspectionQrScanner stageId={new URLSearchParams(location.search).has('usdId')?'':stageId} initialUsdId={new URLSearchParams(location.search).get('usdId')??''} onClose={closeScanner} onScan={(nextStageId,registrationId)=>{setScanOpen(false);go('/admin/inspections?stageId='+encodeURIComponent(nextStageId)+'&registrationId='+encodeURIComponent(registrationId))}}/> : <>
+
+  {!stageId&&stageControls()}
   {loadingStages?<LoadingPage small/>:stageId?<EntryInspection stageControls={stageControls} key={stageId} stageId={stageId} stageName={selectedStage?.name} onScanQr={()=>setScanOpen(true)} go={go} user={user} readOnly={readOnly} Empty={Empty} LoadingPage={LoadingPage} SearchableSelect={SearchableSelect} displayCarName={displayCarName} enumLabel={enumLabel}/>:<div className="panel"><Empty text="Выберите этап"/><button type="button" className="secondary-button compact" onClick={()=>setScanOpen(true)}><ScanQrCode size={15}/>Сканировать QR</button></div>}
   </>}
  </PageFrame>
 }
-function InspectionQrScanner({onClose,onScan,stageId,initialUsdId}:{onClose:()=>void;onScan:(stageId:string,registrationId:string)=>void;stageId:string;initialUsdId:string}){
- const videoRef=useRef<HTMLVideoElement|null>(null),busyRef=useRef(false);
- const [error,setError]=useState(''),[manual,setManual]=useState(''),[scannerMode,setScannerMode]=useState('');
- const [choices,setChoices]=useState<any[]>([]),[resolving,setResolving]=useState(false);
- const parse=async(raw:string):Promise<boolean>=>{
-  if(busyRef.current)return false;
-  busyRef.current=true;setResolving(true);
-  try{
-   const qr=parseInspectionQr(raw,window.location.origin);
-   if(qr.kind==='registration'){setError('');onScan(qr.stageId,qr.registrationId);return true}
-   const suffix=stageId?'?stageId='+encodeURIComponent(stageId):'';
-   const response=await apiGet<any>('/inspections/usd-id/'+encodeURIComponent(qr.token)+suffix);
-   const registrations=Array.isArray(response?.registrations)?response.registrations:[];
-   if(!registrations.length)throw new Error(stageId?'У участника нет активной регистрации на выбранный этап. Выберите другой этап или зарегистрируйте участника.':'У участника нет активных регистраций.');
-   setError('');
-   if(registrations.length===1){onScan(registrations[0].stageId,registrations[0].id);return true}
-   setChoices(registrations);return true;
-  }catch(e){setError(e instanceof Error?e.message:'Не удалось прочитать QR-код');return false}
-  finally{busyRef.current=false;setResolving(false)}
- };
- useEffect(()=>{if(initialUsdId)void parse(window.location.origin+'/usd-id/'+initialUsdId)},[initialUsdId]);
- useEffect(()=>{let active=true,stream:MediaStream|null=null,frame=0,timeout=0;const start=async()=>{
-  if(!navigator.mediaDevices?.getUserMedia){setError('Камера недоступна. Откройте страницу по HTTPS или вставьте ссылку из QR-кода ниже.');return}
-  try{
-   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-   if(!active){stream.getTracks().forEach(track=>track.stop());return}
-   const video=videoRef.current;if(!video)return;video.srcObject=stream;await video.play();
-   const Detector=(window as any).BarcodeDetector;let detector:any=null;
-   if(typeof Detector==='function'){try{detector=new Detector({formats:['qr_code']})}catch{detector=null}}
-   setScannerMode(detector?'Встроенное распознавание QR':'Совместимое распознавание QR для этого браузера');
-   const canvas=document.createElement('canvas'),context=canvas.getContext('2d',{willReadFrequently:true});
-   if(!context){setError('Не удалось подготовить распознавание QR. Вставьте ссылку ниже.');return}
-   let scan:()=>Promise<void>=async()=>{};
-   const schedule=()=>{if(!active)return;if(detector)frame=requestAnimationFrame(()=>void scan());else timeout=window.setTimeout(()=>void scan(),180)};
-   scan=async()=>{if(!active)return;if(video.readyState>=2){
-    let raw='';
-    if(detector){try{const found=await detector.detect(video);raw=found?.[0]?.rawValue||''}catch{detector=null;setScannerMode('Совместимое распознавание QR для этого браузера')}}
-    if(!detector&&!raw){const width=Math.min(video.videoWidth||0,1280),height=width&&video.videoWidth?Math.max(1,Math.round(width*video.videoHeight/video.videoWidth)):0;if(width&&height){canvas.width=width;canvas.height=height;context.drawImage(video,0,0,width,height);try{raw=jsQR(context.getImageData(0,0,width,height).data,width,height,{inversionAttempts:'attemptBoth'})?.data||''}catch{raw=''}}}
-    if(raw&&await parse(raw))return;
-   }schedule()};
-   void scan();
-  }catch{setError('Не удалось включить камеру. Проверьте разрешение браузера или вставьте ссылку вручную.')}
- };void start();return()=>{active=false;if(frame)cancelAnimationFrame(frame);if(timeout)window.clearTimeout(timeout);stream?.getTracks().forEach(track=>track.stop())}},[stageId]);
- return <section className="panel resource-editor-page qr-scanner-page"><div className="resource-editor-heading"><div><span className="eyebrow">ИНСПЕКЦИЯ · QR</span><h2>USD ID или QR регистрации</h2></div><button type="button" className="secondary-button" onClick={onClose}><ChevronLeft size={16}/>Назад к инспекциям</button></div><div className="qr-scanner-modal">
-  {error&&<div className="notice" role="alert"><AlertTriangle size={16}/><span>{error}</span></div>}
-  {choices.length>0?<div className="panel"><h3>Выберите регистрацию</h3><p>Участник зарегистрирован на нескольких автомобилях или этапах.</p>{choices.map((row:any)=><button key={row.id} type="button" className="secondary-button" style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}} onClick={()=>onScan(row.stageId,row.id)}><span>{row.stage?.name||'Этап USD'} · {[row.car?.brand,row.car?.model].filter(Boolean).join(' ')}</span><strong>№ {row.participantNumber} · {(row.stageInspection??row.inspection)?.status==='PASSED'?'Допущен':(row.stageInspection??row.inspection)?.status==='FAILED'?'Не допущен':'Ожидает инспекции'}</strong></button>)}</div>:<><div className="qr-camera-viewport"><video ref={videoRef} muted playsInline autoPlay aria-label="Камера для сканирования QR-кода"/><div className="qr-camera-overlay" aria-hidden="true"><div className="qr-camera-target"><span/><span/><span/><span/></div><small>Поместите QR-код внутрь рамки</small></div></div>{scannerMode&&<small className="field-help">{scannerMode}</small>}<p>Постоянный USD ID найдёт регистрацию на выбранный этап. Старый QR регистрации продолжает работать без изменений.</p><form className="form" onSubmit={e=>{e.preventDefault();void parse(manual)}}><label>Или вставьте ссылку из QR-кода<input value={manual} onChange={e=>setManual(e.target.value)} placeholder="https://app.usd-russia.ru/usd-id/…" /></label><button className="primary-button" disabled={!manual.trim()||resolving}>{resolving?'Ищем регистрацию…':'Открыть регистрацию'}</button></form></>}
- </div></section>;
-}
-function EntryInspection({stageControls,stageId,stageName,onScanQr,go,user,readOnly,Empty,LoadingPage,SearchableSelect,displayCarName,enumLabel}:{stageControls:React.ReactNode;stageId:string;stageName?:string;onScanQr:()=>void;go:(path:string)=>void;user:User;readOnly:boolean;Empty:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string;enumLabel:(v:any)=>string}){
+function EntryInspection({stageControls,stageId,stageName,onScanQr,go,user,readOnly,Empty,LoadingPage,SearchableSelect,displayCarName,enumLabel}:{stageControls:(extra?:React.ReactNode)=>React.ReactNode;stageId:string;stageName?:string;onScanQr:()=>void;go:(path:string)=>void;user:User;readOnly:boolean;Empty:React.ComponentType<any>;LoadingPage:React.ComponentType<any>;SearchableSelect:React.ComponentType<any>;displayCarName:(car:any,fallback?:string)=>string;enumLabel:(v:any)=>string}){
  const initialRegistrationId=(()=>{try{return new URLSearchParams(location.search).get('registrationId')??''}catch{return ''}})();
  const[rows,setRows]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useViewState('inspections:'+stageId+':search',''),[filter,setFilter]=useViewState<'ALL'|'PASSED'|'FAILED'|'PENDING'|'NOT_PASSED'>('inspections:'+stageId+':status','ALL'),[registerOpen,setRegisterOpen]=useState(()=>!initialRegistrationId&&canOpenWalkInRegistration(location.search,readOnly)),[selectedRegistrationId,setSelectedRegistrationId]=useState(initialRegistrationId),[initialSelectionHandled,setInitialSelectionHandled]=useState(false),[confirmPassAll,setConfirmPassAll]=useState(false),[confirmFailAll,setConfirmFailAll]=useState(false),[failAllReason,setFailAllReason]=useState('');
   const expandInspectionRows=(items:any[])=>items.map((registration:any)=>({
@@ -200,10 +151,7 @@ function EntryInspection({stageControls,stageId,stageName,onScanQr,go,user,readO
  const {passed,failed,pending}=summarizeInspections(rows);const inspectedCount=passed+failed;
  const selectedFilter=filter==='NOT_PASSED'?'FAILED':filter;
  const filtered=filterInspections(rows,selectedFilter,search);
- const [page,setPage]=useViewState('inspections:'+stageId+':page',1),[pageSize,setPageSize]=useViewState('inspections:'+stageId+':pageSize',10);
- const pagination=paginateResourceRows(filtered,page,pageSize);
- const previousFilters=useRef([search,selectedFilter].join('\0'));
- useEffect(()=>{const key=[search,selectedFilter].join('\0');if(previousFilters.current!==key){setPage(1);previousFilters.current=key}},[search,selectedFilter]);
+ const incremental=useIncrementalRows('inspections:'+stageId,filtered,[search,selectedFilter].join('\0'));
 
  const passAll=async()=>{if(!pending)return;setLoading(true);setError('');try{await apiPost('/inspections/stage/'+encodeURIComponent(stageId)+'/pass-pending',{});setConfirmPassAll(false);await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось массово завершить инспекции')}finally{setLoading(false)}};const failAll=async()=>{if(!pending||!failAllReason.trim()){setError('Укажите причину для массового отказа');return}setLoading(true);setError('');try{await apiPost('/inspections/stage/'+encodeURIComponent(stageId)+'/fail-pending',{notes:failAllReason.trim()});setConfirmFailAll(false);setFailAllReason('');await load()}catch(e){setError(e instanceof Error?e.message:'Не удалось массово завершить инспекции')}finally{setLoading(false)}};
  const selectedRegistration=rows.find(r=>r.id===selectedRegistrationId);const backToInspectionList=()=>{setSelectedRegistrationId('');const params=new URLSearchParams(location.search);params.delete('registrationId');history.replaceState({},'',location.pathname+(params.toString()?'?'+params.toString():''))};
@@ -212,38 +160,42 @@ function EntryInspection({stageControls,stageId,stageName,onScanQr,go,user,readO
  const openInspection=(id:string)=>{setSelectedRegistrationId(id);const params=new URLSearchParams(location.search);params.set('registrationId',id);history.replaceState({},'',location.pathname+'?'+params.toString())};
  return registerOpen&&!readOnly ? <InspectionRegistrationModal stageId={stageId} onClose={closeWalkInRegistration} onSaved={async(registrationId:string)=>{closeWalkInRegistration();const updated=await load();if(registrationId&&updated.some((item:any)=>item.id===registrationId)){setSelectedRegistrationId(registrationId);const params=new URLSearchParams(location.search);params.set('registrationId',registrationId);history.replaceState({},'',location.pathname+'?'+params.toString())}}} SearchableSelect={SearchableSelect} displayCarName={displayCarName} LoadingPage={LoadingPage} enumLabel={enumLabel}/> : selectedRegistration ? <><EventOperationsNavigation current="inspections" stageId={stageId} stageName={stageName} registrationId={selectedRegistration.id} participantNumber={selectedRegistration.participantNumber} showListJump={false} go={go}/><InspectionDetailPage registration={selectedRegistration} user={user} readOnly={readOnly} onBack={backToInspectionList} onSaved={async()=>{await load()}} displayCarName={displayCarName} go={go}/></> : <>
     <EventOperationsNavigation current="inspections" stageId={stageId} stageName={stageName} compact go={go}/>
-    {stageControls}
     <div className="inspection-search-panel">
-   <div className="search-box" role="search"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} aria-label="Поиск участников инспекции" type="search" placeholder="Номер, ФИО или госномер"/>{search&&<button className="event-ops-clear" type="button" onClick={()=>setSearch("")} aria-label="Очистить поиск"><span className="event-ops-clear-label">Очистить</span><span className="event-ops-clear-mark" aria-hidden="true">×</span></button>}</div>
-     <span className="row-count" role="status">{filtered.length} из {rows.length}{selectedFilter!=='ALL'&&' · Фильтр: '+(selectedFilter==='PASSED'?'прошли':selectedFilter==='FAILED'?'не прошли':'ожидают')}</span>
-     <p className="inspection-search-hint">Номер — целиком: 1, 001 или №001. Также можно искать по ФИО, автомобилю и классу.</p>
-     {search.trim()&&<InspectionSearchResults rows={filtered} loading={loading} onOpen={openInspection} onReset={()=>{setSearch('');setFilter('ALL')}} displayCarName={displayCarName}/>}
+     <div className="event-ops-primary-row">
+   <div className="search-box" role="search"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} aria-label="Поиск участников инспекции" type="search" placeholder="Номер, ФИО или госномер" title="Номер целиком: 1, 001 или №001; также ФИО, автомобиль и класс"/>{search&&<button className="event-ops-clear" type="button" onClick={()=>setSearch("")} aria-label="Очистить поиск"><span className="event-ops-clear-label">Очистить</span><span className="event-ops-clear-mark" aria-hidden="true">×</span></button>}</div>
+     <EventOperationsPrimaryActions onCreate={()=>setRegisterOpen(true)} onScan={onScanQr} createDisabled={readOnly||loading} scanDisabled={loading}/>
+     </div>
+     <p className="event-ops-filter-count" role="status">Найдено {filtered.length} из {rows.length}{selectedFilter!=='ALL'&&' · Фильтр: '+(selectedFilter==='PASSED'?'прошли':selectedFilter==='FAILED'?'не прошли':'ожидают')}</p>
+     {search.trim()&&<InspectionSearchResults rows={incremental.rows} total={filtered.length} loading={loading} onOpen={openInspection} onReset={()=>{setSearch('');setFilter('ALL')}} displayCarName={displayCarName}/>}
+     {search.trim()&&<AdminLoadMore label="Инспекции" total={filtered.length} shown={incremental.rows.length} onMore={incremental.showMore} busy={loading}/>}
     </div>
+    <div className="event-ops-secondary-controls">
+    {stageControls(<label className="event-ops-extra-filter">Статус инспекции<select className="filter-select" aria-label="Фильтр статуса инспекций" value={selectedFilter} onChange={e=>setFilter(e.target.value as any)}><option value="ALL">Все</option><option value="PENDING">Ожидают</option><option value="PASSED">Прошли</option><option value="FAILED">Не прошли</option></select></label>)}
     <EventOperationsActions viewKey="inspections">
     <div className="inspection-toolbar event-ops-toolbar"><button type="button" className="secondary-button compact" onClick={()=>go('/admin/registrations?stageId='+encodeURIComponent(stageId))}><Users size={15}/>Регистрации этапа</button>
 
-   <CollapsibleFilters activeCount={Number(selectedFilter!=='ALL')}><select className="filter-select" aria-label="Фильтр статуса инспекций" value={selectedFilter} onChange={e=>setFilter(e.target.value as any)}><option value="ALL">Все</option><option value="PENDING">Ожидают</option><option value="PASSED">Прошли</option><option value="FAILED">Не прошли</option></select></CollapsibleFilters>
+
    <button className="secondary-button compact" disabled={loading} onClick={()=>void load()}><RefreshCw size={15}/>Обновить</button><button className="secondary-button compact event-ops-export" disabled={loading||pending>0||passed===0} title={pending>0?"Сначала завершите инспекции всех ожидающих участников":passed===0?"Нет участников с допуском":"Показать итоговый список допущенных на экране"} onClick={()=>setFilter("PASSED")}><ClipboardCheck size={15}/>Итоговый список допущенных ({passed})</button>
    {!readOnly&&pending>0&&(confirmPassAll?<span className="inline-confirm-actions"><span>Отметить все ожидающие как прошедшие?</span><button className="primary-button compact" disabled={loading} onClick={()=>void passAll()}>Подтвердить</button><button className="secondary-button compact" disabled={loading} onClick={()=>setConfirmPassAll(false)}>Отмена</button></span>:<button className="primary-button compact" onClick={()=>{setConfirmFailAll(false);setFailAllReason('');setConfirmPassAll(true)}}><Check size={14}/>Прошли все ({pending})</button>)}
-   {!readOnly&&<button className="primary-button compact" onClick={()=>setRegisterOpen(true)}><Plus size={14}/>Зарегистрировать участника</button>}
-   <button type="button" className="secondary-button compact event-ops-qr-action" onClick={onScanQr}><ScanQrCode size={15}/>Сканировать QR</button>
    {!readOnly&&pending>0&&(confirmFailAll?<div className="inspection-bulk-fail"><label>Причина для всех ожидающих инспекций<textarea rows={2} value={failAllReason} onChange={e=>setFailAllReason(e.target.value)} placeholder="Общая причина отказа" required/></label><button className="danger-button compact" disabled={loading||!failAllReason.trim()} onClick={()=>void failAll()}>Подтвердить отказ</button><button className="secondary-button compact" disabled={loading} onClick={()=>{setConfirmFailAll(false);setFailAllReason("")}}>Отмена</button></div>:<button className="danger-button compact" onClick={()=>{setConfirmPassAll(false);setConfirmFailAll(true)}}><X size={14}/>Не прошли все ({pending})</button>)}
    <button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))}>Участники и допуски</button>
   </div>
     </EventOperationsActions>
-  <details className="event-ops-metrics-drawer"><summary>Сводка: {rows.length} участников · {passed} прошли · {pending} ожидают</summary><div className="inspection-summary event-ops-inspection-metrics" role="group" aria-label="Фильтр инспекций по статусу">
+  <EventOperationsSummary viewKey="inspections" summary={`Сводка: ${rows.length} участников · ${passed} прошли · ${pending} ожидают`}><div className="inspection-summary event-ops-inspection-metrics" role="group" aria-label="Фильтр инспекций по статусу">
    <button className="inspection-stat" aria-pressed={selectedFilter==='ALL'} onClick={()=>setFilter('ALL')}><strong>{rows.length}</strong><span>зарегистрировано</span></button>
    <button className="inspection-stat good" aria-pressed={selectedFilter==='PASSED'} onClick={()=>setFilter('PASSED')}><strong>{passed}</strong><span>прошли</span></button>
    <button className="inspection-stat bad" aria-pressed={selectedFilter==='FAILED'} onClick={()=>setFilter('FAILED')}><strong>{failed}</strong><span>не прошли</span></button>
    <button className="inspection-stat pending" aria-pressed={selectedFilter==='PENDING'} onClick={()=>setFilter('PENDING')}><strong>{pending}</strong><span>ожидают</span></button>
   </div>
-  <div className="event-ops-inspection-progress" aria-label="Готовность допуска"><div><strong>Проверено {inspectedCount} из {rows.length}</strong><span>{pending>0?`Осталось проверить: ${pending}. Итоговый список доступен после завершения инспекции.`:passed>0?"Проверка завершена. Итоговый список допущенных доступен ниже.":"Ожидаем участников или результаты инспекции."}</span></div><progress value={inspectedCount} max={Math.max(1,rows.length)} aria-label="Доля проверенных участников"/></div></details>
+  <div className="event-ops-inspection-progress" aria-label="Готовность допуска"><div><strong>Проверено {inspectedCount} из {rows.length}</strong><span>{pending>0?`Осталось проверить: ${pending}. Итоговый список доступен после завершения инспекции.`:passed>0?"Проверка завершена. Итоговый список допущенных доступен ниже.":"Ожидаем участников или результаты инспекции."}</span></div><progress value={inspectedCount} max={Math.max(1,rows.length)} aria-label="Доля проверенных участников"/></div></EventOperationsSummary>
+    </div>
   {readOnly&&<div className="notice"><ClipboardCheck size={16}/><span>Этап завершён. Инспекции доступны только для просмотра — изменения отключены.</span></div>}
   {error&&<div className="notice"><AlertTriangle size={18}/><span>{error}</span></div>}
-  {!search.trim()&&filtered.length>10&&<AdminListPagination label="инспекций" total={filtered.length} page={pagination.page} pageCount={pagination.pageCount} pageSize={pagination.pageSize} onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1)}}/>}
+
   {!search.trim()&&<div id="event-ops-records" className="panel table-wrap event-ops-results" aria-busy={loading}>
-   {loading?<LoadingPage small/>:filtered.length?<table className="data-table event-ops-compact-table" aria-label="Очередь инспекции выбранного этапа"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{pagination.rows.map(r=><InspectionRow key={r.id} registration={r} readOnly={readOnly} displayCarName={displayCarName} onOpen={()=>openInspection(r.id)}/>)}</tbody></table>:<Empty text={rows.length?'В выбранной очереди ничего не найдено. Измените фильтр или поиск':'На выбранный этап нет активных регистраций'}/>}
+   {loading?<LoadingPage small/>:filtered.length?<table className="data-table event-ops-compact-table" aria-label="Очередь инспекции выбранного этапа"><thead><tr><th>№</th><th>Участник</th><th>Автомобиль</th><th>Классы</th><th>Инспекция</th><th>Действие</th></tr></thead><tbody>{incremental.rows.map(r=><InspectionRow key={r.id} registration={r} readOnly={readOnly} displayCarName={displayCarName} onOpen={()=>openInspection(r.id)}/>)}</tbody></table>:<Empty text={rows.length?'В выбранной очереди ничего не найдено. Измените фильтр или поиск':'На выбранный этап нет активных регистраций'}/>}
   </div>}
+  {!search.trim()&&<AdminLoadMore label="Инспекции" total={filtered.length} shown={incremental.rows.length} onMore={incremental.showMore} busy={loading}/>}
  </>;
 }
 
@@ -407,7 +359,7 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
       <label>Марка автомобиля<SearchableSelect value={newBrand} options={brandOptions} onChange={(value:string)=>{setNewBrand(value);setNewModel('')}} placeholder={directoryLoaded?'Начните вводить марку…':'Загружаем справочник…'} ariaLabel="Марка автомобиля" required/></label>
       <label>Модель автомобиля<SearchableSelect value={newModel} options={modelOptions} onChange={(value:string)=>setNewModel(value)} placeholder={newBrand?'Начните вводить модель…':'Сначала выберите марку'} ariaLabel="Модель автомобиля" required/></label>
       <label>Страна регистрации<select value={newCountry} onChange={e=>{setNewCountry(e.target.value);setNewPlate('')}}><option value="RU">Россия</option><option value="BY">Беларусь</option><option value="KZ">Казахстан</option><option value="UA">Украина</option><option value="GE">Грузия</option><option value="OTHER" disabled>Другие страны — добавьте авто через профиль</option></select></label>
-      <label>Госномер<input value={newPlate} onChange={e=>setNewPlate(formatPlateInput(newCountry,e.target.value))} placeholder="А001УР01" maxLength={newCountry==='RU'?9:16} autoCapitalize="characters" inputMode="text" required/></label> 
+      <label>Госномер<input value={newPlate} onChange={e=>setNewPlate(formatPlateInput(newCountry,e.target.value))} placeholder="А001УР01" maxLength={newCountry==='RU'?9:16} autoCapitalize="characters" inputMode="text" required/></label>
      </div>
      <p className="field-help">Перед созданием проверьте результаты поиска и подтвердите согласия участника в нижнем блоке. Совпадающий профиль или автомобиль нельзя создавать повторно; заявка и номер оформляются следующим шагом.</p>
      <button type="button" className="primary-button" disabled={creatingProfile||!legalReady||!privacyConsent||!termsAccepted||!newLastName.trim()||!newFirstName.trim()||!carSelectionValid||!newPlate.trim()} onClick={()=>void createNewProfile()}>{creatingProfile?'Сохраняем профиль…':'Создать профиль и автомобиль'}</button>
@@ -420,7 +372,7 @@ function InspectionRegistrationModal({stageId,onClose,onSaved,SearchableSelect,d
     <label>Марка<SearchableSelect value={newBrand} options={brandOptions} onChange={(value:string)=>{setNewBrand(value);setNewModel('')}} placeholder={directoryLoaded?'Начните вводить марку…':'Загружаем справочник…'} ariaLabel="Марка автомобиля" required/></label>
     <label>Модель<SearchableSelect value={newModel} options={modelOptions} onChange={(value:string)=>setNewModel(value)} placeholder={newBrand?'Начните вводить модель…':'Сначала выберите марку'} ariaLabel="Модель автомобиля" required/></label>
     <label>Страна<select value={newCountry} onChange={e=>{setNewCountry(e.target.value);setNewPlate('')}}><option value="RU">Россия</option><option value="BY">Беларусь</option><option value="KZ">Казахстан</option><option value="UA">Украина</option><option value="GE">Грузия</option></select></label>
-    <label>Госномер<input value={newPlate} onChange={e=>setNewPlate(formatPlateInput(newCountry,e.target.value))} placeholder="А001УР01" maxLength={newCountry==='RU'?9:16} autoCapitalize="characters" inputMode="text" required/></label> 
+    <label>Госномер<input value={newPlate} onChange={e=>setNewPlate(formatPlateInput(newCountry,e.target.value))} placeholder="А001УР01" maxLength={newCountry==='RU'?9:16} autoCapitalize="characters" inputMode="text" required/></label>
    </div><p className="field-help">Убедитесь, что выбрали правильный исторический или существующий профиль. Согласия участника подтверждаются ниже.</p><button type="button" className="primary-button" disabled={creatingCar||!legalReady||!privacyConsent||!termsAccepted||!carSelectionValid||!newPlate.trim()} onClick={()=>void createNewCar()}>{creatingCar?'Сохраняем автомобиль…':'Добавить автомобиль и продолжить'}</button><ActionError message={carError}/></section>}
    <label>Конфигурация оборудования (можно заполнить позже)<select value={configurationVersionId} onChange={e=>setConfigurationVersionId(e.target.value)} disabled={!carId}><option value="">Пока не заполнена — создать черновик на этапе</option>{configurations.map((cfg:any)=><option key={cfg.id} value={cfg.id}>{cfg.label}</option>)}</select></label>
    {!configurationVersionId&&carId&&<div className="notice" role="status"><Info size={16}/><span>Участник получит номер и попадёт на инспекцию. Точные характеристики аудиосистемы пока не подтверждены, их нужно заполнить позже.</span></div>}
