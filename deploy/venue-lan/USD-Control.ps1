@@ -1,4 +1,5 @@
 ﻿#requires -Version 5.1
+param([switch]$HideLauncherConsole)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName PresentationFramework,PresentationCore,WindowsBase,System.Net.Http
@@ -474,10 +475,27 @@ function Start-UsdNetwork($Request,[string]$Kind){
   $script:Worker=[pscustomobject]@{Kind=$Kind;Request=$Request;Pipeline=$pipeline;Handle=$handle}
  }catch{$pipeline.Dispose();throw}
 }
-# Native dialogs in a worker must not inherit a hidden startup window.
-function Get-UsdWorkerWindowStyle([string]$Action){
- if($Action -in @('status','images')){return 'Hidden'}
- return 'Normal'
+# Do not create a second console or pass SW_HIDE to native dialog workers.
+function Get-UsdWorkerWindowOptions([string]$Action){
+ if($Action -in @('status','images')){return @{WindowStyle='Hidden'}}
+ return @{NoNewWindow=$true}
+}
+function Hide-UsdLauncherConsole {
+ try{
+  if(-not ('UsdLauncherConsole' -as [type])){
+   Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class UsdLauncherConsole {
+ [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+ [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hwnd, int command);
+}
+'@
+  }
+  $handle=[UsdLauncherConsole]::GetConsoleWindow()
+  if($handle -ne [IntPtr]::Zero){[void][UsdLauncherConsole]::ShowWindowAsync($handle,0)}
+ }catch{# A console-free launch has nothing to hide; keep the dashboard usable.
+ }
 }
 function Start-UsdChild([string]$Action,[string]$Root,$Bundle=$null){
  $kitRoot=if($Action -in @('export','online','install','prepare','images')){$script:LaunchRoot}else{$Root}
@@ -494,7 +512,8 @@ function Start-UsdChild([string]$Action,[string]$Root,$Bundle=$null){
  if($Bundle){
   $arguments+=' -StageFile "'+$Bundle.StageFile+'" -PublicKeyFile "'+$Bundle.PublicKeyFile+'" -StaffKeyFile "'+$Bundle.StaffKeyFile+'" -TrustedFingerprint '+$Bundle.Fingerprint
  }
- $proc=Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList $arguments -WorkingDirectory $Root -PassThru -WindowStyle (Get-UsdWorkerWindowStyle $Action) -RedirectStandardOutput $out -RedirectStandardError $err
+ $windowOptions=Get-UsdWorkerWindowOptions $Action
+ $proc=Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList $arguments -WorkingDirectory $Root -PassThru @windowOptions -RedirectStandardOutput $out -RedirectStandardError $err
  # Keep a process handle so Windows PowerShell can read its exit code after exit.
  try{[void]$proc.Handle}catch{}
  return [pscustomobject]@{Process=$proc;Output=$out;Errors=$err;Root=$Root;Started=[DateTime]::UtcNow}
@@ -1038,6 +1057,7 @@ function Show-UsdJournal {
 # Tests and the in-process network worker load the functions without creating windows.
 if($MyInvocation.InvocationName -eq '.'){return}
 $script:Form=New-UsdWindow
+if($HideLauncherConsole){$script:Form.Add_ContentRendered({Hide-UsdLauncherConsole})}
 $ui=@{}
 foreach($name in 'Account','Body','Notice','Progress','Status','StageTitle','StageMeta','StageStats','StatusReason','Stages','Load','StageHint','Install','Directory','PrepareRoster','Start','Admin','Live','Certificate','Address','Copy','Backup','Send','Archive','Help','Diagnostics','Journal'){
  $ui[$name]=$script:Form.FindName($name)
