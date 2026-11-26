@@ -9,7 +9,7 @@ export function OperationDetailHeader({title,registration:r,status,onBack,displa
  return <header className="resource-editor-heading operation-detail-heading">
   <div className="operation-detail-topline"><h2>{title}</h2><button type="button" className="secondary-button compact" onClick={onBack}><ChevronLeft size={16}/>Назад к списку</button></div>
   <div className="operation-detail-identity"><strong><AdminEntityLink kind="participant" id={r.participant?.id??r.participantId}>{personName(r)}</AdminEntityLink></strong>{status}</div>
-  {(r.cars?.length?r.cars:[r.car??{}]).map((car:any,index:number)=><p className="operation-detail-car" key={car.id??index}><AdminEntityLink kind="car" id={car.id??r.carId}>{displayCarName(car,'Автомобиль не указан')}</AdminEntityLink>{car.registrationNumber&&<small>{car.registrationNumber}</small>}</p>)}
+  {(r.cars?.length?r.cars:[r.car??{}]).map((car:any,index:number)=><p className="operation-detail-car" key={car.id??index}><AdminEntityLink kind="car" id={car.id??r.carId}>{displayCarName(car,'Автомобиль не указан')}</AdminEntityLink>{car.registrationNumber&&<small>{[car.registrationCountry,car.registrationNumber].filter(Boolean).join(' · ')}</small>}</p>)}
   <div className="operation-detail-numbers" aria-label="Номера участника">{numbers.map(number=><span key={String(number)}>№ {numberLabel(number)}</span>)}</div>
  </header>;
 }

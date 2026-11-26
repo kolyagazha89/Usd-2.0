@@ -9,7 +9,7 @@ import './form-journey.css';
 import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Hash,Pencil,RefreshCw,Search,ShieldAlert,Trash2,Trophy,Users,XCircle,X} from 'lucide-react';
 import {apiGet,apiPatch,apiPost,listData,type User} from '../api';
-import {useViewState,useListScroll,matchesSeason,seasonYears,stageYear} from './view-state';
+import {useViewState,useEditorScroll,matchesSeason,seasonYears,stageYear} from './view-state';
 import {loadOperationalStages} from './operational-stages';
 import {isPastStageCalendar} from './stage-calendar';
 import {EventOperationsNavigation} from './EventOperationsNavigation';
@@ -94,7 +94,7 @@ function ResultsStage({stageControls,stageId,stage,entryId,go,user,ErrorPanel,Lo
  const handledEntry=useRef('');
  const isVenue=stage.venueActive!==undefined;
  const readOnly=isVenue&&isPastStageCalendar(stage);
- useListScroll('results:'+stageId,editor===null&&detail===null,!loading);
+ useEditorScroll('results:'+stageId,editor!==null||detail!==null,!loading);
  const load=async()=>{
   setLoading(true);setError('');
   try{

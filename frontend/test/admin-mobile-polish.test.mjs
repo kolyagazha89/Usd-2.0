@@ -102,7 +102,8 @@ test('mobile catalog category picker exposes all categories without a horizontal
 test('mobile competition operations put the selected stage above compact filters at full width',async()=>{
  const css=await source('admin/admin-shell-layout.css');
  assert.match(css,/\.event-ops-page \.stage-picker\s*\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
- assert.match(css,/\.event-ops-page \.stage-picker>label\s*\{[^}]*grid-row:1/);
+ assert.match(css,/\.event-ops-page \.stage-picker>label:first-child\s*\{[^}]*grid-row:1/);
+ assert.doesNotMatch(css,/\.event-ops-page \.stage-picker>label\s*\{[^}]*grid-row:1/,'season and period must flow into separate rows instead of covering the stage');
  assert.match(css,/\.event-ops-page \.stage-picker>\.usd-filter-drawer\s*\{[^}]*grid-row:2/);
  for(const file of ['RegistrationsPage.tsx','InspectionsPage.tsx','ResultsPage.tsx']){
   const code=await source('admin/'+file);

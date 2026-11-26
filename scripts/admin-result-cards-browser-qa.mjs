@@ -129,6 +129,7 @@ try{
     const expanded=await list.allTextContents();assert.ok(first.every(text=>expanded.includes(text)),'load more retains previously visible rows');
     await list.nth(14).scrollIntoViewIfNeeded();await page.mouse.wheel(0,10);await list.nth(14).focus();await page.waitForTimeout(150);const before=await page.evaluate(()=>scrollY);
     await page.keyboard.press('Enter');await page.locator('.operation-detail-card').waitFor();
+    await page.waitForFunction(()=>window.scrollY===0,{},{timeout:1500});
     await page.screenshot({path:path.join(output,engine+'-'+width+'-'+desk+'-detail.png'),fullPage:true});
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'opened card stays inside viewport');
     assert.ok(await page.locator('.operation-detail-identity').innerText(),'opened card identifies the participant');
