@@ -708,3 +708,35 @@ test('retained stage fills an untouched legacy configuration with the original s
   assert.ok(!unsafe.log.some(x=>x.model==='carConfigurationVersion'));
  }
 });
+
+test('directory refresh classifies local plate collisions without exposing identity data',async()=>{
+ const data=snapshot(),person=data.registrations[0].participant,car=data.registrations[0].car;
+ data.participantDirectory=[{...person,cars:[car]}];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {tx,db,log}=mockDb();
+ tx.$queryRawUnsafe=async sql=>sql.includes('current_user')?[{name:'usd_venue_root',rolsuper:true}]:[{stageId:uuid.stage}];
+ tx.stage.findUnique=async()=>({id:uuid.stage});
+ tx.auditLog.findFirst=async()=>({metadata:{sha256:'a'.repeat(64)}});
+ tx.car.findMany=async()=>[{...car,id:'d1a29ae7-73ea-42e6-b12c-594c687f8564'}];
+ await assert.rejects(()=>importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage}),error=>{
+  assert.equal(importer.classifyVenueImportFailure(error),'DIRECTORY_PLATE_CONFLICT');
+  return true;
+ });
+ assert.deepEqual(log,[]);
+});
+
+test('directory failures report a safe phase and do not print private database errors',async()=>{
+ const data=snapshot(),person=data.registrations[0].participant,car=data.registrations[0].car;
+ data.participantDirectory=[{...person,cars:[car]}];
+ const plan=planVenueStageImport(signed(data),publicPem,env,now);
+ const {tx,db}=mockDb();
+ tx.$queryRawUnsafe=async sql=>sql.includes('current_user')?[{name:'usd_venue_root',rolsuper:true}]:[{stageId:uuid.stage}];
+ tx.stage.findUnique=async()=>({id:uuid.stage});
+ tx.auditLog.findFirst=async()=>({metadata:{sha256:'a'.repeat(64)}});
+ tx.car.findMany=async()=>[];
+ tx.participant.findUnique=async()=>{throw new Error('private SQL, token and participant data')};
+ await assert.rejects(()=>importer.applyVenueParticipantDirectory(plan,db,{stageId:uuid.stage}),error=>{
+  assert.equal(importer.classifyVenueImportFailure(error),'DATABASE_DIRECTORY_IDENTITIES');
+  return true;
+ });
+});
