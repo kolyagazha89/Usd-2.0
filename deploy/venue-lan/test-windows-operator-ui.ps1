@@ -12,6 +12,14 @@ $expected=$raw.Substring($start,$raw.IndexOf(',"staffKey"')-$start)
 if($signed -cne $expected){throw 'Signed JSON bytes/order were changed'}
 if($signed -notmatch '2099-01-01T00:00:00.000Z'){throw 'Signed timestamp changed'}
 
+# Interactive workers must not inherit SW_HIDE for their first native dialog.
+foreach($action in @('install','next','prepare','offline','online','export','directory','certificate')){
+ if((Get-UsdWorkerWindowStyle $action) -ne 'Normal'){throw "Interactive worker $action must be visible"}
+}
+foreach($action in @('status','images')){
+ if((Get-UsdWorkerWindowStyle $action) -ne 'Hidden'){throw "Background worker $action must remain hidden"}
+}
+
 $originalRoot=$script:Root
 $temp=Join-Path ([IO.Path]::GetTempPath()) ('usd-operator-test-'+[guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($temp)
