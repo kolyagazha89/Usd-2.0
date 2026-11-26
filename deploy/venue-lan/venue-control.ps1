@@ -5,7 +5,7 @@
 #>
 [CmdletBinding()]
 param(
- [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next','certificate','directory','prepare','status')][string]$Action,
+ [Parameter(Mandatory=$true)][ValidateSet('install','offline','online','export','next','certificate','directory','prepare','status','images')][string]$Action,
  [string]$StageFile='',
  [string]$PublicKeyFile='',
  [string]$StaffKeyFile='',
@@ -18,7 +18,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Root=$PSScriptRoot
 if($Workspace){
- if(($Action -notin @('export','online') -and !($Operator -and $Action -in @('install','prepare'))) -or ![IO.Path]::IsPathRooted($Workspace) -or !(Test-Path -LiteralPath (Join-Path $Workspace 'local-private/setup-state.json') -PathType Leaf)){
+ if(($Action -notin @('export','online') -and !($Operator -and $Action -in @('install','prepare','images'))) -or ![IO.Path]::IsPathRooted($Workspace) -or !(Test-Path -LiteralPath (Join-Path $Workspace 'local-private/setup-state.json') -PathType Leaf)){
   throw 'Рабочая папка этапа недоступна.'
  }
  $Root=$Workspace
@@ -657,6 +657,7 @@ function Install-Local {
  Start-Local
 }
 function Start-Local {
+ param([switch]$ActivateCachedFrontend)
  Assert-VenueCompose
  $state=Read-State
  if(!$state -or $state.phase -ne 'READY'){throw 'Сначала завершите установку USD-Install.cmd'}
@@ -670,6 +671,12 @@ function Start-Local {
  Set-VenueStep 'start-local-database'
  Start-VenueDatabase
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для выгрузки используйте Экспорт в этой папке.'}
+ $startupTarget=$null
+ # No automatic restart of an already running judging API. A predownloaded
+ # web image can be activated only when the operator starts a stopped stage.
+ if($ActivateCachedFrontend -and !(Test-VenueJudgingRunning)){
+  $startupTarget=Get-VenueCachedWebTarget $state
+ }
  Repair-VenueCoverageIfNeeded
  Invoke-VenueJournalSql (Join-Path $Root 'upgrade-journal-links.sql') 'upgrade durable amplifier link journal'
  if(-not(Test-IsActiveVenueStage $state.stageId)){throw 'Этот этап сохранён в истории. Для запуска используйте текущий ярлык USD. Для его выгрузки нажмите Экспорт в этой папке.'}
@@ -678,6 +685,17 @@ function Start-Local {
  Invoke-Compose @('up','-d','--no-build','--no-recreate','--pull','never') 'start offline without Internet'
  Set-VenueStep 'verify-lan-readiness'
  Wait-VenueLanReady $state
+ if($startupTarget){
+  try{
+   Update-ReadyVenueFrontend $state -CachedTarget $startupTarget
+   Wait-VenueLanReady $state
+  }catch{
+   Write-Warning ('Автообновление интерфейса: '+$_.Exception.Message)
+   # The updater restores its previous pin on failure. Never report a
+   # working stage unless the restored services actually answer.
+   Wait-VenueLanReady $state
+  }
+ }
  Save-Autostart
  Save-DesktopShortcuts
  if(-not $Silent -and -not $Operator){
@@ -926,12 +944,17 @@ try{
   if($Workspace){Copy-VenueProgramFiles $PSScriptRoot $Root}
   Install-Local
  }
- elseif($Action -eq 'offline'){Start-Local}
+ elseif($Action -eq 'images'){
+  if(!(Test-DockerReady)){Write-Host 'USD STARTUP IMAGES: docker-unavailable';return}
+  $result=Cache-VenueStartupImages (Read-State)
+  Write-Host ('USD STARTUP IMAGES: '+$result)
+ }
+ elseif($Action -eq 'offline'){Start-Local -ActivateCachedFrontend}
  elseif($Action -eq 'export'){Export-VenueReturn}
  elseif($Action -eq 'certificate'){Download-VenueCertificate}
  elseif($Action -eq 'next'){Switch-ToNextStage}
  elseif($Action -eq 'directory'){Import-VenueParticipantDirectory}
- elseif($Action -eq 'prepare'){Import-VenueParticipantDirectory -PrepareRoster;Start-Local}
+ elseif($Action -eq 'prepare'){Import-VenueParticipantDirectory -PrepareRoster;Start-Local -ActivateCachedFrontend}
  else{Return-Online}
 }catch{
  Write-Host ('USD VENUE: не удалось выполнить '+$Action+'; step='+$script:VenueStep) -ForegroundColor Red
