@@ -93,6 +93,38 @@ try{
   throw 'Startup cache must use local worker, not authenticated package download'
  }
  if(Get-UsdStartupImageRequest){throw 'Startup must not retry on every status tick'}
+ # A malformed status response or a killed probe must not pin the dashboard in checking.
+ function Update-UsdDashboard {}
+ $script:NextProbe=[DateTime]::UtcNow.AddMinutes(1)
+ $script:Local=$null
+ [IO.File]::WriteAllText((Join-Path $temp 'venue-control.ps1'),"Write-Output 'USD STATUS: {bad-json'; exit 0")
+ $script:Probe=Start-UsdChild 'status' $temp
+ if(!$script:Probe.Process.WaitForExit(10000)){throw 'Status fixture did not exit'}
+ Update-UsdProbe
+ if($script:Probe -or $script:Local.mode -cne 'attention' -or !$script:Local.reason){
+  throw 'Malformed status must release the probe and display an actionable failure'
+ }
+ # A second, valid probe must recover without reopening the application.
+ [IO.File]::WriteAllText((Join-Path $temp 'venue-control.ps1'),"Write-Output 'USD STATUS: {""mode"":""ready"",""docker"":true,""running"":false}'; exit 0")
+ $script:Probe=Start-UsdChild 'status' $temp
+ if(!$script:Probe.Process.WaitForExit(10000)){throw 'Recovery fixture did not exit'}
+ Update-UsdProbe
+ if($script:Probe -or $script:Local.mode -cne 'ready'){throw 'Status recovery failed'}
+ # Image download is separate from the exclusive operator worker and the status probe.
+ $script:StartupImagesAttempted=$false
+ $script:State=[pscustomobject]@{phase='READY';stageId=$stage}
+ $script:Pending=$null
+ $script:ImageJob=$null
+ $script:Worker=$null
+ $script:LaunchRoot=$temp
+ [IO.File]::WriteAllText((Join-Path $temp 'venue-control.ps1'),"Start-Sleep -Seconds 2; Write-Output 'USD STARTUP IMAGES: cached'")
+ $ui=@{Notice=[pscustomobject]@{Text=''}}
+ Update-UsdStartupImages
+ if(!$script:ImageJob -or $script:Worker -or $script:Probe){throw 'Passive image download must not lock the operator or status check'}
+ if(!$script:ImageJob.Process.WaitForExit(10000)){throw 'Image fixture did not exit'}
+ Update-UsdStartupImages
+ if($script:ImageJob -or $script:Worker -or $ui.Notice.Text -notmatch 'скачаны'){throw 'Image result was not reported independently'}
+ $script:LaunchRoot=$originalRoot
  $script:State=$null;$script:Local=$null
  Write-Host 'USD OPERATOR: signed JSON, ADMIN guard, startup image gate and protected files passed'
 }finally{
