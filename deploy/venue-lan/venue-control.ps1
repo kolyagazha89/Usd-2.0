@@ -686,14 +686,18 @@ function Start-Local {
  Set-VenueStep 'verify-lan-readiness'
  Wait-VenueLanReady $state
  if($startupTarget){
-  try{
-   Update-ReadyVenueFrontend $state -CachedTarget $startupTarget
-   Wait-VenueLanReady $state
-  }catch{
-   Write-Warning ('Автообновление интерфейса: '+$_.Exception.Message)
-   # The updater restores its previous pin on failure. Never report a
-   # working stage unless the restored services actually answer.
-   Wait-VenueLanReady $state
+  # A failed backend rollback must escape as an error, not as a ready stage.
+  $runtimeUpdate=Update-VenueCachedRuntime $state $startupTarget
+  if($runtimeUpdate -ceq 'not-eligible'){
+   try{
+    Update-ReadyVenueFrontend $state -CachedTarget $startupTarget
+    Wait-VenueLanReady $state
+   }catch{
+    Write-Warning ('Автообновление интерфейса: '+$_.Exception.Message)
+    # The updater restores its previous pin on failure. Never report a
+    # working stage unless the restored services actually answer.
+    Wait-VenueLanReady $state
+   }
   }
  }
  Save-Autostart
