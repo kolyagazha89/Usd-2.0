@@ -102,6 +102,8 @@ try{
     const bounds=await primary.locator('button').evaluateAll(els=>els.map(el=>({y:el.getBoundingClientRect().y,width:el.offsetWidth,height:el.offsetHeight})));
     assert.equal(bounds.length,2);assert.ok(Math.abs(bounds[0].y-bounds[1].y)<2,'primary actions share one line: '+JSON.stringify(bounds));assert.ok(bounds.every(box=>box.width>=44&&box.height>=44));
     assert.equal(await page.locator('.event-ops-actions-drawer .event-ops-primary-actions').count(),0,'primary actions are outside hidden tools');
+    const searchStyle=await page.locator('.event-ops-primary-row input[type=search]').evaluate(el=>{const s=getComputedStyle(el);return {border:s.borderTopWidth,radius:s.borderRadius,padding:s.padding,shadow:s.boxShadow}});
+    assert.deepEqual(searchStyle,{border:'0px',radius:'0px',padding:'0px',shadow:'none'},'search uses one outer frame instead of a nested field');
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'shared desk stays inside viewport');
     await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(output,engine+'-'+width+'-'+desk+'-header.png')});
     const first=await list.allTextContents(),more=page.getByRole('button',{name:/^Загрузить ещё:/});
