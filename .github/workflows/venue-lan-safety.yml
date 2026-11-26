@@ -30,6 +30,19 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - name: Export regenerated public kit for connector verification
+        if: github.event_name == 'pull_request' && github.head_ref == 'fix/venue-responsive-startup'
+        run: |
+          python3 deploy/venue-lan/build-windows-kit.py
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+          p = Path('frontend/public/downloads')
+          for name in ('USD-Offline-Windows.zip', 'USD-Offline-Windows.json'):
+              data = base64.b64encode((p / name).read_bytes()).decode()
+              for i in range(0, len(data), 768):
+                  print('USD_KIT_DATA ' + name + ' ' + str(i) + ' ' + data[i:i+768])
+          PY
       - name: Verify downloadable Windows kit matches reviewed sources
         run: python3 deploy/venue-lan/build-windows-kit.py --check
       - name: Validate RFC1918-only hub and independent credentials
