@@ -921,6 +921,7 @@ try{
   Write-Output ('USD STATUS: '+((Get-VenueOperatorStatus)|ConvertTo-Json -Compress))
   return
  }
+ if($Action -eq 'images'){Invoke-VenueStartupImageCache;return}
  $mutex=[Threading.Mutex]::new($false,'Local\USD-Venue-Operation')
  try{$ownsMutex=$mutex.WaitOne(0)}catch [Threading.AbandonedMutexException]{$ownsMutex=$true}
  if(!$ownsMutex){throw 'Другая операция USD уже выполняется. Дождитесь её завершения.'}
@@ -929,7 +930,6 @@ try{
   if($Workspace){Copy-VenueProgramFiles $PSScriptRoot $Root}
   Install-Local
  }
- elseif($Action -eq 'images'){Invoke-VenueStartupImageCache}
  elseif($Action -eq 'offline'){Start-Local -ActivateCachedFrontend}
  elseif($Action -eq 'export'){Export-VenueReturn}
  elseif($Action -eq 'certificate'){Download-VenueCertificate}
