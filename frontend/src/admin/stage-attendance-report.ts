@@ -27,7 +27,7 @@ export function buildStageAttendanceReport(input:Row[],stageId:string){
   const inspection=statusOf(r);
   const measuredIds=new Set(r.results.map((m:Row)=>String(m.registrationClassId??m.registrationClass?.id)));
   const classes=(r.classes as Row[]).map(c=>{
-   const id=String(c.id),saved=r.results.filter((m:Row)=>String(m.registrationClassId??m.registrationClass?.id)===id);
+   const id=String(c.id),saved=(r.results as Row[]).filter(m=>String(m.registrationClassId??m.registrationClass?.id)===id);
    return {classId:id,catalogId:String(c.class.id),name:String(c.class.name??'Класс'),direction:String(c.class.direction?.name??'Без направления'),directionId:String(c.class.direction?.id??c.class.direction?.name??''),directionOrder:order(c.class.direction?.sortOrder),classOrder:order(c.class.sortOrder),number:num(c.number?.number)??num(r.participantNumber),measured:measuredIds.has(id),results:saved.map((m:Row)=>({value:String(m.value??'—'),unit:String(m.unit??c.class.unit??''),place:m.place??null}))};
   });
   const measured=classes.filter((c:Row)=>c.measured).length;
