@@ -473,6 +473,14 @@ export class StagesService {
     // emails on saving, publishing, changing artwork/classes or cancelling.
 
     const changed = Object.keys(data);
+    const auditable = ['stageNumber','name','city','date','startTimeMsk','description','venue','address','latitude','longitude','status','registrationOpen','registrationStartsAt','registrationEndsAt'] as const;
+    const before:Record<string,string|number|boolean|null>={},after:Record<string,string|number|boolean|null>={};
+    const snapshot=(value:unknown):string|number|boolean|null=>value==null?null:value instanceof Date?value.toISOString():typeof value==='string'||typeof value==='number'||typeof value==='boolean'?value:String(value);
+    for(const key of auditable){
+      if(!changed.includes(key)||updated[key]===undefined||stage[key]===undefined)continue;
+      const previous=snapshot(stage[key]),next=snapshot(updated[key]);
+      if(previous!==next){before[key]=previous;after[key]=next}
+    }
     await this.audit.log({
       userId: request.user.sub,
       action: 'STAGE_UPDATED',
@@ -481,6 +489,8 @@ export class StagesService {
       ipAddress: request.ip,
       metadata: {
         changedFields: changed,
+        stageName: updated.name,
+        before,after,
       },
     });
 
