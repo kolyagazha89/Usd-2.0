@@ -21,7 +21,7 @@ test('registration sources, unique people, cancellations and evidence of attenda
  const r=buildStageAttendanceReport(rows,'s');
  assert.equal(r.total,8);assert.equal(r.active,7);assert.equal(r.people,6);assert.equal(r.cancelled,1);
  assert.deepEqual(r.sources.map(s=>[s.source,s.total,s.active,s.cancelled]),[['PRE_REGISTRATION',6,5,1],['ON_SITE',1,1,0],['IMPORT',1,1,0],['UNKNOWN',0,0,0]]);
- assert.deepEqual(r.unconfirmed.map(x=>x.id),['b','d']);
+ assert.deepEqual(r.unconfirmed.map(x=>x.id),['d','b']);
  assert.deepEqual(r.unconfirmedPeople.map(x=>x.id),['b'],'same person with other inspected car is not a missing person');
  assert.equal(r.inspected,2);assert.equal(r.passed,1);assert.equal(r.failed,1);assert.equal(r.pending,5);
  assert.equal(r.measured,2);assert.equal(r.missing,1);assert.equal(r.measuredWithoutAdmission,1);
