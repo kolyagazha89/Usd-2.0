@@ -17,7 +17,7 @@ import BassRaceTextImport from './BassRaceTextImport';
 import {
  canJudgeRegistration,judgingInspectionStatus,judgingNumbers,
  judgingOverview,judgingResultLink,matchesJudgingResult,remainingJudgingClasses,canConfirmJudgingResult,
- groupJudgingResults,pendingJudgeRegistrations,
+ groupJudgingResults,pendingJudgeRegistrations,groupPendingMeasurements,
 } from './results-operations-model';
 
 type Go=(path:string)=>void;
@@ -91,18 +91,19 @@ function ResultsStage({stageControls,stageId,stage,entryId,go,user,ErrorPanel,Lo
  const [classFilter,setClassFilter]=useViewState('results:'+stageId+':class','ALL');
  const [search,setSearch]=useViewState('results:'+stageId+':search','');
  const [scanOpen,setScanOpen]=useState(false);
+ const [pendingOpen,setPendingOpen]=useState(false),[pendingReady,setPendingReady]=useState(false);
  const handledEntry=useRef('');
  const isVenue=stage.venueActive!==undefined;
  const readOnly=isVenue&&isPastStageCalendar(stage);
  useEditorScroll('results:'+stageId,editor!==null||detail!==null,!loading);
  const load=async()=>{
-  setLoading(true);setError('');
+  setLoading(true);setError('');setPendingReady(false);
   try{
    const [saved,entries]=await Promise.all([
     apiGet<any>('/results/admin/stage/'+encodeURIComponent(stageId)),
     apiGet<any>('/registrations?stageId='+encodeURIComponent(stageId)+'&status=ACTIVE'),
    ]);
-   setResults(listData(saved));setRegistrations(listData(entries));
+   setResults(listData(saved));setRegistrations(listData(entries));setPendingReady(true);
   }catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить судейство этапа')}
   finally{setLoading(false)}
  };
@@ -156,6 +157,7 @@ function ResultsStage({stageControls,stageId,stage,entryId,go,user,ErrorPanel,Lo
   finally{setSaving(false)}
  };
  const stats=judgingOverview(registrations,results);
+ const pendingGroups=pendingOpen&&pendingReady?groupPendingMeasurements(registrations,results):[];
  const classes=[...new Map(registrations.flatMap((r:any)=>(r.classes??[]).map((x:any)=>[x.class?.id,x.class]))).values()]
   .filter(Boolean).sort((a:any,b:any)=>
    (a.direction?.sortOrder??999)-(b.direction?.sortOrder??999)||
@@ -200,7 +202,7 @@ function ResultsStage({stageControls,stageId,stage,entryId,go,user,ErrorPanel,Lo
       <option value="ALL">Все классы</option>
       {classes.map((c:any)=><option key={c.id} value={c.id}>{c.direction?.name?c.direction.name+' · ':''}{c.name}</option>)}
      </select></label>)}<EventOperationsActions viewKey="results"><div className="event-ops-secondary-actions">     <button className="secondary-button compact" type="button" disabled={loading} onClick={()=>void load()}>
-      <RefreshCw size={15}/>Обновить</button>{(search.trim()||classFilter!=='ALL')&&<button className="secondary-button compact judging-filter-reset" type="button" aria-label="Сбросить фильтры результатов" onClick={()=>{setSearch('');setClassFilter('ALL')}}>Сбросить фильтры</button>}<button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))}>Участники и допуски</button>{stats.awaiting>0&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/inspections?stageId='+encodeURIComponent(stageId))}><ShieldAlert size={16}/>Завершить инспекции</button>}</div>{!isVenue && user.role === 'ADMIN' && <BassRaceTextImport stageId={stageId} stageStatus={stage.status} onImported={load}/>}</EventOperationsActions>  <EventOperationsSummary viewKey="results" summary={`Сводка: ${stats.admitted} допущены · ${stats.remaining} классов без результатов · ${stats.entered} внесено`}><section className="judging-summary" aria-label="Сводка судейства">
+      <RefreshCw size={15}/>Обновить</button><button type="button" className="secondary-button compact" aria-expanded={pendingOpen} aria-controls="pending-measurements" disabled={loading} onClick={()=>{setPendingOpen(!pendingOpen);if(!pendingOpen)void load()}}><ClipboardCheck size={16}/>Не выехали на замер</button>{(search.trim()||classFilter!=='ALL')&&<button className="secondary-button compact judging-filter-reset" type="button" aria-label="Сбросить фильтры результатов" onClick={()=>{setSearch('');setClassFilter('ALL')}}>Сбросить фильтры</button>}<button type="button" className="secondary-button compact" onClick={()=>go('/admin/event-day?stageId='+encodeURIComponent(stageId))}>Участники и допуски</button>{stats.awaiting>0&&<button type="button" className="secondary-button compact" onClick={()=>go('/admin/inspections?stageId='+encodeURIComponent(stageId))}><ShieldAlert size={16}/>Завершить инспекции</button>}</div>{!isVenue && user.role === 'ADMIN' && <BassRaceTextImport stageId={stageId} stageStatus={stage.status} onImported={load}/>}</EventOperationsActions>  <EventOperationsSummary viewKey="results" summary={`Сводка: ${stats.admitted} допущены · ${stats.remaining} классов без результатов · ${stats.entered} внесено`}><section className="judging-summary" aria-label="Сводка судейства">
    {[
     {key:'registrations',name:'Регистрации',icon:Users,value:stats.registrations},
     {key:'admitted',name:'Допущены',icon:CheckCircle2,value:stats.admitted},
@@ -213,6 +215,27 @@ function ResultsStage({stageControls,stageId,stage,entryId,go,user,ErrorPanel,Lo
 
   </section>
 </EventOperationsSummary></div>
+    {pendingOpen&&<section id="pending-measurements" className="panel resource-editor-page" aria-label="Участники без замера" aria-busy={loading}>
+     <div className="resource-editor-heading"><div><h2>Не выехали на замер</h2>
+      <p>Допущенные участники без сохранённого результата по классу. Список по всему этапу, независимо от фильтров протокола. Отсутствие результата не подтверждает фактическую неявку.</p></div>
+      <div className="page-actions"><button type="button" className="secondary-button compact" disabled={loading} onClick={()=>void load()}><RefreshCw size={15}/>Обновить список</button><button type="button" className="secondary-button compact" onClick={()=>setPendingOpen(false)}><X size={15}/>Закрыть</button></div>
+     </div>
+     {loading?<LoadingPage small/>:!pendingReady?<p role="alert">Не удалось получить актуальный список. Нажмите «Обновить список».</p>:!pendingGroups.length?<Empty text="У всех допущенных участников внесены результаты по всем классам."/>:<>
+      <p className="judging-quick-help" role="status">Классов без результатов: {pendingGroups.reduce((total,group)=>total+group.rows.length,0)}</p>
+      <div className="table-wrap judging-results"><table className="data-table judging-results-table" aria-label="Список незавершённых замеров по направлениям">
+       <thead><tr><th>Класс</th><th>Номер</th><th>Участник</th><th>Автомобиль</th></tr></thead>
+       <tbody>{pendingGroups.flatMap(group=>[
+        <tr key={'pending-direction-'+group.id} className="results-direction-row"><td colSpan={4}><strong>{group.name}</strong><span>Без результата: {group.rows.length}</span></td></tr>,
+        ...group.rows.map(row=><tr key={row.id}>
+         <td data-label="Класс">{row.registrationClass.class.name||'—'}</td>
+         <td data-label="Номер"><strong>№{row.registrationClass.number?.number??row.registration.participantNumber??'—'}</strong></td>
+         <td data-label="Участник"><strong>{participantName(row.registration.participant)}</strong></td>
+         <td data-label="Авто">{displayCarName(row.registration.car)||'—'}{row.registration.car?.registrationNumber&&<small className="table-sub">{row.registration.car.registrationNumber}</small>}</td>
+        </tr>),
+       ])}</tbody>
+      </table></div>
+     </>}
+    </section>}
     <div id="event-ops-records" className="panel table-wrap judging-results" aria-busy={loading}>
      {loading?<LoadingPage small/>:!filteredResults.length?
       <Empty text={results.length?'По запросу результаты не найдены':'Измерения пока не внесены'}/>:
