@@ -114,3 +114,15 @@ test('home record podium has one luminous hero and adaptive three/two-card carou
  assert.match(css,/prefers-reduced-motion:reduce/);
  assert.doesNotMatch(css,/grid-template-columns:minmax\(0,1fr\)!important/);
 });
+
+test('LIVE carousel uses intrinsic row heights and only the active class determines the viewport height',async()=>{
+ const css=await readFile(new URL('../src/public/home-results.css',import.meta.url),'utf8');
+ const track=css.match(/\.usd-live \.usd-carousel-track\s*\{([^}]+)\}/)?.[1]??'';
+ const inactive=css.match(/\.usd-live \.usd-carousel-slide\[aria-hidden="true"\]\s*\{([^}]+)\}/)?.[1]??'';
+ const entries=css.match(/\.usd-live \.usd-carousel-slide \.usd-live-class-entries\s*\{([^}]+)\}/)?.[1]??'';
+ assert.match(track,/align-items:\s*flex-start/,'do not stretch short classes to match the longest class');
+ assert.match(inactive,/\bheight:\s*0\s*;/,'inactive classes must not reserve vertical space');
+ assert.match(entries,/align-content:\s*start/,'keep each result at its natural height');
+ assert.doesNotMatch(entries,/\bheight:\s*100%/,'do not distribute unused height across results');
+ assert.match(css,/\.usd-live-class-entries\{[^}]*max-height:540px;overflow-y:auto/,'long classes remain scrollable');
+});
