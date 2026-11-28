@@ -468,7 +468,7 @@ export class InspectionsService {
           entity: 'RegistrationClassInspection',
           entityId: id,
           ipAddress: actor.ipAddress ?? null,
-          metadata: { before: { status: current.status, notes: current.notes }, after: { status: updated.status, notes: updated.notes } },
+          metadata: { registrationClassId: current.registrationClassId ?? null, before: { status: current.status, notes: current.notes }, after: { status: updated.status, notes: updated.notes } },
         },
       });
       return updated;
@@ -811,7 +811,7 @@ export class InspectionsService {
             entity: 'Inspection',
             entityId: id,
             ipAddress: actor.ipAddress ?? null,
-            metadata: { before: { status: vehicleInspection.status, notes: vehicleInspection.notes }, after: { status: updated.status, notes: updated.notes } },
+            metadata: { registrationId: vehicleInspection.registrationId ?? null, participantId: vehicleInspection.registration.participantId ?? null, carId: vehicleInspection.registration.carId ?? null, stageId: vehicleInspection.registration.stageId ?? null, before: { status: vehicleInspection.status, notes: vehicleInspection.notes }, after: { status: updated.status, notes: updated.notes } },
           },
         });
         return updated;
@@ -860,7 +860,7 @@ export class InspectionsService {
         include: participantStageInspectionInclude,
       });
       await tx.auditLog.create({
-        data: { userId: actor.userId, action: 'PARTICIPANT_STAGE_INSPECTION_UPDATED', entity: 'ParticipantStageInspection', entityId: id, ipAddress: actor.ipAddress ?? null, metadata: { before: { status: current.status, notes: current.notes }, after: { status: updated.status, notes: updated.notes } } },
+        data: { userId: actor.userId, action: 'PARTICIPANT_STAGE_INSPECTION_UPDATED', entity: 'ParticipantStageInspection', entityId: id, ipAddress: actor.ipAddress ?? null, metadata: { participantId: current.participantId ?? null, stageId: current.stageId ?? null, before: { status: current.status, notes: current.notes }, after: { status: updated.status, notes: updated.notes } } },
       });
       return updated;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
