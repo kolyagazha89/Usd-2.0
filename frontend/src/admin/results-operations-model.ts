@@ -126,3 +126,14 @@ export function groupJudgingResults(rows:R[]):{id:string;name:string;sort:number
   ).map(entry=>entry.row),
  }));
 }
+
+/** Operational call-up list, one row per admitted class entry without a saved
+ * result. Use its own number (including BassRace), not the registration's
+ * primary number; never infer attendance from a missing measurement. */
+export function groupPendingMeasurements(registrations:R[],results:R[]){
+ const rows=registrations.filter(canJudgeRegistration).flatMap(registration=>
+  remainingJudgingClasses(registration,results).map(registrationClass=>({
+   id:registrationClass.id,registration,registrationClass,
+  })));
+ return groupJudgingResults(rows);
+}
