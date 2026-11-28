@@ -1,5 +1,7 @@
 import {AdminEntityLink} from './AdminEntityLink';
 import './stage-report.css';
+import StageAttendanceReport from './StageAttendanceReport';
+import {buildStageAttendanceReport} from './stage-attendance-report';
 import {useEffect,useRef,useState} from 'react';
 import {ArrowLeft,CalendarDays,CheckCircle2,ClipboardCheck,FileText,Printer,RefreshCw,ShieldAlert,Trophy,Users,CarFront} from 'lucide-react';
 import {apiGet,listData} from '../api';
@@ -15,6 +17,7 @@ export default function StageReportPage({path,go,PageFrame,LoadingPage,ErrorPane
  const stageId=currentStageId(path);
  const [stages,setStages]=useState<any[]>([]);
  const [source,setSource]=useState<StageReportSource|null>(null);
+ const [attendance,setAttendance]=useState<ReturnType<typeof buildStageAttendanceReport>|null>(null),[attendanceError,setAttendanceError]=useState('');
  const [loading,setLoading]=useState(false),[error,setError]=useState('');
  const [refresh,setRefresh]=useState(0),request=useRef(0);
  useEffect(()=>{
@@ -33,13 +36,25 @@ export default function StageReportPage({path,go,PageFrame,LoadingPage,ErrorPane
  },[stageId]);
  useEffect(()=>{
   const seq=++request.current;
-  setSource(null);setError('');
+  setSource(null);setError('');setAttendance(null);setAttendanceError('');
   if(!stageId){setLoading(false);return}
   setLoading(true);
-  void apiGet<StageReportSource>('/statistics/stages/'+encodeURIComponent(stageId)).then(data=>{
-   if(seq===request.current)setSource(data);
-  }).catch(e=>{if(seq===request.current)setError(e instanceof Error?e.message:'Не удалось сформировать отчёт')})
-   .finally(()=>{if(seq===request.current)setLoading(false)});
+  void Promise.allSettled([
+   apiGet<StageReportSource>('/statistics/stages/'+encodeURIComponent(stageId)),
+   apiGet<any>('/registrations?stageId='+encodeURIComponent(stageId)),
+  ]).then(([summary,entries])=>{
+   if(seq!==request.current)return;
+   if(summary.status==='fulfilled')setSource(summary.value);
+   else setError(summary.reason instanceof Error?summary.reason.message:'Не удалось сформировать отчёт');
+   if(entries.status==='rejected'){setAttendanceError('Не удалось получить полный реестр регистраций.');return}
+   try{
+    const raw=entries.value;
+    if(!Array.isArray(raw)&&!Array.isArray(raw?.items)&&!Array.isArray(raw?.data)&&!Array.isArray(raw?.results))throw new Error('Реестр регистраций недоступен');
+    const report=buildStageAttendanceReport(listData(raw),stageId);
+    if(summary.status==='fulfilled'&&Number.isFinite(Number(summary.value.stats?.registrations))&&report.active!==Number(summary.value.stats.registrations))throw new Error('Данные изменились при загрузке или реестр неполный. Обновите отчёт.');
+    setAttendance(report);
+   }catch(e){setAttendanceError(e instanceof Error?e.message:'Не удалось сформировать подробную сводку')}
+  }).finally(()=>{if(seq===request.current)setLoading(false)});
   return()=>{request.current++};
  },[stageId,refresh]);
  const report=source?.stage&&source?.stats?buildStageReport(source):null;
@@ -76,9 +91,11 @@ export default function StageReportPage({path,go,PageFrame,LoadingPage,ErrorPane
      {label:'Выступления',value:report.appearances,icon:Trophy},
     ].map(metric=><div className="usd-report-metric" key={metric.label}><metric.icon size={20}/><strong>{number(metric.value)}</strong><span>{metric.label}</span></div>)}
    </section>
+   {attendance?<StageAttendanceReport report={attendance}/>:<section className="usd-report-warnings" role="alert"><strong>Подробная статистика недоступна</strong><p>{attendanceError||'Реестр регистраций не загружен.'} Показана только базовая сводка. Обновите отчёт перед принятием решений.</p></section>}
    <div className="usd-report-columns">
     <section className="usd-report-section">
-     <div className="usd-report-heading"><h3>Инспекция и допуск</h3><span>{report.inspections.percent}% проверено</span></div>
+     <div className="usd-report-heading"><h3>Инспекция и допуск · базовая сводка</h3><span>{report.inspections.percent}% проверено</span></div>
+     {attendance&&<p className="usd-report-help">Подробный блок выше использует действующее решение судейства (общую инспекцию этапа, затем индивидуальную). В базовой статистике приоритет может отличаться для архивных записей.</p>}
      <progress value={report.inspections.completed} max={Math.max(1,report.registrations)} aria-label="Доля проведённых инспекций"/>
      <div className="usd-report-inspections">
       <div><CheckCircle2 size={18}/><strong>{number(report.inspections.passed)}</strong><span>прошли</span></div>
