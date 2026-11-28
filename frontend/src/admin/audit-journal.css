@@ -1,0 +1,53 @@
+/* Audit is an operational timeline, not a raw metadata viewer. */
+.audit-journal{min-width:0;display:grid;gap:14px;color:var(--text)}
+.audit-journal .audit-toolbar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end;margin:0;padding:16px}
+.audit-journal .audit-toolbar label{display:grid;gap:6px;font-size:12px;font-weight:700;color:var(--muted);min-width:0}
+.audit-journal .audit-toolbar :is(input,select){width:100%;min-width:0;min-height:42px;font-size:14px}
+.audit-filter-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.audit-journal-summary{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:12px}
+.audit-journal-summary strong{color:var(--text);font-size:17px}
+.audit-journal-note,.audit-event-muted{font-size:12px;line-height:1.55;color:var(--muted);margin:0}
+.audit-journal .audit-list{gap:12px}
+.audit-journal .audit-event-card{padding:18px;gap:14px;min-width:0;box-shadow:none}
+.audit-event-card[data-tone="danger"] .audit-entry-icon{color:#ae2340;background:#ae234014}
+.audit-event-card[data-tone="positive"] .audit-entry-icon{color:#24805a;background:#24805a14}
+.audit-event-card .audit-entry-main{display:grid;gap:12px;min-width:0}
+.audit-event-header{display:flex;justify-content:space-between;align-items:start;gap:12px;min-width:0}
+.audit-event-header>div{min-width:0}
+.audit-event-category{font-size:11px;color:var(--muted);font-weight:700}
+.audit-event-header h3{font-size:17px;line-height:1.3;margin:3px 0 0;color:var(--text);overflow-wrap:anywhere}
+.audit-event-header time{font-size:11px;color:var(--muted);display:flex;gap:5px;align-items:center;flex-shrink:0}
+.audit-event-context{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:12px}
+.audit-event-context>div{display:grid;gap:4px;align-content:start;padding:12px;border:1px solid var(--border);border-radius:10px;min-width:0}
+.audit-event-label{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--muted)}
+.audit-event-context strong{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.audit-event-context small{font-size:11px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+.audit-change-list{display:grid;gap:8px;min-width:0}
+.audit-change{display:grid;gap:6px;min-width:0}
+.audit-change>strong{font-size:12px;color:var(--muted)}
+.audit-change-values{display:grid;grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr);gap:8px;align-items:center;min-width:0}
+.audit-change-values>div{padding:9px 11px;min-width:0;background:var(--panel-2);border:1px solid var(--border);border-radius:9px}
+.audit-change-values>div:last-child{border-left:3px solid #24805a}
+.audit-change-values span{display:block;color:var(--muted);font-size:11px;font-weight:700}
+.audit-change-values p{font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0 0}
+.audit-change-values>svg{color:var(--muted)}
+.audit-event-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(175px,100%),1fr));gap:8px;margin:0;min-width:0}
+.audit-event-fields>div{padding:9px 11px;border-radius:9px;background:var(--panel-2);min-width:0}
+.audit-event-fields dt{font-size:11px;line-height:1.35;color:var(--muted);font-weight:700}
+.audit-event-fields dd{margin:4px 0 0;font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.audit-event-expand{border-top:1px solid var(--border);padding-top:9px;min-width:0}
+.audit-event-expand summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--text);min-height:28px;overflow-wrap:anywhere}
+.audit-event-expand[open]>*+*{margin-top:10px}
+.audit-event-technical dd{font-size:11px;color:var(--muted)}
+@media(max-width:900px){.audit-journal .audit-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){
+ .audit-journal .audit-toolbar{grid-template-columns:minmax(0,1fr);padding:12px}
+ .audit-journal .audit-event-card{padding:12px;gap:8px}
+ .audit-event-card .audit-entry-icon{width:28px;height:28px;border-radius:8px}
+ .audit-event-header{flex-direction:column;gap:6px}
+ .audit-event-header time{flex-shrink:1;flex-wrap:wrap}
+ .audit-event-context{grid-template-columns:minmax(0,1fr);gap:8px}
+ .audit-change-values{grid-template-columns:minmax(0,1fr);gap:5px}
+ .audit-change-values>svg{transform:rotate(90deg);justify-self:center}
+ .audit-event-fields{grid-template-columns:minmax(0,1fr)}
+}
