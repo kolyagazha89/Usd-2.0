@@ -169,7 +169,7 @@ export async function getDashboard(){return request<Dashboard>('/statistics/dash
 export async function getStageStatistics(stageId:string){return request<any>('/statistics/stages/'+encodeURIComponent(stageId));}
 export async function getDataQuality(){return request<{success:boolean;generatedAt:string;counts:{total:number;error:number;warning:number;info:number};healthy:boolean;issues?:any[]}>('/statistics/data-quality/report');}
 export async function prepareHistoricalImport(){return apiPost<any>('/imports/historical/prepare',{});}
-export async function getAudit(page=1,limit=50,entity='',action=''){const q=new URLSearchParams({page:String(page),limit:String(limit)});if(entity)q.set('entity',entity);if(action)q.set('action',action);return request<any>(`/statistics/audit?${q}`);}
+export async function getAudit(page=1,limit=50,entity='',action='',filters:{search?:string;from?:string;to?:string}={}){const q=new URLSearchParams({page:String(page),limit:String(limit)});if(entity)q.set('entity',entity);if(action)q.set('action',action);if(filters.search)q.set('search',filters.search);if(filters.from)q.set('from',filters.from);if(filters.to)q.set('to',filters.to);return request<any>(`/statistics/audit?${q}`);}
 export async function apiGet<T=any>(path:string){return request<T>(path);}
 export async function apiPost<T=any>(path:string,body:any){return request<T>(path,{method:'POST',body:JSON.stringify(body)});}
 export async function apiPatch<T=any>(path:string,body:any){return request<T>(path,{method:'PATCH',body:JSON.stringify(body)});}
