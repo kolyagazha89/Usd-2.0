@@ -26,7 +26,7 @@ export function buildStageAttendanceReport(input:Row[],stageId:string){
  const registrations=all.map(r=>{
   const inspection=statusOf(r);
   const measuredIds=new Set(r.results.map((m:Row)=>String(m.registrationClassId??m.registrationClass?.id)));
-  const classes=r.classes.map((c:Row)=>{
+  const classes=(r.classes as Row[]).map(c=>{
    const id=String(c.id),saved=r.results.filter((m:Row)=>String(m.registrationClassId??m.registrationClass?.id)===id);
    return {classId:id,catalogId:String(c.class.id),name:String(c.class.name??'Класс'),direction:String(c.class.direction?.name??'Без направления'),directionId:String(c.class.direction?.id??c.class.direction?.name??''),directionOrder:order(c.class.direction?.sortOrder),classOrder:order(c.class.sortOrder),number:num(c.number?.number)??num(r.participantNumber),measured:measuredIds.has(id),results:saved.map((m:Row)=>({value:String(m.value??'—'),unit:String(m.unit??c.class.unit??''),place:m.place??null}))};
   });
@@ -36,7 +36,7 @@ export function buildStageAttendanceReport(input:Row[],stageId:string){
  const current=registrations.filter(r=>r.status==='ACTIVE');
  const unconfirmed=current.filter(r=>r.source==='PRE_REGISTRATION'&&!r.evidence);
  const unconfirmedPeople=unconfirmed.filter((r,i,rows)=>!evidencedPeople.has(r.personId)&&rows.findIndex(x=>x.personId===r.personId)===i);
- const classRows=current.flatMap(r=>r.classes.map((c:Row)=>({...c,registrationId:r.id,personId:r.personId,carId:r.carId,participant:r.participant,car:r.car,plate:r.plate,source:r.source,inspection:r.inspection,evidence:r.evidence,team:r.team})));
+ const classRows=current.flatMap(r=>r.classes.map(c=>({...c,registrationId:r.id,personId:r.personId,carId:r.carId,participant:r.participant,car:r.car,plate:r.plate,source:r.source,inspection:r.inspection,evidence:r.evidence,team:r.team})));
  classRows.sort((a,b)=>a.directionOrder-b.directionOrder||collator.compare(a.direction,b.direction)||a.classOrder-b.classOrder||collator.compare(a.name,b.name)||(a.number??Infinity)-(b.number??Infinity));
  function summarize(rows:typeof classRows){
   return {entries:rows.length,people:unique(rows,r=>r.personId),cars:unique(rows,r=>r.carId),pre:rows.filter(r=>r.source==='PRE_REGISTRATION').length,onSite:rows.filter(r=>r.source==='ON_SITE').length,other:rows.filter(r=>r.source!=='PRE_REGISTRATION'&&r.source!=='ON_SITE').length,unconfirmed:rows.filter(r=>r.source==='PRE_REGISTRATION'&&!r.evidence).length,passed:rows.filter(r=>r.inspection==='PASSED').length,failed:rows.filter(r=>r.inspection==='FAILED').length,pending:rows.filter(r=>r.inspection==='PENDING').length,measured:rows.filter(r=>r.measured).length,missing:rows.filter(r=>r.inspection==='PASSED'&&!r.measured).length,measuredWithoutAdmission:rows.filter(r=>r.inspection!=='PASSED'&&r.measured).length};
@@ -45,13 +45,14 @@ export function buildStageAttendanceReport(input:Row[],stageId:string){
  const admitted=current.filter(r=>r.inspection==='PASSED');
  const pendingRows=classRows.filter(r=>r.inspection==='PASSED'&&!r.measured);
  const measuredRows=classRows.filter(r=>r.measured);
+ const totals=summarize(classRows);
  return {total:all.length,active:active.length,cancelled:all.length-active.length,people:unique(active,personOf),cars:unique(active,carOf),
   prePeople:unique(pre,personOf),onSitePeople:unique(active.filter(r=>sourceOf(r)==='ON_SITE'),personOf),
   arrivalEvidence:current.filter(r=>r.evidence).length,arrivalPeople:unique(active.filter(r=>evidencedPeople.has(personOf(r))),personOf),
   sources:sources.map(source=>{const rows=all.filter(r=>sourceOf(r)===source),live=rows.filter(r=>r.status==='ACTIVE');return {source,total:rows.length,active:live.length,cancelled:rows.length-live.length,people:unique(live,personOf),cars:unique(live,carOf),inspected:live.filter(r=>statusOf(r)!=='PENDING').length,passed:live.filter(r=>statusOf(r)==='PASSED').length,failed:live.filter(r=>statusOf(r)==='FAILED').length,pending:live.filter(r=>statusOf(r)==='PENDING').length,arrivalEvidence:live.filter(hasEvidence).length}}),
   inspected:current.filter(r=>r.inspection!=='PENDING').length,passed:admitted.length,failed:current.filter(r=>r.inspection==='FAILED').length,pending:current.filter(r=>r.inspection==='PENDING').length,
   complete:admitted.filter(r=>r.classes.length>0&&r.missing===0).length,partial:admitted.filter(r=>r.measured>0&&r.missing>0).length,noMeasurements:admitted.filter(r=>r.classes.length>0&&r.measured===0).length,noClasses:admitted.filter(r=>r.classes.length===0).length,
-  ...Object.fromEntries(Object.entries(summarize(classRows)).filter(([key])=>['entries','measured','missing','measuredWithoutAdmission'].includes(key))) as {entries:number;measured:number;missing:number;measuredWithoutAdmission:number},
+  entries:totals.entries,measured:totals.measured,missing:totals.missing,measuredWithoutAdmission:totals.measuredWithoutAdmission,
   measuredPeople:unique(measuredRows,r=>r.personId),missingPeople:unique(pendingRows,r=>r.personId),orphanResults:current.reduce((n,r)=>n+r.orphanResults,0),
   directions:grouped(r=>r.directionId).map(rows=>({id:rows[0].directionId,name:rows[0].direction,...summarize(rows)})),
   classes:grouped(r=>r.catalogId).map(rows=>({id:rows[0].catalogId,name:rows[0].name,direction:rows[0].direction,...summarize(rows)})),
