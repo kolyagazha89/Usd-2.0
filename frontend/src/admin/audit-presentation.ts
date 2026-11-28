@@ -15,19 +15,20 @@ const record=(v:unknown):Row=>v&&typeof v==='object'&&!Array.isArray(v)?v as Row
 const clean=(v:unknown)=>typeof v==='string'?v.trim():'';
 const hidden=(key:string)=>/password|passwd|token|secret|hash|credential|authorization|cookie|session|privatekey|apikey|signature|nonce|^id$|ids?$|^key$/i.test(key);
 const human=(key:string)=>key.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/_/g,' ');
-const label=(key:string)=>fields[key]??human(key);
-export function auditEntityName(key:string){return entities[key]??(human(key)||'Раздел не указан')}
+const own=(map:Record<string,string>,key:string)=>Object.hasOwn(map,key)?map[key]:undefined;
+const label=(key:string)=>own(fields,key)??human(key);
+export function auditEntityName(key:string){return own(entities,key)??(human(key)||'Раздел не указан')}
 export function auditActionName(key:string){
- if(actions[key])return actions[key];
+ const translated=own(actions,key);if(translated)return translated;
  const [verb,...rest]=key.split('_').reverse(),entity=rest.reverse().join('').toLowerCase();
  const known=Object.keys(entities).find(k=>k.toLowerCase()===entity);
- return verbs[verb]&&known?verbs[verb]+': '+entities[known]:'Событие: '+(key||'тип не указан');
+ return own(verbs,verb)&&known?verbs[verb]+': '+entities[known]:'Событие: '+(key||'тип не указан');
 }
 function scalar(value:unknown):string{
  if(value===null||value===undefined||value==='')return 'Не указано';
  if(typeof value==='boolean')return value?'Да':'Нет';
  if(typeof value==='string'){
-  if(values[value])return values[value];
+  const translated=own(values,value);if(translated)return translated;
   if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:/.test(value)){const date=new Date(value);if(Number.isFinite(date.getTime()))return date.toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})+' МСК'}
   return value;
  }
@@ -57,8 +58,8 @@ export function describeAuditEvent(item:Row,roleNames:Record<string,string>={}){
  const stage=record(reg.stage??context.stage??meta.stage);
  const personName=[person.lastName,person.firstName,person.middleName].map(clean).filter(Boolean).join(' ')||clean(meta.participantName);
  const carName=[car.brand,car.model].map(clean).filter(Boolean).join(' ')||clean(meta.carName);
- const stageName=clean(stage.name)||clean(meta.stageName);
- const className=clean(context.className)||clean(meta.className);
+ const stageName=clean(meta.stageName)||clean(stage.name);
+ const className=clean(meta.className)||clean(context.className);
  const number=context.number??reg.participantNumber??meta.participantNumber;
  const target=[number!=null&&Number(number)>0?'№'+number:'',personName,carName,className,stageName].filter(Boolean).join(' · ')||clean(context.label)||clean(meta.name)||auditEntityName(String(item.entity??''));
  const before=Object.hasOwn(meta,'before')?flatten(meta.before):[],after=Object.hasOwn(meta,'after')?flatten(meta.after):[];
@@ -74,5 +75,5 @@ export function describeAuditEvent(item:Row,roleNames:Record<string,string>={}){
  const details=Object.entries(meta).filter(([k])=>!['before','after'].includes(k)).flatMap(([k,v])=>flatten(v,[k]));
  if(!Object.hasOwn(meta,'after'))details.push(...before.map(f=>({...f,key:'before.'+f.key,label:'До изменения / '+f.label})));
  if(!Object.hasOwn(meta,'before'))details.push(...after.map(f=>({...f,key:'after.'+f.key,label:'После изменения / '+f.label})));
- return {action:auditActionName(String(item.action??'')),entity:auditEntityName(String(item.entity??'')),actor:clean(user.name)||clean(user.email)||(item.userId?'Автор недоступен':'Автор не указан'),email:clean(user.name)?clean(user.email):'',role:clean(user.customRole?.name)||roleNames[user.role]||values[user.role]||'Роль не сохранена',target,changes,details,contextResolved:Boolean(Object.keys(context).length),hasSnapshots:Object.hasOwn(meta,'before')&&Object.hasOwn(meta,'after')};
+ return {action:auditActionName(String(item.action??'')),entity:auditEntityName(String(item.entity??'')),actor:clean(user.name)||clean(user.email)||(item.userId?'Автор недоступен':'Автор не указан'),email:clean(user.name)?clean(user.email):'',role:clean(user.customRole?.name)||own(roleNames,String(user.role??''))||own(values,String(user.role??''))||'Роль не сохранена',target,changes,details,contextResolved:Boolean(Object.keys(context).length),hasSnapshots:Object.hasOwn(meta,'before')&&Object.hasOwn(meta,'after')};
 }
