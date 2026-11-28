@@ -94,3 +94,22 @@ body .app-shell .main .content .statistics-stage-report{background:#fff!importan
 .usd-report-launch select{display:block;width:100%;min-width:0;min-height:46px;padding:9px 12px;border:1px solid #cbd1db;border-radius:11px;background:#fff;color:#232831;font-size:16px}
 .usd-report-launch .primary-button{margin:0;min-height:46px}
 @media(max-width:580px){.usd-report-launch{display:grid;grid-template-columns:minmax(0,1fr)}.usd-report-launch label{min-width:0}.usd-report-launch .primary-button{width:100%}}
+
+/* Long operational rosters can span pages; repeat the table headings on print. */
+.usd-report-detail-table td{overflow-wrap:anywhere}
+.usd-report-detail-table td[data-label="Классы"]>div{min-width:0}
+.usd-report-detail-table td[data-label="Классы"]>div>div+div{margin-top:6px}
+.usd-report-section>.usd-report-metrics{margin-bottom:16px}
+.usd-report-section .usd-report-metric>strong{grid-column:1/-1}
+@media(max-width:700px){
+ .usd-report-detail-table td{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:8px}
+ .usd-report-detail-table td::before{text-align:left}
+ .usd-report-detail-table td>*{min-width:0}
+ .usd-report-detail-table td small{grid-column:2}
+}
+@media print{
+ .usd-report-detail-section{break-inside:auto;page-break-inside:auto}
+ .usd-report-detail-section .usd-report-heading{break-after:avoid}
+ .usd-report-detail-table{table-layout:fixed;min-width:0;font-size:9px}
+ .usd-report-detail-table th{font-size:8px}
+}
