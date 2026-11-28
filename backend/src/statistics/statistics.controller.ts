@@ -30,8 +30,11 @@ export class StatisticsController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit = 50,
     @Query('entity') entity?: string,
     @Query('action') action?: string,
+    @Query('search') search?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.auditService.list({ page, limit, entity, action });
+    return this.auditService.list({ page, limit, entity, action, search, from, to });
   }
 
   @Get('data-quality/report')

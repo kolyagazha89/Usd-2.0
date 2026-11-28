@@ -79,8 +79,16 @@
  min-width:0;
  box-sizing:border-box;
 }
+/* LIVE classes have independent natural heights. Inactive slides keep their
+ * contents/scroll state for horizontal motion but do not size the flex track. */
+.usd-live .usd-carousel-track {
+ align-items:flex-start;
+}
+.usd-live .usd-carousel-slide[aria-hidden="true"] {
+ height:0;
+}
 .usd-live .usd-carousel-slide .usd-live-class-entries {
- height:100%;
+ align-content:start;
  min-width:0;
  animation:none;
 }

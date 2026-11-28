@@ -800,6 +800,12 @@ export class ResultsService {
             entityId: id,
             ipAddress: request.ip,
             metadata: {
+              registrationId: existing.registrationId ?? null,
+              registrationClassId: existing.registrationClassId ?? null,
+              participantId: existing.registration.participantId,
+              carId: existing.registration.carId ?? null,
+              stageId: existing.registration.stageId,
+              className: existing.registrationClass.class.name,
               before,
               after: {
                 value: updated.value.toString(),
